@@ -20,14 +20,9 @@ interface FogOverlayProps {
   rotation?: number; // Optional map rotation angle in degrees
 }
 
-/**
- * FogOverlay component renders a fog layer over the map with transparent "holes"
- * along the user's path. Uses Skia for GPU-accelerated rendering.
- */
-const FogOverlay: React.FC<FogOverlayProps> = ({ mapRegion, rotation = 0 }) => {
-  // Select the path of GeoPoints and current location from Redux
+// Hook for calculating fog rendering properties
+const useFogCalculations = (mapRegion: MapRegion & { width: number; height: number }) => {
   const pathPoints = useSelector((state: RootState) => state.exploration.path);
-  const currentLocation = useSelector((state: RootState) => state.exploration.currentLocation);
 
   // Compute the Skia path from geo points
   const skiaPath = useMemo(() => {
@@ -52,7 +47,6 @@ const FogOverlay: React.FC<FogOverlayProps> = ({ mapRegion, rotation = 0 }) => {
   // Calculate radius in pixels based on the current zoom level
   const radiusPixels = useMemo(() => {
     const metersPerPixel = calculateMetersPerPixel(mapRegion);
-    // Remove minimum pixel size to prevent "cheating" by zooming out
     return FOG_RADIUS_METERS / metersPerPixel;
   }, [mapRegion]);
 
@@ -61,7 +55,16 @@ const FogOverlay: React.FC<FogOverlayProps> = ({ mapRegion, rotation = 0 }) => {
     return radiusPixels * 1.8; // Use 90% of the full diameter for the path
   }, [radiusPixels]);
 
-  // Performance optimization: Use a debounced render for high-frequency updates
+  return {
+    pathPoints,
+    skiaPath,
+    radiusPixels,
+    strokeWidth,
+  };
+};
+
+// Hook for performance optimization and debugging
+const useFogPerformance = (pathPoints: any[], radiusPixels: number, strokeWidth: number) => {
   const lastRenderTime = useRef(0);
   const RENDER_THROTTLE_MS = 16; // Throttle to ~60fps
 
@@ -77,16 +80,22 @@ const FogOverlay: React.FC<FogOverlayProps> = ({ mapRegion, rotation = 0 }) => {
 
   // Debug logging
   useEffect(() => {
-    // Skip logging for high-frequency updates to reduce console noise
     if (!shouldSkipRender()) {
       console.log(
         `FogOverlay: rendering with ${pathPoints.length} points, radius: ${radiusPixels.toFixed(2)}px, stroke: ${strokeWidth.toFixed(2)}px`
       );
     }
   }, [pathPoints, radiusPixels, strokeWidth]);
+};
 
-  // Calculate transform for rotation if needed - now uses current GPS location as pivot
-  const canvasTransform = useMemo(() => {
+// Hook for calculating canvas transformations
+const useCanvasTransform = (
+  rotation: number,
+  mapRegion: MapRegion & { width: number; height: number }
+) => {
+  const currentLocation = useSelector((state: RootState) => state.exploration.currentLocation);
+
+  return useMemo(() => {
     if (rotation === 0) return undefined;
 
     // Use current location as the center of rotation if available
@@ -109,6 +118,18 @@ const FogOverlay: React.FC<FogOverlayProps> = ({ mapRegion, rotation = 0 }) => {
       { translateY: -centerY },
     ];
   }, [rotation, mapRegion, currentLocation]);
+};
+
+/**
+ * FogOverlay component renders a fog layer over the map with transparent "holes"
+ * along the user's path. Uses Skia for GPU-accelerated rendering.
+ */
+const FogOverlay: React.FC<FogOverlayProps> = ({ mapRegion, rotation = 0 }) => {
+  const { pathPoints, skiaPath, radiusPixels, strokeWidth } = useFogCalculations(mapRegion);
+  const canvasTransform = useCanvasTransform(rotation, mapRegion);
+  
+  // Performance optimization hook
+  useFogPerformance(pathPoints, radiusPixels, strokeWidth);
 
   return (
     <Canvas style={styles.canvas} pointerEvents="none">

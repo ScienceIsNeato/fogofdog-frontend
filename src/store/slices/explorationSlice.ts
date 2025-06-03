@@ -26,22 +26,14 @@ const haversineDistance = (coords1: GeoPoint, coords2: GeoPoint): number => {
 
 // Helper function to validate a GeoPoint
 const isValidGeoPoint = (point: GeoPoint): boolean => {
-  // Check if latitude and longitude are finite numbers
-  if (!Number.isFinite(point.latitude) || !Number.isFinite(point.longitude)) {
-    return false;
-  }
-
-  // Check if latitude is within range [-90, 90]
-  if (point.latitude < -90 || point.latitude > 90) {
-    return false;
-  }
-
-  // Check if longitude is within range [-180, 180]
-  if (point.longitude < -180 || point.longitude > 180) {
-    return false;
-  }
-
-  return true;
+  return (
+    Number.isFinite(point.latitude) &&
+    Number.isFinite(point.longitude) &&
+    point.latitude >= -90 &&
+    point.latitude <= 90 &&
+    point.longitude >= -180 &&
+    point.longitude <= 180
+  );
 };
 
 // Reduced minimum distance to ensure more regular fog holes

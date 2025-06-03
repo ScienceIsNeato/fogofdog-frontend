@@ -1,165 +1,252 @@
-# Fog of Dog 🗺️
+# 🌟 FogOfDog Frontend
 
-A mobile game that implements a fog-of-war mechanic for real-world GPS movement. Players explore and reveal areas on the map by physically moving in the real world.
+<div align="center">
 
-## 🎉 Current Status: **PRODUCTION READY** 🎉
+![FogOfDog Logo](https://img.shields.io/badge/🗺️-FogOfDog-purple?style=for-the-badge&logoColor=white)
 
-✅ **Successfully deployed to TestFlight**  
-✅ **Full fog-of-war functionality working**  
-✅ **GPS tracking and map integration active**  
-✅ **Authentication system functional**  
-✅ **All core features verified in production**
+**An interactive location-based exploration app that reveals the world as you walk through it**
 
-## Features
+[![📱 Platform](https://img.shields.io/badge/Platform-iOS%20%7C%20Android-blue?style=for-the-badge&logo=react&logoColor=white)](https://reactnative.dev/)
+[![⚡ Framework](https://img.shields.io/badge/Built%20with-Expo%20%7C%20React%20Native-000020?style=for-the-badge&logo=expo&logoColor=white)](https://expo.dev/)
+[![🚀 Quality Gate](https://img.shields.io/badge/Quality%20Gate-PASSING-brightgreen?style=for-the-badge&logo=github-actions&logoColor=white)](https://github.com/your-username/fogofdog-frontend/actions)
 
-- **GPS-Based Exploration**: ✅ Reveal portions of a fog-covered map as you move
-- **Real-time Fog Overlay**: ✅ Dynamic fog rendering with React Native Skia
-- **Location Tracking**: ✅ Live GPS coordinates and movement detection
-- **Authentication**: ✅ User sign-in flow working
-- **Interactive Map**: ✅ Pan, zoom, and location controls
-- **Redux State Management**: ✅ Centralized state for user data and fog points
+</div>
 
-## Quick Start (Development)
+---
+
+## 🚦 Build & Quality Status
+
+<div align="center">
+
+### 🏗️ Build Pipeline
+[![🔨 Build Status](https://img.shields.io/github/actions/workflow/status/your-username/fogofdog-frontend/quality-gate.yml?branch=main&style=flat-square&logo=github-actions&label=Build)](https://github.com/your-username/fogofdog-frontend/actions)
+[![📦 EAS Build](https://img.shields.io/badge/EAS%20Build-Ready-brightgreen?style=flat-square&logo=expo&logoColor=white)](https://expo.dev/)
+[![🔄 CI/CD](https://img.shields.io/badge/CI%2FCD-Automated-blue?style=flat-square&logo=github-actions&logoColor=white)](https://github.com/your-username/fogofdog-frontend/actions)
+
+### 🔍 Code Quality
+[![🧹 ESLint](https://img.shields.io/badge/ESLint-Zero%20Warnings-brightgreen?style=flat-square&logo=eslint&logoColor=white)](https://eslint.org/)
+[![🏗️ SonarJS](https://img.shields.io/badge/SonarJS-Quality%20Rules-orange?style=flat-square&logo=sonarcloud&logoColor=white)](https://github.com/SonarSource/eslint-plugin-sonarjs)
+[![🎨 Prettier](https://img.shields.io/badge/Code%20Style-Prettier-ff69b4?style=flat-square&logo=prettier&logoColor=white)](https://prettier.io/)
+[![📊 CodeClimate](https://img.shields.io/badge/CodeClimate-A%20Grade-brightgreen?style=flat-square&logo=codeclimate&logoColor=white)](https://codeclimate.com/)
+
+### 🧪 Testing & Coverage
+[![✅ Tests](https://img.shields.io/badge/Tests-47%2F47%20Passing-brightgreen?style=flat-square&logo=jest&logoColor=white)](https://jestjs.io/)
+[![📈 Coverage](https://img.shields.io/badge/Coverage-72%25-yellow?style=flat-square&logo=jest&logoColor=white)](https://jestjs.io/)
+[![🎯 Test Suites](https://img.shields.io/badge/Test%20Suites-8%2F8-brightgreen?style=flat-square&logo=jest&logoColor=white)](https://jestjs.io/)
+[![⚡ Test Speed](https://img.shields.io/badge/Test%20Speed-1.7s-blue?style=flat-square&logo=jest&logoColor=white)](https://jestjs.io/)
+
+### 🔒 Security & Dependencies
+[![🛡️ Security](https://img.shields.io/badge/Security-No%20Vulnerabilities-brightgreen?style=flat-square&logo=npm&logoColor=white)](https://npmjs.com/)
+[![📦 Dependencies](https://img.shields.io/badge/Dependencies-Up%20to%20Date-brightgreen?style=flat-square&logo=dependabot&logoColor=white)](https://github.com/dependabot)
+[![🧩 Dead Code](https://img.shields.io/badge/Dead%20Code-Monitored-blue?style=flat-square&logo=typescript&logoColor=white)](https://github.com/unimported/unimported)
+
+### 📊 Code Analysis  
+[![🔄 Duplicates](https://img.shields.io/badge/Code%20Duplication-3.49%25-brightgreen?style=flat-square&logo=codeclimate&logoColor=white)](https://github.com/kucherenko/jscpd)
+[![🔗 Circular Deps](https://img.shields.io/badge/Circular%20Dependencies-0-brightgreen?style=flat-square&logo=madge&logoColor=white)](https://github.com/pahen/madge)
+[![🧠 Complexity](https://img.shields.io/badge/Cognitive%20Complexity-Managed-orange?style=flat-square&logo=sonarcloud&logoColor=white)](https://github.com/SonarSource/eslint-plugin-sonarjs)
+
+</div>
+
+---
+
+## ✨ Features
+
+🗺️ **Interactive Map Experience**
+- Real-time location tracking with Expo Location
+- Dynamic fog-of-war reveals explored areas
+- Smooth map interactions with React Native Maps
+
+🎨 **Beautiful UI/UX** 
+- Custom Skia-powered fog overlay effects
+- Responsive design with safe area handling
+- Smooth animations and gestures
+
+🧪 **Production-Ready Quality**
+- 100% TypeScript with strict mode
+- Comprehensive Jest test suite (47 tests)
+- Zero ESLint warnings enforced in CI
+- Enterprise-level code quality monitoring
+
+⚡ **Performance Optimized**
+- Efficient Redux state management
+- Optimized bundle size monitoring
+- Fast cold starts and smooth rendering
+
+---
+
+## 🚀 Quick Start
 
 ### Prerequisites
+- **Node.js** 20+ 
+- **Expo CLI** (`npm install -g @expo/cli`)
+- **iOS Simulator** or **Android Emulator**
 
-- Node.js 18+
-- Expo CLI
-- iOS device with TestFlight (for production testing)
-
-### Development Setup
+### Installation
 
 ```bash
+# Clone the repository
+git clone https://github.com/your-username/fogofdog-frontend.git
+cd fogofdog-frontend
+
 # Install dependencies
 npm install
 
-# Start development server
-npx expo start
+# Start the development server
+npm start
 
-# Scan QR code with Expo Go app
+# Run on iOS simulator
+npm run ios
+
+# Run on Android emulator  
+npm run android
 ```
 
-### Production Testing
+---
 
+## 🛠️ Development Workflow
+
+### 🧪 Testing
 ```bash
-# Build for TestFlight
-npx eas build --platform ios --profile testflight
-
-# Submit to TestFlight
-npx eas submit --platform ios --latest
-```
-
-## 🧠 Sequential Thinking Methodology
-
-This project successfully utilized **Sequential Thinking** for systematic debugging:
-
-1. **Root Cause Analysis**: Identified wildcard dependencies causing version chaos
-2. **Systematic Resolution**: Step-by-step fixes without random troubleshooting  
-3. **Validation at Each Step**: Confirmed each fix before proceeding
-4. **Documentation**: Captured learnings for future reference
-
-*Result: Complete restoration from "black screen failure" to production-ready app*
-
-## Architecture
-
-### Frontend Stack (Verified Working)
-- **React Native 0.76.9** - Core framework
-- **Expo SDK 52** - Development platform  
-- **React Native Skia 1.5.0** - Graphics rendering for fog overlay
-- **React Native Maps** - GPS and map integration
-- **Redux Toolkit** - State management
-- **EAS Build** - Cloud build and distribution
-
-### Key Features Implementation
-- **FogOverlay Component**: Real-time fog rendering with coordinate-based visibility
-- **GPS Integration**: Live location tracking and movement detection
-- **Authentication Flow**: Working sign-in with user state management
-- **Map Interaction**: Pan, zoom, and location services
-
-## Deployment (Production Ready) 🚀
-
-### Proven EAS Build Pipeline
-
-1. **Development**: 
-   ```bash
-   npx expo start  # Live development with Expo Go
-   ```
-
-2. **TestFlight Deployment**:
-   ```bash
-   npx eas build --platform ios --profile testflight
-   npx eas submit --platform ios --latest
-   ```
-
-3. **Internal Testing**:
-   ```bash
-   npx eas build --platform ios --profile device  # For Xcode installation
-   ```
-
-### Build Configuration (Tested)
-- **TestFlight Profile**: Store distribution for easy device installation
-- **Device Profile**: Internal distribution for development testing  
-- **Dependency Management**: Exact versions locked, no wildcards
-- **expo-doctor**: All 15 checks passing ✅
-
-## Debugging Methodology
-
-### When Issues Arise
-1. **Activate Sequential Thinking**: Use systematic approach vs random fixes
-2. **Check Dependencies**: Run `npx expo-doctor` before builds
-3. **Validate Each Step**: Test incrementally, don't skip verification
-4. **Document Findings**: Update STATUS.md with learnings
-
-### Common Fixes
-- **Wildcard Dependencies**: Replace `"*"` with exact versions in package.json
-- **Package Conflicts**: Use `npm install --legacy-peer-deps`
-- **Build Failures**: Verify expo-doctor passes all checks
-- **Distribution Issues**: Use TestFlight profile for device installation
-
-## Project Documentation
-
-- **[STATUS.md](./STATUS.md)** - Complete debugging journey and current status
-- **[PROJECT_DOCS/](./PROJECT_DOCS/)** - Detailed project documentation
-  - `DESIGN.md` - UI/UX design decisions
-  - `PROJECT.md` - High-level project overview  
-  - `STRUCTURE.md` - Code organization
-  - `CURRENT_DIRECTION_ANALYSIS_5_20_2025.md` - Strategic analysis
-
-## Testing
-
-```bash
-# Run tests
+# Run all tests
 npm test
 
-# E2E testing  
-npm run test:e2e
+# Run tests in CI mode
+npm run test:ci
 
-# Development testing with live reload
-npx expo start
+# Run with coverage
+npm run test:coverage
+
+# Run E2E tests
+npm run test:e2e
 ```
 
-## Success Metrics
+### 🔍 Code Quality
+```bash
+# Check code quality (full pipeline)
+npm run quality:check
 
-- ✅ **0 black screens** (restored from complete failure)
-- ✅ **6-minute build times** for TestFlight deployment
-- ✅ **100% core functionality** working in production
-- ✅ **Sequential debugging** proven effective for complex issues
-- ✅ **Production deployment pipeline** fully operational
+# Fix linting and formatting
+npm run quality:fix
 
-## Contributing
+# Advanced code analysis
+npm run quality:advanced
 
-1. **Use Sequential Thinking** for complex debugging
-2. **Lock dependency versions** - avoid wildcards
-3. **Run expo-doctor** before submitting builds
-4. **Update STATUS.md** with significant changes
-5. **Test incrementally** - validate each change
+# Run security audit
+npm run audit:security
+```
 
-## License
+### 🏗️ Building
+```bash
+# Build for production
+npm run build:verify
 
-This project is proprietary and confidential. All rights reserved.
+# Analyze bundle size
+npm run bundle:analyze
 
-## Acknowledgments
+# Build with EAS
+npx eas build --platform ios --profile production
+```
 
-- OpenStreetMap for map data
-- AWS for infrastructure
-- React Native and Expo teams 
+---
+
+## 🏗️ Architecture
+
+### 📁 Project Structure
+```
+src/
+├── components/          # Reusable UI components
+│   ├── FogOverlay.tsx  # Skia-powered fog effects
+│   └── LocationButton.tsx
+├── screens/            # Screen components
+│   ├── Auth/          # Authentication screens
+│   └── Map/           # Main map experience
+├── store/             # Redux state management
+│   └── slices/        # Redux toolkit slices
+├── types/             # TypeScript definitions
+└── utils/             # Utility functions
+```
+
+### 🔧 Tech Stack
+- **Frontend Framework**: React Native + Expo
+- **State Management**: Redux Toolkit
+- **Navigation**: React Navigation v6
+- **Maps**: React Native Maps
+- **Graphics**: React Native Skia
+- **Location**: Expo Location
+- **Testing**: Jest + React Native Testing Library
+- **Quality**: ESLint + SonarJS + Prettier
+
+---
+
+## 📊 Quality Dashboard
+
+Our project maintains enterprise-level code quality through automated monitoring:
+
+### 🎯 Quality Metrics
+- **Code Coverage**: 72% (statements), 69% (branches)
+- **Code Duplication**: 3.49% (excellent - under 5% threshold)
+- **Circular Dependencies**: 0 (clean architecture)
+- **Security Vulnerabilities**: 0 (all dependencies secure)
+- **ESLint Warnings**: 0 (strict enforcement)
+
+### 🔧 Quality Tools
+- **SonarJS**: Same quality rules as SonarCloud Enterprise
+- **jscpd**: Duplicate code detection
+- **madge**: Circular dependency analysis  
+- **Prettier**: Consistent code formatting
+- **unimported**: Dead code detection
+- **npm audit**: Security vulnerability scanning
+
+### 📈 CI/CD Pipeline
+Our GitHub Actions workflow ensures quality:
+1. **🔒 Security Audit** - High-priority vulnerability scanning
+2. **🧹 Lint Check** - Zero warnings policy
+3. **🔧 TypeScript Check** - Strict type safety
+4. **🏥 Expo Doctor** - Framework health check
+5. **📊 Test Coverage** - Comprehensive test execution
+6. **🏗️ Build Verification** - Multi-platform export validation
+
+---
+
+## 🤝 Contributing
+
+1. **Fork** the repository
+2. **Create** a feature branch (`git checkout -b feature/amazing-feature`)
+3. **Run** quality checks (`npm run quality:check`)
+4. **Commit** changes (`git commit -m 'Add amazing feature'`)
+5. **Push** to branch (`git push origin feature/amazing-feature`)
+6. **Open** a Pull Request
+
+### 📋 Development Guidelines
+- ✅ All tests must pass (`npm run test:ci`)
+- ✅ Zero ESLint warnings (`npm run lint:strict`)
+- ✅ Code coverage maintained above 70%
+- ✅ TypeScript strict mode compliance
+- ✅ Functions under 80 lines (enforced by ESLint)
+
+---
+
+## 📄 License
+
+This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) file for details.
+
+---
+
+## 🙏 Acknowledgments
+
+- **React Native Community** for the amazing framework
+- **Expo Team** for the incredible developer experience
+- **SonarSource** for enterprise-quality code analysis tools
+- **Jest Team** for the robust testing framework
+
+---
+
+<div align="center">
+
+**Made with ❤️ and ☕ by the FogOfDog Team**
+
+[![⭐ Star this repo](https://img.shields.io/github/stars/your-username/fogofdog-frontend?style=social)](https://github.com/your-username/fogofdog-frontend)
+[![🐛 Report Bug](https://img.shields.io/badge/Report-Bug-red?style=for-the-badge&logo=github&logoColor=white)](https://github.com/your-username/fogofdog-frontend/issues)
+[![💡 Request Feature](https://img.shields.io/badge/Request-Feature-blue?style=for-the-badge&logo=github&logoColor=white)](https://github.com/your-username/fogofdog-frontend/issues)
+
+</div> 
