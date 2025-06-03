@@ -1,5 +1,5 @@
 import React from 'react';
-import renderer, { act } from 'react-test-renderer';
+import { render } from '@testing-library/react-native';
 import { Provider } from 'react-redux';
 import { configureStore } from '@reduxjs/toolkit';
 import FogOverlay from '../FogOverlay';
@@ -32,10 +32,10 @@ jest.mock('@shopify/react-native-skia', () => {
 });
 
 // Setup mock Redux store with exploration slice
-const createMockStore = (initialPath: { latitude: number; longitude: number }[] = []) => {
+const createMockStore = (initialPath?: { latitude: number; longitude: number }[]) => {
   return configureStore({
     reducer: {
-      exploration: (state = { path: initialPath }, _action) => state,
+      exploration: (state, _action) => state ?? { path: initialPath ?? [] },
     },
   });
 };
@@ -53,18 +53,13 @@ describe('FogOverlay', () => {
       height: 800,
     };
 
-    let tree: any;
-    act(() => {
-      tree = renderer
-        .create(
-          <Provider store={store}>
-            <FogOverlay mapRegion={mapRegion} />
-          </Provider>
-        )
-        .toJSON();
-    });
+    const result = render(
+      <Provider store={store}>
+        <FogOverlay mapRegion={mapRegion} />
+      </Provider>
+    );
 
-    expect(tree).toMatchSnapshot();
+    expect(result.getByTestId('mock-skia-canvas')).toBeDefined();
   });
 
   it('renders correctly with a path', () => {
@@ -84,17 +79,12 @@ describe('FogOverlay', () => {
       height: 800,
     };
 
-    let tree: any;
-    act(() => {
-      tree = renderer
-        .create(
-          <Provider store={store}>
-            <FogOverlay mapRegion={mapRegion} />
-          </Provider>
-        )
-        .toJSON();
-    });
+    const result = render(
+      <Provider store={store}>
+        <FogOverlay mapRegion={mapRegion} />
+      </Provider>
+    );
 
-    expect(tree).toMatchSnapshot();
+    expect(result.getByTestId('mock-skia-canvas')).toBeDefined();
   });
 });

@@ -94,7 +94,15 @@ export function calculateMetersPerPixel(region: MapRegion & { width: number }): 
     !Number.isFinite(width) ||
     width === 0
   ) {
-    logger.warn('calculateMetersPerPixel received invalid parameters:', region);
+    logger.warn('calculateMetersPerPixel received invalid parameters:', {
+      region: {
+        latitude: region.latitude,
+        longitude: region.longitude,
+        width: region.width,
+      },
+      component: 'mapUtils',
+      action: 'calculateMetersPerPixel',
+    });
     return 1; // Return a safe default
   }
 

@@ -7,14 +7,21 @@ import explorationReducer from '../../../store/slices/explorationSlice';
 import userReducer from '../../../store/slices/userSlice';
 import type { RootState } from '../../../store';
 import * as Location from 'expo-location';
-import type { ViewProps } from 'react-native';
 
 // Mock react-native-maps with getCamera support
 jest.mock('react-native-maps', () => {
   const React = jest.requireActual<typeof import('react')>('react');
   const { View } = jest.requireActual<typeof import('react-native')>('react-native');
 
-  const MockMapView = React.forwardRef<any, any>((props: ViewProps & any, ref: any) => {
+  interface MockMapViewProps {
+    onPanDrag?: () => void;
+    initialRegion?: any;
+    children?: React.ReactNode;
+    style?: any;
+    [key: string]: any;
+  }
+
+  const MockMapView = React.forwardRef((props: MockMapViewProps, ref: React.Ref<unknown>) => {
     const { children, onPanDrag, style, initialRegion, ...restProps } = props;
 
     React.useImperativeHandle(ref, () => ({
@@ -31,13 +38,13 @@ jest.mock('react-native-maps', () => {
         onPress: onPanDrag,
         onPanDrag: onPanDrag,
         ...restProps,
-      } as ViewProps,
+      } as any,
       children
     );
   });
   MockMapView.displayName = 'MockMapView';
 
-  const MockMarkerComponent = (props: any) => {
+  const MockMarkerComponent = (props: { coordinate?: { latitude: number; longitude: number } }) => {
     const safeProps = props.coordinate
       ? {
           latitude: props.coordinate.latitude,
@@ -47,7 +54,7 @@ jest.mock('react-native-maps', () => {
     return React.createElement(View, {
       testID: 'mock-marker',
       'data-coords': JSON.stringify(safeProps),
-    } as ViewProps);
+    } as any);
   };
   MockMarkerComponent.displayName = 'MockMarker';
 
@@ -68,7 +75,7 @@ jest.mock('../../../components/FogOverlay', () => {
       testID: 'mock-fog-overlay',
       'data-map-region': JSON.stringify(props.mapRegion),
       'data-rotation': props.rotation,
-    } as ViewProps);
+    } as any);
   };
 
   return {

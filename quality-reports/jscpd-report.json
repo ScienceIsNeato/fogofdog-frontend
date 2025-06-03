@@ -1,6 +1,6 @@
 {
   "statistics": {
-    "detectionDate": "2025-06-03T11:22:14.678Z",
+    "detectionDate": "2025-06-03T14:21:23.451Z",
     "formats": {
       "typescript": {
         "sources": {
@@ -17,8 +17,8 @@
             "newClones": 0
           },
           "src/store/slices/explorationSlice.ts": {
-            "lines": 116,
-            "tokens": 1083,
+            "lines": 117,
+            "tokens": 1122,
             "sources": 1,
             "clones": 0,
             "duplicatedLines": 0,
@@ -29,8 +29,20 @@
             "newClones": 0
           },
           "src/utils/mapUtils.ts": {
-            "lines": 115,
-            "tokens": 796,
+            "lines": 141,
+            "tokens": 991,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "src/utils/logger.ts": {
+            "lines": 63,
+            "tokens": 531,
             "sources": 1,
             "clones": 0,
             "duplicatedLines": 0,
@@ -90,9 +102,9 @@
           }
         },
         "total": {
-          "lines": 328,
-          "tokens": 2653,
-          "sources": 7,
+          "lines": 418,
+          "tokens": 3418,
+          "sources": 8,
           "clones": 0,
           "duplicatedLines": 0,
           "duplicatedTokens": 0,
@@ -117,8 +129,8 @@
             "newClones": 0
           },
           "src/screens/Map/index.tsx": {
-            "lines": 42,
-            "tokens": 244,
+            "lines": 115,
+            "tokens": 756,
             "sources": 1,
             "clones": 0,
             "duplicatedLines": 0,
@@ -165,8 +177,8 @@
             "newClones": 0
           },
           "src/navigation/index.tsx": {
-            "lines": 29,
-            "tokens": 352,
+            "lines": 34,
+            "tokens": 371,
             "sources": 1,
             "clones": 0,
             "duplicatedLines": 0,
@@ -189,8 +201,8 @@
             "newClones": 0
           },
           "src/components/FogOverlay.tsx": {
-            "lines": 38,
-            "tokens": 264,
+            "lines": 57,
+            "tokens": 393,
             "sources": 1,
             "clones": 0,
             "duplicatedLines": 0,
@@ -202,8 +214,8 @@
           }
         },
         "total": {
-          "lines": 135,
-          "tokens": 1272,
+          "lines": 232,
+          "tokens": 1932,
           "sources": 8,
           "clones": 0,
           "duplicatedLines": 0,
@@ -229,8 +241,8 @@
             "newClones": 0
           },
           "src/screens/Map/index.tsx": {
-            "lines": 353,
-            "tokens": 2568,
+            "lines": 515,
+            "tokens": 3794,
             "sources": 1,
             "clones": 0,
             "duplicatedLines": 0,
@@ -277,8 +289,8 @@
             "newClones": 0
           },
           "src/navigation/index.tsx": {
-            "lines": 56,
-            "tokens": 592,
+            "lines": 62,
+            "tokens": 623,
             "sources": 1,
             "clones": 0,
             "duplicatedLines": 0,
@@ -301,8 +313,8 @@
             "newClones": 0
           },
           "src/components/FogOverlay.tsx": {
-            "lines": 164,
-            "tokens": 1349,
+            "lines": 236,
+            "tokens": 1948,
             "sources": 1,
             "clones": 0,
             "duplicatedLines": 0,
@@ -314,14 +326,14 @@
           }
         },
         "total": {
-          "lines": 941,
-          "tokens": 7470,
+          "lines": 1181,
+          "tokens": 9326,
           "sources": 8,
           "clones": 3,
           "duplicatedLines": 49,
           "duplicatedTokens": 356,
-          "percentage": 5.21,
-          "percentageTokens": 4.77,
+          "percentage": 4.15,
+          "percentageTokens": 3.82,
           "newDuplicatedLines": 0,
           "newClones": 0
         }
@@ -356,14 +368,14 @@
       }
     },
     "total": {
-      "lines": 1405,
-      "tokens": 11399,
-      "sources": 24,
+      "lines": 1832,
+      "tokens": 14680,
+      "sources": 25,
       "clones": 3,
       "duplicatedLines": 49,
       "duplicatedTokens": 356,
-      "percentage": 3.49,
-      "percentageTokens": 3.12,
+      "percentage": 2.67,
+      "percentageTokens": 2.43,
       "newDuplicatedLines": 0,
       "newClones": 0
     }

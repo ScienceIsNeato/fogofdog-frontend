@@ -20,7 +20,7 @@ const MockPressable = ({ children, testID, onPress, ...props }: any) => (
 
 export const Platform = {
   OS: 'web',
-  select: (config: any) => config.web || config.default,
+  select: (config: any) => config.web ?? config.default,
 };
 
 export const StyleSheet = {
@@ -29,7 +29,7 @@ export const StyleSheet = {
     if (Array.isArray(style)) {
       return Object.assign({}, ...style);
     }
-    return style || {};
+    return style ?? {};
   },
 };
 

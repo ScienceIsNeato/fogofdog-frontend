@@ -1,24 +1,26 @@
-import React, { useMemo, useEffect, useRef } from 'react';
+import React, { useMemo, useRef, useEffect } from 'react';
+import { Skia, Canvas, Path, Fill, Circle, Mask, Rect, Group } from '@shopify/react-native-skia';
+import type { SkPath } from '@shopify/react-native-skia';
 import { StyleSheet } from 'react-native';
-import { Canvas, Mask, Group, Fill, Path, Rect, Skia, Circle } from '@shopify/react-native-skia';
 import { useSelector } from 'react-redux';
-import { RootState } from '../store';
-import { MapRegion } from '../types/navigation';
-import { geoPointToPixel, calculateMetersPerPixel } from '../utils/mapUtils';
+import type { RootState } from '../store';
+import { calculateMetersPerPixel, geoPointToPixel } from '../utils/mapUtils';
 import { logger } from '../utils/logger';
+import type { Region as MapRegion } from 'react-native-maps';
 
-// Default fog opacity
-const FOG_OPACITY = 1.0; // Completely opaque as requested
-// Default fog color
-const FOG_COLOR = 'black';
-// Default path color (should be black for mask)
-const PATH_COLOR = 'black';
-// Radius of fog hole in meters (matching previous implementation)
-const FOG_RADIUS_METERS = 75; // Increased from 50m for better visibility
+// Constants for fog overlay appearance
+const FOG_COLOR = 'rgba(128, 128, 128, 0.3)'; // Light gray
+const FOG_OPACITY = 0.85;
+const PATH_COLOR = 'black'; // Black areas in mask create transparency
+const FOG_RADIUS_METERS = 100; // Radius in meters for cleared areas
+
+interface GeoPoint {
+  latitude: number;
+  longitude: number;
+}
 
 interface FogOverlayProps {
   mapRegion: MapRegion & { width: number; height: number };
-  rotation?: number; // Optional map rotation angle in degrees
 }
 
 // Hook for calculating fog rendering properties
@@ -71,7 +73,7 @@ const useFogCalculations = (mapRegion: MapRegion & { width: number; height: numb
 };
 
 // Hook for performance optimization and debugging
-const useFogPerformance = (pathPoints: any[], radiusPixels: number, strokeWidth: number) => {
+const useFogPerformance = (pathPoints: GeoPoint[], radiusPixels: number, strokeWidth: number) => {
   const lastRenderTime = useRef(0);
   const RENDER_THROTTLE_MS = 16; // Throttle to ~60fps
 
@@ -96,58 +98,33 @@ const useFogPerformance = (pathPoints: any[], radiusPixels: number, strokeWidth:
   }, [pathPoints, radiusPixels, strokeWidth]);
 };
 
-// Hook for calculating canvas transformations
-const useCanvasTransform = (
-  rotation: number,
-  mapRegion: MapRegion & { width: number; height: number }
-) => {
-  const currentLocation = useSelector((state: RootState) => state.exploration.currentLocation);
-
-  return useMemo(() => {
-    if (rotation === 0) return undefined;
-
-    // Use current location as the center of rotation if available
-    // Otherwise fall back to the center of the screen
-    let centerX = mapRegion.width / 2;
-    let centerY = mapRegion.height / 2;
-
-    if (currentLocation) {
-      // Convert GPS coordinates to screen coordinates
-      const currentPoint = geoPointToPixel(currentLocation, mapRegion);
-      centerX = currentPoint.x;
-      centerY = currentPoint.y;
-    }
-
-    return [
-      { translateX: centerX },
-      { translateY: centerY },
-      { rotate: (rotation * Math.PI) / 180 }, // Convert degrees to radians
-      { translateX: -centerX },
-      { translateY: -centerY },
-    ];
-  }, [rotation, mapRegion, currentLocation]);
-};
-
 /**
  * FogMask component renders the mask content for the fog overlay
  */
 const FogMask: React.FC<{
-  pathPoints: any[];
+  pathPoints: GeoPoint[];
   mapRegion: MapRegion & { width: number; height: number };
   radiusPixels: number;
-  skiaPath: any;
+  skiaPath: SkPath;
   strokeWidth: number;
-  canvasTransform?: any;
-}> = ({ pathPoints, mapRegion, radiusPixels, skiaPath, strokeWidth, canvasTransform }) => {
+}> = ({ pathPoints, mapRegion, radiusPixels, skiaPath, strokeWidth }) => {
   const maskContent = (
     <>
       {/* Start with all-white mask (showing fog everywhere) */}
       <Fill color="white" />
 
       {/* Draw circles at each point to ensure visible holes */}
-      {pathPoints.map((point, index) => {
+      {pathPoints.map((point) => {
         const { x, y } = geoPointToPixel(point, mapRegion);
-        return <Circle key={`circle-${index}`} cx={x} cy={y} r={radiusPixels} color={PATH_COLOR} />;
+        return (
+          <Circle
+            key={`circle-${point.latitude}-${point.longitude}`}
+            cx={x}
+            cy={y}
+            r={radiusPixels}
+            color={PATH_COLOR}
+          />
+        );
       })}
 
       {/* Also draw the path to connect the holes */}
@@ -164,20 +141,15 @@ const FogMask: React.FC<{
     </>
   );
 
-  return canvasTransform ? (
-    <Group transform={canvasTransform}>{maskContent}</Group>
-  ) : (
-    <Group>{maskContent}</Group>
-  );
+  return <Group>{maskContent}</Group>;
 };
 
 /**
  * FogOverlay component renders a fog layer over the map with transparent "holes"
  * along the user's path. Uses Skia for GPU-accelerated rendering.
  */
-const FogOverlay: React.FC<FogOverlayProps> = ({ mapRegion, rotation = 0 }) => {
+const FogOverlay: React.FC<FogOverlayProps> = ({ mapRegion }) => {
   const { pathPoints, skiaPath, radiusPixels, strokeWidth } = useFogCalculations(mapRegion);
-  const canvasTransform = useCanvasTransform(rotation, mapRegion);
 
   // Performance optimization hook
   useFogPerformance(pathPoints, radiusPixels, strokeWidth);
@@ -193,7 +165,6 @@ const FogOverlay: React.FC<FogOverlayProps> = ({ mapRegion, rotation = 0 }) => {
             radiusPixels={radiusPixels}
             skiaPath={skiaPath}
             strokeWidth={strokeWidth}
-            canvasTransform={canvasTransform}
           />
         }
       >
