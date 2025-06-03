@@ -48,6 +48,8 @@ coverage/
 .cursorignore
 .cursorpaths.json
 currules.json
+.cursorrules
+.cursor
 
 # Native directories (using Expo CNG/Prebuild)
 /android

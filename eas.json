@@ -10,13 +10,24 @@
         "simulator": true
       }
     },
+    "device": {
+      "distribution": "internal",
+      "ios": {
+        "image": "latest"
+      }
+    },
+    "testflight": {
+      "distribution": "store",
+      "ios": {
+        "image": "latest"
+      }
+    },
     "preview": {
       "distribution": "internal"
     },
     "production": {
       "distribution": "store",
       "ios": {
-        "buildType": "app-store",
         "image": "latest"
       },
       "autoIncrement": true

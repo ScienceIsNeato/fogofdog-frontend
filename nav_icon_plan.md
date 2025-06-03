@@ -2,7 +2,7 @@
 
 ## Overview
 
-This document outlines the plan to add a "center on user location" button to the FogOfDog map screen. This button will be positioned in the upper right corner and will center the map on the user's current GPS location when tapped.
+This document outlines the plan to add a "center on user location" button to the Fog of Dog map screen. This button will be positioned in the upper right corner and will center the map on the user's current GPS location when tapped.
 
 ## Design Requirements
 
