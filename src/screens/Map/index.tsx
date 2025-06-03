@@ -1,19 +1,25 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { View, StyleSheet, TouchableOpacity, Text, Dimensions } from 'react-native';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
-import { updateLocation, updateZoom, addPathPoint, setCenterOnUser } from '../../store/slices/explorationSlice';
+import {
+  updateLocation,
+  updateZoom,
+  addPathPoint,
+  setCenterOnUser,
+} from '../../store/slices/explorationSlice';
 import MapView, { Marker, Region } from 'react-native-maps';
 import * as Location from 'expo-location'; // Import expo-location
 import FogOverlay from '../../components/FogOverlay';
 import LocationButton from '../../components/LocationButton';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { logger } from '../../utils/logger';
 
 // Default location (will be used as a fallback or before real location is fetched)
 const DEFAULT_LOCATION = {
   latitude: 37.78825,
   longitude: -122.4324,
   // Adjust deltas for initial zoom (approx 400m diameter view)
-  latitudeDelta: 0.0922, 
+  latitudeDelta: 0.0922,
   longitudeDelta: 0.0421,
 };
 
@@ -21,89 +27,130 @@ const DEFAULT_LOCATION = {
 const MAX_LATITUDE_DELTA = 0.75;
 const MAX_LONGITUDE_DELTA = 1.0;
 
-// MapComponent definition removed as it wasn't in the attached file context provided
-// If MapComponent is needed elsewhere, it should be managed separately.
+// Types for better type safety
+interface LocationCoordinate {
+  latitude: number;
+  longitude: number;
+}
 
-export const MapScreen = () => {
-  const dispatch = useAppDispatch();
-  const { currentLocation, isMapCenteredOnUser } = useAppSelector(state => state.exploration);
-  const mapRef = useRef<MapView>(null);
-  const [currentRegion, setCurrentRegion] = useState<Region | undefined>(DEFAULT_LOCATION);
-  const [mapRotation, setMapRotation] = useState(0); // Track map rotation angle
-  const [mapDimensions, setMapDimensions] = useState({
-    width: Dimensions.get('window').width,
-    height: Dimensions.get('window').height
-  });
-  
-  const insets = useSafeAreaInsets();
+interface SafeAreaInsets {
+  top: number;
+  bottom: number;
+  left: number;
+  right: number;
+}
 
+// Location setup helper functions
+const handleLocationPermissionDenied = (
+  dispatch: ReturnType<typeof useAppDispatch>,
+  isActive: boolean
+) => {
+  if (isActive) {
+    dispatch(
+      updateLocation({
+        latitude: DEFAULT_LOCATION.latitude,
+        longitude: DEFAULT_LOCATION.longitude,
+      })
+    );
+  }
+};
+
+const handleLocationError = (
+  error: Error,
+  dispatch: ReturnType<typeof useAppDispatch>,
+  isActive: boolean
+) => {
+  if (isActive) {
+    logger.error('Error fetching location:', error, {
+      component: 'MapScreen',
+      action: 'useEffect',
+    });
+    dispatch(
+      updateLocation({
+        latitude: DEFAULT_LOCATION.latitude,
+        longitude: DEFAULT_LOCATION.longitude,
+      })
+    );
+  }
+};
+
+const setupLocationWatcher = async (
+  dispatch: ReturnType<typeof useAppDispatch>,
+  isActive: boolean
+) => {
+  if (!isActive) return null;
+
+  return await Location.watchPositionAsync(
+    {
+      accuracy: Location.Accuracy.High,
+      timeInterval: 5000,
+      distanceInterval: 10,
+    },
+    (newLocation) => {
+      if (isActive) {
+        dispatch(
+          updateLocation({
+            latitude: newLocation.coords.latitude,
+            longitude: newLocation.coords.longitude,
+          })
+        );
+      }
+    }
+  );
+};
+
+// Hook for location setup logic
+const useLocationSetup = (
+  dispatch: ReturnType<typeof useAppDispatch>,
+  mapRef: React.RefObject<MapView>
+) => {
   useEffect(() => {
     let isActive = true;
     let subscription: Location.LocationSubscription | null = null;
 
     const setupLocation = async () => {
-      // console.log('[MapScreen useEffect] Initiating location setup via setupLocation.');
       let { status } = await Location.requestForegroundPermissionsAsync();
       if (!isActive) return;
-      // console.log('[MapScreen useEffect] Permission status:', status);
 
       if (status !== 'granted') {
-        // console.log('[MapScreen useEffect] Permission denied. Dispatching default location.');
-        if (isActive) dispatch(updateLocation({ latitude: DEFAULT_LOCATION.latitude, longitude: DEFAULT_LOCATION.longitude }));
+        handleLocationPermissionDenied(dispatch, isActive);
         return;
       }
 
       try {
-        // console.log('[MapScreen useEffect] Requesting current position.');
         let location = await Location.getCurrentPositionAsync({});
         if (!isActive) return;
 
         const userLatitude = location.coords.latitude;
         const userLongitude = location.coords.longitude;
-        // console.log('[MapScreen useEffect] Current position fetched:', { userLatitude, userLongitude });
 
-        if (isActive) dispatch(updateLocation({ latitude: userLatitude, longitude: userLongitude }));
-        // console.log('[MapScreen useEffect] Dispatched updateLocation with fetched position.');
-        
+        if (isActive) {
+          dispatch(updateLocation({ latitude: userLatitude, longitude: userLongitude }));
+        }
+
         const userRegion = {
           latitude: userLatitude,
           longitude: userLongitude,
-          latitudeDelta: DEFAULT_LOCATION.latitudeDelta, 
+          latitudeDelta: DEFAULT_LOCATION.latitudeDelta,
           longitudeDelta: DEFAULT_LOCATION.longitudeDelta,
         };
-        if (isActive) setCurrentRegion(userRegion);
+
         if (isActive && mapRef.current) {
-          mapRef.current.animateToRegion(userRegion, 1000); 
+          mapRef.current.animateToRegion(userRegion, 1000);
         }
 
-        if (isActive) {
-          const localSubscription = await Location.watchPositionAsync(
-            {
-              accuracy: Location.Accuracy.High, 
-              timeInterval: 5000, 
-              distanceInterval: 10, 
-            },
-            (newLocation) => {
-              if (isActive) { // Check inside callback too
-                // console.log('[MapScreen locationSubscription] New location received:', newLocation.coords);
-                dispatch(updateLocation({ latitude: newLocation.coords.latitude, longitude: newLocation.coords.longitude }));
-                // console.log('[MapScreen locationSubscription] Dispatched updateLocation with new subscription data.');
-              }
-            }
-          );
-          // console.log('[MapScreen useEffect] Location watch subscription set up.');
-          if (isActive) {
-            subscription = localSubscription; 
-          } else {
-            // console.log('[MapScreen useEffect] Component unmounted during watchPositionAsync setup, removing immediate subscription.');
-            localSubscription.remove();
-          }
+        const localSubscription = await setupLocationWatcher(dispatch, isActive);
+        if (isActive && localSubscription) {
+          subscription = localSubscription;
+        } else if (localSubscription) {
+          localSubscription.remove();
         }
       } catch (error) {
-        if (isActive) {
-          console.error("[MapScreen useEffect] Error fetching location:", error);
-          dispatch(updateLocation({ latitude: DEFAULT_LOCATION.latitude, longitude: DEFAULT_LOCATION.longitude }));
-        }
+        handleLocationError(
+          error instanceof Error ? error : new Error(String(error)),
+          dispatch,
+          isActive
+        );
       }
     };
 
@@ -111,17 +158,18 @@ export const MapScreen = () => {
 
     return () => {
       isActive = false;
-      // console.log('[MapScreen useEffect Cleanup] Cleanup function CALLED.');
       if (subscription) {
-        // console.log('[MapScreen useEffect Cleanup] Removing location subscription.');
         subscription.remove();
-      } else {
-        // console.log('[MapScreen useEffect Cleanup] Subscription was null/undefined, or already removed.');
       }
     };
-  }, [dispatch]);
+  }, [dispatch, mapRef]);
+};
 
-  // Zoom Restriction Effect
+// Hook for zoom restriction logic
+const useZoomRestriction = (
+  currentRegion: Region | undefined,
+  mapRef: React.RefObject<MapView>
+) => {
   useEffect(() => {
     if (currentRegion && mapRef.current) {
       let clampedLatitudeDelta = currentRegion.latitudeDelta;
@@ -144,163 +192,296 @@ export const MapScreen = () => {
           latitudeDelta: clampedLatitudeDelta,
           longitudeDelta: clampedLongitudeDelta,
         };
-        // Animate back to the clamped region
-        mapRef.current.animateToRegion(clampedRegion, 200); // 200ms animation
+        mapRef.current.animateToRegion(clampedRegion, 200);
       }
     }
-  }, [currentRegion]);
+  }, [currentRegion, mapRef]);
+};
 
-  const handleZoomChange = (newZoom: number) => {
-    // console.log('[MapScreen handleZoomChange] New zoom level:', newZoom);
-    dispatch(updateZoom(newZoom));
-  };
+// Helper function for adding test points in development
+const createTestPoint = (currentLocation: LocationCoordinate) => ({
+  latitude: currentLocation.latitude,
+  longitude: currentLocation.longitude + 0.001,
+});
 
-  // Function to center map on user location
-  const centerOnUserLocation = () => {
+// Individual event handler functions
+const createZoomHandler = (dispatch: ReturnType<typeof useAppDispatch>) => (newZoom: number) => {
+  dispatch(updateZoom(newZoom));
+};
+
+const createCenterOnUserHandler =
+  (
+    currentLocation: LocationCoordinate | null,
+    currentRegion: Region | undefined,
+    mapRef: React.RefObject<MapView>,
+    dispatch: ReturnType<typeof useAppDispatch>
+  ) =>
+  () => {
     if (currentLocation && mapRef.current) {
       const userRegion = {
         latitude: currentLocation.latitude,
         longitude: currentLocation.longitude,
-        latitudeDelta: currentRegion?.latitudeDelta || DEFAULT_LOCATION.latitudeDelta,
-        longitudeDelta: currentRegion?.longitudeDelta || DEFAULT_LOCATION.longitudeDelta,
+        latitudeDelta: currentRegion?.latitudeDelta ?? DEFAULT_LOCATION.latitudeDelta,
+        longitudeDelta: currentRegion?.longitudeDelta ?? DEFAULT_LOCATION.longitudeDelta,
       };
       mapRef.current.animateToRegion(userRegion, 300);
       dispatch(setCenterOnUser(true));
     }
   };
 
-  // Log details for debugging
-  // console.log('[MapScreen Render] path points:', path.length);
-  // console.log('[MapScreen Render] Marker using currentLocation:', JSON.stringify(currentLocation));
-
-  // Function to add test points around the current location
-  const addTestPoint = () => {
+const createAddTestPointHandler =
+  (currentLocation: LocationCoordinate | null, dispatch: ReturnType<typeof useAppDispatch>) =>
+  () => {
     if (currentLocation) {
-      // Add a point 100 meters east of current location
-      const testPoint = {
-        latitude: currentLocation.latitude,
-        longitude: currentLocation.longitude + 0.001 // Approximately 100m east
-      };
+      const testPoint = createTestPoint(currentLocation);
       dispatch(addPathPoint(testPoint));
-      console.log(`[MapScreen] Added test point at: ${testPoint.latitude}, ${testPoint.longitude}`);
+      logger.debug(`Added test point at: ${testPoint.latitude}, ${testPoint.longitude}`, {
+        component: 'MapScreen',
+        action: 'createTestPoint',
+      });
     }
   };
 
-  return (
-    <View 
-      style={styles.container} 
-      testID="map-screen"
-      onLayout={(event) => {
-        const { width, height } = event.nativeEvent.layout;
-        setMapDimensions({ width, height });
-      }}
+// Map event handlers
+const useMapEventHandlers = (options: {
+  dispatch: ReturnType<typeof useAppDispatch>;
+  currentLocation: LocationCoordinate | null;
+  currentRegion: Region | undefined;
+  isMapCenteredOnUser: boolean;
+  mapRef: React.RefObject<MapView>;
+  setCurrentRegion: (region: Region) => void;
+}) => {
+  const {
+    dispatch,
+    currentLocation,
+    currentRegion,
+    isMapCenteredOnUser,
+    mapRef,
+    setCurrentRegion,
+  } = options;
+
+  const handleZoomChange = createZoomHandler(dispatch);
+  const centerOnUserLocation = createCenterOnUserHandler(
+    currentLocation,
+    currentRegion,
+    mapRef,
+    dispatch
+  );
+  const addTestPoint = createAddTestPointHandler(currentLocation, dispatch);
+
+  const onRegionChange = (region: Region) => {
+    setCurrentRegion(region);
+
+    if (isMapCenteredOnUser && currentLocation) {
+      const latDiff = Math.abs(region.latitude - currentLocation.latitude);
+      const lonDiff = Math.abs(region.longitude - currentLocation.longitude);
+      const threshold = Math.min(region.latitudeDelta, region.longitudeDelta) * 0.1;
+      if (latDiff > threshold || lonDiff > threshold) {
+        dispatch(setCenterOnUser(false));
+      }
+    }
+  };
+
+  const onPanDrag = () => {
+    mapRef.current
+      ?.getCamera()
+      .then((camera) => {
+        // Rotation functionality temporarily removed
+        logger.debug('Camera position updated', {
+          component: 'MapScreen',
+          action: 'onPanDrag',
+          heading: camera.heading,
+        });
+      })
+      .catch((err) => {
+        logger.error('Error getting camera:', err, {
+          component: 'MapScreen',
+          action: 'onPanDrag',
+        });
+      });
+  };
+
+  const onRegionChangeComplete = (region: Region) => {
+    setCurrentRegion(region);
+    const zoom = Math.round(Math.log(360 / region.latitudeDelta) / Math.LN2);
+    handleZoomChange(zoom);
+  };
+
+  return {
+    centerOnUserLocation,
+    addTestPoint,
+    onRegionChange,
+    onPanDrag,
+    onRegionChangeComplete,
+  };
+};
+
+// User location marker style
+const USER_MARKER_STYLE = {
+  width: 20,
+  height: 20,
+  backgroundColor: 'cyan',
+  borderRadius: 10,
+  borderColor: 'white',
+  borderWidth: 2,
+};
+
+// LocationButton positioning style
+const getLocationButtonStyle = (insets: SafeAreaInsets) => ({
+  position: 'absolute' as const,
+  top: insets.top + 10,
+  right: 10,
+});
+
+// Type definition for MapScreenRenderer props
+interface MapScreenRendererProps {
+  mapRef: React.RefObject<MapView>;
+  currentLocation: LocationCoordinate | null;
+  currentRegion: Region | undefined;
+  mapDimensions: { width: number; height: number };
+  insets: SafeAreaInsets;
+  isMapCenteredOnUser: boolean;
+  onRegionChange: (region: Region) => void;
+  onPanDrag: () => void;
+  onRegionChangeComplete: (region: Region) => void;
+  centerOnUserLocation: () => void;
+  addTestPoint: () => void;
+  setMapDimensions: (dimensions: { width: number; height: number }) => void;
+}
+
+// Render component for the map view and overlays
+const MapScreenRenderer = ({
+  mapRef,
+  currentLocation,
+  currentRegion,
+  mapDimensions,
+  insets,
+  isMapCenteredOnUser,
+  onRegionChange,
+  onPanDrag,
+  onRegionChangeComplete,
+  centerOnUserLocation,
+  addTestPoint,
+  setMapDimensions,
+}: MapScreenRendererProps) => (
+  <View
+    style={styles.container}
+    testID="map-screen"
+    onLayout={(event) => {
+      const { width, height } = event.nativeEvent.layout;
+      setMapDimensions({ width, height });
+    }}
+  >
+    <MapView
+      ref={mapRef}
+      style={styles.map}
+      initialRegion={DEFAULT_LOCATION}
+      onRegionChange={onRegionChange}
+      onPanDrag={onPanDrag}
+      onRegionChangeComplete={onRegionChangeComplete}
+      showsUserLocation={false}
+      showsMyLocationButton={false}
+      rotateEnabled={false}
+      pitchEnabled={false}
     >
-      <MapView
-        ref={mapRef} // Assign ref
-        style={styles.map}
-        initialRegion={DEFAULT_LOCATION}
-        onRegionChange={(region) => {
-          // Update continuously during pan/zoom to keep fog pinned to map
-          setCurrentRegion(region);
-          
-          // Check if user manually panned away from their location
-          if (isMapCenteredOnUser && currentLocation) {
-            const latDiff = Math.abs(region.latitude - currentLocation.latitude);
-            const lonDiff = Math.abs(region.longitude - currentLocation.longitude);
-            // If the center has moved significantly from user location, exit centered mode
-            // Using a threshold based on the current zoom level
-            const threshold = Math.min(region.latitudeDelta, region.longitudeDelta) * 0.1;
-            if (latDiff > threshold || lonDiff > threshold) {
-              dispatch(setCenterOnUser(false));
-            }
-          }
-        }}
-        onPanDrag={() => {
-          // Additional handler for pan events
-          if (mapRef.current) {
-            // Get current camera properties if available through the ref
-            mapRef.current.getCamera().then(camera => {
-              if (camera.heading !== undefined) {
-                setMapRotation(camera.heading);
-              }
-            }).catch(err => {
-              console.log('[MapScreen] Error getting camera:', err);
-            });
-          }
-        }}
-        onRegionChangeComplete={(region) => { // Use onRegionChangeComplete for stability
-          setCurrentRegion(region); // Update state
-          const zoom = Math.round(Math.log(360 / region.latitudeDelta) / Math.LN2);
-          handleZoomChange(zoom);
-        }}
-        showsUserLocation={false} 
-        showsMyLocationButton={false}
-        rotateEnabled={false} // Disable rotation
-        pitchEnabled={false}  // Disable pitch (3D tilting)
-        // Optional: Set minZoomLevel if calculable and preferred over clamping
-      >
-        {/* Current Location Marker */}
-        {currentLocation && (
-          <Marker 
-            coordinate={currentLocation}
-            title="You are here"
-            anchor={{ x: 0.5, y: 0.5 }}
-          >
-            <View style={{ 
-              width: 20, 
-              height: 20, 
-              backgroundColor: 'cyan',
-              borderRadius: 10,
-              borderColor: 'white',
-              borderWidth: 2
-            }} />
-          </Marker>
-        )}
-      </MapView>
-      
-      {/* New Skia-based Fog Overlay */}
-      {currentRegion && (
-        <FogOverlay 
-          mapRegion={{
-            ...currentRegion,
-            width: mapDimensions.width,
-            height: mapDimensions.height
-          }}
-          rotation={mapRotation}
-        />
+      {currentLocation && (
+        <Marker coordinate={currentLocation} title="You are here" anchor={{ x: 0.5, y: 0.5 }}>
+          <View style={USER_MARKER_STYLE} />
+        </Marker>
       )}
-      
-      {/* Location Button */}
-      <LocationButton
-        onPress={centerOnUserLocation}
-        isLocationAvailable={currentLocation !== null}
-        isCentered={isMapCenteredOnUser}
-        style={{
-          position: 'absolute',
-          top: insets.top + 10,
-          right: 10,
+    </MapView>
+
+    {currentRegion && (
+      <FogOverlay
+        mapRegion={{
+          ...currentRegion,
+          width: mapDimensions.width,
+          height: mapDimensions.height,
         }}
       />
-      
-      {/* Test button to add a point - for debugging only */}
-      {__DEV__ && (
-        <TouchableOpacity 
-          style={styles.testButton}
-          onPress={addTestPoint}
-        >
-          <Text style={styles.testButtonText}>Add Test Point</Text>
-        </TouchableOpacity>
-      )}
-      
-      {/* Debug info - can be removed in production */}
-      {/* {__DEV__ && (
-        <View style={styles.debugInfo}>
-          <View style={styles.debugOverlay}>
-            <View style={styles.debugDot} />
-          </View>
-        </View>
-      )} */}
-    </View>
+    )}
+
+    <LocationButton
+      onPress={centerOnUserLocation}
+      isLocationAvailable={currentLocation !== null}
+      isCentered={isMapCenteredOnUser}
+      style={getLocationButtonStyle(insets)}
+    />
+
+    {__DEV__ && (
+      <TouchableOpacity style={styles.testButton} onPress={addTestPoint}>
+        <Text style={styles.testButtonText}>Add Test Point</Text>
+      </TouchableOpacity>
+    )}
+  </View>
+);
+
+// Hook for map screen state initialization
+const useMapScreenState = () => {
+  const dispatch = useAppDispatch();
+  const { currentLocation, isMapCenteredOnUser } = useAppSelector((state) => state.exploration);
+  const mapRef = useRef<MapView>(null);
+  const [currentRegion, setCurrentRegion] = useState<Region | undefined>(DEFAULT_LOCATION);
+  const [mapDimensions, setMapDimensions] = useState({
+    width: Dimensions.get('window').width,
+    height: Dimensions.get('window').height,
+  });
+
+  return {
+    dispatch,
+    currentLocation,
+    isMapCenteredOnUser,
+    mapRef,
+    currentRegion,
+    setCurrentRegion,
+    mapDimensions,
+    setMapDimensions,
+  };
+};
+
+export const MapScreen = () => {
+  const {
+    dispatch,
+    currentLocation,
+    isMapCenteredOnUser,
+    mapRef,
+    currentRegion,
+    setCurrentRegion,
+    mapDimensions,
+    setMapDimensions,
+  } = useMapScreenState();
+
+  const insets = useSafeAreaInsets();
+
+  // Use our custom hooks
+  useLocationSetup(dispatch, mapRef);
+  useZoomRestriction(currentRegion, mapRef);
+
+  const { centerOnUserLocation, addTestPoint, onRegionChange, onPanDrag, onRegionChangeComplete } =
+    useMapEventHandlers({
+      dispatch,
+      currentLocation,
+      currentRegion,
+      isMapCenteredOnUser,
+      mapRef,
+      setCurrentRegion,
+    });
+
+  return (
+    <MapScreenRenderer
+      mapRef={mapRef}
+      currentLocation={currentLocation}
+      currentRegion={currentRegion}
+      mapDimensions={mapDimensions}
+      insets={insets}
+      isMapCenteredOnUser={isMapCenteredOnUser}
+      onRegionChange={onRegionChange}
+      onPanDrag={onPanDrag}
+      onRegionChangeComplete={onRegionChangeComplete}
+      centerOnUserLocation={centerOnUserLocation}
+      addTestPoint={addTestPoint}
+      setMapDimensions={setMapDimensions}
+    />
   );
 };
 

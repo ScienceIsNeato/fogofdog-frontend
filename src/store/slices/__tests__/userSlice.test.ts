@@ -30,13 +30,13 @@ describe('userSlice', () => {
     it('should handle setUser with null while preserving loading state', () => {
       const stateWithUser = {
         user: mockUser,
-        isLoading: true,  // Testing that loading state is preserved
+        isLoading: true, // Testing that loading state is preserved
         error: null,
       };
       const actual = userReducer(stateWithUser, setUser(null));
       expect(actual.user).toBeNull();
       expect(actual.error).toBeNull();
-      expect(actual.isLoading).toBe(true);  // Loading state should be unchanged
+      expect(actual.isLoading).toBe(true); // Loading state should be unchanged
     });
 
     it('should handle setUser with null when error exists', () => {
@@ -47,7 +47,7 @@ describe('userSlice', () => {
       };
       const actual = userReducer(stateWithUserAndError, setUser(null));
       expect(actual.user).toBeNull();
-      expect(actual.error).toBeNull();  // Error should be cleared
+      expect(actual.error).toBeNull(); // Error should be cleared
       expect(actual.isLoading).toBe(false);
     });
   });

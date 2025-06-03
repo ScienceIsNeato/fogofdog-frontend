@@ -16,11 +16,7 @@ const createTestStore = (initialState = {}) => {
 
 export const renderWithProviders = (
   ui: React.ReactElement,
-  {
-    preloadedState = {},
-    store = createTestStore(preloadedState),
-    ...renderOptions
-  } = {}
+  { preloadedState = {}, store = createTestStore(preloadedState), ...renderOptions } = {}
 ) => {
   const Wrapper = ({ children }: { children: React.ReactNode }) => {
     return (
@@ -37,4 +33,4 @@ export const renderWithProviders = (
       ...renderOptions,
     }),
   };
-}; 
+};

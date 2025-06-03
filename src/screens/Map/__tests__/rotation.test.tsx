@@ -8,62 +8,75 @@ import userReducer from '../../../store/slices/userSlice';
 import type { RootState } from '../../../store';
 import * as Location from 'expo-location';
 
-// Mock react-native-maps with getCamera support
+// Mock react-native-maps
 jest.mock('react-native-maps', () => {
-  const React = jest.requireActual('react');
-  const { View } = jest.requireActual('react-native');
-  
-  const MockMapView = React.forwardRef((props: any, ref: any) => {
-    const { children, onPanDrag, style, initialRegion, ...restProps } = props;
+  const React = jest.requireActual<typeof import('react')>('react');
+  const { View } = jest.requireActual<typeof import('react-native')>('react-native');
+
+  interface MockMapViewProps {
+    rotateEnabled?: boolean;
+    pitchEnabled?: boolean;
+    initialRegion?: any;
+    children?: React.ReactNode;
+    style?: any;
+  }
+
+  const MockMapView = React.forwardRef((props: MockMapViewProps, ref: React.Ref<unknown>) => {
+    const { children, style, initialRegion, ...restProps } = props;
 
     React.useImperativeHandle(ref, () => ({
       animateToRegion: jest.fn(),
-      getCamera: jest.fn(() => Promise.resolve({ heading: 45 })), // Return a heading of 45 degrees
+      getCamera: jest.fn(() => Promise.resolve({ heading: 0 })), // Always return 0 heading
     }));
 
-    return React.createElement(View, {
-      testID: 'mock-map-view',
-      style: style,
-      'data-initialRegion': JSON.stringify(initialRegion),
-      onPress: onPanDrag,
-      onPanDrag: onPanDrag,
-      ...restProps
-    }, children);
+    return React.createElement(
+      View,
+      {
+        testID: 'mock-map-view',
+        style: style,
+        'data-initialRegion': JSON.stringify(initialRegion),
+        'data-rotateEnabled': props.rotateEnabled,
+        'data-pitchEnabled': props.pitchEnabled,
+        ...restProps,
+      } as any,
+      children
+    );
   });
   MockMapView.displayName = 'MockMapView';
 
-  const MockMarkerComponent = (props: any) => {
-    const safeProps = props.coordinate ? {
-      latitude: props.coordinate.latitude,
-      longitude: props.coordinate.longitude
-    } : {};
+  const MockMarkerComponent = (props: { coordinate?: { latitude: number; longitude: number } }) => {
+    const safeProps = props.coordinate
+      ? {
+          latitude: props.coordinate.latitude,
+          longitude: props.coordinate.longitude,
+        }
+      : {};
     return React.createElement(View, {
       testID: 'mock-marker',
-      'data-coords': JSON.stringify(safeProps)
-    });
+      'data-coords': JSON.stringify(safeProps),
+    } as any);
   };
   MockMarkerComponent.displayName = 'MockMarker';
 
   return {
     __esModule: true,
-    default: MockMapView, 
+    default: MockMapView,
     Marker: MockMarkerComponent,
   };
 });
 
-// Mock FogOverlay to verify rotation is passed correctly
+// Mock FogOverlay (no rotation props expected)
 jest.mock('../../../components/FogOverlay', () => {
-  const React = jest.requireActual('react');
-  const { View } = jest.requireActual('react-native');
-  
+  const React = jest.requireActual<typeof import('react')>('react');
+  const { View } = jest.requireActual<typeof import('react-native')>('react-native');
+
   const MockFogOverlay = (props: any) => {
     return React.createElement(View, {
       testID: 'mock-fog-overlay',
       'data-map-region': JSON.stringify(props.mapRegion),
-      'data-rotation': props.rotation
-    });
+    } as any);
   };
-  
+
   return {
     __esModule: true,
     default: MockFogOverlay,
@@ -71,9 +84,9 @@ jest.mock('../../../components/FogOverlay', () => {
 });
 
 // Mock expo-location
-const mockLocationCoords = { 
-  latitude: 41.6867, 
-  longitude: -91.5802 
+const mockLocationCoords = {
+  latitude: 41.6867,
+  longitude: -91.5802,
 };
 
 const mockLocationObject = {
@@ -99,77 +112,83 @@ const mockPermissionResponse = {
 jest.mock('expo-location', () => ({
   requestForegroundPermissionsAsync: jest.fn(),
   getCurrentPositionAsync: jest.fn(),
-  watchPositionAsync: jest.fn(),
+  watchPositionAsync: jest.fn((_options, callback) => {
+    callback(mockLocationObject);
+    return Promise.resolve({ remove: jest.fn() });
+  }),
   Accuracy: { High: 1, Balanced: 2, LowPower: 3 },
 }));
 
-describe('Map Rotation Tests', () => {
+describe('Map Rotation Disabled Tests', () => {
   let store: Store<RootState>;
-  
+
   beforeEach(() => {
     jest.useFakeTimers();
-    
+
     store = configureStore({
       reducer: {
         exploration: explorationReducer,
         user: userReducer,
       },
     });
-    
+
     // Set up location mocks
-    (Location.requestForegroundPermissionsAsync as jest.Mock).mockResolvedValue(mockPermissionResponse);
+    (Location.requestForegroundPermissionsAsync as jest.Mock).mockResolvedValue(
+      mockPermissionResponse
+    );
     (Location.getCurrentPositionAsync as jest.Mock).mockResolvedValue(mockLocationObject);
-    (Location.watchPositionAsync as jest.Mock).mockImplementation((options, callback) => {
+    (Location.watchPositionAsync as jest.Mock).mockImplementation((_options, callback) => {
       callback(mockLocationObject);
       return Promise.resolve({ remove: jest.fn() });
     });
   });
-  
+
   afterEach(() => {
     jest.runOnlyPendingTimers();
     jest.useRealTimers();
     jest.resetAllMocks();
   });
-  
-  it('renders MapView with onPanDrag handler', async () => {
+
+  it('should have rotation and pitch disabled on the MapView', async () => {
     const { getByTestId } = render(
       <Provider store={store}>
         <MapScreen />
       </Provider>
     );
-    
+
     // Wait for initial rendering
     await act(async () => {
       jest.runAllTimers();
       await Promise.resolve();
     });
-    
-    // Get the MapView
+
+    // Get the MapView and verify rotation/pitch are disabled
     const mapView = getByTestId('mock-map-view');
-    
-    // Verify onPanDrag handler exists
-    expect(mapView.props.onPanDrag).toBeDefined();
-    expect(typeof mapView.props.onPanDrag).toBe('function');
+
+    expect(mapView.props['data-rotateEnabled']).toBe(false);
+    expect(mapView.props['data-pitchEnabled']).toBe(false);
   });
-  
-  it('renders FogOverlay with rotation prop', async () => {
+
+  it('renders FogOverlay without rotation props', async () => {
     const { getByTestId } = render(
       <Provider store={store}>
         <MapScreen />
       </Provider>
     );
-    
+
     // Wait for initial rendering
     await act(async () => {
       jest.runAllTimers();
       await Promise.resolve();
     });
-    
-    // Get the FogOverlay component
+
+    // Get the FogOverlay component and verify no rotation props
     const fogOverlay = getByTestId('mock-fog-overlay');
-    
-    // Verify rotation prop exists (initially 0)
-    expect(fogOverlay.props['data-rotation']).toBeDefined();
-    expect(typeof fogOverlay.props['data-rotation']).toBe('number');
+
+    // Verify rotation prop does NOT exist (since we removed rotation entirely)
+    expect(fogOverlay.props['data-rotation']).toBeUndefined();
+
+    // Verify it still has the mapRegion prop
+    expect(fogOverlay.props['data-map-region']).toBeDefined();
   });
 });

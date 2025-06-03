@@ -1,0 +1,493 @@
+{
+  "statistics": {
+    "detectionDate": "2025-06-03T14:21:23.451Z",
+    "formats": {
+      "typescript": {
+        "sources": {
+          "src/store/slices/userSlice.ts": {
+            "lines": 32,
+            "tokens": 313,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "src/store/slices/explorationSlice.ts": {
+            "lines": 117,
+            "tokens": 1122,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "src/utils/mapUtils.ts": {
+            "lines": 141,
+            "tokens": 991,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "src/utils/logger.ts": {
+            "lines": 63,
+            "tokens": 531,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "src/types/user.ts": {
+            "lines": 21,
+            "tokens": 127,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "src/types/navigation.ts": {
+            "lines": 28,
+            "tokens": 156,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "src/store/index.ts": {
+            "lines": 12,
+            "tokens": 104,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "src/store/hooks.ts": {
+            "lines": 4,
+            "tokens": 74,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          }
+        },
+        "total": {
+          "lines": 418,
+          "tokens": 3418,
+          "sources": 8,
+          "clones": 0,
+          "duplicatedLines": 0,
+          "duplicatedTokens": 0,
+          "percentage": 0,
+          "percentageTokens": 0,
+          "newDuplicatedLines": 0,
+          "newClones": 0
+        }
+      },
+      "javascript": {
+        "sources": {
+          "src/screens/Profile/Profile.tsx": {
+            "lines": 9,
+            "tokens": 152,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "src/screens/Map/index.tsx": {
+            "lines": 115,
+            "tokens": 756,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "src/screens/Auth/SignUp.tsx": {
+            "lines": 6,
+            "tokens": 111,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "src/screens/Auth/SignIn.tsx": {
+            "lines": 10,
+            "tokens": 124,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "src/utils/test-utils.tsx": {
+            "lines": 0,
+            "tokens": 3,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "src/navigation/index.tsx": {
+            "lines": 34,
+            "tokens": 371,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "src/components/LocationButton.tsx": {
+            "lines": 1,
+            "tokens": 22,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "src/components/FogOverlay.tsx": {
+            "lines": 57,
+            "tokens": 393,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          }
+        },
+        "total": {
+          "lines": 232,
+          "tokens": 1932,
+          "sources": 8,
+          "clones": 0,
+          "duplicatedLines": 0,
+          "duplicatedTokens": 0,
+          "percentage": 0,
+          "percentageTokens": 0,
+          "newDuplicatedLines": 0,
+          "newClones": 0
+        }
+      },
+      "tsx": {
+        "sources": {
+          "src/screens/Profile/Profile.tsx": {
+            "lines": 76,
+            "tokens": 663,
+            "sources": 1,
+            "clones": 1,
+            "duplicatedLines": 16,
+            "duplicatedTokens": 97,
+            "percentage": 21.05,
+            "percentageTokens": 14.63,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "src/screens/Map/index.tsx": {
+            "lines": 515,
+            "tokens": 3794,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "src/screens/Auth/SignUp.tsx": {
+            "lines": 77,
+            "tokens": 622,
+            "sources": 1,
+            "clones": 3,
+            "duplicatedLines": 49,
+            "duplicatedTokens": 356,
+            "percentage": 63.64,
+            "percentageTokens": 57.23,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "src/screens/Auth/SignIn.tsx": {
+            "lines": 79,
+            "tokens": 626,
+            "sources": 1,
+            "clones": 2,
+            "duplicatedLines": 33,
+            "duplicatedTokens": 259,
+            "percentage": 41.77,
+            "percentageTokens": 41.37,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "src/utils/test-utils.tsx": {
+            "lines": 35,
+            "tokens": 298,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "src/navigation/index.tsx": {
+            "lines": 62,
+            "tokens": 623,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "src/components/LocationButton.tsx": {
+            "lines": 101,
+            "tokens": 752,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "src/components/FogOverlay.tsx": {
+            "lines": 236,
+            "tokens": 1948,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          }
+        },
+        "total": {
+          "lines": 1181,
+          "tokens": 9326,
+          "sources": 8,
+          "clones": 3,
+          "duplicatedLines": 49,
+          "duplicatedTokens": 356,
+          "percentage": 4.15,
+          "percentageTokens": 3.82,
+          "newDuplicatedLines": 0,
+          "newClones": 0
+        }
+      },
+      "css": {
+        "sources": {
+          "src/components/FogOverlay.tsx": {
+            "lines": 1,
+            "tokens": 4,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          }
+        },
+        "total": {
+          "lines": 1,
+          "tokens": 4,
+          "sources": 1,
+          "clones": 0,
+          "duplicatedLines": 0,
+          "duplicatedTokens": 0,
+          "percentage": 0,
+          "percentageTokens": 0,
+          "newDuplicatedLines": 0,
+          "newClones": 0
+        }
+      }
+    },
+    "total": {
+      "lines": 1832,
+      "tokens": 14680,
+      "sources": 25,
+      "clones": 3,
+      "duplicatedLines": 49,
+      "duplicatedTokens": 356,
+      "percentage": 2.67,
+      "percentageTokens": 2.43,
+      "newDuplicatedLines": 0,
+      "newClones": 0
+    }
+  },
+  "duplicates": [
+    {
+      "format": "tsx",
+      "lines": 17,
+      "fragment": ",\n  },\n  button: {\n    backgroundColor: '#007AFF',\n    paddingHorizontal: 30,\n    paddingVertical: 15,\n    borderRadius: 8,\n    marginVertical: 10,\n    width: '100%',\n    alignItems: 'center',\n  },\n  buttonText: {\n    color: '#fff',\n    fontSize: 18,\n    fontWeight: '600',\n  },\n  secondaryButton",
+      "tokens": 0,
+      "firstFile": {
+        "name": "src/screens/Auth/SignUp.tsx",
+        "start": 54,
+        "end": 70,
+        "startLoc": {
+          "line": 54,
+          "column": 3,
+          "position": 476
+        },
+        "endLoc": {
+          "line": 70,
+          "column": 16,
+          "position": 573
+        }
+      },
+      "secondFile": {
+        "name": "src/screens/Profile/Profile.tsx",
+        "start": 61,
+        "end": 77,
+        "startLoc": {
+          "line": 61,
+          "column": 3,
+          "position": 565
+        },
+        "endLoc": {
+          "line": 77,
+          "column": 2,
+          "position": 661
+        }
+      }
+    },
+    {
+      "format": "tsx",
+      "lines": 8,
+      "fragment": "import React from 'react';\nimport { View, Text, StyleSheet, TouchableOpacity } from 'react-native';\nimport { useAppDispatch } from '../../store/hooks';\nimport { setUser } from '../../store/slices/userSlice';\nimport type { NativeStackScreenProps } from '@react-navigation/native-stack';\nimport type { AuthStackParamList } from '../../types/navigation';\n\ntype Props = NativeStackScreenProps<AuthStackParamList, 'SignIn'",
+      "tokens": 0,
+      "firstFile": {
+        "name": "src/screens/Auth/SignIn.tsx",
+        "start": 1,
+        "end": 8,
+        "startLoc": {
+          "line": 1,
+          "column": 1,
+          "position": 0
+        },
+        "endLoc": {
+          "line": 8,
+          "column": 9,
+          "position": 99
+        }
+      },
+      "secondFile": {
+        "name": "src/screens/Auth/SignUp.tsx",
+        "start": 1,
+        "end": 8,
+        "startLoc": {
+          "line": 1,
+          "column": 1,
+          "position": 0
+        },
+        "endLoc": {
+          "line": 8,
+          "column": 9,
+          "position": 99
+        }
+      }
+    },
+    {
+      "format": "tsx",
+      "lines": 27,
+      "fragment": ",\n    fontWeight: 'bold',\n    marginBottom: 40,\n  },\n  button: {\n    backgroundColor: '#007AFF',\n    paddingHorizontal: 30,\n    paddingVertical: 15,\n    borderRadius: 8,\n    marginVertical: 10,\n    width: '100%',\n    alignItems: 'center',\n  },\n  buttonText: {\n    color: '#fff',\n    fontSize: 18,\n    fontWeight: '600',\n  },\n  secondaryButton: {\n    backgroundColor: 'transparent',\n    borderWidth: 1,\n    borderColor: '#007AFF',\n  },\n  secondaryButtonText: {\n    color: '#007AFF',\n  },\n});",
+      "tokens": 0,
+      "firstFile": {
+        "name": "src/screens/Auth/SignIn.tsx",
+        "start": 54,
+        "end": 80,
+        "startLoc": {
+          "line": 54,
+          "column": 7,
+          "position": 466
+        },
+        "endLoc": {
+          "line": 80,
+          "column": 2,
+          "position": 626
+        }
+      },
+      "secondFile": {
+        "name": "src/screens/Auth/SignUp.tsx",
+        "start": 52,
+        "end": 78,
+        "startLoc": {
+          "line": 52,
+          "column": 7,
+          "position": 462
+        },
+        "endLoc": {
+          "line": 78,
+          "column": 2,
+          "position": 622
+        }
+      }
+    }
+  ]
+}

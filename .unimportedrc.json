@@ -1,0 +1,48 @@
+{
+  "entry": [
+    "index.ts",
+    "App.tsx",
+    "src/**/*.test.{ts,tsx}",
+    "src/**/*.spec.{ts,tsx}",
+    "e2e/**/*.{js,ts}"
+  ],
+  "extensions": [".ts", ".tsx", ".js", ".jsx"],
+  "ignorePatterns": [
+    "node_modules/**",
+    "coverage/**",
+    "dist/**",
+    "build/**",
+    ".expo/**",
+    "artifacts/**",
+    "ios/**",
+    "android/**"
+  ],
+  "ignoreUnimported": [
+    "react-native",
+    "expo",
+    "@expo/**",
+    "detox",
+    "jest",
+    "@testing-library/**",
+    "babel-preset-expo",
+    "metro-config",
+    "src/__mocks__/**",
+    "src/@types/**",
+    "src/utils/test-utils.tsx",
+    "src/navigation/__mocks__/**"
+  ],
+  "ignoreUnused": [
+    "husky",
+    "eslint-config-expo",
+    "@types/**",
+    "typescript",
+    "expo-constants",
+    "expo-linking",
+    "expo-splash-screen",
+    "expo-status-bar",
+    "expo-system-ui",
+    "expo-updates",
+    "expo-web-browser",
+    "react-native-gesture-handler"
+  ]
+} 

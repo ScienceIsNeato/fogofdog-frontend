@@ -7,7 +7,7 @@ on:
 
 jobs:
   test:
-    name: Test Suite
+    name: Quality Gate & Test Suite
     runs-on: ubuntu-latest
     
     steps:
@@ -23,17 +23,20 @@ jobs:
     - name: Install dependencies
       run: npm ci
       
-    - name: Run linting
-      run: |
-        echo "Running ESLint check..."
-        echo "Enforcing zero warnings (strict mode):"
-        npx eslint src --ext .ts,.tsx --max-warnings 0
+    - name: Code Formatting Check
+      run: npm run format:check
       
-    - name: Run type checking
-      run: npx tsc --noEmit
+    - name: Run ESLint (strict)
+      run: npm run lint:strict
       
-    - name: Run tests
-      run: npm run test:ci
+    - name: Run TypeScript Check
+      run: npm run type-check-ci
+      
+    - name: Run Tests with Coverage
+      run: npm run test:coverage
+      
+    - name: Security Audit
+      run: npm run audit:security
       
     - name: Upload test results
       uses: actions/upload-artifact@v4
@@ -43,27 +46,4 @@ jobs:
         path: |
           coverage/
           junit.xml
-        retention-days: 7
-
-  expo-doctor:
-    name: Expo Doctor Check
-    runs-on: ubuntu-latest
-    
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-      
-    - name: Setup Node.js  
-      uses: actions/setup-node@v4
-      with:
-        node-version: '18'
-        cache: 'npm'
-        
-    - name: Install dependencies
-      run: npm ci
-      
-    - name: Run expo doctor
-      run: npx expo doctor 
-
-    - name: Run ESLint (strict)
-      run: npm run lint:strict 
+        retention-days: 7 

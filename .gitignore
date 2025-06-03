@@ -49,6 +49,7 @@ coverage/
 .cursorpaths.json
 currules.json
 .cursorrules
+cursor-rules/
 .cursor
 
 # Native directories (using Expo CNG/Prebuild)

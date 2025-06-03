@@ -1,5 +1,10 @@
 import { configureStore } from '@reduxjs/toolkit';
-import explorationReducer, { updateLocation, updateZoom, reset, setCenterOnUser } from '../explorationSlice';
+import explorationReducer, {
+  updateLocation,
+  updateZoom,
+  reset,
+  setCenterOnUser,
+} from '../explorationSlice';
 
 describe('exploration slice', () => {
   const store = configureStore({
@@ -49,10 +54,10 @@ describe('exploration slice', () => {
       // This point is too close to the previous one and should be skipped
       { latitude: 41.6878, longitude: -91.5813 },
       // This point is far enough from the last added point
-      { latitude: 41.6890, longitude: -91.5825 }
+      { latitude: 41.689, longitude: -91.5825 },
     ];
 
-    locations.forEach(location => {
+    locations.forEach((location) => {
       store.dispatch(updateLocation(location));
     });
 
@@ -81,10 +86,10 @@ describe('exploration slice', () => {
     // Set some state
     store.dispatch(setCenterOnUser(true));
     store.dispatch(updateLocation({ latitude: 41.6867, longitude: -91.5802 }));
-    
+
     // Reset
     store.dispatch(reset());
-    
+
     // Check all state is reset including isMapCenteredOnUser
     const state = store.getState().exploration;
     expect(state.isMapCenteredOnUser).toBe(false);

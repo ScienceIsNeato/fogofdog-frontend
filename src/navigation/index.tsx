@@ -7,45 +7,35 @@ import { RootStackParamList, AuthStackParamList, MainStackParamList } from '../t
 import { MapScreen } from '../screens/Map';
 import { SignInScreen, SignUpScreen } from '../screens/Auth';
 import { ProfileScreen } from '../screens/Profile';
+import { logger } from '../utils/logger';
 
 const AuthStack = createNativeStackNavigator<AuthStackParamList>();
 const MainStack = createNativeStackNavigator<MainStackParamList>();
 
 const AuthNavigator = () => (
   <AuthStack.Navigator screenOptions={{ headerShown: false }}>
-    <AuthStack.Screen 
-      name="SignIn" 
-      component={SignInScreen}
-      options={{ title: 'Sign In' }}
-    />
-    <AuthStack.Screen 
-      name="SignUp" 
-      component={SignUpScreen}
-      options={{ title: 'Sign Up' }}
-    />
+    <AuthStack.Screen name="SignIn" component={SignInScreen} options={{ title: 'Sign In' }} />
+    <AuthStack.Screen name="SignUp" component={SignUpScreen} options={{ title: 'Sign Up' }} />
   </AuthStack.Navigator>
 );
 
 const MainNavigator = () => (
   <MainStack.Navigator screenOptions={{ headerShown: false }}>
-    <MainStack.Screen 
-      name="Map" 
-      component={MapScreen}
-      options={{ title: 'Map' }}
-    />
-    <MainStack.Screen 
-      name="Profile" 
-      component={ProfileScreen}
-      options={{ title: 'Profile' }}
-    />
+    <MainStack.Screen name="Map" component={MapScreen} options={{ title: 'Map' }} />
+    <MainStack.Screen name="Profile" component={ProfileScreen} options={{ title: 'Profile' }} />
   </MainStack.Navigator>
 );
 
 const RootStack = createNativeStackNavigator<RootStackParamList>();
 
-export const Navigation = () => {
+export default function Navigation() {
   const user = useAppSelector((state) => state.user.user);
-  console.log('Navigation component rendering. User:', user);
+
+  logger.debug('Navigation component rendering', {
+    component: 'Navigation',
+    action: 'render',
+    user,
+  });
 
   return (
     <View testID="navigation-root" style={styles.container}>
@@ -64,7 +54,7 @@ export const Navigation = () => {
       </NavigationContainer>
     </View>
   );
-};
+}
 
 const styles = StyleSheet.create({
   container: {

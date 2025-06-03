@@ -1,11 +1,5 @@
 import React from 'react';
-import {
-  Pressable,
-  StyleSheet,
-  View,
-  ViewStyle,
-  Platform,
-} from 'react-native';
+import { Pressable, StyleSheet, View, ViewStyle, Platform } from 'react-native';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 
 interface LocationButtonProps {
@@ -29,21 +23,21 @@ const LocationButton: React.FC<LocationButtonProps> = ({
 
   const getContainerStyle = () => {
     const styles: ViewStyle[] = [baseStyles.container];
-    
+
     if (!isLocationAvailable) {
       styles.push({ opacity: 0.5 });
     }
-    
+
     if (isCentered && isLocationAvailable) {
       styles.push({ backgroundColor: '#007AFF' });
     } else {
       styles.push({ backgroundColor: 'rgba(0, 0, 0, 0.6)' });
     }
-    
+
     if (style) {
       styles.push(style);
     }
-    
+
     return styles;
   };
 
@@ -74,11 +68,7 @@ const LocationButton: React.FC<LocationButtonProps> = ({
       }}
     >
       <View testID="location-button-container" style={getContainerStyle()}>
-        <MaterialIcons
-          name="my-location"
-          size={24}
-          color="white"
-        />
+        <MaterialIcons name="my-location" size={24} color="white" />
       </View>
     </Pressable>
   );
@@ -109,4 +99,4 @@ const baseStyles = StyleSheet.create({
   },
 });
 
-export default LocationButton; 
+export default LocationButton;

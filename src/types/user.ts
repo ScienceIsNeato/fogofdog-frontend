@@ -19,4 +19,4 @@ export interface AuthCredentials {
 export interface GeoPoint {
   latitude: number;
   longitude: number;
-} 
+}

@@ -9,7 +9,7 @@ type Props = NativeStackScreenProps<MainStackParamList, 'Profile'>;
 
 export const ProfileScreen: React.FC<Props> = () => {
   const dispatch = useAppDispatch();
-  const user = useAppSelector(state => state.user.user);
+  const user = useAppSelector((state) => state.user.user);
 
   const handleSignOut = () => {
     dispatch(clearUser());
@@ -74,4 +74,4 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '600',
   },
-}); 
+});

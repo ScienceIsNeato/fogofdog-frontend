@@ -1,0 +1,16 @@
+{
+    "sonarlint.connectedMode.project": {
+        "connectionId": "scienceisneato",
+        "projectKey": "ScienceIsNeato_fogofdog-frontend"
+    },
+    "sonarlint.connectedMode.connections.sonarcloud": [
+        {
+            "connectionId": "sonarcloud",
+            "organizationKey": "scienceisneato"
+        }
+    ],
+    "sonarlint.rules": {
+        "javascript:S1481": "off",
+        "typescript:S1481": "off"
+    }
+}

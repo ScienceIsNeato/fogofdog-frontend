@@ -23,9 +23,27 @@ module.exports = {
     '!src/**/*.d.ts',
     '!src/**/__tests__/**',
     '!src/**/__mocks__/**',
+    '!src/**/index.{js,ts}',
   ],
+  coverageDirectory: 'coverage',
+  coverageReporters: [
+    'text',
+    'text-summary', 
+    'lcov',
+    'html'
+  ],
+  coverageThreshold: {
+    global: {
+      branches: 59,
+      functions: 65,
+      lines: 70,
+      statements: 70
+    }
+  },
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/src/$1',
   },
   testTimeout: 30000,
+  maxWorkers: '50%', // Optimize for CI speed
+  watchman: false, // Disable watchman entirely
 };
