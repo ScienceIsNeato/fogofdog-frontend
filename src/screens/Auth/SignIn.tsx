@@ -11,11 +11,13 @@ export const SignInScreen: React.FC<Props> = ({ navigation }) => {
   const dispatch = useAppDispatch();
 
   const handleSignIn = () => {
-    dispatch(setUser({
-      id: '123',
-      email: 'test@example.com',
-      displayName: 'Test User'
-    }));
+    dispatch(
+      setUser({
+        id: '123',
+        email: 'test@example.com',
+        displayName: 'Test User',
+      })
+    );
   };
 
   const handleSignUp = () => {
@@ -25,15 +27,11 @@ export const SignInScreen: React.FC<Props> = ({ navigation }) => {
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Sign In</Text>
-      <TouchableOpacity 
-        onPress={handleSignIn} 
-        style={styles.button}
-        testID="signInButton"
-      >
+      <TouchableOpacity onPress={handleSignIn} style={styles.button} testID="signInButton">
         <Text style={styles.buttonText}>Sign In</Text>
       </TouchableOpacity>
-      <TouchableOpacity 
-        onPress={handleSignUp} 
+      <TouchableOpacity
+        onPress={handleSignUp}
         style={[styles.button, styles.secondaryButton]}
         testID="createAccountButton"
       >

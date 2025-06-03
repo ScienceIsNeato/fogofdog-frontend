@@ -11,11 +11,13 @@ export const SignUpScreen: React.FC<Props> = ({ navigation }) => {
   const dispatch = useAppDispatch();
 
   const handleSignUp = () => {
-    dispatch(setUser({
-      id: '123',
-      email: 'test@example.com',
-      displayName: 'Test User'
-    }));
+    dispatch(
+      setUser({
+        id: '123',
+        email: 'test@example.com',
+        displayName: 'Test User',
+      })
+    );
   };
 
   const handleSignIn = () => {
@@ -29,7 +31,9 @@ export const SignUpScreen: React.FC<Props> = ({ navigation }) => {
         <Text style={styles.buttonText}>Sign Up</Text>
       </TouchableOpacity>
       <TouchableOpacity onPress={handleSignIn} style={[styles.button, styles.secondaryButton]}>
-        <Text style={[styles.buttonText, styles.secondaryButtonText]}>Already have an account?</Text>
+        <Text style={[styles.buttonText, styles.secondaryButtonText]}>
+          Already have an account?
+        </Text>
       </TouchableOpacity>
     </View>
   );
@@ -71,4 +75,4 @@ const styles = StyleSheet.create({
   secondaryButtonText: {
     color: '#007AFF',
   },
-}); 
+});

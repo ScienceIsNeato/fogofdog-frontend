@@ -13,31 +13,15 @@ const MainStack = createNativeStackNavigator<MainStackParamList>();
 
 const AuthNavigator = () => (
   <AuthStack.Navigator screenOptions={{ headerShown: false }}>
-    <AuthStack.Screen 
-      name="SignIn" 
-      component={SignInScreen}
-      options={{ title: 'Sign In' }}
-    />
-    <AuthStack.Screen 
-      name="SignUp" 
-      component={SignUpScreen}
-      options={{ title: 'Sign Up' }}
-    />
+    <AuthStack.Screen name="SignIn" component={SignInScreen} options={{ title: 'Sign In' }} />
+    <AuthStack.Screen name="SignUp" component={SignUpScreen} options={{ title: 'Sign Up' }} />
   </AuthStack.Navigator>
 );
 
 const MainNavigator = () => (
   <MainStack.Navigator screenOptions={{ headerShown: false }}>
-    <MainStack.Screen 
-      name="Map" 
-      component={MapScreen}
-      options={{ title: 'Map' }}
-    />
-    <MainStack.Screen 
-      name="Profile" 
-      component={ProfileScreen}
-      options={{ title: 'Profile' }}
-    />
+    <MainStack.Screen name="Map" component={MapScreen} options={{ title: 'Map' }} />
+    <MainStack.Screen name="Profile" component={ProfileScreen} options={{ title: 'Profile' }} />
   </MainStack.Navigator>
 );
 

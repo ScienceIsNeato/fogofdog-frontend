@@ -1,0 +1,36 @@
+{
+  "entry": [
+    "index.ts",
+    "App.tsx",
+    "src/**/*.test.{ts,tsx}",
+    "src/**/*.spec.{ts,tsx}",
+    "e2e/**/*.{js,ts}"
+  ],
+  "extensions": [".ts", ".tsx", ".js", ".jsx"],
+  "ignorePatterns": [
+    "node_modules/**",
+    "coverage/**",
+    "dist/**",
+    "build/**",
+    ".expo/**",
+    "artifacts/**",
+    "ios/**",
+    "android/**"
+  ],
+  "ignoreUnimported": [
+    "react-native",
+    "expo",
+    "@expo/**",
+    "detox",
+    "jest",
+    "@testing-library/**",
+    "babel-preset-expo",
+    "metro-config"
+  ],
+  "ignoreUnused": [
+    "husky",
+    "eslint-config-expo",
+    "@types/**",
+    "typescript"
+  ]
+} 

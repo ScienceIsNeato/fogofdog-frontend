@@ -1,7 +1,12 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { View, StyleSheet, TouchableOpacity, Text, Dimensions } from 'react-native';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
-import { updateLocation, updateZoom, addPathPoint, setCenterOnUser } from '../../store/slices/explorationSlice';
+import {
+  updateLocation,
+  updateZoom,
+  addPathPoint,
+  setCenterOnUser,
+} from '../../store/slices/explorationSlice';
 import MapView, { Marker, Region } from 'react-native-maps';
 import * as Location from 'expo-location'; // Import expo-location
 import FogOverlay from '../../components/FogOverlay';
@@ -13,7 +18,7 @@ const DEFAULT_LOCATION = {
   latitude: 37.78825,
   longitude: -122.4324,
   // Adjust deltas for initial zoom (approx 400m diameter view)
-  latitudeDelta: 0.0922, 
+  latitudeDelta: 0.0922,
   longitudeDelta: 0.0421,
 };
 
@@ -26,15 +31,15 @@ const MAX_LONGITUDE_DELTA = 1.0;
 
 export const MapScreen = () => {
   const dispatch = useAppDispatch();
-  const { currentLocation, isMapCenteredOnUser } = useAppSelector(state => state.exploration);
+  const { currentLocation, isMapCenteredOnUser } = useAppSelector((state) => state.exploration);
   const mapRef = useRef<MapView>(null);
   const [currentRegion, setCurrentRegion] = useState<Region | undefined>(DEFAULT_LOCATION);
   const [mapRotation, setMapRotation] = useState(0); // Track map rotation angle
   const [mapDimensions, setMapDimensions] = useState({
     width: Dimensions.get('window').width,
-    height: Dimensions.get('window').height
+    height: Dimensions.get('window').height,
   });
-  
+
   const insets = useSafeAreaInsets();
 
   useEffect(() => {
@@ -49,7 +54,13 @@ export const MapScreen = () => {
 
       if (status !== 'granted') {
         // console.log('[MapScreen useEffect] Permission denied. Dispatching default location.');
-        if (isActive) dispatch(updateLocation({ latitude: DEFAULT_LOCATION.latitude, longitude: DEFAULT_LOCATION.longitude }));
+        if (isActive)
+          dispatch(
+            updateLocation({
+              latitude: DEFAULT_LOCATION.latitude,
+              longitude: DEFAULT_LOCATION.longitude,
+            })
+          );
         return;
       }
 
@@ -62,38 +73,45 @@ export const MapScreen = () => {
         const userLongitude = location.coords.longitude;
         // console.log('[MapScreen useEffect] Current position fetched:', { userLatitude, userLongitude });
 
-        if (isActive) dispatch(updateLocation({ latitude: userLatitude, longitude: userLongitude }));
+        if (isActive)
+          dispatch(updateLocation({ latitude: userLatitude, longitude: userLongitude }));
         // console.log('[MapScreen useEffect] Dispatched updateLocation with fetched position.');
-        
+
         const userRegion = {
           latitude: userLatitude,
           longitude: userLongitude,
-          latitudeDelta: DEFAULT_LOCATION.latitudeDelta, 
+          latitudeDelta: DEFAULT_LOCATION.latitudeDelta,
           longitudeDelta: DEFAULT_LOCATION.longitudeDelta,
         };
         if (isActive) setCurrentRegion(userRegion);
         if (isActive && mapRef.current) {
-          mapRef.current.animateToRegion(userRegion, 1000); 
+          mapRef.current.animateToRegion(userRegion, 1000);
         }
 
         if (isActive) {
           const localSubscription = await Location.watchPositionAsync(
             {
-              accuracy: Location.Accuracy.High, 
-              timeInterval: 5000, 
-              distanceInterval: 10, 
+              accuracy: Location.Accuracy.High,
+              timeInterval: 5000,
+              distanceInterval: 10,
             },
             (newLocation) => {
-              if (isActive) { // Check inside callback too
+              if (isActive) {
+                // Check inside callback too
                 // console.log('[MapScreen locationSubscription] New location received:', newLocation.coords);
-                dispatch(updateLocation({ latitude: newLocation.coords.latitude, longitude: newLocation.coords.longitude }));
+                dispatch(
+                  updateLocation({
+                    latitude: newLocation.coords.latitude,
+                    longitude: newLocation.coords.longitude,
+                  })
+                );
                 // console.log('[MapScreen locationSubscription] Dispatched updateLocation with new subscription data.');
               }
             }
           );
           // console.log('[MapScreen useEffect] Location watch subscription set up.');
           if (isActive) {
-            subscription = localSubscription; 
+            subscription = localSubscription;
           } else {
             // console.log('[MapScreen useEffect] Component unmounted during watchPositionAsync setup, removing immediate subscription.');
             localSubscription.remove();
@@ -101,8 +119,13 @@ export const MapScreen = () => {
         }
       } catch (error) {
         if (isActive) {
-          console.error("[MapScreen useEffect] Error fetching location:", error);
-          dispatch(updateLocation({ latitude: DEFAULT_LOCATION.latitude, longitude: DEFAULT_LOCATION.longitude }));
+          console.error('[MapScreen useEffect] Error fetching location:', error);
+          dispatch(
+            updateLocation({
+              latitude: DEFAULT_LOCATION.latitude,
+              longitude: DEFAULT_LOCATION.longitude,
+            })
+          );
         }
       }
     };
@@ -179,7 +202,7 @@ export const MapScreen = () => {
       // Add a point 100 meters east of current location
       const testPoint = {
         latitude: currentLocation.latitude,
-        longitude: currentLocation.longitude + 0.001 // Approximately 100m east
+        longitude: currentLocation.longitude + 0.001, // Approximately 100m east
       };
       dispatch(addPathPoint(testPoint));
       console.log(`[MapScreen] Added test point at: ${testPoint.latitude}, ${testPoint.longitude}`);
@@ -187,8 +210,8 @@ export const MapScreen = () => {
   };
 
   return (
-    <View 
-      style={styles.container} 
+    <View
+      style={styles.container}
       testID="map-screen"
       onLayout={(event) => {
         const { width, height } = event.nativeEvent.layout;
@@ -202,7 +225,7 @@ export const MapScreen = () => {
         onRegionChange={(region) => {
           // Update continuously during pan/zoom to keep fog pinned to map
           setCurrentRegion(region);
-          
+
           // Check if user manually panned away from their location
           if (isMapCenteredOnUser && currentLocation) {
             const latDiff = Math.abs(region.latitude - currentLocation.latitude);
@@ -219,57 +242,59 @@ export const MapScreen = () => {
           // Additional handler for pan events
           if (mapRef.current) {
             // Get current camera properties if available through the ref
-            mapRef.current.getCamera().then(camera => {
-              if (camera.heading !== undefined) {
-                setMapRotation(camera.heading);
-              }
-            }).catch(err => {
-              console.log('[MapScreen] Error getting camera:', err);
-            });
+            mapRef.current
+              .getCamera()
+              .then((camera) => {
+                if (camera.heading !== undefined) {
+                  setMapRotation(camera.heading);
+                }
+              })
+              .catch((err) => {
+                console.log('[MapScreen] Error getting camera:', err);
+              });
           }
         }}
-        onRegionChangeComplete={(region) => { // Use onRegionChangeComplete for stability
+        onRegionChangeComplete={(region) => {
+          // Use onRegionChangeComplete for stability
           setCurrentRegion(region); // Update state
           const zoom = Math.round(Math.log(360 / region.latitudeDelta) / Math.LN2);
           handleZoomChange(zoom);
         }}
-        showsUserLocation={false} 
+        showsUserLocation={false}
         showsMyLocationButton={false}
         rotateEnabled={false} // Disable rotation
-        pitchEnabled={false}  // Disable pitch (3D tilting)
+        pitchEnabled={false} // Disable pitch (3D tilting)
         // Optional: Set minZoomLevel if calculable and preferred over clamping
       >
         {/* Current Location Marker */}
         {currentLocation && (
-          <Marker 
-            coordinate={currentLocation}
-            title="You are here"
-            anchor={{ x: 0.5, y: 0.5 }}
-          >
-            <View style={{ 
-              width: 20, 
-              height: 20, 
-              backgroundColor: 'cyan',
-              borderRadius: 10,
-              borderColor: 'white',
-              borderWidth: 2
-            }} />
+          <Marker coordinate={currentLocation} title="You are here" anchor={{ x: 0.5, y: 0.5 }}>
+            <View
+              style={{
+                width: 20,
+                height: 20,
+                backgroundColor: 'cyan',
+                borderRadius: 10,
+                borderColor: 'white',
+                borderWidth: 2,
+              }}
+            />
           </Marker>
         )}
       </MapView>
-      
+
       {/* New Skia-based Fog Overlay */}
       {currentRegion && (
-        <FogOverlay 
+        <FogOverlay
           mapRegion={{
             ...currentRegion,
             width: mapDimensions.width,
-            height: mapDimensions.height
+            height: mapDimensions.height,
           }}
           rotation={mapRotation}
         />
       )}
-      
+
       {/* Location Button */}
       <LocationButton
         onPress={centerOnUserLocation}
@@ -281,17 +306,14 @@ export const MapScreen = () => {
           right: 10,
         }}
       />
-      
+
       {/* Test button to add a point - for debugging only */}
       {__DEV__ && (
-        <TouchableOpacity 
-          style={styles.testButton}
-          onPress={addTestPoint}
-        >
+        <TouchableOpacity style={styles.testButton} onPress={addTestPoint}>
           <Text style={styles.testButtonText}>Add Test Point</Text>
         </TouchableOpacity>
       )}
-      
+
       {/* Debug info - can be removed in production */}
       {/* {__DEV__ && (
         <View style={styles.debugInfo}>

@@ -9,16 +9,16 @@ describe('mapUtils', () => {
         latitudeDelta: 0.1,
         longitudeDelta: 0.1,
         width: 300,
-        height: 300
+        height: 300,
       };
-      
+
       const point = { latitude: 0, longitude: 0 };
       const result = geoPointToPixel(point, region);
-      
+
       expect(result.x).toBeCloseTo(150, 0);
       expect(result.y).toBeCloseTo(150, 0);
     });
-    
+
     it('should convert edge points correctly', () => {
       const region = {
         latitude: 40,
@@ -26,34 +26,34 @@ describe('mapUtils', () => {
         latitudeDelta: 0.1,
         longitudeDelta: 0.1,
         width: 400,
-        height: 500
+        height: 500,
       };
-      
+
       // North edge
       const northPoint = { latitude: 40.05, longitude: -74 };
       const northResult = geoPointToPixel(northPoint, region);
       expect(northResult.x).toBeCloseTo(200, 0);
       expect(northResult.y).toBeCloseTo(0, 0);
-      
+
       // South edge
       const southPoint = { latitude: 39.95, longitude: -74 };
       const southResult = geoPointToPixel(southPoint, region);
       expect(southResult.x).toBeCloseTo(200, 0);
       expect(southResult.y).toBeCloseTo(500, 0);
-      
+
       // East edge
       const eastPoint = { latitude: 40, longitude: -73.95 };
       const eastResult = geoPointToPixel(eastPoint, region);
       expect(eastResult.x).toBeCloseTo(400, 0);
       expect(eastResult.y).toBeCloseTo(250, 0);
-      
+
       // West edge
       const westPoint = { latitude: 40, longitude: -74.05 };
       const westResult = geoPointToPixel(westPoint, region);
       expect(westResult.x).toBeCloseTo(0, 0);
       expect(westResult.y).toBeCloseTo(250, 0);
     });
-    
+
     it('should handle non-zero center coordinates', () => {
       const region = {
         latitude: 51.5,
@@ -61,21 +61,21 @@ describe('mapUtils', () => {
         latitudeDelta: 0.02,
         longitudeDelta: 0.02,
         width: 400,
-        height: 400
+        height: 400,
       };
-      
+
       // Testing a point west of center
       const westPoint = { latitude: 51.5, longitude: -0.125 };
       const westResult = geoPointToPixel(westPoint, region);
       expect(westResult.x).toBeCloseTo(100, 0); // Based on current implementation
-      
+
       // Testing a point south of center
       const southPoint = { latitude: 51.495, longitude: -0.12 };
       const southResult = geoPointToPixel(southPoint, region);
       expect(southResult.y).toBeCloseTo(300, 0); // Based on current implementation
     });
   });
-  
+
   describe('calculateMetersPerPixel', () => {
     it('should calculate correct meters per pixel at equator', () => {
       const region = {
@@ -83,43 +83,43 @@ describe('mapUtils', () => {
         longitude: 0,
         latitudeDelta: 0.1,
         longitudeDelta: 0.1,
-        width: 1000
+        width: 1000,
       };
-      
+
       // At equator, 0.1 degrees is about 11,132 meters
       // So meters per pixel should be approximately 11,132 / 1000 = 11.132
       const result = calculateMetersPerPixel(region);
-      
+
       expect(result).toBeCloseTo(11.132, 1);
     });
-    
+
     it('should calculate lower meters per pixel at higher latitudes', () => {
       const equatorRegion = {
         latitude: 0,
         longitude: 0,
         latitudeDelta: 0.1,
         longitudeDelta: 0.1,
-        width: 1000
+        width: 1000,
       };
-      
+
       const polarRegion = {
         latitude: 60, // Near polar region
         longitude: 0,
         latitudeDelta: 0.1,
         longitudeDelta: 0.1,
-        width: 1000
+        width: 1000,
       };
-      
+
       const equatorMPP = calculateMetersPerPixel(equatorRegion);
       const polarMPP = calculateMetersPerPixel(polarRegion);
-      
+
       // At higher latitudes, longitudinal distance decreases
       // So meters per pixel should be lower at 60° latitude
       expect(polarMPP).toBeLessThan(equatorMPP);
-      expect(polarMPP).toBeCloseTo(equatorMPP * Math.cos(60 * Math.PI / 180), 1);
+      expect(polarMPP).toBeCloseTo(equatorMPP * Math.cos((60 * Math.PI) / 180), 1);
     });
   });
-  
+
   describe('metersToPixels', () => {
     it('should convert meters to pixels correctly', () => {
       const region = {
@@ -127,15 +127,15 @@ describe('mapUtils', () => {
         longitude: -122.4194,
         latitudeDelta: 0.1,
         longitudeDelta: 0.1,
-        width: 1000
+        width: 1000,
       };
-      
+
       const meters = 100;
       const metersPerPixel = calculateMetersPerPixel(region);
       const expectedPixels = meters / metersPerPixel;
-      
+
       const result = metersToPixels(meters, region);
-      
+
       expect(result).toBeCloseTo(expectedPixels, 1);
     });
   });

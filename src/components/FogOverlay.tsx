@@ -28,43 +28,43 @@ const FogOverlay: React.FC<FogOverlayProps> = ({ mapRegion, rotation = 0 }) => {
   // Select the path of GeoPoints and current location from Redux
   const pathPoints = useSelector((state: RootState) => state.exploration.path);
   const currentLocation = useSelector((state: RootState) => state.exploration.currentLocation);
-  
+
   // Compute the Skia path from geo points
   const skiaPath = useMemo(() => {
     const path = Skia.Path.Make();
-    
+
     if (pathPoints.length === 0) {
       return path;
     }
-    
+
     // Create the path by connecting all the points
     const firstPoint = geoPointToPixel(pathPoints[0], mapRegion);
     path.moveTo(firstPoint.x, firstPoint.y);
-    
+
     for (let i = 1; i < pathPoints.length; i++) {
       const { x, y } = geoPointToPixel(pathPoints[i], mapRegion);
       path.lineTo(x, y);
     }
-    
+
     return path;
   }, [pathPoints, mapRegion]);
-  
+
   // Calculate radius in pixels based on the current zoom level
   const radiusPixels = useMemo(() => {
     const metersPerPixel = calculateMetersPerPixel(mapRegion);
     // Remove minimum pixel size to prevent "cheating" by zooming out
     return FOG_RADIUS_METERS / metersPerPixel;
   }, [mapRegion]);
-  
+
   // Calculate stroke width for path (can be thinner than the circle diameter)
   const strokeWidth = useMemo(() => {
     return radiusPixels * 1.8; // Use 90% of the full diameter for the path
   }, [radiusPixels]);
-  
+
   // Performance optimization: Use a debounced render for high-frequency updates
   const lastRenderTime = useRef(0);
   const RENDER_THROTTLE_MS = 16; // Throttle to ~60fps
-  
+
   // Filter out very frequent updates to avoid over-rendering during fast pans
   const shouldSkipRender = () => {
     const now = Date.now();
@@ -74,31 +74,33 @@ const FogOverlay: React.FC<FogOverlayProps> = ({ mapRegion, rotation = 0 }) => {
     lastRenderTime.current = now;
     return false;
   };
-  
+
   // Debug logging
   useEffect(() => {
     // Skip logging for high-frequency updates to reduce console noise
     if (!shouldSkipRender()) {
-      console.log(`FogOverlay: rendering with ${pathPoints.length} points, radius: ${radiusPixels.toFixed(2)}px, stroke: ${strokeWidth.toFixed(2)}px`);
+      console.log(
+        `FogOverlay: rendering with ${pathPoints.length} points, radius: ${radiusPixels.toFixed(2)}px, stroke: ${strokeWidth.toFixed(2)}px`
+      );
     }
   }, [pathPoints, radiusPixels, strokeWidth]);
-  
+
   // Calculate transform for rotation if needed - now uses current GPS location as pivot
   const canvasTransform = useMemo(() => {
     if (rotation === 0) return undefined;
-    
+
     // Use current location as the center of rotation if available
     // Otherwise fall back to the center of the screen
     let centerX = mapRegion.width / 2;
     let centerY = mapRegion.height / 2;
-    
+
     if (currentLocation) {
       // Convert GPS coordinates to screen coordinates
       const currentPoint = geoPointToPixel(currentLocation, mapRegion);
       centerX = currentPoint.x;
       centerY = currentPoint.y;
     }
-    
+
     return [
       { translateX: centerX },
       { translateY: centerY },
@@ -107,49 +109,47 @@ const FogOverlay: React.FC<FogOverlayProps> = ({ mapRegion, rotation = 0 }) => {
       { translateY: -centerY },
     ];
   }, [rotation, mapRegion, currentLocation]);
-  
+
   return (
     <Canvas style={styles.canvas} pointerEvents="none">
-      <Mask mode="luminance" transform={canvasTransform} mask={
-        <Group>
-          {/* Start with all-white mask (showing fog everywhere) */}
-          <Fill color="white" />
-          
-          {/* Draw circles at each point to ensure visible holes */}
-          {pathPoints.map((point, index) => {
-            const { x, y } = geoPointToPixel(point, mapRegion);
-            return (
-              <Circle 
-                key={`circle-${index}`}
-                cx={x} 
-                cy={y} 
-                r={radiusPixels}
+      <Mask
+        mode="luminance"
+        transform={canvasTransform}
+        mask={
+          <Group>
+            {/* Start with all-white mask (showing fog everywhere) */}
+            <Fill color="white" />
+
+            {/* Draw circles at each point to ensure visible holes */}
+            {pathPoints.map((point, index) => {
+              const { x, y } = geoPointToPixel(point, mapRegion);
+              return (
+                <Circle key={`circle-${index}`} cx={x} cy={y} r={radiusPixels} color={PATH_COLOR} />
+              );
+            })}
+
+            {/* Also draw the path to connect the holes */}
+            {pathPoints.length > 1 && (
+              <Path
+                path={skiaPath}
                 color={PATH_COLOR}
+                style="stroke"
+                strokeWidth={strokeWidth}
+                strokeCap="round"
+                strokeJoin="round"
               />
-            );
-          })}
-          
-          {/* Also draw the path to connect the holes */}
-          {pathPoints.length > 1 && (
-            <Path 
-              path={skiaPath} 
-              color={PATH_COLOR}
-              style="stroke" 
-              strokeWidth={strokeWidth}
-              strokeCap="round" 
-              strokeJoin="round"
-            />
-          )}
-        </Group>
-      }>
+            )}
+          </Group>
+        }
+      >
         {/* Fog overlay rectangle */}
-        <Rect 
-          x={0} 
-          y={0} 
-          width={mapRegion.width} 
+        <Rect
+          x={0}
+          y={0}
+          width={mapRegion.width}
           height={mapRegion.height}
-          color={FOG_COLOR} 
-          opacity={FOG_OPACITY} 
+          color={FOG_COLOR}
+          opacity={FOG_OPACITY}
         />
       </Mask>
     </Canvas>

@@ -1,15 +1,21 @@
 import React from 'react';
 
 const MockView = ({ children, testID, ...props }: any) => (
-  <div data-testid={testID} {...props}>{children}</div>
+  <div data-testid={testID} {...props}>
+    {children}
+  </div>
 );
 
 const MockText = ({ children, testID, ...props }: any) => (
-  <span data-testid={testID} {...props}>{children}</span>
+  <span data-testid={testID} {...props}>
+    {children}
+  </span>
 );
 
 const MockPressable = ({ children, testID, onPress, ...props }: any) => (
-  <button data-testid={testID} onClick={onPress} {...props}>{children}</button>
+  <button data-testid={testID} onClick={onPress} {...props}>
+    {children}
+  </button>
 );
 
 export const Platform = {
@@ -37,4 +43,4 @@ export const Dimensions = {
 export const View = MockView;
 export const Text = MockText;
 export const Pressable = MockPressable;
-export const Image = MockView; 
+export const Image = MockView;
