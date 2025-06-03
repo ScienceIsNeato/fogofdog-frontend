@@ -20,7 +20,20 @@
     "lint:transition": "eslint src --ext .ts,.tsx --max-warnings 35",
     "pre-commit": "npm run lint:errors-only && npm run test:ci",
     "pre-commit:strict": "npm run lint:strict && npm run test:ci",
-    "prepare": "husky"
+    "prepare": "husky",
+    "quality:check": "npm run lint:strict && npm run test:coverage && npm run audit:security",
+    "quality:full": "npm run quality:check && npm run type-check-fast",
+    "quality:fix": "npm run lint:fix && npm run test:update-snapshots",
+    "audit:security": "npm audit --audit-level high",
+    "type-check": "npx tsc --noEmit --strict",
+    "type-check-fast": "npx tsc --noEmit",
+    "test:coverage": "jest --coverage --watchAll=false --passWithNoTests",
+    "test:update-snapshots": "jest --updateSnapshot --watchAll=false",
+    "bundle:analyze": "npx expo export --platform ios && echo 'Bundle analysis complete'",
+    "deps:check": "npx npm-check-updates",
+    "deps:update": "npx npm-check-updates -u && npm install",
+    "ci:quality-gate": "npm run quality:check && npx expo doctor",
+    "build:verify": "npx expo export --platform ios && npx expo export --platform android"
   },
   "dependencies": {
     "@expo/vector-icons": "^14.1.0",

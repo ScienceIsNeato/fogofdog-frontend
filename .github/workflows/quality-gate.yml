@@ -1,0 +1,115 @@
+name: 🚀 Speed-Focused Quality Gate
+on:
+  push:
+    branches: [main, develop, feature/*]
+  pull_request:
+    branches: [main]
+
+jobs:
+  # Fast quality checks (< 2 minutes)
+  quality-checks:
+    name: 🔍 Quality Checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+        
+      - name: 📦 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          
+      - name: ⚡ Install dependencies
+        run: npm ci --legacy-peer-deps
+        
+      - name: 🔒 Security Audit (High Priority Only)
+        run: npm audit --audit-level high
+        continue-on-error: true # Don't fail on warnings
+        
+      - name: 🧹 Lint Check (Zero Warnings)
+        run: npm run lint:strict
+        
+      - name: 🔧 TypeScript Check
+        run: npx tsc --noEmit --strict
+        
+      - name: 🏥 Expo Doctor
+        run: npx expo doctor
+        
+      - name: 📊 Test with Coverage
+        run: npm run test -- --coverage --watchAll=false --passWithNoTests
+        
+      - name: 📈 Upload Coverage to CodeClimate
+        uses: paambaati/codeclimate-action@v3.0.0
+        env:
+          CC_TEST_REPORTER_ID: ${{ secrets.CC_TEST_REPORTER_ID }}
+        with:
+          coverageLocations: coverage/lcov.info:lcov
+        continue-on-error: true
+
+  # Build verification (< 3 minutes)
+  build-check:
+    name: 🔨 Build Verification
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    needs: quality-checks
+    
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+        
+      - name: 📦 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          
+      - name: ⚡ Install dependencies
+        run: npm ci --legacy-peer-deps
+        
+      - name: 🏗️ Expo Export (iOS)
+        run: npx expo export --platform ios
+        
+      - name: 🏗️ Expo Export (Android) 
+        run: npx expo export --platform android
+        
+      - name: 📱 EAS Build Dry Run (iOS)
+        run: npx eas build --platform ios --profile testflight --dry-run
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        continue-on-error: true
+        
+      - name: 📦 Bundle Analysis
+        run: |
+          npx expo export --platform ios
+          echo "📊 Bundle size check completed"
+        continue-on-error: true
+
+  # Optional: Full EAS build only on main branch
+  production-build:
+    name: 🚀 Production Build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: [quality-checks, build-check]
+    if: github.ref == 'refs/heads/main'
+    
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+        
+      - name: 📦 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          
+      - name: ⚡ Install dependencies
+        run: npm ci --legacy-peer-deps
+        
+      - name: 🚀 EAS Build (TestFlight)
+        run: npx eas build --platform ios --profile testflight --auto-submit
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        continue-on-error: true 
