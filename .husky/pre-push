@@ -3,6 +3,10 @@
 
 echo "🔍 Running pre-push quality checks..."
 
+# Code formatting check
+echo "💅 Code formatting check..."
+npm run format:check
+
 # Comprehensive TypeScript check with strict mode
 echo "🔧 TypeScript strict check..."
 npm run type-check

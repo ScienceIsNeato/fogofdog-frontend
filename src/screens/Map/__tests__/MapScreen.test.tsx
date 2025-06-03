@@ -132,7 +132,8 @@ jest.mock('@shopify/react-native-skia', () => {
   const { View } = jest.requireActual<typeof import('react-native')>('react-native');
 
   return {
-    Canvas: (props: ViewProps) => React.createElement(View, { testID: 'mock-skia-canvas', ...props }),
+    Canvas: (props: ViewProps) =>
+      React.createElement(View, { testID: 'mock-skia-canvas', ...props }),
     Mask: (props: ViewProps) => React.createElement(View, { testID: 'mock-skia-mask', ...props }),
     Group: (props: ViewProps) => React.createElement(View, { testID: 'mock-skia-group', ...props }),
     Fill: (props: ViewProps) => React.createElement(View, { testID: 'mock-skia-fill', ...props }),
@@ -152,7 +153,8 @@ jest.mock('@shopify/react-native-skia', () => {
 // Mock LocationButton
 jest.mock('../../../components/LocationButton', () => {
   const React = jest.requireActual<typeof import('react')>('react');
-  const { TouchableOpacity, Text } = jest.requireActual<typeof import('react-native')>('react-native');
+  const { TouchableOpacity, Text } =
+    jest.requireActual<typeof import('react-native')>('react-native');
 
   const MockLocationButton = (props: any) => {
     mockLocationButtonRender && mockLocationButtonRender(props);

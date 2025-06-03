@@ -26,8 +26,67 @@ const DEFAULT_LOCATION = {
 const MAX_LATITUDE_DELTA = 0.75;
 const MAX_LONGITUDE_DELTA = 1.0;
 
+// Location setup helper functions
+const handleLocationPermissionDenied = (
+  dispatch: ReturnType<typeof useAppDispatch>,
+  isActive: boolean
+) => {
+  if (isActive) {
+    dispatch(
+      updateLocation({
+        latitude: DEFAULT_LOCATION.latitude,
+        longitude: DEFAULT_LOCATION.longitude,
+      })
+    );
+  }
+};
+
+const handleLocationError = (
+  error: any,
+  dispatch: ReturnType<typeof useAppDispatch>,
+  isActive: boolean
+) => {
+  if (isActive) {
+    console.error('[MapScreen useEffect] Error fetching location:', error);
+    dispatch(
+      updateLocation({
+        latitude: DEFAULT_LOCATION.latitude,
+        longitude: DEFAULT_LOCATION.longitude,
+      })
+    );
+  }
+};
+
+const setupLocationWatcher = async (
+  dispatch: ReturnType<typeof useAppDispatch>,
+  isActive: boolean
+) => {
+  if (!isActive) return null;
+
+  return await Location.watchPositionAsync(
+    {
+      accuracy: Location.Accuracy.High,
+      timeInterval: 5000,
+      distanceInterval: 10,
+    },
+    (newLocation) => {
+      if (isActive) {
+        dispatch(
+          updateLocation({
+            latitude: newLocation.coords.latitude,
+            longitude: newLocation.coords.longitude,
+          })
+        );
+      }
+    }
+  );
+};
+
 // Hook for location setup logic
-const useLocationSetup = (dispatch: ReturnType<typeof useAppDispatch>, mapRef: React.RefObject<MapView>) => {
+const useLocationSetup = (
+  dispatch: ReturnType<typeof useAppDispatch>,
+  mapRef: React.RefObject<MapView>
+) => {
   useEffect(() => {
     let isActive = true;
     let subscription: Location.LocationSubscription | null = null;
@@ -37,13 +96,7 @@ const useLocationSetup = (dispatch: ReturnType<typeof useAppDispatch>, mapRef: R
       if (!isActive) return;
 
       if (status !== 'granted') {
-        if (isActive)
-          dispatch(
-            updateLocation({
-              latitude: DEFAULT_LOCATION.latitude,
-              longitude: DEFAULT_LOCATION.longitude,
-            })
-          );
+        handleLocationPermissionDenied(dispatch, isActive);
         return;
       }
 
@@ -54,8 +107,9 @@ const useLocationSetup = (dispatch: ReturnType<typeof useAppDispatch>, mapRef: R
         const userLatitude = location.coords.latitude;
         const userLongitude = location.coords.longitude;
 
-        if (isActive)
+        if (isActive) {
           dispatch(updateLocation({ latitude: userLatitude, longitude: userLongitude }));
+        }
 
         const userRegion = {
           latitude: userLatitude,
@@ -63,46 +117,19 @@ const useLocationSetup = (dispatch: ReturnType<typeof useAppDispatch>, mapRef: R
           latitudeDelta: DEFAULT_LOCATION.latitudeDelta,
           longitudeDelta: DEFAULT_LOCATION.longitudeDelta,
         };
-        
+
         if (isActive && mapRef.current) {
           mapRef.current.animateToRegion(userRegion, 1000);
         }
 
-        if (isActive) {
-          const localSubscription = await Location.watchPositionAsync(
-            {
-              accuracy: Location.Accuracy.High,
-              timeInterval: 5000,
-              distanceInterval: 10,
-            },
-            (newLocation) => {
-              if (isActive) {
-                dispatch(
-                  updateLocation({
-                    latitude: newLocation.coords.latitude,
-                    longitude: newLocation.coords.longitude,
-                  })
-                );
-              }
-            }
-          );
-          
-          if (isActive) {
-            subscription = localSubscription;
-          } else {
-            localSubscription.remove();
-          }
+        const localSubscription = await setupLocationWatcher(dispatch, isActive);
+        if (isActive && localSubscription) {
+          subscription = localSubscription;
+        } else if (localSubscription) {
+          localSubscription.remove();
         }
       } catch (error) {
-        if (isActive) {
-          console.error('[MapScreen useEffect] Error fetching location:', error);
-          dispatch(
-            updateLocation({
-              latitude: DEFAULT_LOCATION.latitude,
-              longitude: DEFAULT_LOCATION.longitude,
-            })
-          );
-        }
+        handleLocationError(error, dispatch, isActive);
       }
     };
 
@@ -118,7 +145,10 @@ const useLocationSetup = (dispatch: ReturnType<typeof useAppDispatch>, mapRef: R
 };
 
 // Hook for zoom restriction logic
-const useZoomRestriction = (currentRegion: Region | undefined, mapRef: React.RefObject<MapView>) => {
+const useZoomRestriction = (
+  currentRegion: Region | undefined,
+  mapRef: React.RefObject<MapView>
+) => {
   useEffect(() => {
     if (currentRegion && mapRef.current) {
       let clampedLatitudeDelta = currentRegion.latitudeDelta;
@@ -153,6 +183,40 @@ const createTestPoint = (currentLocation: any) => ({
   longitude: currentLocation.longitude + 0.001,
 });
 
+// Individual event handler functions
+const createZoomHandler = (dispatch: ReturnType<typeof useAppDispatch>) => (newZoom: number) => {
+  dispatch(updateZoom(newZoom));
+};
+
+const createCenterOnUserHandler =
+  (
+    currentLocation: any,
+    currentRegion: Region | undefined,
+    mapRef: React.RefObject<MapView>,
+    dispatch: ReturnType<typeof useAppDispatch>
+  ) =>
+  () => {
+    if (currentLocation && mapRef.current) {
+      const userRegion = {
+        latitude: currentLocation.latitude,
+        longitude: currentLocation.longitude,
+        latitudeDelta: currentRegion?.latitudeDelta || DEFAULT_LOCATION.latitudeDelta,
+        longitudeDelta: currentRegion?.longitudeDelta || DEFAULT_LOCATION.longitudeDelta,
+      };
+      mapRef.current.animateToRegion(userRegion, 300);
+      dispatch(setCenterOnUser(true));
+    }
+  };
+
+const createAddTestPointHandler =
+  (currentLocation: any, dispatch: ReturnType<typeof useAppDispatch>) => () => {
+    if (currentLocation) {
+      const testPoint = createTestPoint(currentLocation);
+      dispatch(addPathPoint(testPoint));
+      console.log(`[MapScreen] Added test point at: ${testPoint.latitude}, ${testPoint.longitude}`);
+    }
+  };
+
 // Map event handlers
 const useMapEventHandlers = (options: {
   dispatch: ReturnType<typeof useAppDispatch>;
@@ -173,30 +237,14 @@ const useMapEventHandlers = (options: {
     setMapRotation,
   } = options;
 
-  const handleZoomChange = (newZoom: number) => {
-    dispatch(updateZoom(newZoom));
-  };
-
-  const centerOnUserLocation = () => {
-    if (currentLocation && mapRef.current) {
-      const userRegion = {
-        latitude: currentLocation.latitude,
-        longitude: currentLocation.longitude,
-        latitudeDelta: currentRegion?.latitudeDelta || DEFAULT_LOCATION.latitudeDelta,
-        longitudeDelta: currentRegion?.longitudeDelta || DEFAULT_LOCATION.longitudeDelta,
-      };
-      mapRef.current.animateToRegion(userRegion, 300);
-      dispatch(setCenterOnUser(true));
-    }
-  };
-
-  const addTestPoint = () => {
-    if (currentLocation) {
-      const testPoint = createTestPoint(currentLocation);
-      dispatch(addPathPoint(testPoint));
-      console.log(`[MapScreen] Added test point at: ${testPoint.latitude}, ${testPoint.longitude}`);
-    }
-  };
+  const handleZoomChange = createZoomHandler(dispatch);
+  const centerOnUserLocation = createCenterOnUserHandler(
+    currentLocation,
+    currentRegion,
+    mapRef,
+    dispatch
+  );
+  const addTestPoint = createAddTestPointHandler(currentLocation, dispatch);
 
   const onRegionChange = (region: Region) => {
     setCurrentRegion(region);
@@ -389,22 +437,17 @@ export const MapScreen = () => {
   // Use our custom hooks
   useLocationSetup(dispatch, mapRef);
   useZoomRestriction(currentRegion, mapRef);
-  
-  const {
-    centerOnUserLocation,
-    addTestPoint,
-    onRegionChange,
-    onPanDrag,
-    onRegionChangeComplete,
-  } = useMapEventHandlers({
-    dispatch,
-    currentLocation,
-    currentRegion,
-    isMapCenteredOnUser,
-    mapRef,
-    setCurrentRegion,
-    setMapRotation,
-  });
+
+  const { centerOnUserLocation, addTestPoint, onRegionChange, onPanDrag, onRegionChangeComplete } =
+    useMapEventHandlers({
+      dispatch,
+      currentLocation,
+      currentRegion,
+      isMapCenteredOnUser,
+      mapRef,
+      setCurrentRegion,
+      setMapRotation,
+    });
 
   return (
     <MapScreenRenderer

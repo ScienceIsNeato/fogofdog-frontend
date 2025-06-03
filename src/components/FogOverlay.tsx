@@ -35,14 +35,14 @@ const useFogCalculations = (mapRegion: MapRegion & { width: number; height: numb
     // Create the path by connecting all the points
     const firstPoint = pathPoints[0];
     if (!firstPoint) return path; // Type guard for strict null checks
-    
+
     const firstPixel = geoPointToPixel(firstPoint, mapRegion);
     path.moveTo(firstPixel.x, firstPixel.y);
 
     for (let i = 1; i < pathPoints.length; i++) {
       const point = pathPoints[i];
       if (!point) continue; // Type guard for strict null checks
-      
+
       const { x, y } = geoPointToPixel(point, mapRegion);
       path.lineTo(x, y);
     }
@@ -127,13 +127,56 @@ const useCanvasTransform = (
 };
 
 /**
+ * FogMask component renders the mask content for the fog overlay
+ */
+const FogMask: React.FC<{
+  pathPoints: any[];
+  mapRegion: MapRegion & { width: number; height: number };
+  radiusPixels: number;
+  skiaPath: any;
+  strokeWidth: number;
+  canvasTransform?: any;
+}> = ({ pathPoints, mapRegion, radiusPixels, skiaPath, strokeWidth, canvasTransform }) => {
+  const maskContent = (
+    <>
+      {/* Start with all-white mask (showing fog everywhere) */}
+      <Fill color="white" />
+
+      {/* Draw circles at each point to ensure visible holes */}
+      {pathPoints.map((point, index) => {
+        const { x, y } = geoPointToPixel(point, mapRegion);
+        return <Circle key={`circle-${index}`} cx={x} cy={y} r={radiusPixels} color={PATH_COLOR} />;
+      })}
+
+      {/* Also draw the path to connect the holes */}
+      {pathPoints.length > 1 && (
+        <Path
+          path={skiaPath}
+          color={PATH_COLOR}
+          style="stroke"
+          strokeWidth={strokeWidth}
+          strokeCap="round"
+          strokeJoin="round"
+        />
+      )}
+    </>
+  );
+
+  return canvasTransform ? (
+    <Group transform={canvasTransform}>{maskContent}</Group>
+  ) : (
+    <Group>{maskContent}</Group>
+  );
+};
+
+/**
  * FogOverlay component renders a fog layer over the map with transparent "holes"
  * along the user's path. Uses Skia for GPU-accelerated rendering.
  */
 const FogOverlay: React.FC<FogOverlayProps> = ({ mapRegion, rotation = 0 }) => {
   const { pathPoints, skiaPath, radiusPixels, strokeWidth } = useFogCalculations(mapRegion);
   const canvasTransform = useCanvasTransform(rotation, mapRegion);
-  
+
   // Performance optimization hook
   useFogPerformance(pathPoints, radiusPixels, strokeWidth);
 
@@ -142,57 +185,14 @@ const FogOverlay: React.FC<FogOverlayProps> = ({ mapRegion, rotation = 0 }) => {
       <Mask
         mode="luminance"
         mask={
-          canvasTransform ? (
-            <Group transform={canvasTransform}>
-              {/* Start with all-white mask (showing fog everywhere) */}
-              <Fill color="white" />
-
-              {/* Draw circles at each point to ensure visible holes */}
-              {pathPoints.map((point, index) => {
-                const { x, y } = geoPointToPixel(point, mapRegion);
-                return (
-                  <Circle key={`circle-${index}`} cx={x} cy={y} r={radiusPixels} color={PATH_COLOR} />
-                );
-              })}
-
-              {/* Also draw the path to connect the holes */}
-              {pathPoints.length > 1 && (
-                <Path
-                  path={skiaPath}
-                  color={PATH_COLOR}
-                  style="stroke"
-                  strokeWidth={strokeWidth}
-                  strokeCap="round"
-                  strokeJoin="round"
-                />
-              )}
-            </Group>
-          ) : (
-            <Group>
-              {/* Start with all-white mask (showing fog everywhere) */}
-              <Fill color="white" />
-
-              {/* Draw circles at each point to ensure visible holes */}
-              {pathPoints.map((point, index) => {
-                const { x, y } = geoPointToPixel(point, mapRegion);
-                return (
-                  <Circle key={`circle-${index}`} cx={x} cy={y} r={radiusPixels} color={PATH_COLOR} />
-                );
-              })}
-
-              {/* Also draw the path to connect the holes */}
-              {pathPoints.length > 1 && (
-                <Path
-                  path={skiaPath}
-                  color={PATH_COLOR}
-                  style="stroke"
-                  strokeWidth={strokeWidth}
-                  strokeCap="round"
-                  strokeJoin="round"
-                />
-              )}
-            </Group>
-          )
+          <FogMask
+            pathPoints={pathPoints}
+            mapRegion={mapRegion}
+            radiusPixels={radiusPixels}
+            skiaPath={skiaPath}
+            strokeWidth={strokeWidth}
+            canvasTransform={canvasTransform}
+          />
         }
       >
         {/* Fog overlay rectangle */}
