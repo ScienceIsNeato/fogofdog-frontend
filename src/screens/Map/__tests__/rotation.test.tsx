@@ -7,13 +7,14 @@ import explorationReducer from '../../../store/slices/explorationSlice';
 import userReducer from '../../../store/slices/userSlice';
 import type { RootState } from '../../../store';
 import * as Location from 'expo-location';
+import type { ViewProps } from 'react-native';
 
 // Mock react-native-maps with getCamera support
 jest.mock('react-native-maps', () => {
-  const React = jest.requireActual('react');
-  const { View } = jest.requireActual('react-native');
+  const React = jest.requireActual<typeof import('react')>('react');
+  const { View } = jest.requireActual<typeof import('react-native')>('react-native');
 
-  const MockMapView = React.forwardRef((props: any, ref: any) => {
+  const MockMapView = React.forwardRef<any, any>((props: ViewProps & any, ref: any) => {
     const { children, onPanDrag, style, initialRegion, ...restProps } = props;
 
     React.useImperativeHandle(ref, () => ({
@@ -30,7 +31,7 @@ jest.mock('react-native-maps', () => {
         onPress: onPanDrag,
         onPanDrag: onPanDrag,
         ...restProps,
-      },
+      } as ViewProps,
       children
     );
   });
@@ -46,7 +47,7 @@ jest.mock('react-native-maps', () => {
     return React.createElement(View, {
       testID: 'mock-marker',
       'data-coords': JSON.stringify(safeProps),
-    });
+    } as ViewProps);
   };
   MockMarkerComponent.displayName = 'MockMarker';
 
@@ -59,15 +60,15 @@ jest.mock('react-native-maps', () => {
 
 // Mock FogOverlay to verify rotation is passed correctly
 jest.mock('../../../components/FogOverlay', () => {
-  const React = jest.requireActual('react');
-  const { View } = jest.requireActual('react-native');
+  const React = jest.requireActual<typeof import('react')>('react');
+  const { View } = jest.requireActual<typeof import('react-native')>('react-native');
 
   const MockFogOverlay = (props: any) => {
     return React.createElement(View, {
       testID: 'mock-fog-overlay',
       'data-map-region': JSON.stringify(props.mapRegion),
       'data-rotation': props.rotation,
-    });
+    } as ViewProps);
   };
 
   return {
@@ -105,7 +106,10 @@ const mockPermissionResponse = {
 jest.mock('expo-location', () => ({
   requestForegroundPermissionsAsync: jest.fn(),
   getCurrentPositionAsync: jest.fn(),
-  watchPositionAsync: jest.fn(),
+  watchPositionAsync: jest.fn((_options, callback) => {
+    callback(mockLocationObject);
+    return Promise.resolve({ remove: jest.fn() });
+  }),
   Accuracy: { High: 1, Balanced: 2, LowPower: 3 },
 }));
 
@@ -127,7 +131,7 @@ describe('Map Rotation Tests', () => {
       mockPermissionResponse
     );
     (Location.getCurrentPositionAsync as jest.Mock).mockResolvedValue(mockLocationObject);
-    (Location.watchPositionAsync as jest.Mock).mockImplementation((options, callback) => {
+    (Location.watchPositionAsync as jest.Mock).mockImplementation((_options, callback) => {
       callback(mockLocationObject);
       return Promise.resolve({ remove: jest.fn() });
     });

@@ -33,7 +33,9 @@ jobs:
         run: npm run lint:strict
         
       - name: 🔧 TypeScript Check
-        run: npx tsc --noEmit --strict
+        run: |
+          echo "🔍 Running TypeScript type checking with strict configuration..."
+          npm run type-check-ci
         
       - name: 🏥 Expo Doctor
         run: npx expo doctor

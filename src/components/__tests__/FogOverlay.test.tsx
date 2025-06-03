@@ -3,20 +3,21 @@ import renderer, { act } from 'react-test-renderer';
 import { Provider } from 'react-redux';
 import { configureStore } from '@reduxjs/toolkit';
 import FogOverlay from '../FogOverlay';
+import type { ViewProps } from 'react-native';
 
 // Mock Skia components
 jest.mock('@shopify/react-native-skia', () => {
-  const React = jest.requireActual('react');
-  const { View } = jest.requireActual('react-native');
+  const React = jest.requireActual<typeof import('react')>('react');
+  const { View } = jest.requireActual<typeof import('react-native')>('react-native');
 
   return {
-    Canvas: (props: any) => React.createElement(View, { testID: 'mock-skia-canvas', ...props }),
-    Mask: (props: any) => React.createElement(View, { testID: 'mock-skia-mask', ...props }),
-    Group: (props: any) => React.createElement(View, { testID: 'mock-skia-group', ...props }),
-    Fill: (props: any) => React.createElement(View, { testID: 'mock-skia-fill', ...props }),
-    Path: (props: any) => React.createElement(View, { testID: 'mock-skia-path', ...props }),
-    Rect: (props: any) => React.createElement(View, { testID: 'mock-skia-rect', ...props }),
-    Circle: (props: any) => React.createElement(View, { testID: 'mock-skia-circle', ...props }),
+    Canvas: (props: ViewProps) => React.createElement(View, { testID: 'mock-skia-canvas', ...props }),
+    Mask: (props: ViewProps) => React.createElement(View, { testID: 'mock-skia-mask', ...props }),
+    Group: (props: ViewProps) => React.createElement(View, { testID: 'mock-skia-group', ...props }),
+    Fill: (props: ViewProps) => React.createElement(View, { testID: 'mock-skia-fill', ...props }),
+    Path: (props: ViewProps) => React.createElement(View, { testID: 'mock-skia-path', ...props }),
+    Rect: (props: ViewProps) => React.createElement(View, { testID: 'mock-skia-rect', ...props }),
+    Circle: (props: ViewProps) => React.createElement(View, { testID: 'mock-skia-circle', ...props }),
     Skia: {
       Path: {
         Make: jest.fn().mockReturnValue({
@@ -29,10 +30,10 @@ jest.mock('@shopify/react-native-skia', () => {
 });
 
 // Setup mock Redux store with exploration slice
-const createMockStore = (initialPath = []) => {
+const createMockStore = (initialPath: { latitude: number; longitude: number }[] = []) => {
   return configureStore({
     reducer: {
-      exploration: (state = { path: initialPath }, action) => state,
+      exploration: (state = { path: initialPath }, _action) => state,
     },
   });
 };
