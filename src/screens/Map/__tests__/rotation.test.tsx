@@ -14,7 +14,7 @@ jest.mock('react-native-maps', () => {
   const { View } = require('react-native');
   
   const MockMapView = React.forwardRef((props, ref) => {
-    const { children, onRegionChangeComplete, style, initialRegion } = props;
+    const { children, onRegionChangeComplete, onPanDrag, style, initialRegion } = props;
 
     React.useImperativeHandle(ref, () => ({
       animateToRegion: jest.fn(),
@@ -26,6 +26,7 @@ jest.mock('react-native-maps', () => {
         testID="mock-map-view"
         style={style}
         data-initialRegion={JSON.stringify(initialRegion)}
+        onPanDrag={onPanDrag}
       >
         {children}
       </View>
@@ -142,6 +143,21 @@ describe('Map Rotation Tests', () => {
       await Promise.resolve();
     });
     
+    // Get the MapView and simulate pan drag to trigger rotation logic
+    const mapView = getByTestId('mock-map-view');
+    
+    // Simulate onPanDrag being called (this triggers the getCamera call)
+    act(() => {
+      if (mapView.props.onPanDrag) {
+        mapView.props.onPanDrag();
+      }
+    });
+    
+    await act(async () => {
+      jest.runAllTimers();
+      await Promise.resolve();
+    });
+    
     // Get the FogOverlay component
     const fogOverlay = getByTestId('mock-fog-overlay');
     
@@ -165,45 +181,26 @@ describe('Map Rotation Tests', () => {
       await Promise.resolve();
     });
     
-    // Get the FogOverlay component 
-    const fogOverlay = getByTestId('mock-fog-overlay');
+    // Get the MapView and simulate pan drag to trigger rotation logic
+    const mapView = getByTestId('mock-map-view');
     
-    // Initial rotation should be set (45 from our mock)
-    expect(fogOverlay.props['data-rotation']).toBe(45);
-    
-    // Update the mock mapRef to return a different heading
-    jest.mock('react-native-maps', () => {
-      const React = require('react');
-      const { View } = require('react-native');
-      
-      const MockMapView = React.forwardRef((props, ref) => {
-        React.useImperativeHandle(ref, () => ({
-          animateToRegion: jest.fn(),
-          getCamera: jest.fn().mockResolvedValue({ heading: 90 }), // Change to 90 degrees
-        }));
-        
-        return <View testID="mock-map-view">{props.children}</View>;
-      });
-      
-      return {
-        __esModule: true,
-        default: MockMapView,
-        Marker: (props) => <View testID="mock-marker" />,
-      };
-    });
-    
-    // Trigger a re-render
+    // Simulate onPanDrag being called to get initial rotation
     act(() => {
-      store.dispatch(updateLocation({
-        latitude: 41.6868,
-        longitude: -91.5803,
-      }));
+      if (mapView.props.onPanDrag) {
+        mapView.props.onPanDrag();
+      }
     });
     
     await act(async () => {
       jest.runAllTimers();
       await Promise.resolve();
     });
+    
+    // Get the FogOverlay component 
+    const fogOverlay = getByTestId('mock-fog-overlay');
+    
+    // Initial rotation should be set (45 from our mock)
+    expect(fogOverlay.props['data-rotation']).toBe(45);
     
     // Since we can't easily change the mock implementation during test,
     // we'll focus on verifying that the rotation gets passed properly

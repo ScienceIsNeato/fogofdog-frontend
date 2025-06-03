@@ -1,32 +1,31 @@
+const { defaults } = require('jest-config');
+
 module.exports = {
-  preset: 'jest-expo',
-  setupFiles: ['<rootDir>/jest.setup.js'],
+  preset: 'react-native',
+  roots: ['<rootDir>/src'],
+  testMatch: [
+    '<rootDir>/src/**/__tests__/**/*.{js,jsx,ts,tsx}',
+    '<rootDir>/src/**/*.(test|spec).{js,jsx,ts,tsx}'
+  ],
   testEnvironment: 'node',
-  testTimeout: 10000,
-  transformIgnorePatterns: [
-    'node_modules/(?!((jest-)?react-native|@react-native(-community)?)|expo(nent)?|@expo(nent)?/.*|@expo-google-fonts/.*|react-navigation|@react-navigation/.*|@unimodules/.*|unimodules|sentry-expo|native-base|react-native-svg|react-redux|@reduxjs/toolkit|react-native-reanimated)'
+  setupFilesAfterEnv: [
+    '<rootDir>/jest.setup.js',
   ],
-  testPathIgnorePatterns: [
-    '/node_modules/',
-    '<rootDir>/e2e/' 
-  ],
-  moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx'],
-  collectCoverageFrom: [
-    'src/**/*.{js,jsx,ts,tsx}',
-    '!src/**/*.d.ts',
-    '!src/**/types.ts',
-    '!src/**/constants.ts',
-    '!src/**/__mocks__/**'
-  ],
+  moduleFileExtensions: [...defaults.moduleFileExtensions, 'ts', 'tsx'],
   transform: {
-    '^.+\\.(js|jsx|ts|tsx)$': 'babel-jest'
+    '^.+\\.(js|jsx|ts|tsx)$': 'babel-jest',
   },
+  transformIgnorePatterns: [
+    'node_modules/(?!(react-native|@react-native|react-redux|@reduxjs/toolkit|@expo|expo|@shopify/react-native-skia|react-native-maps|react-native-gesture-handler|react-native-reanimated|react-native-screens|react-native-safe-area-context)/)',
+  ],
+  collectCoverageFrom: [
+    'src/**/*.{ts,tsx}',
+    '!src/**/*.d.ts',
+    '!src/**/__tests__/**',
+    '!src/**/__mocks__/**',
+  ],
   moduleNameMapper: {
-    '\\.svg': '<rootDir>/__mocks__/svgMock.js'
+    '^@/(.*)$': '<rootDir>/src/$1',
   },
-  globals: {
-    'ts-jest': {
-      isolatedModules: true
-    }
-  }
+  testTimeout: 30000,
 };

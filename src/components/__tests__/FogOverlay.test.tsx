@@ -1,22 +1,22 @@
 import React from 'react';
-import renderer from 'react-test-renderer';
+import renderer, { act } from 'react-test-renderer';
 import { Provider } from 'react-redux';
 import { configureStore } from '@reduxjs/toolkit';
 import FogOverlay from '../FogOverlay';
 
 // Mock Skia components
 jest.mock('@shopify/react-native-skia', () => {
-  const React = require('react');
   const { View } = require('react-native');
+  const React = require('react');
   
   return {
-    Canvas: (props: any) => <View testID="mock-skia-canvas" {...props} />,
-    Mask: (props: any) => <View testID="mock-skia-mask" {...props} />,
-    Group: (props: any) => <View testID="mock-skia-group" {...props} />,
-    Fill: (props: any) => <View testID="mock-skia-fill" {...props} />,
-    Path: (props: any) => <View testID="mock-skia-path" {...props} />,
-    Rect: (props: any) => <View testID="mock-skia-rect" {...props} />,
-    Circle: (props: any) => <View testID="mock-skia-circle" {...props} />,
+    Canvas: (props: any) => React.createElement(View, { testID: 'mock-skia-canvas', ...props }),
+    Mask: (props: any) => React.createElement(View, { testID: 'mock-skia-mask', ...props }),
+    Group: (props: any) => React.createElement(View, { testID: 'mock-skia-group', ...props }),
+    Fill: (props: any) => React.createElement(View, { testID: 'mock-skia-fill', ...props }),
+    Path: (props: any) => React.createElement(View, { testID: 'mock-skia-path', ...props }),
+    Rect: (props: any) => React.createElement(View, { testID: 'mock-skia-rect', ...props }),
+    Circle: (props: any) => React.createElement(View, { testID: 'mock-skia-circle', ...props }),
     Skia: {
       Path: {
         Make: () => ({
@@ -50,11 +50,14 @@ describe('FogOverlay', () => {
       height: 800,
     };
     
-    const tree = renderer.create(
-      <Provider store={store}>
-        <FogOverlay mapRegion={mapRegion} />
-      </Provider>
-    ).toJSON();
+    let tree: any;
+    act(() => {
+      tree = renderer.create(
+        <Provider store={store}>
+          <FogOverlay mapRegion={mapRegion} />
+        </Provider>
+      ).toJSON();
+    });
     
     expect(tree).toMatchSnapshot();
   });
@@ -76,11 +79,14 @@ describe('FogOverlay', () => {
       height: 800,
     };
     
-    const tree = renderer.create(
-      <Provider store={store}>
-        <FogOverlay mapRegion={mapRegion} />
-      </Provider>
-    ).toJSON();
+    let tree: any;
+    act(() => {
+      tree = renderer.create(
+        <Provider store={store}>
+          <FogOverlay mapRegion={mapRegion} />
+        </Provider>
+      ).toJSON();
+    });
     
     expect(tree).toMatchSnapshot();
   });

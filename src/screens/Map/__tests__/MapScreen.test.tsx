@@ -36,98 +36,89 @@ const DEFAULT_LOCATION = {
 };
 const FOG_RADIUS_METERS = 50; // Updated to match value from FogOverlay and explorationSlice
 
-// mockPolygonRender is no longer needed if FogOverlay is the sole fog mechanism
-// However, if MapScreen *still* renders a <Polygon> for any other reason, we might need a minimal mock for it.
-// For now, let's assume it doesn't, and focus on FogOverlay for fog assertions.
-
+// Mock spies
 const mockMapViewRender = jest.fn(); 
 const mockFogOverlayRender = jest.fn();
+const mockLocationButtonRender = jest.fn();
 
+// Mock react-native-maps with simpler components
 jest.mock('react-native-maps', () => {
-  const React = require('react');
   const { View } = require('react-native');
-  const Maps = jest.requireActual('react-native-maps') as any;
-
-  interface MockMapViewProps {
-    children?: React.ReactNode;
-    onRegionChangeComplete?: (region: Region) => void;
-    onRegionChange?: (region: Region) => void; 
-    onPanDrag?: () => void; 
-    style?: any; 
-    initialRegion?: Region;
-    rotateEnabled?: boolean; 
-    pitchEnabled?: boolean;
-  }
-
-  const MockMapView = React.forwardRef(
-    (props: MockMapViewProps, ref: React.Ref<any>) => {
-      mockMapViewRender(props); 
-      const { children, onRegionChangeComplete, onRegionChange, onPanDrag, initialRegion } = props;
-      React.useImperativeHandle(ref, () => ({ 
-        animateToRegion: jest.fn(),
-        getCamera: jest.fn(() => Promise.resolve({ 
-            center: { latitude: 0, longitude: 0 },
-            pitch: 0,
-            heading: 0,
-            altitude: 1000, 
-            zoom: 10 
-        })),
-      }));
-      
-      // Store the callbacks for test access
-      React.useEffect(() => {
-        if (onRegionChange) {
-          (MockMapView as any).lastOnRegionChange = onRegionChange;
-        }
-        if (onRegionChangeComplete) {
-          (MockMapView as any).lastOnRegionChangeComplete = onRegionChangeComplete;
-        }
-      }, [onRegionChange, onRegionChangeComplete]);
-      
-      return (
-        <View
-          testID="mock-map-view"
-          data-initialRegion={JSON.stringify(initialRegion)} 
-          onPress={() => {
-            if (props.onRegionChangeComplete) { // Check props directly
-              props.onRegionChangeComplete({ latitude: 41.6867, longitude: -91.5802, latitudeDelta: 0.0922, longitudeDelta: 0.0421 } as Region);
-            }
-            if (props.onPanDrag) props.onPanDrag(); // Check props directly
-          }}
-        >
-          {children}
-        </View>
-      );
-    }
-  );
+  const React = require('react');
   
-  const MockMarkerComponent = (props: any) => {
-    const safeProps = props.coordinate ? { latitude: props.coordinate.latitude, longitude: props.coordinate.longitude } : {};
-    return <View testID="mock-marker" data-coords={JSON.stringify(safeProps)} />;
+  const MockMapView = React.forwardRef((props: any, ref: any) => {
+    const mockMapViewRender = require('./MapScreen.test').mockMapViewRender;
+    mockMapViewRender && mockMapViewRender(props);
+    
+    React.useImperativeHandle(ref, () => ({
+      animateToRegion: jest.fn(),
+      getCamera: jest.fn(() => Promise.resolve({
+        center: { latitude: 0, longitude: 0 },
+        pitch: 0,
+        heading: 0,
+        altitude: 1000,
+        zoom: 10
+      })),
+    }));
+    
+    return React.createElement(View, {
+      testID: 'mock-map-view',
+      'data-initialRegion': JSON.stringify(props.initialRegion),
+      onPress: () => {
+        if (props.onRegionChangeComplete) {
+          props.onRegionChangeComplete({ 
+            latitude: 41.6867, 
+            longitude: -91.5802, 
+            latitudeDelta: 0.0922, 
+            longitudeDelta: 0.0421 
+          });
+        }
+        if (props.onPanDrag) props.onPanDrag();
+      }
+    }, props.children);
+  });
+  
+  const MockMarker = (props: any) => {
+    const React = require('react');
+    const { View } = require('react-native');
+    const safeProps = props.coordinate ? { 
+      latitude: props.coordinate.latitude, 
+      longitude: props.coordinate.longitude 
+    } : {};
+    return React.createElement(View, {
+      testID: 'mock-marker',
+      'data-coords': JSON.stringify(safeProps)
+    });
   };
 
-  // If MapScreen.tsx is *not* supposed to be rendering react-native-maps <Polygon> anymore,
-  // then we don't need to mock it with a spy. A simple placeholder is fine.
-  const MinimalMockPolygon = (props: any) => <View testID="mock-rn-polygon" {...props} />;
+  const MockPolygon = (props: any) => {
+    const React = require('react');
+    const { View } = require('react-native');
+    return React.createElement(View, { testID: 'mock-rn-polygon', ...props });
+  };
 
   return {
-    ...Maps,
     __esModule: true,
     default: MockMapView,
-    Polygon: MinimalMockPolygon, // Provide a minimal mock for Polygon
-    Marker: MockMarkerComponent, 
-    // Ensure all named exports used by MapScreen from react-native-maps are here
-    // LatLng, Region are types and come from Maps spread. Polyline might be another.
+    Polygon: MockPolygon,
+    Marker: MockMarker,
   };
 });
 
+// Mock FogOverlay
 jest.mock('../../../components/FogOverlay', () => {
-  const React = require('react');
   const { View } = require('react-native');
+  const React = require('react');
+  
   const MockFogOverlay = (props: any) => {
-    mockFogOverlayRender(props); // Spy on FogOverlay props
-    return <View testID="mock-fog-overlay" data-props={JSON.stringify(props)} />;
+    const mockFogOverlayRender = require('./MapScreen.test').mockFogOverlayRender;
+    mockFogOverlayRender && mockFogOverlayRender(props);
+    return React.createElement(View, {
+      testID: 'mock-fog-overlay',
+      'data-props': JSON.stringify(props)
+    });
   };
+  
   return {
     __esModule: true,
     default: MockFogOverlay,
@@ -136,16 +127,16 @@ jest.mock('../../../components/FogOverlay', () => {
 
 // Mock Skia components
 jest.mock('@shopify/react-native-skia', () => {
-  const React = require('react');
   const { View } = require('react-native');
+  const React = require('react');
   
   return {
-    Canvas: (props: any) => <View testID="mock-skia-canvas" {...props} />,
-    Mask: (props: any) => <View testID="mock-skia-mask" {...props} />,
-    Group: (props: any) => <View testID="mock-skia-group" {...props} />,
-    Fill: (props: any) => <View testID="mock-skia-fill" {...props} />,
-    Path: (props: any) => <View testID="mock-skia-path" {...props} />,
-    Rect: (props: any) => <View testID="mock-skia-rect" {...props} />,
+    Canvas: (props: any) => React.createElement(View, { testID: 'mock-skia-canvas', ...props }),
+    Mask: (props: any) => React.createElement(View, { testID: 'mock-skia-mask', ...props }),
+    Group: (props: any) => React.createElement(View, { testID: 'mock-skia-group', ...props }),
+    Fill: (props: any) => React.createElement(View, { testID: 'mock-skia-fill', ...props }),
+    Path: (props: any) => React.createElement(View, { testID: 'mock-skia-path', ...props }),
+    Rect: (props: any) => React.createElement(View, { testID: 'mock-skia-rect', ...props }),
     Skia: {
       Path: {
         Make: () => ({
@@ -154,6 +145,27 @@ jest.mock('@shopify/react-native-skia', () => {
         }),
       },
     },
+  };
+});
+
+// Mock LocationButton
+jest.mock('../../../components/LocationButton', () => {
+  const { TouchableOpacity, Text } = require('react-native');
+  const React = require('react');
+  
+  const MockLocationButton = (props: any) => {
+    const mockLocationButtonRender = require('./MapScreen.test').mockLocationButtonRender;
+    mockLocationButtonRender && mockLocationButtonRender(props);
+    return React.createElement(TouchableOpacity, {
+      testID: 'mock-location-button',
+      onPress: () => props.onPress && props.onPress(),
+      disabled: !props.isLocationAvailable
+    }, React.createElement(Text, {}, 'Location Button'));
+  };
+  
+  return {
+    __esModule: true,
+    default: MockLocationButton,
   };
 });
 
@@ -198,33 +210,17 @@ jest.mock('expo-location', () => ({
   Accuracy: { High: 1, Balanced: 2, LowPower: 3 }, 
 }));
 
-// Mock LocationButton
-const mockLocationButtonRender = jest.fn();
-jest.mock('../../../components/LocationButton', () => {
-  const React = require('react');
-  const { TouchableOpacity, Text } = require('react-native');
-  const MockLocationButton = (props: any) => {
-    mockLocationButtonRender(props);
-    return (
-      <TouchableOpacity 
-        testID="mock-location-button" 
-        onPress={() => props.onPress && props.onPress()}
-        disabled={!props.isLocationAvailable}
-      >
-        <Text>Location Button</Text>
-      </TouchableOpacity>
-    );
-  };
-  return {
-    __esModule: true,
-    default: MockLocationButton,
-  };
-});
-
 // Mock react-native-safe-area-context
 jest.mock('react-native-safe-area-context', () => ({
   useSafeAreaInsets: () => ({ top: 20, bottom: 0, left: 0, right: 0 }),
 }));
+
+// Export mocks for access in mock factories
+module.exports = {
+  mockMapViewRender,
+  mockFogOverlayRender,
+  mockLocationButtonRender,
+};
 
 describe('MapScreen', () => {
   let store: Store<RootState>;
