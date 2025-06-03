@@ -46,7 +46,6 @@ const isValidGeoPoint = (point: GeoPoint): boolean => {
 
 // Reduced minimum distance to ensure more regular fog holes
 const MIN_DISTANCE_FOR_NEW_AREA = 20; // Only add new circle if current point is this far from an existing center
-const FOG_RADIUS_METERS = 50; // Default radius for new areas
 
 const initialState: ExplorationState = {
   currentLocation: null,

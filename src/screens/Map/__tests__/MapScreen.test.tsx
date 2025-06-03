@@ -4,37 +4,19 @@ import { render, act, waitFor, fireEvent } from '@testing-library/react-native';
 import { Provider } from 'react-redux';
 import { configureStore, Store } from '@reduxjs/toolkit';
 import { MapScreen } from '../index';
-import explorationReducer, { updateLocation, updateZoom } from '../../../store/slices/explorationSlice';
+import explorationReducer, { updateLocation } from '../../../store/slices/explorationSlice';
 import userReducer from '../../../store/slices/userSlice';
 import type { RootState } from '../../../store';
-import { Region, LatLng } from 'react-native-maps';
+import { Region } from 'react-native-maps';
 import * as Location from 'expo-location';
-
-// Import or copy helper function from MapScreen.tsx
-// Note: Ensure this stays in sync with the component implementation!
-const createCirclePolygon = (center: LatLng, radiusMeters: number, points: number = 64): LatLng[] => {
-  const earthRadius = 6378137; // Earth radius in meters
-  const lat = center.latitude * (Math.PI / 180);
-  const lon = center.longitude * (Math.PI / 180);
-  const d = radiusMeters / earthRadius;
-  const coords: LatLng[] = [];
-  for (let i = 0; i < points; i++) {
-    const bearing = (i * 2 * Math.PI) / points;
-    const lat2 = Math.asin(Math.sin(lat) * Math.cos(d) + Math.cos(lat) * Math.sin(d) * Math.cos(bearing));
-    const lon2 = lon + Math.atan2(Math.sin(bearing) * Math.sin(d) * Math.cos(lat), Math.cos(d) - Math.sin(lat) * Math.sin(lat2));
-    coords.push({ latitude: lat2 * (180 / Math.PI), longitude: lon2 * (180 / Math.PI) });
-  }
-  return coords;
-};
 
 // Default location from MapScreen (updated to match current implementation)
 const DEFAULT_LOCATION = {
-  latitude: 41.6867,
-  longitude: -91.5802,
-  latitudeDelta: 0.0036, // Updated to match current implementation
-  longitudeDelta: 0.0048, // Updated to match current implementation
+  latitude: 37.78825,
+  longitude: -122.4324,
+  latitudeDelta: 0.0922, // Updated to match current implementation
+  longitudeDelta: 0.0421, // Updated to match current implementation
 };
-const FOG_RADIUS_METERS = 50; // Updated to match value from FogOverlay and explorationSlice
 
 // Mock spies
 const mockMapViewRender = jest.fn(); 
@@ -43,32 +25,31 @@ const mockLocationButtonRender = jest.fn();
 
 // Mock react-native-maps with simpler components
 jest.mock('react-native-maps', () => {
-  const { View } = require('react-native');
-  const React = require('react');
+  const React = jest.requireActual('react');
+  const { View } = jest.requireActual('react-native');
   
   const MockMapView = React.forwardRef((props: any, ref: any) => {
-    const mockMapViewRender = require('./MapScreen.test').mockMapViewRender;
     mockMapViewRender && mockMapViewRender(props);
     
     React.useImperativeHandle(ref, () => ({
       animateToRegion: jest.fn(),
-      getCamera: jest.fn(() => Promise.resolve({
+      getCamera: jest.fn(() => Promise.resolve({ 
         center: { latitude: 0, longitude: 0 },
         pitch: 0,
         heading: 0,
-        altitude: 1000,
-        zoom: 10
+        altitude: 1000, 
+        zoom: 10 
       })),
     }));
-    
+      
     return React.createElement(View, {
       testID: 'mock-map-view',
       'data-initialRegion': JSON.stringify(props.initialRegion),
       onPress: () => {
         if (props.onRegionChangeComplete) {
           props.onRegionChangeComplete({ 
-            latitude: 41.6867, 
-            longitude: -91.5802, 
+            latitude: 37.78825, 
+            longitude: -122.4324, 
             latitudeDelta: 0.0922, 
             longitudeDelta: 0.0421 
           });
@@ -77,10 +58,9 @@ jest.mock('react-native-maps', () => {
       }
     }, props.children);
   });
-  
+  MockMapView.displayName = 'MockMapView';
+
   const MockMarker = (props: any) => {
-    const React = require('react');
-    const { View } = require('react-native');
     const safeProps = props.coordinate ? { 
       latitude: props.coordinate.latitude, 
       longitude: props.coordinate.longitude 
@@ -90,12 +70,12 @@ jest.mock('react-native-maps', () => {
       'data-coords': JSON.stringify(safeProps)
     });
   };
+  MockMarker.displayName = 'MockMarker';
 
   const MockPolygon = (props: any) => {
-    const React = require('react');
-    const { View } = require('react-native');
     return React.createElement(View, { testID: 'mock-rn-polygon', ...props });
   };
+  MockPolygon.displayName = 'MockPolygon';
 
   return {
     __esModule: true,
@@ -107,11 +87,10 @@ jest.mock('react-native-maps', () => {
 
 // Mock FogOverlay
 jest.mock('../../../components/FogOverlay', () => {
-  const { View } = require('react-native');
-  const React = require('react');
+  const React = jest.requireActual('react');
+  const { View } = jest.requireActual('react-native');
   
   const MockFogOverlay = (props: any) => {
-    const mockFogOverlayRender = require('./MapScreen.test').mockFogOverlayRender;
     mockFogOverlayRender && mockFogOverlayRender(props);
     return React.createElement(View, {
       testID: 'mock-fog-overlay',
@@ -127,8 +106,8 @@ jest.mock('../../../components/FogOverlay', () => {
 
 // Mock Skia components
 jest.mock('@shopify/react-native-skia', () => {
-  const { View } = require('react-native');
-  const React = require('react');
+  const React = jest.requireActual('react');
+  const { View } = jest.requireActual('react-native');
   
   return {
     Canvas: (props: any) => React.createElement(View, { testID: 'mock-skia-canvas', ...props }),
@@ -139,7 +118,7 @@ jest.mock('@shopify/react-native-skia', () => {
     Rect: (props: any) => React.createElement(View, { testID: 'mock-skia-rect', ...props }),
     Skia: {
       Path: {
-        Make: () => ({
+        Make: jest.fn().mockReturnValue({
           moveTo: jest.fn(),
           lineTo: jest.fn(),
         }),
@@ -150,11 +129,10 @@ jest.mock('@shopify/react-native-skia', () => {
 
 // Mock LocationButton
 jest.mock('../../../components/LocationButton', () => {
-  const { TouchableOpacity, Text } = require('react-native');
-  const React = require('react');
+  const React = jest.requireActual('react');
+  const { TouchableOpacity, Text } = jest.requireActual('react-native');
   
   const MockLocationButton = (props: any) => {
-    const mockLocationButtonRender = require('./MapScreen.test').mockLocationButtonRender;
     mockLocationButtonRender && mockLocationButtonRender(props);
     return React.createElement(TouchableOpacity, {
       testID: 'mock-location-button',
@@ -214,13 +192,6 @@ jest.mock('expo-location', () => ({
 jest.mock('react-native-safe-area-context', () => ({
   useSafeAreaInsets: () => ({ top: 20, bottom: 0, left: 0, right: 0 }),
 }));
-
-// Export mocks for access in mock factories
-module.exports = {
-  mockMapViewRender,
-  mockFogOverlayRender,
-  mockLocationButtonRender,
-};
 
 describe('MapScreen', () => {
   let store: Store<RootState>;
@@ -372,7 +343,6 @@ describe('MapScreen', () => {
       expect(store.getState().exploration.currentLocation).toEqual(mockInitialCoords);
     }, {timeout: 3000});
 
-    const initialFogMapRegion = initialFogOverlayArgs.mapRegion;
     const initialFogRotation = initialFogOverlayArgs.rotation;
     const initialPath = store.getState().exploration.path;
 

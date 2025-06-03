@@ -1,2 +1,2 @@
 // frontend/src/@types/global.d.ts
-declare var __DEV__: boolean; 
+declare const __DEV__: boolean; 

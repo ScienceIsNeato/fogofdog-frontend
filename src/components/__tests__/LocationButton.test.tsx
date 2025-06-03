@@ -83,7 +83,6 @@ describe('LocationButton', () => {
         />
       );
 
-      const button = getByTestId('location-button');
       const buttonContainer = getByTestId('location-button-container');
       
       // Check opacity for disabled state

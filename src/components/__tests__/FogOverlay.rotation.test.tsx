@@ -5,22 +5,22 @@ import { configureStore } from '@reduxjs/toolkit';
 import FogOverlay from '../FogOverlay';
 import { GeoPoint } from '../../types/user';
 
-// Mock Skia components
+// Mock Skia components using the same working pattern
 jest.mock('@shopify/react-native-skia', () => {
-  const React = require('react');
-  const { View } = require('react-native');
+  const React = jest.requireActual('react');
+  const { View } = jest.requireActual('react-native');
   
   return {
-    Canvas: (props: any) => <View testID="mock-skia-canvas" {...props} />,
-    Mask: (props: any) => <View testID="mock-skia-mask" {...props} />,
-    Group: (props: any) => <View testID="mock-skia-group" {...props} />,
-    Fill: (props: any) => <View testID="mock-skia-fill" {...props} />,
-    Path: (props: any) => <View testID="mock-skia-path" {...props} />,
-    Rect: (props: any) => <View testID="mock-skia-rect" {...props} />,
-    Circle: (props: any) => <View testID="mock-skia-circle" {...props} />,
+    Canvas: (props: any) => React.createElement(View, { testID: 'mock-skia-canvas', ...props }),
+    Mask: (props: any) => React.createElement(View, { testID: 'mock-skia-mask', ...props }),
+    Group: (props: any) => React.createElement(View, { testID: 'mock-skia-group', ...props }),
+    Fill: (props: any) => React.createElement(View, { testID: 'mock-skia-fill', ...props }),
+    Path: (props: any) => React.createElement(View, { testID: 'mock-skia-path', ...props }),
+    Rect: (props: any) => React.createElement(View, { testID: 'mock-skia-rect', ...props }),
+    Circle: (props: any) => React.createElement(View, { testID: 'mock-skia-circle', ...props }),
     Skia: {
       Path: {
-        Make: () => ({
+        Make: jest.fn().mockReturnValue({
           moveTo: jest.fn(),
           lineTo: jest.fn(),
         }),

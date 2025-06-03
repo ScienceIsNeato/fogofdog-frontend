@@ -24,7 +24,10 @@ jobs:
       run: npm ci
       
     - name: Run linting
-      run: npx eslint src --ext .ts,.tsx --max-warnings 0
+      run: |
+        echo "Running ESLint check..."
+        echo "Enforcing zero warnings (strict mode):"
+        npx eslint src --ext .ts,.tsx --max-warnings 0
       
     - name: Run type checking
       run: npx tsc --noEmit
@@ -61,3 +64,6 @@ jobs:
       
     - name: Run expo doctor
       run: npx expo doctor 
+
+    - name: Run ESLint (strict)
+      run: npm run lint:strict 

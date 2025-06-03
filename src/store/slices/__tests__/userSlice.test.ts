@@ -1,4 +1,4 @@
-import { jest, describe, it, expect } from '@jest/globals';
+import { expect } from '@jest/globals';
 import userReducer, { setUser, setLoading, setError, clearUser } from '../userSlice';
 import { User, UserState } from '../../../types/user';
 

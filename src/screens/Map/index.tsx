@@ -1,8 +1,8 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { StyleSheet, View, Image, Dimensions, Text, TouchableOpacity } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, Text, Dimensions } from 'react-native';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import { updateLocation, updateZoom, addPathPoint, setCenterOnUser } from '../../store/slices/explorationSlice';
-import MapView, { Region, LatLng, Marker } from 'react-native-maps';
+import MapView, { Marker, Region } from 'react-native-maps';
 import * as Location from 'expo-location'; // Import expo-location
 import FogOverlay from '../../components/FogOverlay';
 import LocationButton from '../../components/LocationButton';
@@ -10,48 +10,12 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 // Default location (will be used as a fallback or before real location is fetched)
 const DEFAULT_LOCATION = {
-  latitude: 41.6867,
-  longitude: -91.5802,
+  latitude: 37.78825,
+  longitude: -122.4324,
   // Adjust deltas for initial zoom (approx 400m diameter view)
-  latitudeDelta: 0.0036, 
-  longitudeDelta: 0.0048,
+  latitudeDelta: 0.0922, 
+  longitudeDelta: 0.0421,
 };
-
-// Helper function to generate points for a circular polygon
-const createCirclePolygon = (center: LatLng, radiusMeters: number, points: number = 64): LatLng[] => {
-  const earthRadius = 6378137; // Earth radius in meters
-  const lat = center.latitude * (Math.PI / 180);
-  const lon = center.longitude * (Math.PI / 180);
-  const d = radiusMeters / earthRadius;
-  const coords: LatLng[] = [];
-
-  for (let i = 0; i < points; i++) {
-    const bearing = (i * 2 * Math.PI) / points;
-    const lat2 = Math.asin(Math.sin(lat) * Math.cos(d) + Math.cos(lat) * Math.sin(d) * Math.cos(bearing));
-    const lon2 = lon + Math.atan2(
-      Math.sin(bearing) * Math.sin(d) * Math.cos(lat),
-      Math.cos(d) - Math.sin(lat) * Math.sin(lat2)
-    );
-    coords.push({
-      latitude: lat2 * (180 / Math.PI),
-      longitude: lon2 * (180 / Math.PI),
-    });
-  }
-  return coords;
-};
-
-// Define the outer bounds for the fog polygon (~100x100 miles)
-const fogLatitudeDelta = 1.5;
-const fogLongitudeDelta = 2.0;
-
-// Initial FOG_BOUNDS calculation (can be a fallback or initial value)
-const calculateFogBounds = (centerLat: number, centerLon: number): LatLng[] => [
-  { latitude: centerLat + fogLatitudeDelta / 2, longitude: centerLon - fogLongitudeDelta / 2 }, // Top Left
-  { latitude: centerLat + fogLatitudeDelta / 2, longitude: centerLon + fogLongitudeDelta / 2 }, // Top Right
-  { latitude: centerLat - fogLatitudeDelta / 2, longitude: centerLon + fogLongitudeDelta / 2 }, // Bottom Right
-  { latitude: centerLat - fogLatitudeDelta / 2, longitude: centerLon - fogLongitudeDelta / 2 }, // Bottom Left
-  { latitude: centerLat + fogLatitudeDelta / 2, longitude: centerLon - fogLongitudeDelta / 2 }, // Close the polygon
-];
 
 // Define max zoom out deltas (approx 50 mile view diameter / 25 mile radius)
 const MAX_LATITUDE_DELTA = 0.75;
@@ -60,12 +24,9 @@ const MAX_LONGITUDE_DELTA = 1.0;
 // MapComponent definition removed as it wasn't in the attached file context provided
 // If MapComponent is needed elsewhere, it should be managed separately.
 
-
-const gpsPinIcon = require('../../../assets/gps_pin.jpg'); 
-
 export const MapScreen = () => {
   const dispatch = useAppDispatch();
-  const { path, currentLocation, isMapCenteredOnUser } = useAppSelector(state => state.exploration);
+  const { currentLocation, isMapCenteredOnUser } = useAppSelector(state => state.exploration);
   const mapRef = useRef<MapView>(null);
   const [currentRegion, setCurrentRegion] = useState<Region | undefined>(DEFAULT_LOCATION);
   const [mapRotation, setMapRotation] = useState(0); // Track map rotation angle
@@ -73,11 +34,6 @@ export const MapScreen = () => {
     width: Dimensions.get('window').width,
     height: Dimensions.get('window').height
   });
-  // Add state for location permission and error messages
-  const [locationPermissionStatus, setLocationPermissionStatus] = useState<Location.PermissionStatus | null>(null);
-  const [locationErrorMsg, setLocationErrorMsg] = useState<string | null>(null);
-  // State for dynamic fog bounds
-  const [dynamicFogBounds, setDynamicFogBounds] = useState<LatLng[]>(calculateFogBounds(DEFAULT_LOCATION.latitude, DEFAULT_LOCATION.longitude));
   
   const insets = useSafeAreaInsets();
 
@@ -89,17 +45,14 @@ export const MapScreen = () => {
       // console.log('[MapScreen useEffect] Initiating location setup via setupLocation.');
       let { status } = await Location.requestForegroundPermissionsAsync();
       if (!isActive) return;
-      setLocationPermissionStatus(status);
       // console.log('[MapScreen useEffect] Permission status:', status);
 
       if (status !== 'granted') {
-        setLocationErrorMsg('Permission to access location was denied. Map will use default location.');
         // console.log('[MapScreen useEffect] Permission denied. Dispatching default location.');
         if (isActive) dispatch(updateLocation({ latitude: DEFAULT_LOCATION.latitude, longitude: DEFAULT_LOCATION.longitude }));
         return;
       }
 
-      setLocationErrorMsg(null); 
       try {
         // console.log('[MapScreen useEffect] Requesting current position.');
         let location = await Location.getCurrentPositionAsync({});
@@ -148,7 +101,6 @@ export const MapScreen = () => {
         }
       } catch (error) {
         if (isActive) {
-          setLocationErrorMsg('Failed to fetch location. Map will use default location.');
           console.error("[MapScreen useEffect] Error fetching location:", error);
           dispatch(updateLocation({ latitude: DEFAULT_LOCATION.latitude, longitude: DEFAULT_LOCATION.longitude }));
         }
@@ -168,16 +120,6 @@ export const MapScreen = () => {
       }
     };
   }, [dispatch]);
-
-  // New useEffect to update fog bounds when currentLocation changes
-  useEffect(() => {
-    if (currentLocation) {
-      // console.log('[MapScreen useEffect currentLoc] Updating dynamicFogBounds for currentLocation:', currentLocation);
-      setDynamicFogBounds(calculateFogBounds(currentLocation.latitude, currentLocation.longitude));
-    } else {
-      // console.log('[MapScreen useEffect currentLoc] currentLocation is null, not updating dynamicFogBounds.');
-    }
-  }, [currentLocation]);
 
   // Zoom Restriction Effect
   useEffect(() => {

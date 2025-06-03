@@ -3,7 +3,6 @@ import { StyleSheet } from 'react-native';
 import { Canvas, Mask, Group, Fill, Path, Rect, Skia, Circle } from '@shopify/react-native-skia';
 import { useSelector } from 'react-redux';
 import { RootState } from '../store';
-import { GeoPoint } from '../types/user';
 import { MapRegion } from '../types/navigation';
 import { geoPointToPixel, calculateMetersPerPixel } from '../utils/mapUtils';
 

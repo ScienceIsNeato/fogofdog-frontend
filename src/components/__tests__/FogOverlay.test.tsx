@@ -6,8 +6,8 @@ import FogOverlay from '../FogOverlay';
 
 // Mock Skia components
 jest.mock('@shopify/react-native-skia', () => {
-  const { View } = require('react-native');
-  const React = require('react');
+  const React = jest.requireActual('react');
+  const { View } = jest.requireActual('react-native');
   
   return {
     Canvas: (props: any) => React.createElement(View, { testID: 'mock-skia-canvas', ...props }),
@@ -19,7 +19,7 @@ jest.mock('@shopify/react-native-skia', () => {
     Circle: (props: any) => React.createElement(View, { testID: 'mock-skia-circle', ...props }),
     Skia: {
       Path: {
-        Make: () => ({
+        Make: jest.fn().mockReturnValue({
           moveTo: jest.fn(),
           lineTo: jest.fn(),
         }),
