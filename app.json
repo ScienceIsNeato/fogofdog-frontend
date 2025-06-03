@@ -6,11 +6,6 @@
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
-    "splash": {
-      "image": "./assets/splash-icon.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
-    },
     "updates": {
       "enabled": true,
       "checkAutomatically": "ON_LOAD",
@@ -43,7 +38,8 @@
         {
           "locationAlwaysAndWhenInUsePermission": "Allow FogOfDog to use your location."
         }
-      ]
+      ],
+      "expo-font"
     ],
     "scheme": "fogofdog",
     "owner": "scienceisneato",

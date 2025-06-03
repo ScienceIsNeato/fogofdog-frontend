@@ -1,64 +1,29 @@
-# OSX
-.DS_Store
+# Learn more https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files
 
-# Node
+# dependencies
 node_modules/
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-lerna-debug.log*
-.pnp.*
-.yarn/cache
-.yarn/unplugged
-.yarn/build-state.yml
-.yarn/install-state.gz
-
-# Python
-__pycache__/
-*.pyc
-*.pyo
-*.pyd
-.Python
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-share/python-wheels/
-*.egg-info/
-.installed.cfg
-*.egg
-MANIFEST
-.env
-.venv/
-env/
-venv/
-ENV/
-env.bak/
-venv.bak/
 
 # Expo
-.expo*/
+.expo/
+dist/
 web-build/
+expo-env.d.ts
 
-# Detox
-ios/build/
-android/.gradle/
-android/app/build/
+# Native
+*.orig.*
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
 
-# Cursor
-.cursor
-.cursorignore
-.cursorpaths.json
-.cursorrules
-currules.json
+# Metro
+.metro-health-check*
+
+# debug
+npm-debug.*
+yarn-debug.*
+yarn-error.*
 
 # macOS
 .DS_Store
@@ -71,118 +36,23 @@ currules.json
 # typescript
 *.tsbuildinfo
 
-# testing
+# e2e test artifacts
+artifacts/*
+**/artifacts/
+
+# Coverage reports
 coverage/
-__tests__/coverage/
-__mocks__/
-jest-test-results.json
+**/coverage/
 
-# IDE
-.idea/
-.vscode/*
-!.vscode/settings.json
-!.vscode/tasks.json
-!.vscode/launch.json
-!.vscode/extensions.json
-*.sublime-project
-*.sublime-workspace
+# Cursor IDE specific files
+.cursorignore
+.cursorpaths.json
+currules.json
 
-# Temporary files
-*.log
-*.tmp
-.tmp/
-temp/
+# Native directories (using Expo CNG/Prebuild)
+/android
+/ios
+**/android/
+**/ios/
 
-# Build files
-*.apk
-*.aab
-*.ipa
-
-# Build artifacts
-/dist/
-/build/
-
-# Log files
-*.log
-logs/
-
-# Runtime data
-pids/
-*.pid
-*.seed
-*.pid.lock
-
-# Sensitive configuration
-*.env*
-!.env.example
-
-# OS generated files
-thumbs.db
-ehthumbs.db
-Desktop.ini
-$RECYCLE.BIN/
-
-# Generated native project directories
-frontend/ios/
-frontend/android/
-
-# Node / Expo / React Native specific
-node_modules/
-.expo/
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-# package-lock.json # Decide if you want to track this or yarn.lock; often one is preferred and the other ignored or not generated.
-
-# EAS Build artifacts
-.eas/
-eas-build-pre-upload-artifacts.tar.gz
-
-# iOS build artifacts
-ios/build/
-# ios/Pods/ # Typically managed by Expo prebuild or `npx pod-install`, but good to have if managing manually.
-*.xcodeproj/project.xcworkspace/ # User-specific workspace data, often ignored. Shared schemes are sometimes committed.
-*.xcodeproj/xcuserdata/ # User-specific Xcode data
-
-# Android build artifacts
-android/.gradle/
-android/app/build/
-android/app/.cxx/
-android/app/.externalNativeBuild/
-# android/app/debug/ # APKs from here usually ignored
-# android/app/release/ # APKs/AABs from here usually ignored (keystore files within should NEVER be committed)
-android/app/*.apk
-android/app/*.aab
-# Keystore files (IMPORTANT: NEVER commit keystore files - should be in secure storage)
-*.keystore
-*.jks 
-
-# Test artifacts
-frontend/e2e/artifacts/
-coverage/
-
-# OS specific
-.DS_Store
-Thumbs.db
-
-# IDE specific
-.vscode/
-.idea/
-
-# Environment variables
 .envrc
-.env.*
-!.env.example # Common practice to commit an example env file, but ensure actual .env files are ignored
-
-# Python virtual environment
-.venv/
-
-# Other common ignores from Expo projects
-dist/
-web-build/
-*.jks
-*.p8
-*.p12
-*.key
-*.mobileprovision
-*.orig

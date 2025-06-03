@@ -5,6 +5,7 @@ interface ExplorationState {
   currentLocation: GeoPoint | null;
   zoomLevel: number;
   path: GeoPoint[];
+  exploredAreas: GeoPoint[];
   isMapCenteredOnUser: boolean;
 }
 
@@ -51,6 +52,7 @@ const initialState: ExplorationState = {
   currentLocation: null,
   zoomLevel: 14, 
   path: [],
+  exploredAreas: [],
   isMapCenteredOnUser: false,
 };
 
