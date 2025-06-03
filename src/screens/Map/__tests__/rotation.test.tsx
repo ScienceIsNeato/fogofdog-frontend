@@ -8,25 +8,25 @@ import userReducer from '../../../store/slices/userSlice';
 import type { RootState } from '../../../store';
 import * as Location from 'expo-location';
 
-// Mock react-native-maps with getCamera support
+// Mock react-native-maps
 jest.mock('react-native-maps', () => {
   const React = jest.requireActual<typeof import('react')>('react');
   const { View } = jest.requireActual<typeof import('react-native')>('react-native');
 
   interface MockMapViewProps {
-    onPanDrag?: () => void;
+    rotateEnabled?: boolean;
+    pitchEnabled?: boolean;
     initialRegion?: any;
     children?: React.ReactNode;
     style?: any;
-    [key: string]: any;
   }
 
   const MockMapView = React.forwardRef((props: MockMapViewProps, ref: React.Ref<unknown>) => {
-    const { children, onPanDrag, style, initialRegion, ...restProps } = props;
+    const { children, style, initialRegion, ...restProps } = props;
 
     React.useImperativeHandle(ref, () => ({
       animateToRegion: jest.fn(),
-      getCamera: jest.fn(() => Promise.resolve({ heading: 45 })), // Return a heading of 45 degrees
+      getCamera: jest.fn(() => Promise.resolve({ heading: 0 })), // Always return 0 heading
     }));
 
     return React.createElement(
@@ -35,8 +35,8 @@ jest.mock('react-native-maps', () => {
         testID: 'mock-map-view',
         style: style,
         'data-initialRegion': JSON.stringify(initialRegion),
-        onPress: onPanDrag,
-        onPanDrag: onPanDrag,
+        'data-rotateEnabled': props.rotateEnabled,
+        'data-pitchEnabled': props.pitchEnabled,
         ...restProps,
       } as any,
       children
@@ -65,7 +65,7 @@ jest.mock('react-native-maps', () => {
   };
 });
 
-// Mock FogOverlay to verify rotation is passed correctly
+// Mock FogOverlay (no rotation props expected)
 jest.mock('../../../components/FogOverlay', () => {
   const React = jest.requireActual<typeof import('react')>('react');
   const { View } = jest.requireActual<typeof import('react-native')>('react-native');
@@ -74,7 +74,6 @@ jest.mock('../../../components/FogOverlay', () => {
     return React.createElement(View, {
       testID: 'mock-fog-overlay',
       'data-map-region': JSON.stringify(props.mapRegion),
-      'data-rotation': props.rotation,
     } as any);
   };
 
@@ -120,7 +119,7 @@ jest.mock('expo-location', () => ({
   Accuracy: { High: 1, Balanced: 2, LowPower: 3 },
 }));
 
-describe('Map Rotation Tests', () => {
+describe('Map Rotation Disabled Tests', () => {
   let store: Store<RootState>;
 
   beforeEach(() => {
@@ -150,7 +149,7 @@ describe('Map Rotation Tests', () => {
     jest.resetAllMocks();
   });
 
-  it('renders MapView with onPanDrag handler', async () => {
+  it('should have rotation and pitch disabled on the MapView', async () => {
     const { getByTestId } = render(
       <Provider store={store}>
         <MapScreen />
@@ -163,15 +162,14 @@ describe('Map Rotation Tests', () => {
       await Promise.resolve();
     });
 
-    // Get the MapView
+    // Get the MapView and verify rotation/pitch are disabled
     const mapView = getByTestId('mock-map-view');
 
-    // Verify onPanDrag handler exists
-    expect(mapView.props.onPanDrag).toBeDefined();
-    expect(typeof mapView.props.onPanDrag).toBe('function');
+    expect(mapView.props['data-rotateEnabled']).toBe(false);
+    expect(mapView.props['data-pitchEnabled']).toBe(false);
   });
 
-  it('renders FogOverlay with rotation prop', async () => {
+  it('renders FogOverlay without rotation props', async () => {
     const { getByTestId } = render(
       <Provider store={store}>
         <MapScreen />
@@ -184,11 +182,13 @@ describe('Map Rotation Tests', () => {
       await Promise.resolve();
     });
 
-    // Get the FogOverlay component
+    // Get the FogOverlay component and verify no rotation props
     const fogOverlay = getByTestId('mock-fog-overlay');
 
-    // Verify rotation prop exists (initially 0)
-    expect(fogOverlay.props['data-rotation']).toBeDefined();
-    expect(typeof fogOverlay.props['data-rotation']).toBe('number');
+    // Verify rotation prop does NOT exist (since we removed rotation entirely)
+    expect(fogOverlay.props['data-rotation']).toBeUndefined();
+
+    // Verify it still has the mapRegion prop
+    expect(fogOverlay.props['data-map-region']).toBeDefined();
   });
 });

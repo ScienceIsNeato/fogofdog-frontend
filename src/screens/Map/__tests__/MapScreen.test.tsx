@@ -47,7 +47,6 @@ jest.mock('react-native-maps', () => {
     onPanDrag?: () => void;
     initialRegion?: any;
     children?: React.ReactNode;
-    [key: string]: any;
   }
 
   const MockMapView = React.forwardRef((props: MockMapViewProps, ref: React.Ref<unknown>) => {
@@ -103,7 +102,7 @@ jest.mock('react-native-maps', () => {
   MockMarker.displayName = 'MockMarker';
 
   const MockPolygon = (props: any) => {
-    return React.createElement(View, { testID: 'mock-rn-polygon', ...props } as any);
+    return React.createElement(View, { testID: 'mock-rn-polygon', ...props });
   };
   MockPolygon.displayName = 'MockPolygon';
 
