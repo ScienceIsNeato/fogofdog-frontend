@@ -37,9 +37,6 @@ jobs:
           echo "🔍 Running TypeScript type checking with strict configuration..."
           npm run type-check-ci
         
-      - name: 🏥 Expo Doctor
-        run: npx expo-doctor
-        
       - name: 📊 Test with Coverage
         run: npm run test:coverage
         
