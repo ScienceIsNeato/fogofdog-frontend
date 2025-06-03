@@ -5,6 +5,7 @@ import { useSelector } from 'react-redux';
 import { RootState } from '../store';
 import { MapRegion } from '../types/navigation';
 import { geoPointToPixel, calculateMetersPerPixel } from '../utils/mapUtils';
+import { logger } from '../utils/logger';
 
 // Default fog opacity
 const FOG_OPACITY = 1.0; // Completely opaque as requested
@@ -87,8 +88,9 @@ const useFogPerformance = (pathPoints: any[], radiusPixels: number, strokeWidth:
   // Debug logging
   useEffect(() => {
     if (!shouldSkipRender()) {
-      console.log(
-        `FogOverlay: rendering with ${pathPoints.length} points, radius: ${radiusPixels.toFixed(2)}px, stroke: ${strokeWidth.toFixed(2)}px`
+      logger.debug(
+        `FogOverlay: rendering with ${pathPoints.length} points, radius: ${radiusPixels.toFixed(2)}px, stroke: ${strokeWidth.toFixed(2)}px`,
+        { component: 'FogOverlay', action: 'render' }
       );
     }
   }, [pathPoints, radiusPixels, strokeWidth]);

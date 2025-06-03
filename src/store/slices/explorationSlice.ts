@@ -1,5 +1,6 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 import { GeoPoint } from '../../types/user';
+import { logger } from '../../utils/logger';
 
 interface ExplorationState {
   currentLocation: GeoPoint | null;
@@ -56,9 +57,10 @@ const explorationSlice = createSlice({
       const newPoint = action.payload;
 
       if (!isValidGeoPoint(newPoint)) {
-        console.warn(
-          `[explorationSlice] Invalid geo point received: ${JSON.stringify(newPoint)}. Skipping.`
-        );
+        logger.warn(`Invalid geo point received: ${JSON.stringify(newPoint)}. Skipping.`, {
+          component: 'explorationSlice',
+          action: 'updateLocation',
+        });
         return;
       }
 
@@ -83,9 +85,10 @@ const explorationSlice = createSlice({
           // console.log(`[explorationSlice] New point is too close to last point (${distance.toFixed(2)}m). Not adding to path. Total points: ${state.path.length}`);
         }
       } catch (error) {
-        console.error(
-          `[explorationSlice] Error calculating distance: ${error}. Not adding to path.`
-        );
+        logger.error(`Error calculating distance: ${error}. Not adding to path.`, error, {
+          component: 'explorationSlice',
+          action: 'updateLocation',
+        });
       }
     },
     updateZoom: (state, action: PayloadAction<number>) => {
@@ -96,6 +99,12 @@ const explorationSlice = createSlice({
       if (isValidGeoPoint(point)) {
         // console.log(`[explorationSlice] Manually adding path point at: ${point.latitude}, ${point.longitude}`);
         state.path.push({ ...point });
+      } else {
+        logger.error('addPathPoint: Invalid position provided', {
+          component: 'explorationSlice',
+          action: 'addPathPoint',
+          point,
+        });
       }
     },
     setCenterOnUser: (state, action: PayloadAction<boolean>) => {

@@ -29,6 +29,14 @@
 [![🎨 Prettier](https://img.shields.io/badge/Code%20Style-Prettier-ff69b4?style=flat-square&logo=prettier&logoColor=white)](https://prettier.io/)
 [![📊 CodeClimate](https://img.shields.io/badge/CodeClimate-A%20Grade-brightgreen?style=flat-square&logo=codeclimate&logoColor=white)](https://codeclimate.com/)
 
+### ☁️ SonarQube Cloud Analysis
+[![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=ScienceIsNeato_fogofdog-frontend&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=ScienceIsNeato_fogofdog-frontend)
+[![Security Rating](https://sonarcloud.io/api/project_badges/measure?project=ScienceIsNeato_fogofdog-frontend&metric=security_rating)](https://sonarcloud.io/summary/new_code?id=ScienceIsNeato_fogofdog-frontend)
+[![Reliability Rating](https://sonarcloud.io/api/project_badges/measure?project=ScienceIsNeato_fogofdog-frontend&metric=reliability_rating)](https://sonarcloud.io/summary/new_code?id=ScienceIsNeato_fogofdog-frontend)
+[![Maintainability Rating](https://sonarcloud.io/api/project_badges/measure?project=ScienceIsNeato_fogofdog-frontend&metric=sqale_rating)](https://sonarcloud.io/summary/new_code?id=ScienceIsNeato_fogofdog-frontend)
+[![Coverage](https://sonarcloud.io/api/project_badges/measure?project=ScienceIsNeato_fogofdog-frontend&metric=coverage)](https://sonarcloud.io/summary/new_code?id=ScienceIsNeato_fogofdog-frontend)
+[![Duplicated Lines (%)](https://sonarcloud.io/api/project_badges/measure?project=ScienceIsNeato_fogofdog-frontend&metric=duplicated_lines_density)](https://sonarcloud.io/summary/new_code?id=ScienceIsNeato_fogofdog-frontend)
+
 ### 🧪 Testing & Coverage
 [![✅ Tests](https://img.shields.io/badge/Tests-47%2F47%20Passing-brightgreen?style=flat-square&logo=jest&logoColor=white)](https://jestjs.io/)
 [![📈 Coverage](https://img.shields.io/badge/Coverage-72%25-yellow?style=flat-square&logo=jest&logoColor=white)](https://jestjs.io/)
@@ -190,7 +198,8 @@ Our project maintains enterprise-level code quality through automated monitoring
 - **ESLint Warnings**: 0 (strict enforcement)
 
 ### 🔧 Quality Tools
-- **SonarJS**: Same quality rules as SonarCloud Enterprise
+- **SonarQube Cloud**: Enterprise-grade static analysis with A ratings across Security, Reliability, and Maintainability
+- **SonarJS**: Same quality rules as SonarCloud Enterprise (integrated via ESLint)
 - **jscpd**: Duplicate code detection
 - **madge**: Circular dependency analysis  
 - **Prettier**: Consistent code formatting
@@ -202,9 +211,8 @@ Our GitHub Actions workflow ensures quality:
 1. **🔒 Security Audit** - High-priority vulnerability scanning
 2. **🧹 Lint Check** - Zero warnings policy
 3. **🔧 TypeScript Check** - Strict type safety
-4. **🏥 Expo Doctor** - Framework health check
-5. **📊 Test Coverage** - Comprehensive test execution
-6. **🏗️ Build Verification** - Multi-platform export validation
+4. **📊 Test Coverage** - Comprehensive test execution
+5. **🏗️ Build Verification** - Multi-platform export validation
 
 ---
 
@@ -249,4 +257,4 @@ This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) 
 [![🐛 Report Bug](https://img.shields.io/badge/Report-Bug-red?style=for-the-badge&logo=github&logoColor=white)](https://github.com/your-username/fogofdog-frontend/issues)
 [![💡 Request Feature](https://img.shields.io/badge/Request-Feature-blue?style=for-the-badge&logo=github&logoColor=white)](https://github.com/your-username/fogofdog-frontend/issues)
 
-</div> 
+</div>

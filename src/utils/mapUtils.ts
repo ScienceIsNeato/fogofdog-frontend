@@ -1,5 +1,6 @@
 import { MapRegion } from '../types/navigation';
 import { GeoPoint } from '../types/user';
+import { logger } from './logger';
 
 /**
  * Converts a geographic point (lat/lon) to pixel coordinates relative to the map view
@@ -22,6 +23,16 @@ export function geoPointToPixel(
     height,
   } = region;
 
+  if (!region || !point) {
+    logger.warn('geoPointToPixel received invalid parameters', {
+      component: 'mapUtils',
+      action: 'geoPointToPixel',
+      region,
+      point,
+    });
+    return { x: 0, y: 0 };
+  }
+
   // Safety check for invalid inputs
   if (
     !Number.isFinite(latitude) ||
@@ -35,7 +46,7 @@ export function geoPointToPixel(
     latitudeDelta === 0 ||
     longitudeDelta === 0
   ) {
-    console.warn('geoPointToPixel received invalid parameters:', {
+    logger.warn('geoPointToPixel received invalid parameters:', {
       point,
       region,
     });
@@ -67,6 +78,15 @@ export function geoPointToPixel(
 export function calculateMetersPerPixel(region: MapRegion & { width: number }): number {
   const { latitude, longitudeDelta, width } = region;
 
+  if (!region) {
+    logger.warn('calculateMetersPerPixel received invalid parameters', {
+      component: 'mapUtils',
+      action: 'calculateMetersPerPixel',
+      region,
+    });
+    return 1;
+  }
+
   // Safety check for invalid inputs
   if (
     !Number.isFinite(latitude) ||
@@ -74,7 +94,7 @@ export function calculateMetersPerPixel(region: MapRegion & { width: number }): 
     !Number.isFinite(width) ||
     width === 0
   ) {
-    console.warn('calculateMetersPerPixel received invalid parameters:', region);
+    logger.warn('calculateMetersPerPixel received invalid parameters:', region);
     return 1; // Return a safe default
   }
 
@@ -98,17 +118,23 @@ export function calculateMetersPerPixel(region: MapRegion & { width: number }): 
  * @returns width in pixels that represents the specified real-world meters
  */
 export function metersToPixels(meters: number, region: MapRegion & { width: number }): number {
-  // Safety check for invalid inputs
-  if (!Number.isFinite(meters)) {
-    console.warn('metersToPixels received invalid meters value:', meters);
+  if (!Number.isFinite(meters) || meters <= 0) {
+    logger.warn('metersToPixels received invalid meters value', {
+      component: 'mapUtils',
+      action: 'metersToPixels',
+      meters,
+    });
     return 0;
   }
 
   const metersPerPixel = calculateMetersPerPixel(region);
 
-  // Ensure we don't divide by zero
-  if (metersPerPixel <= 0) {
-    console.warn('metersToPixels received invalid metersPerPixel:', metersPerPixel);
+  if (!Number.isFinite(metersPerPixel) || metersPerPixel <= 0) {
+    logger.warn('metersToPixels received invalid metersPerPixel', {
+      component: 'mapUtils',
+      action: 'metersToPixels',
+      metersPerPixel,
+    });
     return 0;
   }
 

@@ -12,6 +12,7 @@ import * as Location from 'expo-location'; // Import expo-location
 import FogOverlay from '../../components/FogOverlay';
 import LocationButton from '../../components/LocationButton';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { logger } from '../../utils/logger';
 
 // Default location (will be used as a fallback or before real location is fetched)
 const DEFAULT_LOCATION = {
@@ -47,7 +48,10 @@ const handleLocationError = (
   isActive: boolean
 ) => {
   if (isActive) {
-    console.error('[MapScreen useEffect] Error fetching location:', error);
+    logger.error('Error fetching location:', error, {
+      component: 'MapScreen',
+      action: 'useEffect',
+    });
     dispatch(
       updateLocation({
         latitude: DEFAULT_LOCATION.latitude,
@@ -213,7 +217,10 @@ const createAddTestPointHandler =
     if (currentLocation) {
       const testPoint = createTestPoint(currentLocation);
       dispatch(addPathPoint(testPoint));
-      console.log(`[MapScreen] Added test point at: ${testPoint.latitude}, ${testPoint.longitude}`);
+      logger.debug(`Added test point at: ${testPoint.latitude}, ${testPoint.longitude}`, {
+        component: 'MapScreen',
+        action: 'createTestPoint',
+      });
     }
   };
 
@@ -269,7 +276,10 @@ const useMapEventHandlers = (options: {
           }
         })
         .catch((err) => {
-          console.log('[MapScreen] Error getting camera:', err);
+          logger.error('Error getting camera:', err, {
+            component: 'MapScreen',
+            action: 'createZoomHandler',
+          });
         });
     }
   };

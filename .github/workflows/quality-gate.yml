@@ -40,14 +40,6 @@ jobs:
       - name: 📊 Test with Coverage
         run: npm run test:coverage
         
-      - name: 📈 Upload Coverage to CodeClimate
-        uses: paambaati/codeclimate-action@v3.0.0
-        env:
-          CC_TEST_REPORTER_ID: ${{ secrets.CC_TEST_REPORTER_ID }}
-        with:
-          coverageLocations: coverage/lcov.info:lcov
-        continue-on-error: true
-
   # Build verification (< 3 minutes)
   build-check:
     name: 🔨 Build Verification
