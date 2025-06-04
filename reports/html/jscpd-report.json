@@ -1,0 +1,986 @@
+{
+  "statistics": {
+    "detectionDate": "2025-06-04T05:19:43.299Z",
+    "formats": {
+      "typescript": {
+        "sources": {
+          "src/store/slices/__tests__/userSlice.test.ts": {
+            "lines": 76,
+            "tokens": 733,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "src/store/slices/__tests__/explorationSlice.test.ts": {
+            "lines": 98,
+            "tokens": 858,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "src/utils/__tests__/logger.test.ts": {
+            "lines": 229,
+            "tokens": 1628,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "src/types/__tests__/user.test.ts": {
+            "lines": 124,
+            "tokens": 1050,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "src/types/__tests__/navigation.test.ts": {
+            "lines": 73,
+            "tokens": 592,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "src/store/slices/userSlice.ts": {
+            "lines": 32,
+            "tokens": 313,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "src/store/slices/explorationSlice.ts": {
+            "lines": 117,
+            "tokens": 1122,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "src/screens/Auth/index.ts": {
+            "lines": 1,
+            "tokens": 24,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "src/__tests__/utils/mapUtils.test.ts": {
+            "lines": 141,
+            "tokens": 1266,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "src/__tests__/test-helpers/shared-mocks.ts": {
+            "lines": 103,
+            "tokens": 729,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "src/utils/mapUtils.ts": {
+            "lines": 149,
+            "tokens": 1045,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "src/utils/logger.ts": {
+            "lines": 67,
+            "tokens": 548,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "src/types/user.ts": {
+            "lines": 21,
+            "tokens": 127,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "src/types/navigation.ts": {
+            "lines": 28,
+            "tokens": 156,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "src/store/index.ts": {
+            "lines": 12,
+            "tokens": 104,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "src/store/hooks.ts": {
+            "lines": 4,
+            "tokens": 74,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "src/__mocks__/react-native-reanimated.ts": {
+            "lines": 52,
+            "tokens": 473,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "src/@types/global.d.ts": {
+            "lines": 1,
+            "tokens": 10,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          }
+        },
+        "total": {
+          "lines": 1328,
+          "tokens": 10852,
+          "sources": 18,
+          "clones": 0,
+          "duplicatedLines": 0,
+          "duplicatedTokens": 0,
+          "percentage": 0,
+          "percentageTokens": 0,
+          "newDuplicatedLines": 0,
+          "newClones": 0
+        }
+      },
+      "tsx": {
+        "sources": {
+          "src/screens/Profile/__tests__/Profile.test.tsx": {
+            "lines": 190,
+            "tokens": 1624,
+            "sources": 1,
+            "clones": 2,
+            "duplicatedLines": 26,
+            "duplicatedTokens": 234,
+            "percentage": 13.68,
+            "percentageTokens": 14.41,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "src/screens/Map/__tests__/rotation.test.tsx": {
+            "lines": 193,
+            "tokens": 1614,
+            "sources": 1,
+            "clones": 2,
+            "duplicatedLines": 26,
+            "duplicatedTokens": 188,
+            "percentage": 13.47,
+            "percentageTokens": 11.65,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "src/screens/Auth/__tests__/SignUp.test.tsx": {
+            "lines": 130,
+            "tokens": 1096,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "src/screens/Auth/__tests__/SignIn.test.tsx": {
+            "lines": 119,
+            "tokens": 1047,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "src/navigation/__mocks__/@react-navigation/native.tsx": {
+            "lines": 7,
+            "tokens": 141,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "src/utils/__tests__/test-utils.test.tsx": {
+            "lines": 109,
+            "tokens": 903,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "src/screens/Profile/Profile.tsx": {
+            "lines": 76,
+            "tokens": 663,
+            "sources": 1,
+            "clones": 1,
+            "duplicatedLines": 16,
+            "duplicatedTokens": 97,
+            "percentage": 21.05,
+            "percentageTokens": 14.63,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "src/screens/Map/index.tsx": {
+            "lines": 512,
+            "tokens": 3756,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "src/screens/Auth/SignUp.tsx": {
+            "lines": 77,
+            "tokens": 622,
+            "sources": 1,
+            "clones": 3,
+            "duplicatedLines": 49,
+            "duplicatedTokens": 356,
+            "percentage": 63.64,
+            "percentageTokens": 57.23,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "src/screens/Auth/SignIn.tsx": {
+            "lines": 79,
+            "tokens": 626,
+            "sources": 1,
+            "clones": 2,
+            "duplicatedLines": 33,
+            "duplicatedTokens": 259,
+            "percentage": 41.77,
+            "percentageTokens": 41.37,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "src/components/__tests__/LocationButton.test.tsx": {
+            "lines": 139,
+            "tokens": 1250,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "src/components/__tests__/FogOverlay.test.tsx": {
+            "lines": 263,
+            "tokens": 2306,
+            "sources": 1,
+            "clones": 6,
+            "duplicatedLines": 84,
+            "duplicatedTokens": 566,
+            "percentage": 31.94,
+            "percentageTokens": 24.54,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "src/__tests__/test-helpers/render-utils.tsx": {
+            "lines": 86,
+            "tokens": 655,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "src/utils/test-utils.tsx": {
+            "lines": 35,
+            "tokens": 298,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "src/navigation/index.tsx": {
+            "lines": 62,
+            "tokens": 623,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "src/components/LocationButton.tsx": {
+            "lines": 101,
+            "tokens": 752,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "src/components/FogOverlay.tsx": {
+            "lines": 190,
+            "tokens": 1511,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "src/__mocks__/react-native.tsx": {
+            "lines": 45,
+            "tokens": 420,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          }
+        },
+        "total": {
+          "lines": 2413,
+          "tokens": 19907,
+          "sources": 18,
+          "clones": 8,
+          "duplicatedLines": 117,
+          "duplicatedTokens": 850,
+          "percentage": 4.85,
+          "percentageTokens": 4.27,
+          "newDuplicatedLines": 0,
+          "newClones": 0
+        }
+      },
+      "javascript": {
+        "sources": {
+          "src/screens/Map/__tests__/rotation.test.tsx": {
+            "lines": 20,
+            "tokens": 157,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "src/__mocks__/@expo/vector-icons/MaterialIcons.js": {
+            "lines": 5,
+            "tokens": 72,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "src/screens/Profile/Profile.tsx": {
+            "lines": 9,
+            "tokens": 152,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "src/screens/Map/index.tsx": {
+            "lines": 107,
+            "tokens": 706,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "src/screens/Auth/SignUp.tsx": {
+            "lines": 6,
+            "tokens": 111,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "src/screens/Auth/SignIn.tsx": {
+            "lines": 10,
+            "tokens": 124,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "src/components/__tests__/LocationButton.test.tsx": {
+            "lines": 117,
+            "tokens": 1061,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "src/components/__tests__/FogOverlay.test.tsx": {
+            "lines": 183,
+            "tokens": 1478,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "src/__tests__/test-helpers/render-utils.tsx": {
+            "lines": 49,
+            "tokens": 337,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "src/utils/test-utils.tsx": {
+            "lines": 0,
+            "tokens": 3,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "src/navigation/index.tsx": {
+            "lines": 34,
+            "tokens": 371,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "src/components/LocationButton.tsx": {
+            "lines": 1,
+            "tokens": 22,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "src/components/FogOverlay.tsx": {
+            "lines": 57,
+            "tokens": 341,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "src/__mocks__/react-native.tsx": {
+            "lines": 12,
+            "tokens": 128,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          }
+        },
+        "total": {
+          "lines": 610,
+          "tokens": 5063,
+          "sources": 14,
+          "clones": 0,
+          "duplicatedLines": 0,
+          "duplicatedTokens": 0,
+          "percentage": 0,
+          "percentageTokens": 0,
+          "newDuplicatedLines": 0,
+          "newClones": 0
+        }
+      },
+      "css": {
+        "sources": {
+          "src/components/FogOverlay.tsx": {
+            "lines": 1,
+            "tokens": 4,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          }
+        },
+        "total": {
+          "lines": 1,
+          "tokens": 4,
+          "sources": 1,
+          "clones": 0,
+          "duplicatedLines": 0,
+          "duplicatedTokens": 0,
+          "percentage": 0,
+          "percentageTokens": 0,
+          "newDuplicatedLines": 0,
+          "newClones": 0
+        }
+      }
+    },
+    "total": {
+      "lines": 4352,
+      "tokens": 35826,
+      "sources": 51,
+      "clones": 8,
+      "duplicatedLines": 117,
+      "duplicatedTokens": 850,
+      "percentage": 2.69,
+      "percentageTokens": 2.37,
+      "newDuplicatedLines": 0,
+      "newClones": 0
+    }
+  },
+  "duplicates": [
+    {
+      "format": "tsx",
+      "lines": 14,
+      "fragment": ", () => {\n    const store = createMockStore();\n    const { getByText } = renderProfileScreen(store);\n    const signOutButton = getByText('Sign Out');\n\n    // Press button multiple times\n    fireEvent.press(signOutButton);\n    fireEvent.press(signOutButton);\n    fireEvent.press(signOutButton);\n\n    const state = store.getState();\n    expect(state.user.user).toBeNull();\n  });\n}",
+      "tokens": 0,
+      "firstFile": {
+        "name": "src/screens/Profile/__tests__/Profile.test.tsx",
+        "start": 179,
+        "end": 192,
+        "startLoc": {
+          "line": 179,
+          "column": 57,
+          "position": 1506
+        },
+        "endLoc": {
+          "line": 192,
+          "column": 2,
+          "position": 1623
+        }
+      },
+      "secondFile": {
+        "name": "src/screens/Profile/__tests__/Profile.test.tsx",
+        "start": 100,
+        "end": 114,
+        "startLoc": {
+          "line": 100,
+          "column": 49,
+          "position": 811
+        },
+        "endLoc": {
+          "line": 114,
+          "column": 3,
+          "position": 930
+        }
+      }
+    },
+    {
+      "format": "tsx",
+      "lines": 14,
+      "fragment": ", async () => {\n    const { getByTestId } = render(\n      <Provider store={store}>\n        <MapScreen />\n      </Provider>\n    );\n\n    // Wait for initial rendering\n    await act(async () => {\n      jest.runAllTimers();\n      await Promise.resolve();\n    });\n\n    // Get the FogOverlay component and verify no rotation props",
+      "tokens": 0,
+      "firstFile": {
+        "name": "src/screens/Map/__tests__/rotation.test.tsx",
+        "start": 172,
+        "end": 185,
+        "startLoc": {
+          "line": 172,
+          "column": 44,
+          "position": 1458
+        },
+        "endLoc": {
+          "line": 185,
+          "column": 61,
+          "position": 1552
+        }
+      },
+      "secondFile": {
+        "name": "src/screens/Map/__tests__/rotation.test.tsx",
+        "start": 152,
+        "end": 165,
+        "startLoc": {
+          "line": 152,
+          "column": 57,
+          "position": 1304
+        },
+        "endLoc": {
+          "line": 165,
+          "column": 58,
+          "position": 1398
+        }
+      }
+    },
+    {
+      "format": "tsx",
+      "lines": 17,
+      "fragment": ",\n  },\n  button: {\n    backgroundColor: '#007AFF',\n    paddingHorizontal: 30,\n    paddingVertical: 15,\n    borderRadius: 8,\n    marginVertical: 10,\n    width: '100%',\n    alignItems: 'center',\n  },\n  buttonText: {\n    color: '#fff',\n    fontSize: 18,\n    fontWeight: '600',\n  },\n  secondaryButton",
+      "tokens": 0,
+      "firstFile": {
+        "name": "src/screens/Auth/SignUp.tsx",
+        "start": 54,
+        "end": 70,
+        "startLoc": {
+          "line": 54,
+          "column": 3,
+          "position": 476
+        },
+        "endLoc": {
+          "line": 70,
+          "column": 16,
+          "position": 573
+        }
+      },
+      "secondFile": {
+        "name": "src/screens/Profile/Profile.tsx",
+        "start": 61,
+        "end": 77,
+        "startLoc": {
+          "line": 61,
+          "column": 3,
+          "position": 565
+        },
+        "endLoc": {
+          "line": 77,
+          "column": 2,
+          "position": 661
+        }
+      }
+    },
+    {
+      "format": "tsx",
+      "lines": 8,
+      "fragment": "import React from 'react';\nimport { View, Text, StyleSheet, TouchableOpacity } from 'react-native';\nimport { useAppDispatch } from '../../store/hooks';\nimport { setUser } from '../../store/slices/userSlice';\nimport type { NativeStackScreenProps } from '@react-navigation/native-stack';\nimport type { AuthStackParamList } from '../../types/navigation';\n\ntype Props = NativeStackScreenProps<AuthStackParamList, 'SignIn'",
+      "tokens": 0,
+      "firstFile": {
+        "name": "src/screens/Auth/SignIn.tsx",
+        "start": 1,
+        "end": 8,
+        "startLoc": {
+          "line": 1,
+          "column": 1,
+          "position": 0
+        },
+        "endLoc": {
+          "line": 8,
+          "column": 9,
+          "position": 99
+        }
+      },
+      "secondFile": {
+        "name": "src/screens/Auth/SignUp.tsx",
+        "start": 1,
+        "end": 8,
+        "startLoc": {
+          "line": 1,
+          "column": 1,
+          "position": 0
+        },
+        "endLoc": {
+          "line": 8,
+          "column": 9,
+          "position": 99
+        }
+      }
+    },
+    {
+      "format": "tsx",
+      "lines": 27,
+      "fragment": ",\n    fontWeight: 'bold',\n    marginBottom: 40,\n  },\n  button: {\n    backgroundColor: '#007AFF',\n    paddingHorizontal: 30,\n    paddingVertical: 15,\n    borderRadius: 8,\n    marginVertical: 10,\n    width: '100%',\n    alignItems: 'center',\n  },\n  buttonText: {\n    color: '#fff',\n    fontSize: 18,\n    fontWeight: '600',\n  },\n  secondaryButton: {\n    backgroundColor: 'transparent',\n    borderWidth: 1,\n    borderColor: '#007AFF',\n  },\n  secondaryButtonText: {\n    color: '#007AFF',\n  },\n});",
+      "tokens": 0,
+      "firstFile": {
+        "name": "src/screens/Auth/SignIn.tsx",
+        "start": 54,
+        "end": 80,
+        "startLoc": {
+          "line": 54,
+          "column": 7,
+          "position": 466
+        },
+        "endLoc": {
+          "line": 80,
+          "column": 2,
+          "position": 626
+        }
+      },
+      "secondFile": {
+        "name": "src/screens/Auth/SignUp.tsx",
+        "start": 52,
+        "end": 78,
+        "startLoc": {
+          "line": 52,
+          "column": 7,
+          "position": 462
+        },
+        "endLoc": {
+          "line": 78,
+          "column": 2,
+          "position": 622
+        }
+      }
+    },
+    {
+      "format": "tsx",
+      "lines": 14,
+      "fragment": "];\n\n    const store = createMockStore(testPath);\n\n    const result = render(\n      <Provider store={store}>\n        <FogOverlay mapRegion={defaultMapRegion} />\n      </Provider>\n    );\n\n    expect(result.getByTestId('mock-skia-canvas')).toBeDefined();\n  });\n\n  it('handles null/undefined points in path gracefully'",
+      "tokens": 0,
+      "firstFile": {
+        "name": "src/components/__tests__/FogOverlay.test.tsx",
+        "start": 102,
+        "end": 115,
+        "startLoc": {
+          "line": 102,
+          "column": 5,
+          "position": 1037
+        },
+        "endLoc": {
+          "line": 115,
+          "column": 51,
+          "position": 1123
+        }
+      },
+      "secondFile": {
+        "name": "src/components/__tests__/FogOverlay.test.tsx",
+        "start": 84,
+        "end": 97,
+        "startLoc": {
+          "line": 84,
+          "column": 2,
+          "position": 877
+        },
+        "endLoc": {
+          "line": 97,
+          "column": 48,
+          "position": 963
+        }
+      }
+    },
+    {
+      "format": "tsx",
+      "lines": 16,
+      "fragment": ",\n      { latitude: 41.6887, longitude: -91.5822 },\n    ];\n\n    const store = createMockStore(testPath);\n\n    const result = render(\n      <Provider store={store}>\n        <FogOverlay mapRegion={defaultMapRegion} />\n      </Provider>\n    );\n\n    expect(result.getByTestId('mock-skia-canvas')).toBeDefined();\n  });\n\n  it('handles path with first point as null/undefined'",
+      "tokens": 0,
+      "firstFile": {
+        "name": "src/components/__tests__/FogOverlay.test.tsx",
+        "start": 120,
+        "end": 135,
+        "startLoc": {
+          "line": 120,
+          "column": 10,
+          "position": 1184
+        },
+        "endLoc": {
+          "line": 135,
+          "column": 50,
+          "position": 1291
+        }
+      },
+      "secondFile": {
+        "name": "src/components/__tests__/FogOverlay.test.tsx",
+        "start": 100,
+        "end": 97,
+        "startLoc": {
+          "line": 100,
+          "column": 2,
+          "position": 1016
+        },
+        "endLoc": {
+          "line": 97,
+          "column": 48,
+          "position": 963
+        }
+      }
+    },
+    {
+      "format": "tsx",
+      "lines": 15,
+      "fragment": "},\n    ];\n\n    const store = createMockStore(testPath);\n\n    const result = render(\n      <Provider store={store}>\n        <FogOverlay mapRegion={defaultMapRegion} />\n      </Provider>\n    );\n\n    expect(result.getByTestId('mock-skia-canvas')).toBeDefined();\n  });\n\n  it('handles very small map region (high zoom)'",
+      "tokens": 0,
+      "firstFile": {
+        "name": "src/components/__tests__/FogOverlay.test.tsx",
+        "start": 139,
+        "end": 153,
+        "startLoc": {
+          "line": 139,
+          "column": 2,
+          "position": 1347
+        },
+        "endLoc": {
+          "line": 153,
+          "column": 44,
+          "position": 1437
+        }
+      },
+      "secondFile": {
+        "name": "src/components/__tests__/FogOverlay.test.tsx",
+        "start": 101,
+        "end": 97,
+        "startLoc": {
+          "line": 101,
+          "column": 2,
+          "position": 1033
+        },
+        "endLoc": {
+          "line": 97,
+          "column": 48,
+          "position": 963
+        }
+      }
+    }
+  ],
+  "filename": "/Users/pacey/Documents/SourceCode/fogofdog-frontend/node_modules/@jscpd/html-reporter/dist/templates/main.pug"
+}

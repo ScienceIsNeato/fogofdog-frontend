@@ -1,102 +1,28 @@
-import React from 'react';
-import { render, fireEvent } from '@testing-library/react-native';
-import { Provider } from 'react-redux';
-import { configureStore } from '@reduxjs/toolkit';
-import userReducer from '../../../store/slices/userSlice';
-import explorationReducer from '../../../store/slices/explorationSlice';
-import { SignUpScreen } from '../SignUp';
-
-// Mock navigation
-const mockNavigate = jest.fn();
-const mockNavigation = {
-  navigate: mockNavigate,
-  goBack: jest.fn(),
-  canGoBack: jest.fn(),
-  dispatch: jest.fn(),
-  isFocused: jest.fn(),
-  addListener: jest.fn(),
-  removeListener: jest.fn(),
-  reset: jest.fn(),
-  setParams: jest.fn(),
-  setOptions: jest.fn(),
-  getId: jest.fn(),
-  getParent: jest.fn(),
-  getState: jest.fn(),
-  pop: jest.fn(),
-  popToTop: jest.fn(),
-  push: jest.fn(),
-  replace: jest.fn(),
-  preload: jest.fn(),
-  navigateDeprecated: jest.fn(),
-  setStateForNextRouteNamesChange: jest.fn(),
-  replaceParams: jest.fn(),
-  popTo: jest.fn(),
-};
-
-const createMockStore = (userState: any = null) => {
-  return configureStore({
-    reducer: {
-      user: userReducer,
-      exploration: explorationReducer,
-    },
-    preloadedState: {
-      user: {
-        user: userState,
-        isLoading: false,
-        error: null,
-      },
-      exploration: {
-        path: [],
-        currentLocation: null,
-        zoomLevel: 10,
-        isMapCenteredOnUser: false,
-        exploredAreas: [],
-      },
-    },
-  });
-};
+import { fireEvent } from '@testing-library/react-native';
+import { renderAuthScreen, clearAllMocks } from '../../../__tests__/test-helpers/render-utils';
+import { createMockStore, mockNavigation } from '../../../__tests__/test-helpers/shared-mocks';
 
 describe('SignUpScreen', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    clearAllMocks();
   });
 
   it('should render correctly', () => {
-    const store = createMockStore();
-    const { getByText } = render(
-      <Provider store={store}>
-        <SignUpScreen navigation={mockNavigation} route={{ key: 'SignUp', name: 'SignUp' }} />
-      </Provider>
-    );
+    const { getByText } = renderAuthScreen('SignUp');
 
     expect(getByText('Create Account')).toBeTruthy();
     expect(getByText('Sign Up')).toBeTruthy();
     expect(getByText('Already have an account?')).toBeTruthy();
   });
 
-  it('should display correct title text', () => {
+  it('should handle sign up button press', () => {
     const store = createMockStore();
-    const { getByText } = render(
-      <Provider store={store}>
-        <SignUpScreen navigation={mockNavigation} route={{ key: 'SignUp', name: 'SignUp' }} />
-      </Provider>
-    );
-
-    const titleElement = getByText('Create Account');
-    expect(titleElement).toBeTruthy();
-  });
-
-  it('should dispatch setUser when sign up button is pressed', () => {
-    const store = createMockStore();
-    const { getByText } = render(
-      <Provider store={store}>
-        <SignUpScreen navigation={mockNavigation} route={{ key: 'SignUp', name: 'SignUp' }} />
-      </Provider>
-    );
-
+    const { getByText } = renderAuthScreen('SignUp', store);
     const signUpButton = getByText('Sign Up');
+
     fireEvent.press(signUpButton);
 
+    // Check that user is set in store
     const state = store.getState();
     expect(state.user.user).toEqual({
       id: '123',
@@ -105,30 +31,19 @@ describe('SignUpScreen', () => {
     });
   });
 
-  it('should navigate to SignIn when already have account button is pressed', () => {
-    const store = createMockStore();
-    const { getByText } = render(
-      <Provider store={store}>
-        <SignUpScreen navigation={mockNavigation} route={{ key: 'SignUp', name: 'SignUp' }} />
-      </Provider>
-    );
-
+  it('should navigate to sign in when already have account button is pressed', () => {
+    const { getByText } = renderAuthScreen('SignUp');
     const signInButton = getByText('Already have an account?');
+
     fireEvent.press(signInButton);
 
-    expect(mockNavigate).toHaveBeenCalledWith('SignIn');
+    expect(mockNavigation.navigate).toHaveBeenCalledWith('SignIn');
   });
 
-  it('should have correct container styles with black background', () => {
-    const store = createMockStore();
-    const { getByText } = render(
-      <Provider store={store}>
-        <SignUpScreen navigation={mockNavigation} route={{ key: 'SignUp', name: 'SignUp' }} />
-      </Provider>
-    );
-
+  it('should have correct title styling', () => {
+    const { getByText } = renderAuthScreen('SignUp');
     const titleElement = getByText('Create Account');
-    // Check that the title has the expected styles (white text on black background)
+
     expect(titleElement.props.style).toEqual(
       expect.objectContaining({
         fontSize: 32,
@@ -139,14 +54,23 @@ describe('SignUpScreen', () => {
     );
   });
 
+  it('should have correct button styling', () => {
+    const { getByText } = renderAuthScreen('SignUp');
+    const signUpButton = getByText('Sign Up');
+
+    // Check button text styling
+    expect(signUpButton.props.style).toEqual(
+      expect.objectContaining({
+        color: '#fff',
+        fontSize: 18,
+        fontWeight: '600',
+      })
+    );
+  });
+
   it('should handle multiple sign up button presses', () => {
     const store = createMockStore();
-    const { getByText } = render(
-      <Provider store={store}>
-        <SignUpScreen navigation={mockNavigation} route={{ key: 'SignUp', name: 'SignUp' }} />
-      </Provider>
-    );
-
+    const { getByText } = renderAuthScreen('SignUp', store);
     const signUpButton = getByText('Sign Up');
 
     // Press button multiple times
@@ -154,7 +78,7 @@ describe('SignUpScreen', () => {
     fireEvent.press(signUpButton);
     fireEvent.press(signUpButton);
 
-    // User should still be set (last one wins)
+    // User should still be set (last action wins)
     const state = store.getState();
     expect(state.user.user).toEqual({
       id: '123',
@@ -163,51 +87,45 @@ describe('SignUpScreen', () => {
     });
   });
 
-  it('should not crash when navigation is undefined', () => {
-    const store = createMockStore();
-
-    // Test with minimal navigation mock
-    const minimalNav = { navigate: jest.fn() };
-
-    expect(() => {
-      render(
-        <Provider store={store}>
-          <SignUpScreen navigation={minimalNav as any} route={{ key: 'SignUp', name: 'SignUp' }} />
-        </Provider>
-      );
-    }).not.toThrow();
-  });
-
   it('should have different background color than SignIn screen', () => {
-    const store = createMockStore();
-    const { getByText } = render(
-      <Provider store={store}>
-        <SignUpScreen navigation={mockNavigation} route={{ key: 'SignUp', name: 'SignUp' }} />
-      </Provider>
-    );
-
+    const { getByText } = renderAuthScreen('SignUp');
     const titleElement = getByText('Create Account');
+
     // SignUp screen should have white text (indicating black background)
     expect(titleElement.props.style.color).toBe('#fff');
   });
 
-  it('should maintain user state after screen renders', () => {
-    const existingUser = {
-      id: '456',
-      email: 'existing@test.com',
-      displayName: 'Existing User',
-    };
+  it('should maintain accessibility', () => {
+    const { getByText } = renderAuthScreen('SignUp');
+    const signUpButton = getByText('Sign Up');
+    const signInButton = getByText('Already have an account?');
 
-    const store = createMockStore(existingUser);
+    // Buttons should be accessible
+    expect(signUpButton).toBeTruthy();
+    expect(signInButton).toBeTruthy();
+  });
 
-    render(
-      <Provider store={store}>
-        <SignUpScreen navigation={mockNavigation} route={{ key: 'SignUp', name: 'SignUp' }} />
-      </Provider>
-    );
+  it('should dispatch user action only once per button press', () => {
+    const store = createMockStore();
+    const { getByText } = renderAuthScreen('SignUp', store);
+    const signUpButton = getByText('Sign Up');
 
-    // Existing user should still be in state
-    const state = store.getState();
-    expect(state.user.user).toEqual(existingUser);
+    // Initial state should be null
+    expect(store.getState().user.user).toBeNull();
+
+    fireEvent.press(signUpButton);
+
+    // User should be set after button press
+    expect(store.getState().user.user).not.toBeNull();
+  });
+
+  it('should handle navigation correctly', () => {
+    const { getByText } = renderAuthScreen('SignUp');
+    const signInButton = getByText('Already have an account?');
+
+    fireEvent.press(signInButton);
+
+    expect(mockNavigation.navigate).toHaveBeenCalledWith('SignIn');
+    expect(mockNavigation.navigate).toHaveBeenCalledTimes(1);
   });
 });

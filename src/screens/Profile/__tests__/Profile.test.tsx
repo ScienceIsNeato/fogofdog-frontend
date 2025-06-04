@@ -1,157 +1,46 @@
-import React from 'react';
-import { render, fireEvent } from '@testing-library/react-native';
-import { Provider } from 'react-redux';
-import { configureStore } from '@reduxjs/toolkit';
-import userReducer from '../../../store/slices/userSlice';
-import explorationReducer from '../../../store/slices/explorationSlice';
-import { ProfileScreen } from '../Profile';
-
-// Mock navigation
-const mockNavigation = {
-  navigate: jest.fn(),
-  goBack: jest.fn(),
-  canGoBack: jest.fn(),
-  dispatch: jest.fn(),
-  isFocused: jest.fn(),
-  addListener: jest.fn(),
-  removeListener: jest.fn(),
-  reset: jest.fn(),
-  setParams: jest.fn(),
-  setOptions: jest.fn(),
-  getId: jest.fn(),
-  getParent: jest.fn(),
-  getState: jest.fn(),
-  pop: jest.fn(),
-  popToTop: jest.fn(),
-  push: jest.fn(),
-  replace: jest.fn(),
-  preload: jest.fn(),
-  navigateDeprecated: jest.fn(),
-  setStateForNextRouteNamesChange: jest.fn(),
-  replaceParams: jest.fn(),
-  popTo: jest.fn(),
-};
-
-const createMockStore = () => {
-  return configureStore({
-    reducer: {
-      user: userReducer,
-      exploration: explorationReducer,
-    },
-    preloadedState: {
-      user: {
-        user: null,
-        isLoading: false,
-        error: null,
-      },
-      exploration: {
-        path: [],
-        currentLocation: null,
-        zoomLevel: 10,
-        isMapCenteredOnUser: false,
-        exploredAreas: [],
-      },
-    },
-  });
-};
-
-const createMockStoreWithUser = (
-  userData = {
-    id: '123',
-    email: 'test@example.com',
-    displayName: 'Test User',
-  }
-) => {
-  return configureStore({
-    reducer: {
-      user: userReducer,
-      exploration: explorationReducer,
-    },
-    preloadedState: {
-      user: {
-        user: userData,
-        isLoading: false,
-        error: null,
-      },
-      exploration: {
-        path: [],
-        currentLocation: null,
-        zoomLevel: 10,
-        isMapCenteredOnUser: false,
-        exploredAreas: [],
-      },
-    },
-  });
-};
+import { fireEvent } from '@testing-library/react-native';
+import { renderProfileScreen, clearAllMocks } from '../../../__tests__/test-helpers/render-utils';
+import {
+  createMockStore,
+  createMockStoreWithUser,
+  testUsers,
+} from '../../../__tests__/test-helpers/shared-mocks';
 
 describe('ProfileScreen', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    clearAllMocks();
   });
 
   it('should render correctly with user data', () => {
     const store = createMockStoreWithUser();
+    const { getByText } = renderProfileScreen(store);
 
-    const { getByText } = render(
-      <Provider store={store}>
-        <ProfileScreen navigation={mockNavigation} route={{ key: 'Profile', name: 'Profile' }} />
-      </Provider>
-    );
-
-    expect(getByText('Profile')).toBeTruthy(); // Only one Profile title exists
+    expect(getByText('Profile')).toBeTruthy();
     expect(getByText('Sign Out')).toBeTruthy();
   });
 
   it('should render correctly without user data', () => {
-    const store = createMockStore();
+    const { getByText } = renderProfileScreen();
 
-    const { getByText } = render(
-      <Provider store={store}>
-        <ProfileScreen navigation={mockNavigation} route={{ key: 'Profile', name: 'Profile' }} />
-      </Provider>
-    );
-
-    expect(getByText('Profile')).toBeTruthy(); // Only one Profile title exists
+    expect(getByText('Profile')).toBeTruthy();
     expect(getByText('Sign Out')).toBeTruthy();
   });
 
   it('should have correct header title styling', () => {
-    const store = createMockStore();
-
-    const { getByText } = render(
-      <Provider store={store}>
-        <ProfileScreen navigation={mockNavigation} route={{ key: 'Profile', name: 'Profile' }} />
-      </Provider>
-    );
-
+    const { getByText } = renderProfileScreen();
     const title = getByText('Profile');
-    expect(title).toBeTruthy(); // Header title
+    expect(title).toBeTruthy();
   });
 
   it('should render sign out button with correct styling', () => {
-    const store = createMockStore();
-
-    const { getByText } = render(
-      <Provider store={store}>
-        <ProfileScreen navigation={mockNavigation} route={{ key: 'Profile', name: 'Profile' }} />
-      </Provider>
-    );
-
+    const { getByText } = renderProfileScreen();
     const signOutButton = getByText('Sign Out');
     expect(signOutButton).toBeTruthy();
   });
 
   it('should display user information correctly', () => {
-    const store = createMockStoreWithUser({
-      id: '456',
-      email: 'user@domain.com',
-      displayName: 'John Doe',
-    });
-    const { getByText } = render(
-      <Provider store={store}>
-        <ProfileScreen navigation={mockNavigation} route={{ key: 'Profile', name: 'Profile' }} />
-      </Provider>
-    );
+    const store = createMockStoreWithUser(testUsers.johnDoe);
+    const { getByText } = renderProfileScreen(store);
 
     expect(getByText('John Doe')).toBeTruthy();
     expect(getByText('user@domain.com')).toBeTruthy();
@@ -159,11 +48,7 @@ describe('ProfileScreen', () => {
 
   it('should dispatch clearUser when sign out button is pressed', () => {
     const store = createMockStore();
-    const { getByText } = render(
-      <Provider store={store}>
-        <ProfileScreen navigation={mockNavigation} route={{ key: 'Profile', name: 'Profile' }} />
-      </Provider>
-    );
+    const { getByText } = renderProfileScreen(store);
 
     const signOutButton = getByText('Sign Out');
     fireEvent.press(signOutButton);
@@ -173,13 +58,7 @@ describe('ProfileScreen', () => {
   });
 
   it('should have correct title styles', () => {
-    const store = createMockStore();
-    const { getByText } = render(
-      <Provider store={store}>
-        <ProfileScreen navigation={mockNavigation} route={{ key: 'Profile', name: 'Profile' }} />
-      </Provider>
-    );
-
+    const { getByText } = renderProfileScreen();
     const titleElement = getByText('Profile');
     expect(titleElement.props.style).toEqual(
       expect.objectContaining({
@@ -193,13 +72,7 @@ describe('ProfileScreen', () => {
   });
 
   it('should have correct label styles', () => {
-    const store = createMockStore();
-    const { getByText } = render(
-      <Provider store={store}>
-        <ProfileScreen navigation={mockNavigation} route={{ key: 'Profile', name: 'Profile' }} />
-      </Provider>
-    );
-
+    const { getByText } = renderProfileScreen();
     const displayNameLabel = getByText('Display Name');
     const emailLabel = getByText('Email');
 
@@ -222,12 +95,7 @@ describe('ProfileScreen', () => {
 
   it('should handle multiple sign out button presses', () => {
     const store = createMockStore();
-    const { getByText } = render(
-      <Provider store={store}>
-        <ProfileScreen navigation={mockNavigation} route={{ key: 'Profile', name: 'Profile' }} />
-      </Provider>
-    );
-
+    const { getByText } = renderProfileScreen(store);
     const signOutButton = getByText('Sign Out');
 
     // Press button multiple times
@@ -240,16 +108,8 @@ describe('ProfileScreen', () => {
   });
 
   it('should handle user with partial data', () => {
-    const store = createMockStoreWithUser({
-      id: '789',
-      email: 'partial@test.com',
-      displayName: '', // Empty display name
-    });
-    const { getByText } = render(
-      <Provider store={store}>
-        <ProfileScreen navigation={mockNavigation} route={{ key: 'Profile', name: 'Profile' }} />
-      </Provider>
-    );
+    const store = createMockStoreWithUser(testUsers.partialUser);
+    const { getByText } = renderProfileScreen(store);
 
     expect(getByText('partial@test.com')).toBeTruthy();
     expect(getByText('Display Name')).toBeTruthy();
@@ -257,25 +117,13 @@ describe('ProfileScreen', () => {
   });
 
   it('should not crash when user has no email', () => {
-    const store = createMockStore();
-
     expect(() => {
-      render(
-        <Provider store={store}>
-          <ProfileScreen navigation={mockNavigation} route={{ key: 'Profile', name: 'Profile' }} />
-        </Provider>
-      );
+      renderProfileScreen();
     }).not.toThrow();
   });
 
   it('should render sign out button with correct styles', () => {
-    const store = createMockStore();
-    const { getByText } = render(
-      <Provider store={store}>
-        <ProfileScreen navigation={mockNavigation} route={{ key: 'Profile', name: 'Profile' }} />
-      </Provider>
-    );
-
+    const { getByText } = renderProfileScreen();
     const signOutButton = getByText('Sign Out');
     expect(signOutButton.props.style).toEqual(
       expect.objectContaining({
@@ -287,39 +135,20 @@ describe('ProfileScreen', () => {
   });
 
   it('should display loading state', () => {
-    const store = createMockStore();
-
-    const { queryByText } = render(
-      <Provider store={store}>
-        <ProfileScreen navigation={mockNavigation} route={{ key: 'Profile', name: 'Profile' }} />
-      </Provider>
-    );
-
+    const { queryByText } = renderProfileScreen();
     // Should not show loading state by default
     expect(queryByText('Loading...')).toBeNull();
   });
 
   it('should display error state', () => {
-    const store = createMockStore();
-
-    const { queryByText } = render(
-      <Provider store={store}>
-        <ProfileScreen navigation={mockNavigation} route={{ key: 'Profile', name: 'Profile' }} />
-      </Provider>
-    );
-
+    const { queryByText } = renderProfileScreen();
     // Should not show error state by default
     expect(queryByText('Error')).toBeNull();
   });
 
   it('should handle sign out button press and dispatch clearUser', () => {
     const store = createMockStore();
-
-    const { getByText } = render(
-      <Provider store={store}>
-        <ProfileScreen navigation={mockNavigation} route={{ key: 'Profile', name: 'Profile' }} />
-      </Provider>
-    );
+    const { getByText } = renderProfileScreen(store);
 
     const signOutButton = getByText('Sign Out');
     fireEvent.press(signOutButton);
@@ -330,26 +159,12 @@ describe('ProfileScreen', () => {
   });
 
   it('should handle avatar being null or undefined', () => {
-    const store = createMockStore();
-
-    const { getByText } = render(
-      <Provider store={store}>
-        <ProfileScreen navigation={mockNavigation} route={{ key: 'Profile', name: 'Profile' }} />
-      </Provider>
-    );
-
+    const { getByText } = renderProfileScreen();
     expect(getByText('Sign Out')).toBeTruthy();
   });
 
   it('should have accessible sign out button', () => {
-    const store = createMockStore();
-
-    const { getByText } = render(
-      <Provider store={store}>
-        <ProfileScreen navigation={mockNavigation} route={{ key: 'Profile', name: 'Profile' }} />
-      </Provider>
-    );
-
+    const { getByText } = renderProfileScreen();
     const signOutButton = getByText('Sign Out');
     expect(signOutButton).toBeTruthy();
 
@@ -359,13 +174,7 @@ describe('ProfileScreen', () => {
 
   it('should handle sign out multiple times without crashing', () => {
     const store = createMockStore();
-
-    const { getByText } = render(
-      <Provider store={store}>
-        <ProfileScreen navigation={mockNavigation} route={{ key: 'Profile', name: 'Profile' }} />
-      </Provider>
-    );
-
+    const { getByText } = renderProfileScreen(store);
     const signOutButton = getByText('Sign Out');
 
     // Press button multiple times
