@@ -3,6 +3,7 @@ import { render } from '@testing-library/react-native';
 import { Provider } from 'react-redux';
 import { configureStore } from '@reduxjs/toolkit';
 import FogOverlay from '../FogOverlay';
+import { FOG_CONFIG, FOG_VALIDATION } from '../../config/fogConfig';
 import type { ViewProps } from 'react-native';
 
 // Mock console methods to prevent noise in tests
@@ -23,7 +24,15 @@ jest.mock('@shopify/react-native-skia', () => {
     Group: (props: ViewProps) => React.createElement(View, { testID: 'mock-skia-group', ...props }),
     Fill: (props: ViewProps) => React.createElement(View, { testID: 'mock-skia-fill', ...props }),
     Path: (props: ViewProps) => React.createElement(View, { testID: 'mock-skia-path', ...props }),
-    Rect: (props: ViewProps) => React.createElement(View, { testID: 'mock-skia-rect', ...props }),
+    Rect: (props: ViewProps & { color?: string; opacity?: number }) => {
+      const rectProps = {
+        testID: 'mock-skia-rect',
+        'data-color': props.color,
+        'data-opacity': props.opacity,
+        ...props,
+      };
+      return React.createElement(View, rectProps as any);
+    },
     Circle: (props: ViewProps) =>
       React.createElement(View, { testID: 'mock-skia-circle', ...props }),
     Skia: {
@@ -67,6 +76,49 @@ describe('FogOverlay', () => {
     width: 400,
     height: 800,
   };
+
+  // UPDATED TEST: Fog Visibility Regression Test using Configuration
+  describe('Fog Visibility Configuration', () => {
+    it('should use properly configured fog color and opacity for visibility', () => {
+      const store = createMockStore([{ latitude: 41.6867, longitude: -91.5802 }]);
+
+      const { getByTestId } = render(
+        <Provider store={store}>
+          <FogOverlay mapRegion={defaultMapRegion} />
+        </Provider>
+      );
+
+      const fogRect = getByTestId('mock-skia-rect');
+      const fogColor = fogRect.props['data-color'];
+      const fogOpacity = fogRect.props['data-opacity'];
+
+      // Test against expected configuration values
+      expect(fogColor).toBe(FOG_CONFIG.COLOR);
+      expect(fogOpacity).toBe(FOG_CONFIG.OPACITY);
+
+      // Use validation helpers to ensure visibility
+      expect(FOG_VALIDATION.isVisibleColor(fogColor)).toBe(true);
+      expect(FOG_VALIDATION.isVisibleOpacity(fogOpacity)).toBe(true);
+      expect(FOG_VALIDATION.isProblematicConfig(fogColor, fogOpacity)).toBe(false);
+    });
+
+    it('should detect problematic fog configurations that cause barely visible fog', () => {
+      // Test the validation helpers themselves with known bad values
+      const problematicColor = 'rgba(128, 128, 128, 0.3)';
+      const problematicOpacity = 0.85;
+
+      expect(FOG_VALIDATION.isVisibleColor(problematicColor)).toBe(false);
+      expect(FOG_VALIDATION.isVisibleOpacity(problematicOpacity)).toBe(false);
+      expect(FOG_VALIDATION.isProblematicConfig(problematicColor, problematicOpacity)).toBe(true);
+    });
+
+    it('should verify current configuration is not problematic', () => {
+      // Ensure our current config passes validation
+      expect(FOG_VALIDATION.isProblematicConfig(FOG_CONFIG.COLOR, FOG_CONFIG.OPACITY)).toBe(false);
+      expect(FOG_VALIDATION.isVisibleColor(FOG_CONFIG.COLOR)).toBe(true);
+      expect(FOG_VALIDATION.isVisibleOpacity(FOG_CONFIG.OPACITY)).toBe(true);
+    });
+  });
 
   it('renders correctly with empty path', () => {
     const store = createMockStore([]);
