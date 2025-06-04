@@ -1,4 +1,4 @@
-name: EAS Build & Deploy
+name: EAS Build & Deploy (Post-Merge)
 
 on:
   push:
@@ -28,7 +28,7 @@ on:
 
 jobs:
   build:
-    name: EAS Build
+    name: EAS Build (Post-Merge Deployment)
     runs-on: ubuntu-latest
     
     steps:
@@ -78,6 +78,15 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+        
+    - name: Install dependencies
+      run: npm ci
       
     - name: Setup Expo CLI
       uses: expo/expo-github-action@v8

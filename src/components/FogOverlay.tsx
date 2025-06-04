@@ -7,12 +7,7 @@ import type { RootState } from '../store';
 import { calculateMetersPerPixel, geoPointToPixel } from '../utils/mapUtils';
 import { logger } from '../utils/logger';
 import type { Region as MapRegion } from 'react-native-maps';
-
-// Constants for fog overlay appearance
-const FOG_COLOR = 'rgba(128, 128, 128, 0.3)'; // Light gray
-const FOG_OPACITY = 0.85;
-const PATH_COLOR = 'black'; // Black areas in mask create transparency
-const FOG_RADIUS_METERS = 100; // Radius in meters for cleared areas
+import { FOG_CONFIG } from '../config/fogConfig';
 
 interface GeoPoint {
   latitude: number;
@@ -56,7 +51,7 @@ const useFogCalculations = (mapRegion: MapRegion & { width: number; height: numb
   // Calculate radius in pixels based on the current zoom level
   const radiusPixels = useMemo(() => {
     const metersPerPixel = calculateMetersPerPixel(mapRegion);
-    return FOG_RADIUS_METERS / metersPerPixel;
+    return FOG_CONFIG.RADIUS_METERS / metersPerPixel;
   }, [mapRegion]);
 
   // Calculate stroke width for path (can be thinner than the circle diameter)
@@ -75,12 +70,11 @@ const useFogCalculations = (mapRegion: MapRegion & { width: number; height: numb
 // Hook for performance optimization and debugging
 const useFogPerformance = (pathPoints: GeoPoint[], radiusPixels: number, strokeWidth: number) => {
   const lastRenderTime = useRef(0);
-  const RENDER_THROTTLE_MS = 16; // Throttle to ~60fps
 
   // Filter out very frequent updates to avoid over-rendering during fast pans
   const shouldSkipRender = () => {
     const now = Date.now();
-    if (now - lastRenderTime.current < RENDER_THROTTLE_MS) {
+    if (now - lastRenderTime.current < FOG_CONFIG.RENDER_THROTTLE_MS) {
       return true;
     }
     lastRenderTime.current = now;
@@ -122,7 +116,7 @@ const FogMask: React.FC<{
             cx={x}
             cy={y}
             r={radiusPixels}
-            color={PATH_COLOR}
+            color={FOG_CONFIG.PATH_COLOR}
           />
         );
       })}
@@ -131,7 +125,7 @@ const FogMask: React.FC<{
       {pathPoints.length > 1 && (
         <Path
           path={skiaPath}
-          color={PATH_COLOR}
+          color={FOG_CONFIG.PATH_COLOR}
           style="stroke"
           strokeWidth={strokeWidth}
           strokeCap="round"
@@ -174,8 +168,8 @@ const FogOverlay: React.FC<FogOverlayProps> = ({ mapRegion }) => {
           y={0}
           width={mapRegion.width}
           height={mapRegion.height}
-          color={FOG_COLOR}
-          opacity={FOG_OPACITY}
+          color={FOG_CONFIG.COLOR}
+          opacity={FOG_CONFIG.OPACITY}
         />
       </Mask>
     </Canvas>
