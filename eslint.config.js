@@ -7,6 +7,7 @@ module.exports = [
     ignores: [
       "dist/*", 
       "coverage/*", 
+      "reports/*", // Auto-generated coverage/duplication reports
       ".expo/*", 
       "ios/*", 
       "android/*",

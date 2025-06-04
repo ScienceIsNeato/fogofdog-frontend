@@ -787,92 +787,39 @@ With **82.55% branch coverage** and comprehensive test coverage across all criti
 
 **Status**: All objectives completed successfully. IDE warnings now align perfectly with development check scripts.
 
-# Status: COMPLETED ✅ Critical Fog Visibility Regression Fixed + Test-Driven Prevention
+# Status: Duplication Reduction & Fog Regression Fix ✅ COMPLETED
 
-## ✅ **CRITICAL FIX: Fog Overlay Visibility Restored**
+## Final Results Achieved
 
-**Date**: 2025-01-12  
-**Issue**: **FOG OVERLAY COMPLETELY INVISIBLE** - Critical regression from refactoring commit
-**Resolution**: Fixed fog configuration + Added comprehensive regression tests
+### SonarQube Duplication Success
+- **MapScreen.test.tsx**: 59.6% → 4.28% (-55.32 percentage points) 
+- **Overall project**: 2.26% (well below 3% threshold)
+- **File reduced**: 1080+ lines → 887 lines
 
-### 🚨 **Critical Issue Analysis**
+### Quality Metrics
+- **Tests**: 132/132 passing (100% success rate)
+- **ESLint**: Zero errors/warnings 
+- **TypeScript**: Strict checks passing
+- **Coverage**: Maintained while reducing duplication
 
-**Root Cause**: Commit `8a44c7c` refactoring accidentally changed fog appearance constants:
-- **Fog Color**: `'black'` → `'rgba(128, 128, 128, 0.3)'` (opaque black → transparent gray)  
-- **Fog Opacity**: `1.0` → `0.85` (100% → 85% opacity)
-- **Fog Radius**: `75m` → `100m` (changed clearing radius)
+### Critical Fog Regression Fixed
+- **Issue**: Fog overlay completely invisible (commit 8a44c7c)
+- **Root cause**: Configuration accidentally changed to transparent
+- **Fix**: Restored proper fog visibility with centralized config
+- **Prevention**: Added comprehensive fog validation tests
 
-**Impact**: Fog overlay became essentially invisible, breaking core app functionality.
+### Architecture Improvements
+- **Fog Configuration**: Centralized in `src/config/fogConfig.ts`
+- **Test Helpers**: Created reusable functions for MapScreen and FogOverlay tests
+- **Regression Protection**: Fog visibility now validated in test suite
 
-### 🔧 **Solution Implemented**
+### Files Modified
+- `src/screens/Map/__tests__/MapScreen.test.tsx` - Major refactor with helpers
+- `src/components/__tests__/FogOverlay.test.tsx` - Added helpers
+- `src/config/fogConfig.ts` - New centralized fog configuration
+- `src/components/FogOverlay.tsx` - Uses centralized config
+- `.eslintrc.js` + `eslint.config.js` + `.eslintignore` - Fixed ESLint ignores
+- All quality gates passing ✅
 
-#### **1. Centralized Configuration Architecture**
-- **Created**: `src/config/fogConfig.ts` - Single source of truth for fog settings
-- **Benefits**: Maintainable, testable, prevents configuration drift
-- **Components**: Both FogOverlay and tests now use shared configuration
-
-#### **2. Test-Driven Regression Prevention** 
-- **Added**: 3 comprehensive fog visibility tests in `FogOverlay.test.tsx`
-- **Test 1**: Verifies implementation matches configuration
-- **Test 2**: Validates configuration meets visibility requirements  
-- **Test 3**: Detects problematic settings (catches original regression)
-
-#### **3. Validation Framework**
-- **FOG_VALIDATION**: Helper functions to detect visibility issues
-  - `isVisibleColor()`: Ensures color provides sufficient contrast
-  - `isVisibleOpacity()`: Validates opacity ≥90% for visibility
-  - `isProblematicConfig()`: Detects known problematic combinations
-
-### 📊 **Testing Results**
-
-#### **Regression Test Validation**
-- ✅ **Tests PASS** with correct configuration (black fog, 100% opacity)
-- ❌ **Tests FAIL** with broken configuration (gray fog, 85% opacity)  
-- ✅ **Tests PASS** after restoration
-
-#### **Full Test Suite**
-- **Total Tests**: 132/132 passing (100% success rate)
-- **New Tests**: +3 fog visibility regression tests
-- **Coverage**: Maintained at 80.81% branch coverage
-
-### 🎯 **Systematic Investigation Process**
-
-1. **Root Cause Discovery**: Git history analysis revealed refactoring changes
-2. **Impact Assessment**: Fog constants changed from visible to invisible values
-3. **Test-First Approach**: Built regression tests before implementing fix
-4. **Validation Cycle**: Confirmed tests catch both broken and working states
-5. **Comprehensive Fix**: Centralized configuration + test coverage
-
-### 🏗️ **Architecture Improvements**
-
-**Before**: Hardcoded constants in component → Prone to drift and regressions  
-**After**: Centralized config + validation + tests → Regression-proof architecture
-
-**Benefits**:
-- **Single Source of Truth**: All fog settings in one file
-- **Test Coverage**: Visibility regressions caught automatically  
-- **Maintainability**: Changes require updating only one location
-- **Documentation**: Clear configuration with validation rules
-
----
-
-## 🎉 **MISSION ACCOMPLISHED: Zero Fog Regression Risk**
-
-✅ **Critical fog visibility restored** (black, 100% opacity)  
-✅ **Regression tests implemented** (3 comprehensive test cases)  
-✅ **Configuration centralized** (maintainable architecture)  
-✅ **All tests passing** (132/132 including new visibility tests)  
-✅ **Future-proof** (impossible to repeat this regression)
-
-**Developer Experience**: Enhanced with immediate test feedback on fog changes  
-**User Experience**: Restored - fog overlay now properly visible as intended  
-**Code Quality**: Improved with centralized configuration and comprehensive testing
-
-### **Lessons Learned**
-
-1. **Refactoring Risk**: Even "safe" refactoring can introduce subtle breaking changes
-2. **Visual Testing Gap**: Need tests that validate visual appearance, not just functionality  
-3. **Configuration Management**: Centralized config prevents inconsistency across codebase
-4. **Test-Driven Recovery**: Building tests first ensures fixes are properly validated
-
-**Next Phase**: Continue development with robust fog overlay and comprehensive test coverage! 🌟
+## Next Steps
+Ready for commit and push to pass SonarQube quality gate.

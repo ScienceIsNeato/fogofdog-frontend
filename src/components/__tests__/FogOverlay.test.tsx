@@ -121,29 +121,12 @@ describe('FogOverlay', () => {
   });
 
   it('renders correctly with empty path', () => {
-    const store = createMockStore([]);
-
-    const result = render(
-      <Provider store={store}>
-        <FogOverlay mapRegion={defaultMapRegion} />
-      </Provider>
-    );
-
-    expect(result.getByTestId('mock-skia-canvas')).toBeDefined();
+    renderFogOverlay([]);
   });
 
   it('renders correctly with a single point', () => {
     const testPath = [{ latitude: 41.6867, longitude: -91.5802 }];
-
-    const store = createMockStore(testPath);
-
-    const result = render(
-      <Provider store={store}>
-        <FogOverlay mapRegion={defaultMapRegion} />
-      </Provider>
-    );
-
-    expect(result.getByTestId('mock-skia-canvas')).toBeDefined();
+    renderFogOverlay(testPath);
   });
 
   it('renders correctly with multiple points (path)', () => {
@@ -152,16 +135,7 @@ describe('FogOverlay', () => {
       { latitude: 41.6877, longitude: -91.5812 },
       { latitude: 41.6887, longitude: -91.5822 },
     ];
-
-    const store = createMockStore(testPath);
-
-    const result = render(
-      <Provider store={store}>
-        <FogOverlay mapRegion={defaultMapRegion} />
-      </Provider>
-    );
-
-    expect(result.getByTestId('mock-skia-canvas')).toBeDefined();
+    renderFogOverlay(testPath);
   });
 
   it('handles null/undefined points in path gracefully', () => {
@@ -172,16 +146,7 @@ describe('FogOverlay', () => {
       undefined,
       { latitude: 41.6887, longitude: -91.5822 },
     ];
-
-    const store = createMockStore(testPath);
-
-    const result = render(
-      <Provider store={store}>
-        <FogOverlay mapRegion={defaultMapRegion} />
-      </Provider>
-    );
-
-    expect(result.getByTestId('mock-skia-canvas')).toBeDefined();
+    renderFogOverlay(testPath);
   });
 
   it('handles path with first point as null/undefined', () => {
@@ -190,23 +155,14 @@ describe('FogOverlay', () => {
       { latitude: 41.6867, longitude: -91.5802 },
       { latitude: 41.6877, longitude: -91.5812 },
     ];
-
-    const store = createMockStore(testPath);
-
-    const result = render(
-      <Provider store={store}>
-        <FogOverlay mapRegion={defaultMapRegion} />
-      </Provider>
-    );
-
-    expect(result.getByTestId('mock-skia-canvas')).toBeDefined();
+    renderFogOverlay(testPath);
   });
 
   it('handles very small map region (high zoom)', () => {
-    const store = createMockStore([
+    const testPath = [
       { latitude: 41.6867, longitude: -91.5802 },
       { latitude: 41.6868, longitude: -91.5803 },
-    ]);
+    ];
 
     const smallMapRegion = {
       ...defaultMapRegion,
@@ -214,20 +170,14 @@ describe('FogOverlay', () => {
       longitudeDelta: 0.0001,
     };
 
-    const result = render(
-      <Provider store={store}>
-        <FogOverlay mapRegion={smallMapRegion} />
-      </Provider>
-    );
-
-    expect(result.getByTestId('mock-skia-canvas')).toBeDefined();
+    renderFogOverlay(testPath, smallMapRegion);
   });
 
   it('handles very large map region (low zoom)', () => {
-    const store = createMockStore([
+    const testPath = [
       { latitude: 41.6867, longitude: -91.5802 },
       { latitude: 41.7867, longitude: -91.6802 },
-    ]);
+    ];
 
     const largeMapRegion = {
       ...defaultMapRegion,
@@ -235,13 +185,29 @@ describe('FogOverlay', () => {
       longitudeDelta: 1.0,
     };
 
-    const result = render(
-      <Provider store={store}>
-        <FogOverlay mapRegion={largeMapRegion} />
-      </Provider>
-    );
+    renderFogOverlay(testPath, largeMapRegion);
+  });
 
-    expect(result.getByTestId('mock-skia-canvas')).toBeDefined();
+  it('renders with different canvas dimensions', () => {
+    const testPath = [{ latitude: 41.6867, longitude: -91.5802 }];
+
+    const customMapRegion = {
+      ...defaultMapRegion,
+      width: 300,
+      height: 600,
+    };
+
+    renderFogOverlay(testPath, customMapRegion);
+  });
+
+  it('handles edge case with zero dimensions', () => {
+    const zeroMapRegion = {
+      ...defaultMapRegion,
+      width: 0,
+      height: 0,
+    };
+
+    renderFogOverlay([], zeroMapRegion);
   });
 
   it('tests performance throttling behavior', () => {
@@ -278,39 +244,21 @@ describe('FogOverlay', () => {
     expect(store.getState().exploration.path).toHaveLength(2);
   });
 
-  it('renders with different canvas dimensions', () => {
-    const store = createMockStore([{ latitude: 41.6867, longitude: -91.5802 }]);
-
-    const customMapRegion = {
-      ...defaultMapRegion,
-      width: 300,
-      height: 600,
-    };
-
+  // Helper function to render FogOverlay with consistent pattern
+  const renderFogOverlay = (
+    path: ({ latitude: number; longitude: number } | null | undefined)[] = [],
+    mapRegion = defaultMapRegion
+  ) => {
+    const store = createMockStore(path);
     const result = render(
       <Provider store={store}>
-        <FogOverlay mapRegion={customMapRegion} />
+        <FogOverlay mapRegion={mapRegion} />
       </Provider>
     );
 
+    // Verify common expectation that all tests check
     expect(result.getByTestId('mock-skia-canvas')).toBeDefined();
-  });
 
-  it('handles edge case with zero dimensions', () => {
-    const store = createMockStore([]);
-
-    const zeroMapRegion = {
-      ...defaultMapRegion,
-      width: 0,
-      height: 0,
-    };
-
-    const result = render(
-      <Provider store={store}>
-        <FogOverlay mapRegion={zeroMapRegion} />
-      </Provider>
-    );
-
-    expect(result.getByTestId('mock-skia-canvas')).toBeDefined();
-  });
+    return { result, store };
+  };
 });

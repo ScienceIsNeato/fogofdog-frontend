@@ -32,4 +32,15 @@ module.exports = {
       },
     },
   ],
+  ignorePatterns: [
+    'node_modules/',
+    'dist/',
+    'build/',
+    'ios/',
+    'android/',
+    'coverage/',
+    'reports/', // Auto-generated coverage/duplication reports
+    '*.config.js',
+    '.expo/',
+  ],
 }; 
