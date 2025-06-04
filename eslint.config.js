@@ -13,7 +13,12 @@ module.exports = [
       "jest.setup.js",
       "cursor-rules/**/*",
       "node_modules/**/*",
-      "artifacts/**/*"
+      "artifacts/**/*",
+      "**/*.d.ts",
+      "e2e/**/*",
+      ".venv/**/*",
+      ".git/**/*",
+      "build/**/*"
     ],
   },
   {

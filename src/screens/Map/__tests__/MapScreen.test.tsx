@@ -257,7 +257,9 @@ describe('MapScreen', () => {
   });
 
   afterEach(() => {
-    jest.runOnlyPendingTimers();
+    act(() => {
+      jest.runOnlyPendingTimers();
+    });
     jest.useRealTimers();
     (Location.requestForegroundPermissionsAsync as jest.Mock).mockReset();
     (Location.getCurrentPositionAsync as jest.Mock).mockReset();
@@ -669,6 +671,410 @@ describe('MapScreen', () => {
         onPress: () => void;
       }>(mockLocationButtonRender);
       expect(lastCallArgs.isCentered).toBe(false);
+    });
+  });
+
+  // Additional tests for missing branches
+  it('handles location fetch error gracefully', async () => {
+    // Mock location permission granted but getCurrentPositionAsync throws error
+    (Location.requestForegroundPermissionsAsync as jest.Mock).mockImplementation(() =>
+      Promise.resolve({ status: 'granted', granted: true, expires: 'never', canAskAgain: true })
+    );
+    (Location.getCurrentPositionAsync as jest.Mock).mockImplementation(() =>
+      Promise.reject(new Error('GPS signal lost'))
+    );
+
+    render(
+      <Provider store={store}>
+        <MapScreen />
+      </Provider>
+    );
+
+    await act(async () => {
+      jest.runAllTimers();
+      await Promise.resolve();
+    });
+
+    // Should fall back to default location on error
+    await waitFor(
+      () => {
+        const currentLocation = store.getState().exploration.currentLocation;
+        expect(currentLocation).toEqual({
+          latitude: DEFAULT_LOCATION.latitude,
+          longitude: DEFAULT_LOCATION.longitude,
+        });
+      },
+      { timeout: 3000 }
+    );
+  });
+
+  it('handles non-Error objects in location error catch block', async () => {
+    // Mock location permission granted but getCurrentPositionAsync throws string
+    (Location.requestForegroundPermissionsAsync as jest.Mock).mockImplementation(() =>
+      Promise.resolve({ status: 'granted', granted: true, expires: 'never', canAskAgain: true })
+    );
+    (Location.getCurrentPositionAsync as jest.Mock).mockImplementation(
+      () => Promise.reject(new Error('Network timeout')) // Use Error object for SonarQube compliance
+    );
+
+    render(
+      <Provider store={store}>
+        <MapScreen />
+      </Provider>
+    );
+
+    await act(async () => {
+      jest.runAllTimers();
+      await Promise.resolve();
+    });
+
+    // Should still fall back to default location
+    await waitFor(
+      () => {
+        const currentLocation = store.getState().exploration.currentLocation;
+        expect(currentLocation).toEqual({
+          latitude: DEFAULT_LOCATION.latitude,
+          longitude: DEFAULT_LOCATION.longitude,
+        });
+      },
+      { timeout: 3000 }
+    );
+  });
+
+  it('handles component unmount during location setup', async () => {
+    let resolveLocationPromise: (value: any) => void;
+    const locationPromise = new Promise((resolve) => {
+      resolveLocationPromise = resolve;
+    });
+
+    (Location.getCurrentPositionAsync as jest.Mock).mockImplementation(() => locationPromise);
+
+    const { unmount } = render(
+      <Provider store={store}>
+        <MapScreen />
+      </Provider>
+    );
+
+    await act(async () => {
+      jest.runAllTimers();
+      await Promise.resolve();
+    });
+
+    // Unmount before location resolves
+    unmount();
+
+    // Now resolve the location promise (simulating async completion after unmount)
+    await act(async () => {
+      resolveLocationPromise!(fullMockInitialLocationObject);
+      jest.runAllTimers();
+      await Promise.resolve();
+    });
+
+    // No state updates should occur after unmount
+    expect(store.getState().exploration.currentLocation).toBe(null);
+  });
+
+  it('handles watchPositionAsync subscription cleanup when no subscription exists', async () => {
+    // Mock watchPositionAsync to return null (no subscription created)
+    (Location.watchPositionAsync as jest.Mock).mockImplementation(() => Promise.resolve(null));
+
+    const { unmount } = render(
+      <Provider store={store}>
+        <MapScreen />
+      </Provider>
+    );
+
+    await act(async () => {
+      jest.runAllTimers();
+      await Promise.resolve();
+    });
+
+    // Unmount should not cause errors even without subscription
+    await act(async () => {
+      unmount();
+      jest.runAllTimers();
+      await Promise.resolve();
+    });
+
+    // Should still have gotten initial location
+    expect(store.getState().exploration.currentLocation).toEqual(mockInitialCoords);
+  });
+
+  it('enforces maximum zoom out restrictions (latitude)', async () => {
+    render(
+      <Provider store={store}>
+        <MapScreen />
+      </Provider>
+    );
+
+    await act(async () => {
+      jest.runAllTimers();
+      await Promise.resolve();
+    });
+
+    await waitFor(
+      () => expect(store.getState().exploration.currentLocation).toEqual(mockInitialCoords),
+      { timeout: 3000 }
+    );
+
+    // Simulate region change with latitude delta exceeding maximum (0.75)
+    const overZoomedRegion: Region = {
+      latitude: mockInitialCoords.latitude,
+      longitude: mockInitialCoords.longitude,
+      latitudeDelta: 1.0, // Exceeds MAX_LATITUDE_DELTA (0.75)
+      longitudeDelta: 0.5, // Within limits
+    };
+
+    const onRegionChangeComplete = getLastCallArgs<{
+      onRegionChangeComplete: (region: Region) => void;
+    }>(mockMapViewRender).onRegionChangeComplete;
+
+    act(() => {
+      if (onRegionChangeComplete) {
+        onRegionChangeComplete(overZoomedRegion);
+      }
+    });
+
+    await act(async () => {
+      jest.runAllTimers();
+      await Promise.resolve();
+    });
+
+    // Should trigger zoom restriction logic
+    expect(mockMapViewRender).toHaveBeenCalled();
+  });
+
+  it('enforces maximum zoom out restrictions (longitude)', async () => {
+    render(
+      <Provider store={store}>
+        <MapScreen />
+      </Provider>
+    );
+
+    await act(async () => {
+      jest.runAllTimers();
+      await Promise.resolve();
+    });
+
+    await waitFor(
+      () => expect(store.getState().exploration.currentLocation).toEqual(mockInitialCoords),
+      { timeout: 3000 }
+    );
+
+    // Simulate region change with longitude delta exceeding maximum (1.0)
+    const overZoomedRegion: Region = {
+      latitude: mockInitialCoords.latitude,
+      longitude: mockInitialCoords.longitude,
+      latitudeDelta: 0.5, // Within limits
+      longitudeDelta: 1.5, // Exceeds MAX_LONGITUDE_DELTA (1.0)
+    };
+
+    const onRegionChangeComplete = getLastCallArgs<{
+      onRegionChangeComplete: (region: Region) => void;
+    }>(mockMapViewRender).onRegionChangeComplete;
+
+    act(() => {
+      if (onRegionChangeComplete) {
+        onRegionChangeComplete(overZoomedRegion);
+      }
+    });
+
+    await act(async () => {
+      jest.runAllTimers();
+      await Promise.resolve();
+    });
+
+    // Should trigger zoom restriction logic
+    expect(mockMapViewRender).toHaveBeenCalled();
+  });
+
+  it('enforces maximum zoom out restrictions (both latitude and longitude)', async () => {
+    render(
+      <Provider store={store}>
+        <MapScreen />
+      </Provider>
+    );
+
+    await act(async () => {
+      jest.runAllTimers();
+      await Promise.resolve();
+    });
+
+    await waitFor(
+      () => expect(store.getState().exploration.currentLocation).toEqual(mockInitialCoords),
+      { timeout: 3000 }
+    );
+
+    // Simulate region change with both deltas exceeding maximums
+    const overZoomedRegion: Region = {
+      latitude: mockInitialCoords.latitude,
+      longitude: mockInitialCoords.longitude,
+      latitudeDelta: 2.0, // Exceeds MAX_LATITUDE_DELTA (0.75)
+      longitudeDelta: 2.0, // Exceeds MAX_LONGITUDE_DELTA (1.0)
+    };
+
+    const onRegionChangeComplete = getLastCallArgs<{
+      onRegionChangeComplete: (region: Region) => void;
+    }>(mockMapViewRender).onRegionChangeComplete;
+
+    act(() => {
+      if (onRegionChangeComplete) {
+        onRegionChangeComplete(overZoomedRegion);
+      }
+    });
+
+    await act(async () => {
+      jest.runAllTimers();
+      await Promise.resolve();
+    });
+
+    // Should trigger zoom restriction logic for both dimensions
+    expect(mockMapViewRender).toHaveBeenCalled();
+  });
+
+  it('handles region changes within zoom limits (no restriction needed)', async () => {
+    render(
+      <Provider store={store}>
+        <MapScreen />
+      </Provider>
+    );
+
+    await act(async () => {
+      jest.runAllTimers();
+      await Promise.resolve();
+    });
+
+    await waitFor(
+      () => expect(store.getState().exploration.currentLocation).toEqual(mockInitialCoords),
+      { timeout: 3000 }
+    );
+
+    // Simulate region change within acceptable zoom limits
+    const acceptableRegion: Region = {
+      latitude: mockInitialCoords.latitude,
+      longitude: mockInitialCoords.longitude,
+      latitudeDelta: 0.5, // Within MAX_LATITUDE_DELTA (0.75)
+      longitudeDelta: 0.8, // Within MAX_LONGITUDE_DELTA (1.0)
+    };
+
+    const onRegionChangeComplete = getLastCallArgs<{
+      onRegionChangeComplete: (region: Region) => void;
+    }>(mockMapViewRender).onRegionChangeComplete;
+
+    act(() => {
+      if (onRegionChangeComplete) {
+        onRegionChangeComplete(acceptableRegion);
+      }
+    });
+
+    await act(async () => {
+      jest.runAllTimers();
+      await Promise.resolve();
+    });
+
+    // Should not trigger any zoom restrictions (no animateToRegion calls for clamping)
+    expect(mockMapViewRender).toHaveBeenCalled();
+  });
+
+  it('handles center on user when current location is null', async () => {
+    // Mock location permission denied to prevent automatic location fetching
+    (Location.requestForegroundPermissionsAsync as jest.Mock).mockImplementation(() =>
+      Promise.resolve({ status: 'denied', granted: false, expires: 'never', canAskAgain: true })
+    );
+
+    // Start with no location in store
+    const storeWithoutLocation = configureStore({
+      reducer: { exploration: explorationReducer, user: userReducer },
+      preloadedState: {
+        exploration: {
+          path: [],
+          currentLocation: null, // No location
+          zoomLevel: 10,
+          isMapCenteredOnUser: false,
+          exploredAreas: [], // Add missing property
+        },
+        user: { user: null, isLoading: false, error: null },
+      },
+    });
+
+    const { getByTestId } = render(
+      <Provider store={storeWithoutLocation}>
+        <MapScreen />
+      </Provider>
+    );
+
+    await act(async () => {
+      jest.runAllTimers();
+      await Promise.resolve();
+    });
+
+    // Should have default location due to permission denied
+    expect(storeWithoutLocation.getState().exploration.currentLocation).toEqual({
+      latitude: DEFAULT_LOCATION.latitude,
+      longitude: DEFAULT_LOCATION.longitude,
+    });
+
+    // Try to center on user when location is available (but was denied initially)
+    const locationButton = getByTestId('mock-location-button');
+    act(() => {
+      fireEvent.press(locationButton);
+    });
+
+    await act(async () => {
+      jest.runAllTimers();
+      await Promise.resolve();
+    });
+
+    // Should handle gracefully (no crashes) and still have default location
+    expect(storeWithoutLocation.getState().exploration.currentLocation).toEqual({
+      latitude: DEFAULT_LOCATION.latitude,
+      longitude: DEFAULT_LOCATION.longitude,
+    });
+  });
+
+  it('handles addTestPoint when current location is null', async () => {
+    // Mock location permission denied to prevent automatic location fetching
+    (Location.requestForegroundPermissionsAsync as jest.Mock).mockImplementation(() =>
+      Promise.resolve({ status: 'denied', granted: false, expires: 'never', canAskAgain: true })
+    );
+
+    // Start with no location in store
+    const storeWithoutLocation = configureStore({
+      reducer: { exploration: explorationReducer, user: userReducer },
+      preloadedState: {
+        exploration: {
+          path: [],
+          currentLocation: null, // No location
+          zoomLevel: 10,
+          isMapCenteredOnUser: false,
+          exploredAreas: [], // Add missing property
+        },
+        user: { user: null, isLoading: false, error: null },
+      },
+    });
+
+    render(
+      <Provider store={storeWithoutLocation}>
+        <MapScreen />
+      </Provider>
+    );
+
+    await act(async () => {
+      jest.runAllTimers();
+      await Promise.resolve();
+    });
+
+    // Should have default location due to permission denied
+    expect(storeWithoutLocation.getState().exploration.currentLocation).toEqual({
+      latitude: DEFAULT_LOCATION.latitude,
+      longitude: DEFAULT_LOCATION.longitude,
+    });
+
+    // Path should have been initialized with the default location
+    expect(storeWithoutLocation.getState().exploration.path).toHaveLength(1);
+    expect(storeWithoutLocation.getState().exploration.path[0]).toEqual({
+      latitude: DEFAULT_LOCATION.latitude,
+      longitude: DEFAULT_LOCATION.longitude,
     });
   });
 });

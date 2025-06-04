@@ -10,13 +10,11 @@ interface LogContext {
 }
 
 class Logger {
-  private readonly isDevelopment = __DEV__;
-
   /**
    * Log an informational message
    */
   info(message: string, context?: LogContext): void {
-    if (this.isDevelopment) {
+    if (__DEV__) {
       const prefix = this.formatPrefix('INFO', context);
       // eslint-disable-next-line no-console
       console.log(`${prefix} ${message}`, context ?? '');
@@ -27,7 +25,7 @@ class Logger {
    * Log a warning message
    */
   warn(message: string, context?: LogContext): void {
-    if (this.isDevelopment) {
+    if (__DEV__) {
       const prefix = this.formatPrefix('WARN', context);
       // eslint-disable-next-line no-console
       console.warn(`${prefix} ${message}`, context ?? '');
@@ -38,7 +36,7 @@ class Logger {
    * Log an error message
    */
   error(message: string, error?: unknown, context?: LogContext): void {
-    if (this.isDevelopment) {
+    if (__DEV__) {
       const prefix = this.formatPrefix('ERROR', context);
       // eslint-disable-next-line no-console
       console.error(`${prefix} ${message}`, error ?? '', context ?? '');
@@ -49,7 +47,7 @@ class Logger {
    * Log debug information (only in development)
    */
   debug(message: string, context?: LogContext): void {
-    if (this.isDevelopment) {
+    if (__DEV__) {
       const prefix = this.formatPrefix('DEBUG', context);
       // eslint-disable-next-line no-console
       console.log(`${prefix} ${message}`, context ?? '');

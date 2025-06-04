@@ -12,5 +12,29 @@
     "sonarlint.rules": {
         "javascript:S1481": "off",
         "typescript:S1481": "off"
-    }
+    },
+    // Ensure ESLint extension uses same config as CLI
+    "eslint.workingDirectories": ["."],
+    "eslint.options": {
+        "extensions": [".ts", ".tsx"]
+    },
+    "eslint.format.enable": true,
+    "eslint.lintTask.enable": true,
+    
+    // TypeScript settings to match CLI behavior
+    "typescript.preferences.includePackageJsonAutoImports": "auto",
+    "typescript.validate.enable": true,
+    "typescript.format.enable": true,
+    
+    // Show all problems in Problems panel
+    "problems.showCurrentInStatus": true,
+    "problems.sortOrder": "severity",
+    
+    // Make sure we see all warnings
+    "typescript.reportStyleChecksAsWarnings": true,
+    "eslint.quiet": false,
+    
+    // Disable GitHub Actions meaningless context warnings
+    "github-actions.workflows.pinned.workflows": [],
+    "github-actions.workflows.pinned.refresh.enabled": false
 }
