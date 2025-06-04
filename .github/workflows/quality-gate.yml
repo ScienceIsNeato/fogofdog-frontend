@@ -106,7 +106,10 @@ jobs:
         run: npm ci --legacy-peer-deps
         
       - name: 🔧 Setup EAS CLI
-        run: npm install -g @expo/eas-cli
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
         
       - name: 🚀 Production Build Verification (iOS)
         run: |
@@ -116,7 +119,7 @@ jobs:
             exit 1
           fi
           echo "🔨 Running production build verification..."
-          npx eas build --platform ios --profile testflight --non-interactive --wait
+          eas build --platform ios --profile testflight --non-interactive --wait
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
         

@@ -95,6 +95,7 @@ git push --force-with-lease origin main
 2. Verify EXPO_TOKEN secret is configured
 3. Test build locally: `eas build --platform ios --profile testflight`
 4. Common issues: dependency conflicts, native module changes
+5. **EAS CLI Setup**: Uses `expo/expo-github-action@v8` (same as production builds)
 
 ### Quality Checks Fail
 1. Run locally: `npm run pre-commit:strict`
