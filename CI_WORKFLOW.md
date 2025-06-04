@@ -121,4 +121,58 @@ eas build --platform ios --profile testflight
 npm run quality:check
 ```
 
-This workflow ensures that every merge to main is guaranteed to build successfully in production! 🚀 
+This workflow ensures that every merge to main is guaranteed to build successfully in production! 🚀
+
+## Manual Build Triggers 🎛️
+
+You can manually trigger production builds on any branch for debugging and testing purposes.
+
+### How to Trigger Manual Builds
+
+1. **Go to GitHub Actions** in your repository
+2. **Click "EAS Build & Deploy"** workflow
+3. **Click "Run workflow"** button
+4. **Configure your build:**
+
+   - **Branch**: Choose any branch to build from
+   - **Platform**: iOS, Android, or both
+   - **Profile**: preview, testflight, or production
+   - **Skip Tests**: Check to skip tests for faster debugging builds
+   - **Submit to TestFlight**: Check to automatically submit iOS builds
+   - **Build Message**: Add notes about what you're testing
+
+### Use Cases
+
+#### 🐛 **Debug Build Issues**
+```yaml
+Platform: ios
+Profile: testflight  
+Skip Tests: ✅ (faster iteration)
+Submit to TestFlight: ❌ (just test the build)
+Message: "Testing dependency fix"
+```
+
+#### 🚀 **Deploy Feature Branch**
+```yaml
+Platform: ios
+Profile: testflight
+Skip Tests: ❌ (full validation)
+Submit to TestFlight: ✅ (ready for testing)
+Message: "Feature/new-map-controls ready for QA"
+```
+
+#### ⚡ **Quick Test Build**
+```yaml
+Platform: ios
+Profile: preview
+Skip Tests: ✅ (fast iteration)
+Submit to TestFlight: ❌ (development only)
+Message: "Quick test of component changes"
+```
+
+### Benefits
+
+- ✅ **No PR needed** - Test builds on any branch
+- ✅ **Flexible options** - Skip tests, choose profiles, control submission
+- ✅ **Clear logging** - Build info shows exactly what was built
+- ✅ **Safe testing** - Won't interfere with production deploys 
