@@ -84,6 +84,47 @@ jobs:
           echo "📊 Bundle size check completed"
         continue-on-error: true
 
+  # PR Production Build Verification - Only for PRs to main, required for merge
+  pr-build-verification:
+    name: 🔍 PR Build Verification (Required for Merge)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs: [quality-checks, build-check]
+    if: github.event_name == 'pull_request' && github.base_ref == 'main'
+    
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+        
+      - name: 📦 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          
+      - name: ⚡ Install dependencies
+        run: npm ci --legacy-peer-deps
+        
+      - name: 🔧 Setup EAS CLI
+        run: npm install -g @expo/eas-cli
+        
+      - name: 🚀 Production Build Verification (iOS)
+        run: |
+          if [ -z "$EXPO_TOKEN" ]; then
+            echo "❌ EXPO_TOKEN not available - cannot verify production builds"
+            echo "This is required for merge to main branch"
+            exit 1
+          fi
+          echo "🔨 Running production build verification..."
+          npx eas build --platform ios --profile testflight --non-interactive --wait
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        
+      - name: ✅ Build Verification Complete
+        run: |
+          echo "✅ Production build verification successful!"
+          echo "🚀 PR is ready for merge - builds are working correctly"
+
   # Optional: Full EAS build only on main branch
   production-build:
     name: 🚀 Production Build
