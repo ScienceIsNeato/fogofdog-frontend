@@ -20,7 +20,8 @@
       "distribution": "store",
       "ios": {
         "image": "latest"
-      }
+      },
+      "autoIncrement": true
     },
     "preview": {
       "distribution": "internal"
