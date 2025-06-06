@@ -1,4 +1,4 @@
-name: EAS Build & Deploy (Post-Merge)
+name: EAS Build & Deploy
 
 on:
   push:
@@ -10,25 +10,40 @@ on:
       platform:
         description: 'Platform to build'
         required: true
-        default: 'all'
+        default: 'ios'
         type: choice
         options:
-        - all
         - ios
         - android
+        - all
       profile:
         description: 'Build profile'
         required: true
-        default: 'preview'
+        default: 'testflight'
         type: choice
         options:
         - preview
         - testflight
         - production
+      skip_tests:
+        description: 'Skip tests (for faster debugging builds)'
+        required: false
+        default: false
+        type: boolean
+      submit_to_testflight:
+        description: 'Submit to TestFlight after build (iOS only)'
+        required: false
+        default: false
+        type: boolean
+      build_message:
+        description: 'Custom build message/notes'
+        required: false
+        default: 'Manual build triggered'
+        type: string
 
 jobs:
   build:
-    name: EAS Build (Post-Merge Deployment)
+    name: EAS Build (${{ github.event_name == 'workflow_dispatch' && github.event.inputs.build_message || 'Auto Deploy' }})
     runs-on: ubuntu-latest
     
     steps:
@@ -51,9 +66,23 @@ jobs:
       run: npm ci
       
     - name: Run tests before build
+      if: github.event_name != 'workflow_dispatch' || github.event.inputs.skip_tests != 'true'
       run: npm run test:ci
       
-    - name: Build iOS for TestFlight (main branch)
+    - name: 📋 Build Info
+      run: |
+        echo "🏗️ Build Information:"
+        echo "Branch: ${{ github.ref_name }}"
+        echo "Trigger: ${{ github.event_name }}"
+        if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+          echo "Platform: ${{ github.event.inputs.platform }}"
+          echo "Profile: ${{ github.event.inputs.profile }}"
+          echo "Skip Tests: ${{ github.event.inputs.skip_tests }}"
+          echo "Submit to TestFlight: ${{ github.event.inputs.submit_to_testflight }}"
+          echo "Message: ${{ github.event.inputs.build_message }}"
+        fi
+      
+    - name: Build iOS for TestFlight (main branch auto)
       if: github.ref == 'refs/heads/main' && github.event_name == 'push'
       run: eas build --platform ios --profile testflight --non-interactive
       
@@ -64,16 +93,23 @@ jobs:
     - name: Build Manual Trigger
       if: github.event_name == 'workflow_dispatch'
       run: |
+        echo "🚀 Manual build triggered on branch: ${{ github.ref_name }}"
+        echo "Message: ${{ github.event.inputs.build_message }}"
         eas build \
           --platform ${{ github.event.inputs.platform }} \
           --profile ${{ github.event.inputs.profile }} \
-          --non-interactive
+          --non-interactive \
+          --message "${{ github.event.inputs.build_message }}"
           
   submit-testflight:
     name: Submit to TestFlight
     runs-on: ubuntu-latest
     needs: build
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    if: >
+      (github.ref == 'refs/heads/main' && github.event_name == 'push') ||
+      (github.event_name == 'workflow_dispatch' && 
+       github.event.inputs.submit_to_testflight == 'true' &&
+       (github.event.inputs.platform == 'ios' || github.event.inputs.platform == 'all'))
     
     steps:
     - name: Checkout code
@@ -94,5 +130,15 @@ jobs:
         eas-version: latest
         token: ${{ secrets.EXPO_TOKEN }}
         
+    - name: 📋 Submission Info
+      run: |
+        echo "📱 TestFlight Submission:"
+        echo "Branch: ${{ github.ref_name }}"
+        echo "Trigger: ${{ github.event_name }}"
+        if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+          echo "Manual submission requested"
+          echo "Message: ${{ github.event.inputs.build_message }}"
+        fi
+        
     - name: Submit to TestFlight
-      run: eas submit --platform ios --latest --non-interactive 
+      run: eas submit --platform ios --latest --non-interactive --profile testflight 

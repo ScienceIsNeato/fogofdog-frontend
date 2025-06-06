@@ -1,12 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { View, StyleSheet, TouchableOpacity, Text, Dimensions } from 'react-native';
+import { View, StyleSheet, Dimensions } from 'react-native';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
-import {
-  updateLocation,
-  updateZoom,
-  addPathPoint,
-  setCenterOnUser,
-} from '../../store/slices/explorationSlice';
+import { updateLocation, updateZoom, setCenterOnUser } from '../../store/slices/explorationSlice';
 import MapView, { Marker, Region } from 'react-native-maps';
 import * as Location from 'expo-location'; // Import expo-location
 import FogOverlay from '../../components/FogOverlay';
@@ -198,12 +193,6 @@ const useZoomRestriction = (
   }, [currentRegion, mapRef]);
 };
 
-// Helper function for adding test points in development
-const createTestPoint = (currentLocation: LocationCoordinate) => ({
-  latitude: currentLocation.latitude,
-  longitude: currentLocation.longitude + 0.001,
-});
-
 // Individual event handler functions
 const createZoomHandler = (dispatch: ReturnType<typeof useAppDispatch>) => (newZoom: number) => {
   dispatch(updateZoom(newZoom));
@@ -226,19 +215,6 @@ const createCenterOnUserHandler =
       };
       mapRef.current.animateToRegion(userRegion, 300);
       dispatch(setCenterOnUser(true));
-    }
-  };
-
-const createAddTestPointHandler =
-  (currentLocation: LocationCoordinate | null, dispatch: ReturnType<typeof useAppDispatch>) =>
-  () => {
-    if (currentLocation) {
-      const testPoint = createTestPoint(currentLocation);
-      dispatch(addPathPoint(testPoint));
-      logger.debug(`Added test point at: ${testPoint.latitude}, ${testPoint.longitude}`, {
-        component: 'MapScreen',
-        action: 'createTestPoint',
-      });
     }
   };
 
@@ -267,7 +243,6 @@ const useMapEventHandlers = (options: {
     mapRef,
     dispatch
   );
-  const addTestPoint = createAddTestPointHandler(currentLocation, dispatch);
 
   const onRegionChange = (region: Region) => {
     setCurrentRegion(region);
@@ -309,7 +284,6 @@ const useMapEventHandlers = (options: {
 
   return {
     centerOnUserLocation,
-    addTestPoint,
     onRegionChange,
     onPanDrag,
     onRegionChangeComplete,
@@ -345,7 +319,6 @@ interface MapScreenRendererProps {
   onPanDrag: () => void;
   onRegionChangeComplete: (region: Region) => void;
   centerOnUserLocation: () => void;
-  addTestPoint: () => void;
   setMapDimensions: (dimensions: { width: number; height: number }) => void;
 }
 
@@ -361,7 +334,6 @@ const MapScreenRenderer = ({
   onPanDrag,
   onRegionChangeComplete,
   centerOnUserLocation,
-  addTestPoint,
   setMapDimensions,
 }: MapScreenRendererProps) => (
   <View
@@ -407,12 +379,6 @@ const MapScreenRenderer = ({
       isCentered={isMapCenteredOnUser}
       style={getLocationButtonStyle(insets)}
     />
-
-    {__DEV__ && (
-      <TouchableOpacity style={styles.testButton} onPress={addTestPoint}>
-        <Text style={styles.testButtonText}>Add Test Point</Text>
-      </TouchableOpacity>
-    )}
   </View>
 );
 
@@ -457,7 +423,7 @@ export const MapScreen = () => {
   useLocationSetup(dispatch, mapRef);
   useZoomRestriction(currentRegion, mapRef);
 
-  const { centerOnUserLocation, addTestPoint, onRegionChange, onPanDrag, onRegionChangeComplete } =
+  const { centerOnUserLocation, onRegionChange, onPanDrag, onRegionChangeComplete } =
     useMapEventHandlers({
       dispatch,
       currentLocation,
@@ -479,7 +445,6 @@ export const MapScreen = () => {
       onPanDrag={onPanDrag}
       onRegionChangeComplete={onRegionChangeComplete}
       centerOnUserLocation={centerOnUserLocation}
-      addTestPoint={addTestPoint}
       setMapDimensions={setMapDimensions}
     />
   );
@@ -491,23 +456,5 @@ const styles = StyleSheet.create({
   },
   map: {
     ...StyleSheet.absoluteFillObject, // Make map fill container
-  },
-  testButton: {
-    position: 'absolute',
-    bottom: 30,
-    left: 20,
-    backgroundColor: 'rgba(0, 150, 255, 0.7)',
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 20,
-    elevation: 5,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 3,
-  },
-  testButtonText: {
-    color: 'white',
-    fontWeight: 'bold',
   },
 });
