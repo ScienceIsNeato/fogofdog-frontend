@@ -134,6 +134,8 @@ const explorationSlice = createSlice({
         count: backgroundLocations.length,
       });
 
+      let latestValidLocation: GeoPoint | null = null;
+
       // Convert stored locations to GeoPoints and process them
       for (const storedLocation of backgroundLocations) {
         const geoPoint: GeoPoint = {
@@ -170,6 +172,11 @@ const explorationSlice = createSlice({
             });
           }
         }
+      }
+
+      // Update current location to the most recent valid location
+      if (latestValidLocation) {
+        state.currentLocation = latestValidLocation;
       }
     },
     updateBackgroundLocationStatus: (
