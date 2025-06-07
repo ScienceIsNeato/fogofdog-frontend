@@ -2,7 +2,7 @@
   "expo": {
     "name": "FogOfDog",
     "slug": "fogofdog",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -20,8 +20,11 @@
       "infoPlist": {
         "NSLocationAlwaysAndWhenInUseUsageDescription": "FogOfDog needs location access to track your exploration progress even when the app is in the background, allowing you to discover new areas while walking, running, or cycling with your phone in your pocket.",
         "NSLocationWhenInUseUsageDescription": "FogOfDog needs location access to track your exploration progress and show your current position on the map.",
-        "UIBackgroundModes": ["location"]
-      }
+        "UIBackgroundModes": [
+          "location"
+        ]
+      },
+      "buildNumber": "2"
     },
     "android": {
       "adaptiveIcon": {
@@ -33,7 +36,8 @@
         "ACCESS_COARSE_LOCATION",
         "ACCESS_FINE_LOCATION",
         "ACCESS_BACKGROUND_LOCATION"
-      ]
+      ],
+      "versionCode": 2
     },
     "web": {
       "favicon": "./assets/favicon.png"
