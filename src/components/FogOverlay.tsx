@@ -1,5 +1,17 @@
 import React, { useMemo, useRef, useEffect } from 'react';
-import { Skia, Canvas, Path, Fill, Circle, Mask, Rect, Group } from '@shopify/react-native-skia';
+import {
+  Skia,
+  Canvas,
+  Path,
+  Fill,
+  Circle,
+  Mask,
+  Rect,
+  Group,
+  RadialGradient,
+  vec,
+  BlurMask,
+} from '@shopify/react-native-skia';
 import type { SkPath } from '@shopify/react-native-skia';
 import { StyleSheet } from 'react-native';
 import { useSelector } from 'react-redux';
@@ -16,6 +28,10 @@ interface GeoPoint {
 
 interface FogOverlayProps {
   mapRegion: MapRegion & { width: number; height: number };
+  // New prop to control the blur style
+  blurStyle?: 'none' | 'gradient' | 'blur' | 'layered' | 'combined';
+  // New prop to control the blur intensity
+  blurIntensity?: number;
 }
 
 // Hook for calculating fog rendering properties
@@ -93,9 +109,9 @@ const useFogPerformance = (pathPoints: GeoPoint[], radiusPixels: number, strokeW
 };
 
 /**
- * FogMask component renders the mask content for the fog overlay
+ * Original hard-edge FogMask for comparison
  */
-const FogMask: React.FC<{
+const FogMaskHardEdge: React.FC<{
   pathPoints: GeoPoint[];
   mapRegion: MapRegion & { width: number; height: number };
   radiusPixels: number;
@@ -139,28 +155,280 @@ const FogMask: React.FC<{
 };
 
 /**
+ * FogMask with radial gradients for soft edges
+ */
+const FogMaskGradient: React.FC<{
+  pathPoints: GeoPoint[];
+  mapRegion: MapRegion & { width: number; height: number };
+  radiusPixels: number;
+  skiaPath: SkPath;
+  strokeWidth: number;
+  blurIntensity: number;
+}> = ({ pathPoints, mapRegion, radiusPixels, skiaPath, strokeWidth, blurIntensity }) => {
+  const gradientRadius = radiusPixels * (1 + blurIntensity * 0.5);
+  
+  const maskContent = (
+    <>
+      {/* Start with all-white mask (showing fog everywhere) */}
+      <Fill color="white" />
+
+      {/* Draw gradient circles at each point for soft edges */}
+      {pathPoints.map((point) => {
+        const { x, y } = geoPointToPixel(point, mapRegion);
+        return (
+          <Circle
+            key={`circle-${point.latitude}-${point.longitude}`}
+            cx={x}
+            cy={y}
+            r={gradientRadius}
+          >
+            <RadialGradient
+              c={vec(x, y)}
+              r={gradientRadius}
+              colors={['black', 'black', 'rgba(0,0,0,0.5)', 'transparent']}
+              positions={[0, 0.6, 0.8, 1]}
+            />
+          </Circle>
+        );
+      })}
+
+      {/* Draw the path with gradient effect */}
+      {pathPoints.length > 1 && (
+        <Path
+          path={skiaPath}
+          style="stroke"
+          strokeWidth={strokeWidth}
+          strokeCap="round"
+          strokeJoin="round"
+          color="black"
+          opacity={0.8}
+        />
+      )}
+    </>
+  );
+
+  return <Group>{maskContent}</Group>;
+};
+
+/**
+ * FogMask with blur filter for soft edges
+ */
+const FogMaskBlur: React.FC<{
+  pathPoints: GeoPoint[];
+  mapRegion: MapRegion & { width: number; height: number };
+  radiusPixels: number;
+  skiaPath: SkPath;
+  strokeWidth: number;
+  blurIntensity: number;
+}> = ({ pathPoints, mapRegion, radiusPixels, skiaPath, strokeWidth, blurIntensity }) => {
+  const blurAmount = 10 * blurIntensity;
+  
+  const maskContent = (
+    <>
+      {/* Start with all-white mask (showing fog everywhere) */}
+      <Fill color="white" />
+
+      {/* Draw circles with blur mask */}
+      <Group>
+        <BlurMask blur={blurAmount} style="normal" />
+        {pathPoints.map((point) => {
+          const { x, y } = geoPointToPixel(point, mapRegion);
+          return (
+            <Circle
+              key={`circle-${point.latitude}-${point.longitude}`}
+              cx={x}
+              cy={y}
+              r={radiusPixels}
+              color="black"
+            />
+          );
+        })}
+
+        {/* Also draw the path with blur */}
+        {pathPoints.length > 1 && (
+          <Path
+            path={skiaPath}
+            color="black"
+            style="stroke"
+            strokeWidth={strokeWidth}
+            strokeCap="round"
+            strokeJoin="round"
+          />
+        )}
+      </Group>
+    </>
+  );
+
+  return <Group>{maskContent}</Group>;
+};
+
+/**
+ * FogMask with layered opacity for gradual fade
+ */
+const FogMaskLayered: React.FC<{
+  pathPoints: GeoPoint[];
+  mapRegion: MapRegion & { width: number; height: number };
+  radiusPixels: number;
+  skiaPath: SkPath;
+  strokeWidth: number;
+  blurIntensity: number;
+}> = ({ pathPoints, mapRegion, radiusPixels, skiaPath, strokeWidth, blurIntensity }) => {
+  const layers = 5;
+  const layerStep = (radiusPixels * blurIntensity * 0.3) / layers;
+  
+  const maskContent = (
+    <>
+      {/* Start with all-white mask (showing fog everywhere) */}
+      <Fill color="white" />
+
+      {/* Draw multiple layers of circles with decreasing opacity */}
+      {Array.from({ length: layers }).map((_, layerIndex) => {
+        const opacity = 1 - (layerIndex / layers) * 0.8;
+        const layerRadius = radiusPixels + layerIndex * layerStep;
+        
+        return (
+          <Group key={`layer-${layerIndex}`}>
+            {pathPoints.map((point) => {
+              const { x, y } = geoPointToPixel(point, mapRegion);
+              return (
+                <Circle
+                  key={`circle-${point.latitude}-${point.longitude}-${layerIndex}`}
+                  cx={x}
+                  cy={y}
+                  r={layerRadius}
+                  color={`rgba(0,0,0,${opacity})`}
+                />
+              );
+            })}
+
+            {/* Path for this layer */}
+            {pathPoints.length > 1 && (
+              <Path
+                path={skiaPath}
+                color={`rgba(0,0,0,${opacity})`}
+                style="stroke"
+                strokeWidth={strokeWidth + layerIndex * layerStep * 2}
+                strokeCap="round"
+                strokeJoin="round"
+              />
+            )}
+          </Group>
+        );
+      })}
+    </>
+  );
+
+  return <Group>{maskContent}</Group>;
+};
+
+/**
+ * Combined approach: gradients + blur for the softest effect
+ */
+const FogMaskCombined: React.FC<{
+  pathPoints: GeoPoint[];
+  mapRegion: MapRegion & { width: number; height: number };
+  radiusPixels: number;
+  skiaPath: SkPath;
+  strokeWidth: number;
+  blurIntensity: number;
+}> = ({ pathPoints, mapRegion, radiusPixels, skiaPath, strokeWidth, blurIntensity }) => {
+  const gradientRadius = radiusPixels * (1 + blurIntensity * 0.3);
+  const blurAmount = 5 * blurIntensity;
+  
+  const maskContent = (
+    <>
+      {/* Start with all-white mask (showing fog everywhere) */}
+      <Fill color="white" />
+
+      {/* Draw gradient circles with blur */}
+      <Group>
+        <BlurMask blur={blurAmount} style="normal" />
+        {pathPoints.map((point) => {
+          const { x, y } = geoPointToPixel(point, mapRegion);
+          return (
+            <Circle
+              key={`circle-${point.latitude}-${point.longitude}`}
+              cx={x}
+              cy={y}
+              r={gradientRadius}
+            >
+              <RadialGradient
+                c={vec(x, y)}
+                r={gradientRadius}
+                colors={['black', 'rgba(0,0,0,0.8)', 'rgba(0,0,0,0.3)', 'transparent']}
+                positions={[0, 0.5, 0.8, 1]}
+              />
+            </Circle>
+          );
+        })}
+
+        {/* Path with gradient and blur */}
+        {pathPoints.length > 1 && (
+          <Path
+            path={skiaPath}
+            style="stroke"
+            strokeWidth={strokeWidth}
+            strokeCap="round"
+            strokeJoin="round"
+            color="black"
+            opacity={0.9}
+          />
+        )}
+      </Group>
+    </>
+  );
+
+  return <Group>{maskContent}</Group>;
+};
+
+/**
  * FogOverlay component renders a fog layer over the map with transparent "holes"
  * along the user's path. Uses Skia for GPU-accelerated rendering.
+ * 
+ * Now supports multiple blur styles for softer edges!
  */
-const FogOverlay: React.FC<FogOverlayProps> = ({ mapRegion }) => {
+const FogOverlay: React.FC<FogOverlayProps> = ({ 
+  mapRegion, 
+  blurStyle = 'gradient', // Default to gradient style
+  blurIntensity = 1 
+}) => {
   const { pathPoints, skiaPath, radiusPixels, strokeWidth } = useFogCalculations(mapRegion);
 
   // Performance optimization hook
   useFogPerformance(pathPoints, radiusPixels, strokeWidth);
 
+  // Select the appropriate mask component based on blur style
+  const getMaskContent = () => {
+    const props = {
+      pathPoints,
+      mapRegion,
+      radiusPixels,
+      skiaPath,
+      strokeWidth,
+      blurIntensity,
+    };
+
+    switch (blurStyle) {
+      case 'none':
+        return <FogMaskHardEdge {...props} />;
+      case 'gradient':
+        return <FogMaskGradient {...props} />;
+      case 'blur':
+        return <FogMaskBlur {...props} />;
+      case 'layered':
+        return <FogMaskLayered {...props} />;
+      case 'combined':
+        return <FogMaskCombined {...props} />;
+      default:
+        return <FogMaskGradient {...props} />;
+    }
+  };
+
   return (
     <Canvas style={styles.canvas} pointerEvents="none">
       <Mask
         mode="luminance"
-        mask={
-          <FogMask
-            pathPoints={pathPoints}
-            mapRegion={mapRegion}
-            radiusPixels={radiusPixels}
-            skiaPath={skiaPath}
-            strokeWidth={strokeWidth}
-          />
-        }
+        mask={getMaskContent()}
       >
         {/* Fog overlay rectangle */}
         <Rect

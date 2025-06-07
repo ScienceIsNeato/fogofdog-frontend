@@ -320,6 +320,8 @@ interface MapScreenRendererProps {
   onRegionChangeComplete: (region: Region) => void;
   centerOnUserLocation: () => void;
   setMapDimensions: (dimensions: { width: number; height: number }) => void;
+  fogStyle: 'none' | 'gradient' | 'blur' | 'layered' | 'combined';
+  blurIntensity: number;
 }
 
 // Render component for the map view and overlays
@@ -335,6 +337,8 @@ const MapScreenRenderer = ({
   onRegionChangeComplete,
   centerOnUserLocation,
   setMapDimensions,
+  fogStyle,
+  blurIntensity,
 }: MapScreenRendererProps) => (
   <View
     style={styles.container}
@@ -370,6 +374,8 @@ const MapScreenRenderer = ({
           width: mapDimensions.width,
           height: mapDimensions.height,
         }}
+        blurStyle={fogStyle}
+        blurIntensity={blurIntensity}
       />
     )}
 
@@ -393,6 +399,10 @@ const useMapScreenState = () => {
     height: Dimensions.get('window').height,
   });
 
+  // Add fog style state for easy testing - change these values to test different styles
+  const [fogStyle] = useState<'none' | 'gradient' | 'blur' | 'layered' | 'combined'>('gradient');
+  const [blurIntensity] = useState(1);
+
   return {
     dispatch,
     currentLocation,
@@ -402,6 +412,8 @@ const useMapScreenState = () => {
     setCurrentRegion,
     mapDimensions,
     setMapDimensions,
+    fogStyle,
+    blurIntensity,
   };
 };
 
@@ -415,6 +427,8 @@ export const MapScreen = () => {
     setCurrentRegion,
     mapDimensions,
     setMapDimensions,
+    fogStyle,
+    blurIntensity,
   } = useMapScreenState();
 
   const insets = useSafeAreaInsets();
@@ -446,6 +460,8 @@ export const MapScreen = () => {
       onRegionChangeComplete={onRegionChangeComplete}
       centerOnUserLocation={centerOnUserLocation}
       setMapDimensions={setMapDimensions}
+      fogStyle={fogStyle}
+      blurIntensity={blurIntensity}
     />
   );
 };
