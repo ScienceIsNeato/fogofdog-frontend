@@ -1,0 +1,154 @@
+name: Auto Version Bump
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+    types: [closed]
+
+permissions:
+  contents: write
+  pull-requests: read
+
+jobs:
+  version-bump:
+    # Only run on merged PRs to main, not direct pushes
+    if: github.event_name == 'pull_request' && github.event.action == 'closed' && github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          # Use PAT to trigger other workflows
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Configure Git
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+
+      - name: Get current version
+        id: current_version
+        run: |
+          CURRENT_VERSION=$(node -p "require('./package.json').version")
+          echo "version=$CURRENT_VERSION" >> $GITHUB_OUTPUT
+          echo "Current version: $CURRENT_VERSION"
+
+      - name: Increment patch version
+        id: new_version
+        run: |
+          # Use npm version to increment patch version
+          NEW_VERSION=$(npm version patch --no-git-tag-version)
+          # Remove the 'v' prefix that npm adds
+          NEW_VERSION=${NEW_VERSION#v}
+          echo "version=$NEW_VERSION" >> $GITHUB_OUTPUT
+          echo "New version: $NEW_VERSION"
+
+      - name: Update app.json version
+        run: |
+          NEW_VERSION="${{ steps.new_version.outputs.version }}"
+          # Update version in app.json
+          node -e "
+            const fs = require('fs');
+            const appJson = JSON.parse(fs.readFileSync('app.json', 'utf8'));
+            appJson.expo.version = '$NEW_VERSION';
+            fs.writeFileSync('app.json', JSON.stringify(appJson, null, 2));
+            console.log('Updated app.json version to: $NEW_VERSION');
+          "
+
+      - name: Update iOS build number
+        run: |
+          # Increment iOS build number (for App Store)
+          node -e "
+            const fs = require('fs');
+            const appJson = JSON.parse(fs.readFileSync('app.json', 'utf8'));
+            const currentBuild = parseInt(appJson.expo.ios.buildNumber || '1');
+            appJson.expo.ios.buildNumber = (currentBuild + 1).toString();
+            fs.writeFileSync('app.json', JSON.stringify(appJson, null, 2));
+            console.log('Updated iOS build number to: ' + appJson.expo.ios.buildNumber);
+          "
+
+      - name: Update Android version code
+        run: |
+          # Add/increment Android version code if needed
+          node -e "
+            const fs = require('fs');
+            const appJson = JSON.parse(fs.readFileSync('app.json', 'utf8'));
+            if (!appJson.expo.android) appJson.expo.android = {};
+            const currentVersionCode = parseInt(appJson.expo.android.versionCode || '1');
+            appJson.expo.android.versionCode = currentVersionCode + 1;
+            fs.writeFileSync('app.json', JSON.stringify(appJson, null, 2));
+            console.log('Updated Android version code to: ' + appJson.expo.android.versionCode);
+          "
+
+      - name: Commit version bump
+        run: |
+          NEW_VERSION="${{ steps.new_version.outputs.version }}"
+          git add package.json app.json
+          git commit -m "🔖 Bump version to $NEW_VERSION
+
+          Auto-generated version bump after PR merge.
+          
+          Changes:
+          - package.json: ${{ steps.current_version.outputs.version }} → $NEW_VERSION
+          - app.json: Updated version and build numbers
+          
+          PR: #${{ github.event.pull_request.number }}
+          Merged by: ${{ github.event.pull_request.user.login }}"
+
+      - name: Create Git tag
+        run: |
+          NEW_VERSION="${{ steps.new_version.outputs.version }}"
+          git tag -a "v$NEW_VERSION" -m "Release version $NEW_VERSION"
+
+      - name: Push changes and tag
+        run: |
+          git push origin main
+          git push origin --tags
+
+      - name: Create GitHub Release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: "v${{ steps.new_version.outputs.version }}"
+          release_name: "Release v${{ steps.new_version.outputs.version }}"
+          body: |
+            🚀 **Auto-generated release v${{ steps.new_version.outputs.version }}**
+            
+            This release was automatically created after merging PR #${{ github.event.pull_request.number }}.
+            
+            **Changes:**
+            - Version bumped from ${{ steps.current_version.outputs.version }} to ${{ steps.new_version.outputs.version }}
+            - iOS build number incremented
+            - Android version code incremented
+            
+            **PR Details:**
+            - Title: ${{ github.event.pull_request.title }}
+            - Author: ${{ github.event.pull_request.user.login }}
+            - Merged at: ${{ github.event.pull_request.merged_at }}
+            
+            [View PR](${{ github.event.pull_request.html_url }})
+          draft: false
+          prerelease: false
+
+  notify-version-bump:
+    needs: version-bump
+    runs-on: ubuntu-latest
+    if: success()
+    
+    steps:
+      - name: Notify version bump success
+        run: |
+          echo "✅ Version successfully bumped to ${{ needs.version-bump.outputs.version }}"
+          echo "🏷️ Git tag created and pushed"
+          echo "📦 GitHub release created" 

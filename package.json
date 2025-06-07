@@ -59,7 +59,11 @@
     "sonar:check": "npm run type-check && npx eslint \"src/**/*.{ts,tsx}\" --max-warnings 0 --config eslint.config.js",
     "sonar:check:summary": "npm run type-check && npx eslint \"src/**/*.{ts,tsx}\" --max-warnings 0 --config eslint.config.js --format=stylish",
     "sonar:check:typescript": "npx tsc --noEmit --strict --pretty",
-    "sonar:check:eslint": "npx eslint \"src/**/*.{ts,tsx}\" --max-warnings 0 --config eslint.config.js"
+    "sonar:check:eslint": "npx eslint \"src/**/*.{ts,tsx}\" --max-warnings 0 --config eslint.config.js",
+    "version:major": "node scripts/version-bump.js major",
+    "version:minor": "node scripts/version-bump.js minor",
+    "version:patch": "node scripts/version-bump.js patch",
+    "version:check": "node -p \"require('./package.json').version\""
   },
   "dependencies": {
     "@expo/vector-icons": "^14.1.0",

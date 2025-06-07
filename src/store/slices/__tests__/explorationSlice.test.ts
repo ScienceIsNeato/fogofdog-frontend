@@ -4,7 +4,20 @@ import explorationReducer, {
   updateZoom,
   reset,
   setCenterOnUser,
+  addPathPoint,
+  processBackgroundLocations,
+  updateBackgroundLocationStatus,
 } from '../explorationSlice';
+import type { StoredLocationData } from '../../../services/LocationStorageService';
+
+// Mock the logger
+jest.mock('../../../utils/logger', () => ({
+  logger: {
+    warn: jest.fn(),
+    error: jest.fn(),
+    info: jest.fn(),
+  },
+}));
 
 describe('exploration slice', () => {
   const store = configureStore({
@@ -15,6 +28,7 @@ describe('exploration slice', () => {
 
   beforeEach(() => {
     store.dispatch(reset());
+    jest.clearAllMocks();
   });
 
   it('should handle initial state', () => {
@@ -100,5 +114,291 @@ describe('exploration slice', () => {
     expect(state.isMapCenteredOnUser).toBe(false);
     expect(state.currentLocation).toBeNull();
     expect(state.path).toHaveLength(0);
+  });
+
+  describe('updateLocation validation', () => {
+    it('should reject invalid GeoPoint with invalid latitude', () => {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const { logger } = require('../../../utils/logger');
+
+      const invalidLocation = {
+        latitude: 91, // Invalid: exceeds 90
+        longitude: -91.5802,
+      };
+
+      store.dispatch(updateLocation(invalidLocation));
+      const state = store.getState().exploration;
+
+      expect(state.currentLocation).toBeNull();
+      expect(state.path).toHaveLength(0);
+      expect(logger.warn).toHaveBeenCalledWith(
+        expect.stringContaining('Invalid geo point received'),
+        expect.objectContaining({
+          component: 'explorationSlice',
+          action: 'updateLocation',
+        })
+      );
+    });
+
+    it('should reject invalid GeoPoint with invalid longitude', () => {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const { logger } = require('../../../utils/logger');
+
+      const invalidLocation = {
+        latitude: 41.6867,
+        longitude: -181, // Invalid: less than -180
+      };
+
+      store.dispatch(updateLocation(invalidLocation));
+      const state = store.getState().exploration;
+
+      expect(state.currentLocation).toBeNull();
+      expect(state.path).toHaveLength(0);
+      expect(logger.warn).toHaveBeenCalledWith(
+        expect.stringContaining('Invalid geo point received'),
+        expect.any(Object)
+      );
+    });
+
+    it('should reject non-finite coordinates', () => {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const { logger } = require('../../../utils/logger');
+
+      const invalidLocation = {
+        latitude: NaN,
+        longitude: -91.5802,
+      };
+
+      store.dispatch(updateLocation(invalidLocation));
+      const state = store.getState().exploration;
+
+      expect(state.currentLocation).toBeNull();
+      expect(state.path).toHaveLength(0);
+      expect(logger.warn).toHaveBeenCalled();
+    });
+  });
+
+  describe('addPathPoint', () => {
+    it('should add valid path point', () => {
+      const point = { latitude: 41.6867, longitude: -91.5802 };
+
+      store.dispatch(addPathPoint(point));
+      const state = store.getState().exploration;
+
+      expect(state.path).toHaveLength(1);
+      expect(state.path[0]).toEqual(point);
+    });
+
+    it('should reject invalid path point and log error', () => {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const { logger } = require('../../../utils/logger');
+
+      const invalidPoint = { latitude: 91, longitude: -91.5802 };
+
+      store.dispatch(addPathPoint(invalidPoint));
+      const state = store.getState().exploration;
+
+      expect(state.path).toHaveLength(0);
+      expect(logger.error).toHaveBeenCalledWith(
+        'addPathPoint: Invalid position provided',
+        expect.objectContaining({
+          component: 'explorationSlice',
+          action: 'addPathPoint',
+          point: invalidPoint,
+        })
+      );
+    });
+  });
+
+  describe('processBackgroundLocations', () => {
+    it('should process empty array without errors', () => {
+      const emptyLocations: StoredLocationData[] = [];
+
+      store.dispatch(processBackgroundLocations(emptyLocations));
+      const state = store.getState().exploration;
+
+      expect(state.currentLocation).toBeNull();
+      expect(state.path).toHaveLength(0);
+    });
+
+    it('should process valid background locations', () => {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const { logger } = require('../../../utils/logger');
+
+      const backgroundLocations: StoredLocationData[] = [
+        {
+          latitude: 41.6867,
+          longitude: -91.5802,
+          timestamp: 1640995200000,
+        },
+        {
+          latitude: 41.6877,
+          longitude: -91.5812,
+          timestamp: 1640995260000,
+        },
+      ];
+
+      store.dispatch(processBackgroundLocations(backgroundLocations));
+      const state = store.getState().exploration;
+
+      expect(state.currentLocation).toEqual({
+        latitude: 41.6877,
+        longitude: -91.5812,
+      });
+      expect(state.path).toHaveLength(2);
+      expect(logger.info).toHaveBeenCalledWith(
+        'Processing 2 background locations in Redux',
+        expect.objectContaining({
+          component: 'explorationSlice',
+          action: 'processBackgroundLocations',
+          count: 2,
+        })
+      );
+    });
+
+    it('should skip invalid background locations', () => {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const { logger } = require('../../../utils/logger');
+
+      const backgroundLocations: StoredLocationData[] = [
+        {
+          latitude: 41.6867,
+          longitude: -91.5802,
+          timestamp: 1640995200000,
+        },
+        {
+          latitude: 91, // Invalid
+          longitude: -91.5812,
+          timestamp: 1640995260000,
+        },
+        {
+          latitude: 41.6877,
+          longitude: -91.5822,
+          timestamp: 1640995320000,
+        },
+      ];
+
+      store.dispatch(processBackgroundLocations(backgroundLocations));
+      const state = store.getState().exploration;
+
+      expect(state.currentLocation).toEqual({
+        latitude: 41.6877,
+        longitude: -91.5822,
+      });
+      expect(state.path).toHaveLength(2); // Only valid locations added
+      expect(logger.warn).toHaveBeenCalledWith(
+        expect.stringContaining('Invalid background geo point'),
+        expect.objectContaining({
+          component: 'explorationSlice',
+          action: 'processBackgroundLocations',
+        })
+      );
+    });
+
+    it('should handle distance calculation errors', () => {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const { logger } = require('../../../utils/logger');
+
+      // Mock haversineDistance to throw an error
+      const originalMath = Math.sqrt;
+      Math.sqrt = jest.fn(() => {
+        throw new Error('Math error');
+      });
+
+      const backgroundLocations: StoredLocationData[] = [
+        {
+          latitude: 41.6867,
+          longitude: -91.5802,
+          timestamp: 1640995200000,
+        },
+        {
+          latitude: 41.6877,
+          longitude: -91.5812,
+          timestamp: 1640995260000,
+        },
+      ];
+
+      store.dispatch(processBackgroundLocations(backgroundLocations));
+
+      expect(logger.error).toHaveBeenCalledWith(
+        expect.stringContaining('Error calculating distance for background location'),
+        expect.any(Error),
+        expect.objectContaining({
+          component: 'explorationSlice',
+          action: 'processBackgroundLocations',
+        })
+      );
+
+      // Restore Math.sqrt
+      Math.sqrt = originalMath;
+    });
+  });
+
+  describe('updateBackgroundLocationStatus', () => {
+    it('should update background location status', () => {
+      const status = {
+        isRunning: true,
+        hasPermission: true,
+        storedLocationCount: 5,
+      };
+
+      store.dispatch(updateBackgroundLocationStatus(status));
+      const state = store.getState().exploration;
+
+      expect(state.backgroundLocationStatus).toEqual(status);
+    });
+
+    it('should update with different status values', () => {
+      const status1 = {
+        isRunning: false,
+        hasPermission: true,
+        storedLocationCount: 0,
+      };
+
+      const status2 = {
+        isRunning: true,
+        hasPermission: false,
+        storedLocationCount: 10,
+      };
+
+      store.dispatch(updateBackgroundLocationStatus(status1));
+      expect(store.getState().exploration.backgroundLocationStatus).toEqual(status1);
+
+      store.dispatch(updateBackgroundLocationStatus(status2));
+      expect(store.getState().exploration.backgroundLocationStatus).toEqual(status2);
+    });
+  });
+
+  describe('distance calculation error handling', () => {
+    it('should handle error in updateLocation distance calculation', () => {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const { logger } = require('../../../utils/logger');
+
+      // Add first point
+      store.dispatch(updateLocation({ latitude: 41.6867, longitude: -91.5802 }));
+
+      // Mock Math.sqrt to throw an error for the second point
+      const originalMath = Math.sqrt;
+      Math.sqrt = jest.fn(() => {
+        throw new Error('Distance calculation error');
+      });
+
+      // Try to add second point
+      store.dispatch(updateLocation({ latitude: 41.6877, longitude: -91.5812 }));
+
+      const state = store.getState().exploration;
+      expect(state.path).toHaveLength(1); // Second point not added due to error
+      expect(logger.error).toHaveBeenCalledWith(
+        expect.stringContaining('Error calculating distance'),
+        expect.any(Error),
+        expect.objectContaining({
+          component: 'explorationSlice',
+          action: 'updateLocation',
+        })
+      );
+
+      // Restore Math.sqrt
+      Math.sqrt = originalMath;
+    });
   });
 });
