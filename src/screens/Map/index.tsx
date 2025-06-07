@@ -1,13 +1,20 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { View, StyleSheet, Dimensions } from 'react-native';
+import { View, StyleSheet, Dimensions, AppState, AppStateStatus } from 'react-native';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
-import { updateLocation, updateZoom, setCenterOnUser } from '../../store/slices/explorationSlice';
+import {
+  updateLocation,
+  updateZoom,
+  setCenterOnUser,
+  processBackgroundLocations,
+  updateBackgroundLocationStatus,
+} from '../../store/slices/explorationSlice';
 import MapView, { Marker, Region } from 'react-native-maps';
 import * as Location from 'expo-location'; // Import expo-location
 import FogOverlay from '../../components/FogOverlay';
 import LocationButton from '../../components/LocationButton';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { logger } from '../../utils/logger';
+import { BackgroundLocationService } from '../../services/BackgroundLocationService';
 
 // Default location (will be used as a fallback or before real location is fetched)
 const DEFAULT_LOCATION = {
@@ -92,6 +99,86 @@ const setupLocationWatcher = async (
       }
     }
   );
+};
+
+// Hook for background location service management
+const useBackgroundLocationService = (dispatch: ReturnType<typeof useAppDispatch>) => {
+  useEffect(() => {
+    let isActive = true;
+
+    const initializeBackgroundService = async () => {
+      try {
+        await BackgroundLocationService.initialize();
+
+        // Start background location tracking
+        const started = await BackgroundLocationService.startBackgroundLocationTracking();
+
+        if (isActive) {
+          // Update status in Redux
+          const status = await BackgroundLocationService.getStatus();
+          dispatch(updateBackgroundLocationStatus(status));
+
+          logger.info(`Background location service ${started ? 'started' : 'failed to start'}`, {
+            component: 'MapScreen',
+            action: 'initializeBackgroundService',
+            started,
+            status,
+          });
+        }
+      } catch (error) {
+        logger.error('Failed to initialize background location service', error, {
+          component: 'MapScreen',
+          action: 'initializeBackgroundService',
+        });
+      }
+    };
+
+    initializeBackgroundService();
+
+    return () => {
+      isActive = false;
+    };
+  }, [dispatch]);
+};
+
+// Hook for app state management and background location processing
+const useAppStateHandler = (dispatch: ReturnType<typeof useAppDispatch>) => {
+  useEffect(() => {
+    const handleAppStateChange = async (nextAppState: AppStateStatus) => {
+      if (nextAppState === 'active') {
+        // App came to foreground - process any stored background locations
+        try {
+          const storedLocations = await BackgroundLocationService.processStoredLocations();
+          if (storedLocations.length > 0) {
+            dispatch(processBackgroundLocations(storedLocations));
+            logger.info(`Processed ${storedLocations.length} background locations on app resume`, {
+              component: 'MapScreen',
+              action: 'handleAppStateChange',
+              count: storedLocations.length,
+            });
+          }
+
+          // Update background service status
+          const status = await BackgroundLocationService.getStatus();
+          dispatch(updateBackgroundLocationStatus(status));
+        } catch (error) {
+          logger.error('Failed to process background locations on app resume', error, {
+            component: 'MapScreen',
+            action: 'handleAppStateChange',
+          });
+        }
+      }
+    };
+
+    const subscription = AppState.addEventListener('change', handleAppStateChange);
+
+    // Process any existing background locations on mount
+    handleAppStateChange('active');
+
+    return () => {
+      subscription?.remove();
+    };
+  }, [dispatch]);
 };
 
 // Hook for location setup logic
@@ -422,6 +509,8 @@ export const MapScreen = () => {
   // Use our custom hooks
   useLocationSetup(dispatch, mapRef);
   useZoomRestriction(currentRegion, mapRef);
+  useBackgroundLocationService(dispatch);
+  useAppStateHandler(dispatch);
 
   const { centerOnUserLocation, onRegionChange, onPanDrag, onRegionChangeComplete } =
     useMapEventHandlers({

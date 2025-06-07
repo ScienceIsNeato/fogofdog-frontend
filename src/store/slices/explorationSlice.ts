@@ -1,6 +1,7 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 import { GeoPoint } from '../../types/user';
 import { logger } from '../../utils/logger';
+import { StoredLocationData } from '../../services/LocationStorageService';
 
 interface ExplorationState {
   currentLocation: GeoPoint | null;
@@ -8,6 +9,11 @@ interface ExplorationState {
   path: GeoPoint[];
   exploredAreas: GeoPoint[];
   isMapCenteredOnUser: boolean;
+  backgroundLocationStatus: {
+    isRunning: boolean;
+    hasPermission: boolean;
+    storedLocationCount: number;
+  };
 }
 
 // Helper function to calculate distance between two geo-points (Haversine formula)
@@ -46,6 +52,11 @@ const initialState: ExplorationState = {
   path: [],
   exploredAreas: [],
   isMapCenteredOnUser: false,
+  backgroundLocationStatus: {
+    isRunning: false,
+    hasPermission: false,
+    storedLocationCount: 0,
+  },
 };
 
 const explorationSlice = createSlice({
@@ -110,9 +121,84 @@ const explorationSlice = createSlice({
     setCenterOnUser: (state, action: PayloadAction<boolean>) => {
       state.isMapCenteredOnUser = action.payload;
     },
+    processBackgroundLocations: (state, action: PayloadAction<StoredLocationData[]>) => {
+      const backgroundLocations = action.payload;
+
+      if (backgroundLocations.length === 0) {
+        return;
+      }
+
+      logger.info(`Processing ${backgroundLocations.length} background locations in Redux`, {
+        component: 'explorationSlice',
+        action: 'processBackgroundLocations',
+        count: backgroundLocations.length,
+      });
+
+      let latestValidLocation: GeoPoint | null = null;
+
+      // Convert stored locations to GeoPoints and process them
+      for (const storedLocation of backgroundLocations) {
+        const geoPoint: GeoPoint = {
+          latitude: storedLocation.latitude,
+          longitude: storedLocation.longitude,
+        };
+
+        if (!isValidGeoPoint(geoPoint)) {
+          logger.warn(`Invalid background geo point: ${JSON.stringify(geoPoint)}. Skipping.`, {
+            component: 'explorationSlice',
+            action: 'processBackgroundLocations',
+          });
+          continue;
+        }
+
+        // Track the most recent valid location
+        latestValidLocation = geoPoint;
+
+        // Add to path if it meets distance requirements
+        const lastPoint = state.path.length > 0 ? state.path[state.path.length - 1] : null;
+
+        if (!lastPoint) {
+          state.path.push({ ...geoPoint });
+        } else {
+          try {
+            const distance = haversineDistance(geoPoint, lastPoint);
+            if (distance >= MIN_DISTANCE_FOR_NEW_AREA) {
+              state.path.push({ ...geoPoint });
+            }
+          } catch (error) {
+            logger.error(`Error calculating distance for background location: ${error}`, error, {
+              component: 'explorationSlice',
+              action: 'processBackgroundLocations',
+            });
+          }
+        }
+      }
+
+      // Update current location to the most recent valid location
+      if (latestValidLocation) {
+        state.currentLocation = latestValidLocation;
+      }
+    },
+    updateBackgroundLocationStatus: (
+      state,
+      action: PayloadAction<{
+        isRunning: boolean;
+        hasPermission: boolean;
+        storedLocationCount: number;
+      }>
+    ) => {
+      state.backgroundLocationStatus = action.payload;
+    },
   },
 });
 
-export const { updateLocation, updateZoom, reset, addPathPoint, setCenterOnUser } =
-  explorationSlice.actions;
+export const {
+  updateLocation,
+  updateZoom,
+  reset,
+  addPathPoint,
+  setCenterOnUser,
+  processBackgroundLocations,
+  updateBackgroundLocationStatus,
+} = explorationSlice.actions;
 export default explorationSlice.reducer;

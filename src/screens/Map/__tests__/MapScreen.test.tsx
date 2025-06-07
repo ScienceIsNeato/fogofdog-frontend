@@ -812,6 +812,11 @@ describe('MapScreen', () => {
           zoomLevel: 10,
           isMapCenteredOnUser: false,
           exploredAreas: [], // Add missing property
+          backgroundLocationStatus: {
+            isRunning: false,
+            hasPermission: false,
+            storedLocationCount: 0,
+          },
         },
         user: { user: null, isLoading: false, error: null },
       },
@@ -868,6 +873,11 @@ describe('MapScreen', () => {
           zoomLevel: 10,
           isMapCenteredOnUser: false,
           exploredAreas: [], // Add missing property
+          backgroundLocationStatus: {
+            isRunning: false,
+            hasPermission: false,
+            storedLocationCount: 0,
+          },
         },
         user: { user: null, isLoading: false, error: null },
       },

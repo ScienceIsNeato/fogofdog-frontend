@@ -35,6 +35,11 @@ const defaultExplorationState = {
   zoomLevel: 10,
   isMapCenteredOnUser: false,
   exploredAreas: [],
+  backgroundLocationStatus: {
+    isRunning: false,
+    hasPermission: false,
+    storedLocationCount: 0,
+  },
 };
 
 // Shared mock store creators
