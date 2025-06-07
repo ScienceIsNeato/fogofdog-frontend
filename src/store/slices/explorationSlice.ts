@@ -149,8 +149,8 @@ const explorationSlice = createSlice({
           continue;
         }
 
-        // Update current location to the most recent background location
-        state.currentLocation = geoPoint;
+        // Track the most recent valid location
+        latestValidLocation = geoPoint;
 
         // Add to path if it meets distance requirements
         const lastPoint = state.path.length > 0 ? state.path[state.path.length - 1] : null;
