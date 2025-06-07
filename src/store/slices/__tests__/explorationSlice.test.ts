@@ -24,6 +24,11 @@ describe('exploration slice', () => {
       path: [],
       exploredAreas: [],
       isMapCenteredOnUser: false,
+      backgroundLocationStatus: {
+        isRunning: false,
+        hasPermission: false,
+        storedLocationCount: 0,
+      },
     });
   });
 
