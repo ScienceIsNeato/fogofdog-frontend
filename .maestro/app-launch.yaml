@@ -1,0 +1,5 @@
+appId: com.fogofdog.app
+---
+# Simple test: Launch app and verify it loads to sign in screen
+- launchApp
+- assertVisible: "Sign In"

@@ -32,6 +32,13 @@
         "image": "latest"
       },
       "autoIncrement": true
+    },
+    "e2e": {
+      "distribution": "internal",
+      "ios": {
+        "simulator": true,
+        "image": "latest"
+      }
     }
   },
   "submit": {

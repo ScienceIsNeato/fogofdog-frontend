@@ -5,15 +5,25 @@ This file provides guidance to Claude Code (claude.ai/code) when working with th
 ## Important Notes
 
 ### Cursor Rules Integration
-This project uses cursor-rules from the cursor-rules directory. If cursor-rules are present, they take precedence and should be followed alongside these guidelines.
+This project uses comprehensive cursor-rules from the cursor-rules directory. These rules provide:
+- Development workflow guidelines (🌳)
+- Testing protocols (🧪) 
+- Session context management (🕒)
+- Path management rules (🛣️)
+- Issue reporting protocols (🐛)
+- Quality assurance standards
+If cursor-rules are present, they take precedence and should be followed alongside these guidelines.
 
 ### Path Requirements  
 **CRITICAL**: Always use absolute paths in commands. Always use full paths like `cd /Users/pacey/Documents/SourceCode/fogofdog-frontend`.
 
 ### Current Status
-✅ **Production Ready**: Successfully deployed to TestFlight  
+✅ **Production Ready**: Successfully deployed to TestFlight (v1.0.1)
+✅ **Quality Gate**: 91.73% test coverage, 84.16% branches, 2.92% duplication
 ✅ **Dependencies Fixed**: All exact versions, expo-doctor passing  
-✅ **Sequential Thinking**: MCP server integrated for systematic debugging  
+✅ **Sequential Thinking**: MCP server integrated for systematic debugging
+✅ **Background GPS**: Implemented and tested with location tracking
+✅ **Integration Testing**: E2E tests with Detox and visual validation  
 
 ## Common Commands
 
@@ -44,11 +54,53 @@ npm run test:ci
 # Run E2E tests
 npm run test:e2e
 
+# Run Background GPS integration tests
+npm run test:e2e:background
+
+# Run Fog correlation tests  
+npm run test:e2e:fog
+
+# Run full E2E CI suite
+npm run test:e2e:ci
+
+# Run integration tests with full automation
+./scripts/run-integration-tests.sh
+
+# Demo the testing framework capabilities
+./scripts/test-framework-demo.sh
+
+# Verify framework setup
+./scripts/verify-integration-tests.sh
+
 # Run tests with coverage
-npm test -- --coverage
+npm run test:coverage
+
+# Run specific test file
+npm test -- components/FogOverlay.test.tsx
+
+# Run specific test pattern
+npm test -- --testNamePattern="should render"
+
+# Update test snapshots
+npm run test:update-snapshots
 
 # Lint code
 npm run lint
+
+# Fix lint errors automatically
+npm run lint:fix
+
+# Strict linting (zero warnings)
+npm run lint:strict
+
+# Type checking
+npm run type-check
+
+# Quality gate (comprehensive checks)
+npm run quality:check
+
+# Fix code formatting
+npm run format:fix
 
 # Build for TestFlight
 npx eas build --platform ios --profile testflight
@@ -200,6 +252,8 @@ fogofdog-frontend/
    - `src/components/FogOverlay.tsx` - Canvas-based fog rendering  
    - `src/utils/mapUtils.ts` - Geo to screen coordinate conversion
    - `src/screens/Map/index.tsx` - Main map screen integration
+   - `src/services/BackgroundLocationService.ts` - Background GPS tracking
+   - `src/services/LocationStorageService.ts` - Location data persistence
 
 4. **Performance Considerations**:
    - Distance-based filtering to prevent redundant fog holes
@@ -209,11 +263,15 @@ fogofdog-frontend/
 ### Verified Working Features
 
 ✅ **Authentication**: Sign-in flow functional  
-✅ **GPS Integration**: Live location tracking  
-✅ **Fog Overlay**: Dynamic rendering with coordinate-based visibility  
+✅ **GPS Integration**: Live location tracking with background support
+✅ **Fog Overlay**: Dynamic rendering with coordinate-based visibility using Skia
 ✅ **Map Interaction**: Pan, zoom, location controls  
-✅ **Redux State**: Centralized state management  
-✅ **TestFlight Deployment**: Production-ready builds  
+✅ **Redux State**: Centralized state management with exploration tracking
+✅ **Background Services**: Location tracking continues when app is backgrounded
+✅ **TestFlight Deployment**: Production-ready builds with auto-increment
+✅ **Quality Assurance**: Comprehensive testing suite with 91.73% coverage
+✅ **E2E Testing**: Detox integration with visual validation
+✅ **Code Quality**: ESLint, TypeScript strict mode, automated formatting  
 
 ### Testing Guidelines
 
@@ -231,9 +289,11 @@ fogofdog-frontend/
 
 ### EAS Build Profiles
 
-- **testflight**: Store distribution for TestFlight deployment
+- **testflight**: Store distribution for TestFlight deployment (autoIncrement: true)
+- **production**: Store distribution for production releases (autoIncrement: true)
 - **device**: Internal distribution for development testing
 - **development**: Development client with simulator support
+- **preview**: Internal distribution for preview builds
 
 ### Dependencies
 
@@ -241,10 +301,36 @@ fogofdog-frontend/
 - **expo-doctor**: All 15 checks must pass before builds
 - **Legacy Peer Deps**: Use `--legacy-peer-deps` for React version conflicts
 
+### Quality Assurance
+
+- **ESLint**: Zero warnings policy enforced (`npm run lint:strict`)
+- **TypeScript**: Strict mode enabled (`npm run type-check`)
+- **Code Coverage**: Minimum 70% coverage required
+- **Code Duplication**: Maximum 5% threshold (currently 2.92%)
+- **Security**: `npm audit` checks for high-severity vulnerabilities
+
 ## Success Metrics
 
 - ✅ **0 black screens** (restored from complete failure)
 - ✅ **6-minute build times** for TestFlight deployment  
 - ✅ **100% core functionality** working in production
+- ✅ **91.73% test coverage** with 84.16% branch coverage
 - ✅ **Sequential debugging** proven effective for complex issues
 - ✅ **Production deployment pipeline** fully operational
+- ✅ **Quality gate passing** with zero ESLint warnings
+- ✅ **Background GPS tracking** successfully implemented
+- ✅ **Integration testing pipeline** with E2E and visual validation
+
+## Important Reminders
+
+### Before Making Changes
+1. **Read STATUS.md** - Always check current project status
+2. **Run Tests First** - Verify current state before modifications
+3. **Use Absolute Paths** - All commands must use full paths from project root
+4. **Check Quality Gate** - Run `npm run quality:check` before commits
+
+### After Making Changes  
+1. **Verify Tests Pass** - Run relevant test suite after each change
+2. **Check Type Safety** - Run `npm run type-check` for TypeScript validation
+3. **Validate Linting** - Ensure `npm run lint:strict` passes with zero warnings
+4. **Update STATUS.md** - Document significant changes and current state

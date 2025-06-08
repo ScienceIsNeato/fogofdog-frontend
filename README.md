@@ -114,6 +114,8 @@ npm run android
 ## 🛠️ Development Workflow
 
 ### 🧪 Testing
+
+#### Unit & Integration Tests (Jest)
 ```bash
 # Run all tests
 npm test
@@ -123,9 +125,27 @@ npm run test:ci
 
 # Run with coverage
 npm run test:coverage
+```
 
-# Run E2E tests
-npm run test:e2e
+#### End-to-End Testing (Maestro)
+```bash
+# Install Maestro CLI (one-time setup)
+curl -Ls "https://get.maestro.mobile.dev" | bash
+
+# Add to PATH
+export PATH="$PATH":"$HOME/.maestro/bin"
+
+# Build standalone app for testing
+npm run ios -- --configuration Release
+
+# Run Maestro tests
+maestro test .maestro/
+
+# Run specific test flow
+maestro test .maestro/login-to-map-test.yaml
+
+# Record test execution (for debugging)
+maestro record .maestro/login-to-map-test.yaml
 ```
 
 ### 🔍 Code Quality
@@ -181,7 +201,7 @@ src/
 - **Maps**: React Native Maps
 - **Graphics**: React Native Skia
 - **Location**: Expo Location
-- **Testing**: Jest + React Native Testing Library
+- **Testing**: Jest + React Native Testing Library + Maestro E2E
 - **Quality**: ESLint + SonarJS + Prettier
 
 ---

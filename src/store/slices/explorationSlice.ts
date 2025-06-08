@@ -80,7 +80,10 @@ const explorationSlice = createSlice({
       const lastPoint = state.path.length > 0 ? state.path[state.path.length - 1] : null;
 
       if (!lastPoint) {
-        // console.log(`[explorationSlice] Adding first path point at: ${newPoint.latitude}, ${newPoint.longitude}`);
+        logger.debug(`Adding first path point at: ${newPoint.latitude}, ${newPoint.longitude}`, {
+          component: 'explorationSlice',
+          action: 'updateLocation',
+        });
         state.path.push({ ...newPoint });
         return;
       }
@@ -93,7 +96,13 @@ const explorationSlice = createSlice({
           // console.log(`[explorationSlice] Adding new path point at: ${newPoint.latitude}, ${newPoint.longitude}. Distance from last: ${distance.toFixed(2)}m. Total points: ${state.path.length + 1}`);
           state.path.push({ ...newPoint });
         } else {
-          // console.log(`[explorationSlice] New point is too close to last point (${distance.toFixed(2)}m). Not adding to path. Total points: ${state.path.length}`);
+          logger.debug(
+            `New point is too close to last point (${distance.toFixed(2)}m). Not adding to path. Total points: ${state.path.length}`,
+            {
+              component: 'explorationSlice',
+              action: 'updateLocation',
+            }
+          );
         }
       } catch (error) {
         logger.error(`Error calculating distance: ${error}. Not adding to path.`, error, {
@@ -108,7 +117,10 @@ const explorationSlice = createSlice({
     addPathPoint: (state, action: PayloadAction<GeoPoint>) => {
       const point = action.payload;
       if (isValidGeoPoint(point)) {
-        // console.log(`[explorationSlice] Manually adding path point at: ${point.latitude}, ${point.longitude}`);
+        logger.debug(`Manually adding path point at: ${point.latitude}, ${point.longitude}`, {
+          component: 'explorationSlice',
+          action: 'addPathPoint',
+        });
         state.path.push({ ...point });
       } else {
         logger.error('addPathPoint: Invalid position provided', {
