@@ -22,12 +22,13 @@ describe('GPSInjectionService', () => {
     jest.clearAllMocks();
     // Set NODE_ENV to development for tests to run
     process.env.NODE_ENV = 'development';
+    // @ts-expect-error - __DEV__ is not typed in test environment
     global.__DEV__ = true;
   });
 
   afterEach(() => {
-    // Reset NODE_ENV
-    delete process.env.NODE_ENV;
+    // Reset NODE_ENV to original value or undefined
+    delete (process.env as any).NODE_ENV;
   });
 
   describe('processInjectedGPS', () => {
@@ -43,13 +44,13 @@ describe('GPSInjectionService', () => {
     it('should process base64 encoded GPS injection data', async () => {
       const injectionData = {
         coordinates: [
-          { latitude: 37.7749, longitude: -122.4194, timestamp: 123456789, accuracy: 5 }
+          { latitude: 37.7749, longitude: -122.4194, timestamp: 123456789, accuracy: 5 },
         ],
         processed: false,
-        injectedAt: '2024-01-01T00:00:00Z'
+        injectedAt: '2024-01-01T00:00:00Z',
       };
       const base64Data = btoa(JSON.stringify(injectionData));
-      
+
       mockAsyncStorage.getItem.mockResolvedValueOnce(base64Data);
       mockAsyncStorage.setItem.mockResolvedValue();
 
@@ -69,13 +70,13 @@ describe('GPSInjectionService', () => {
     it('should process direct JSON GPS injection data when base64 fails', async () => {
       const injectionData = {
         coordinates: [
-          { latitude: 37.7749, longitude: -122.4194, timestamp: 123456789, accuracy: 5 }
+          { latitude: 37.7749, longitude: -122.4194, timestamp: 123456789, accuracy: 5 },
         ],
         processed: false,
-        injectedAt: '2024-01-01T00:00:00Z'
+        injectedAt: '2024-01-01T00:00:00Z',
       };
       const jsonData = JSON.stringify(injectionData);
-      
+
       mockAsyncStorage.getItem.mockResolvedValueOnce(jsonData);
       mockAsyncStorage.setItem.mockResolvedValue();
 
@@ -91,13 +92,13 @@ describe('GPSInjectionService', () => {
     it('should return empty array if data is already processed', async () => {
       const injectionData = {
         coordinates: [
-          { latitude: 37.7749, longitude: -122.4194, timestamp: 123456789, accuracy: 5 }
+          { latitude: 37.7749, longitude: -122.4194, timestamp: 123456789, accuracy: 5 },
         ],
         processed: true,
-        injectedAt: '2024-01-01T00:00:00Z'
+        injectedAt: '2024-01-01T00:00:00Z',
       };
       const jsonData = JSON.stringify(injectionData);
-      
+
       mockAsyncStorage.getItem.mockResolvedValueOnce(jsonData);
 
       const result = await GPSInjectionService.processInjectedGPS();
@@ -109,13 +110,13 @@ describe('GPSInjectionService', () => {
     it('should try alternative key if main key fails', async () => {
       const injectionData = {
         coordinates: [
-          { latitude: 37.7749, longitude: -122.4194, timestamp: 123456789, accuracy: 5 }
+          { latitude: 37.7749, longitude: -122.4194, timestamp: 123456789, accuracy: 5 },
         ],
         processed: false,
-        injectedAt: '2024-01-01T00:00:00Z'
+        injectedAt: '2024-01-01T00:00:00Z',
       };
       const jsonData = JSON.stringify(injectionData);
-      
+
       mockAsyncStorage.getItem
         .mockResolvedValueOnce(null) // First call returns null
         .mockResolvedValueOnce(jsonData); // Second call returns data
@@ -147,10 +148,10 @@ describe('GPSInjectionService', () => {
       const injectionData = {
         coordinates: [],
         processed: true,
-        injectedAt: '2024-01-01T00:00:00Z'
+        injectedAt: '2024-01-01T00:00:00Z',
       };
       const jsonData = JSON.stringify(injectionData);
-      
+
       mockAsyncStorage.getItem.mockResolvedValue(jsonData);
       mockAsyncStorage.removeItem.mockResolvedValue();
 
@@ -167,10 +168,10 @@ describe('GPSInjectionService', () => {
       const injectionData = {
         coordinates: [],
         processed: false,
-        injectedAt: '2024-01-01T00:00:00Z'
+        injectedAt: '2024-01-01T00:00:00Z',
       };
       const jsonData = JSON.stringify(injectionData);
-      
+
       mockAsyncStorage.getItem.mockResolvedValue(jsonData);
 
       await GPSInjectionService.clearProcessedInjections();
@@ -203,13 +204,13 @@ describe('GPSInjectionService', () => {
     it('should return status for existing injection data', async () => {
       const injectionData = {
         coordinates: [
-          { latitude: 37.7749, longitude: -122.4194, timestamp: 123456789, accuracy: 5 }
+          { latitude: 37.7749, longitude: -122.4194, timestamp: 123456789, accuracy: 5 },
         ],
         processed: false,
-        injectedAt: '2024-01-01T00:00:00Z'
+        injectedAt: '2024-01-01T00:00:00Z',
       };
       const jsonData = JSON.stringify(injectionData);
-      
+
       mockAsyncStorage.getItem.mockResolvedValue(jsonData);
 
       const result = await GPSInjectionService.getInjectionStatus();
@@ -218,7 +219,7 @@ describe('GPSInjectionService', () => {
         hasInjectionData: true,
         isProcessed: false,
         coordinateCount: 1,
-        injectedAt: '2024-01-01T00:00:00Z'
+        injectedAt: '2024-01-01T00:00:00Z',
       });
     });
 
@@ -247,9 +248,9 @@ describe('GPSInjectionService', () => {
   describe('storeInjectionData', () => {
     it('should store injection data', async () => {
       const coordinates = [
-        { latitude: 37.7749, longitude: -122.4194, timestamp: 123456789, accuracy: 5 }
+        { latitude: 37.7749, longitude: -122.4194, timestamp: 123456789, accuracy: 5 },
       ];
-      
+
       mockAsyncStorage.setItem.mockResolvedValue();
 
       await GPSInjectionService.storeInjectionData(coordinates);
@@ -270,12 +271,14 @@ describe('GPSInjectionService', () => {
 
     it('should handle storage errors by throwing', async () => {
       const coordinates = [
-        { latitude: 37.7749, longitude: -122.4194, timestamp: 123456789, accuracy: 5 }
+        { latitude: 37.7749, longitude: -122.4194, timestamp: 123456789, accuracy: 5 },
       ];
-      
+
       mockAsyncStorage.setItem.mockRejectedValue(new Error('Storage error'));
 
-      await expect(GPSInjectionService.storeInjectionData(coordinates)).rejects.toThrow('Storage error');
+      await expect(GPSInjectionService.storeInjectionData(coordinates)).rejects.toThrow(
+        'Storage error'
+      );
 
       expect(mockLogger.error).toHaveBeenCalledWith(
         'Failed to store GPS injection data',
@@ -289,7 +292,13 @@ describe('GPSInjectionService', () => {
     it('should subscribe to injection events', () => {
       const callback = jest.fn();
       const mockRemove = jest.fn();
-      mockDeviceEventEmitter.addListener.mockReturnValue({ remove: mockRemove });
+      mockDeviceEventEmitter.addListener.mockReturnValue({
+        remove: mockRemove,
+        emitter: mockDeviceEventEmitter,
+        listener: jest.fn(),
+        context: null,
+        eventType: 'GPS_COORDINATES_INJECTED',
+      } as any);
 
       const unsubscribe = GPSInjectionService.subscribeToInjections(callback);
 
@@ -311,4 +320,4 @@ describe('GPSInjectionService', () => {
       );
     });
   });
-}); 
+});

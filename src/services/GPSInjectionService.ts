@@ -17,7 +17,10 @@ export class GPSInjectionService {
   /**
    * Retrieve GPS injection data string from AsyncStorage
    */
-  private static async retrieveInjectionDataString(): Promise<{ data: string | null; source: string }> {
+  private static async retrieveInjectionDataString(): Promise<{
+    data: string | null;
+    source: string;
+  }> {
     // First try AsyncStorage (for internal app usage)
     let injectionDataString = await AsyncStorage.getItem(GPS_INJECTION_KEY);
     let dataSource = 'AsyncStorage';
@@ -72,9 +75,9 @@ export class GPSInjectionService {
    * This integrates GPS injection with the existing background location flow
    */
   static async processInjectedGPS(): Promise<StoredLocationData[]> {
-
     try {
-      const { data: injectionDataString, source: dataSource } = await this.retrieveInjectionDataString();
+      const { data: injectionDataString, source: dataSource } =
+        await this.retrieveInjectionDataString();
 
       if (!injectionDataString) {
         return [];
@@ -129,7 +132,6 @@ export class GPSInjectionService {
    * Clear processed GPS injection data (cleanup)
    */
   static async clearProcessedInjections(): Promise<void> {
-
     try {
       const injectionDataString = await AsyncStorage.getItem(GPS_INJECTION_KEY);
       if (injectionDataString) {
@@ -160,7 +162,6 @@ export class GPSInjectionService {
     coordinateCount?: number;
     injectedAt?: string;
   }> {
-
     try {
       const injectionDataString = await AsyncStorage.getItem(GPS_INJECTION_KEY);
       if (!injectionDataString) {
@@ -188,7 +189,6 @@ export class GPSInjectionService {
    * Store GPS injection data and immediately trigger processing (used by the injection tool)
    */
   static async storeInjectionData(coordinates: StoredLocationData[]): Promise<void> {
-
     try {
       const injectionData: GPSInjectionData = {
         coordinates,
@@ -230,7 +230,6 @@ export class GPSInjectionService {
    * Subscribe to GPS injection events for immediate processing
    */
   static subscribeToInjections(callback: (coordinates: StoredLocationData[]) => void) {
-
     const subscription = DeviceEventEmitter.addListener(GPS_INJECTION_EVENT, callback);
 
     logger.info('Subscribed to GPS injection events', {
