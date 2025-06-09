@@ -78,24 +78,49 @@ const handleLocationError = (
 
 const setupLocationWatcher = async (
   dispatch: ReturnType<typeof useAppDispatch>,
-  isActive: boolean
+  isActive: boolean,
+  mapRef: React.RefObject<MapView>,
+  currentRegion: Region | undefined
 ) => {
   if (!isActive) return null;
 
   return await Location.watchPositionAsync(
     {
       accuracy: Location.Accuracy.High,
-      timeInterval: 5000,
-      distanceInterval: 10,
+      timeInterval: 1000, // More frequent updates to catch simulated changes
+      distanceInterval: 1, // Detect even small movements for testing
     },
     (newLocation) => {
       if (isActive) {
+        logger.debug('Location update received', {
+          component: 'MapScreen',
+          action: 'setupLocationWatcher',
+          lat: newLocation.coords.latitude.toFixed(6),
+          lon: newLocation.coords.longitude.toFixed(6),
+          accuracy: newLocation.coords.accuracy,
+        });
+
         dispatch(
           updateLocation({
             latitude: newLocation.coords.latitude,
             longitude: newLocation.coords.longitude,
           })
         );
+
+        // Auto-center map on location changes (especially useful for GPS injection)
+        if (mapRef.current) {
+          const newRegion = {
+            latitude: newLocation.coords.latitude,
+            longitude: newLocation.coords.longitude,
+            latitudeDelta: currentRegion?.latitudeDelta ?? DEFAULT_LOCATION.latitudeDelta,
+            longitudeDelta: currentRegion?.longitudeDelta ?? DEFAULT_LOCATION.longitudeDelta,
+          };
+          mapRef.current.animateToRegion(newRegion, 500);
+          logger.debug('Map auto-centered to new location', {
+            component: 'MapScreen',
+            action: 'setupLocationWatcher',
+          });
+        }
       }
     }
   );
@@ -148,6 +173,7 @@ const useAppStateHandler = (dispatch: ReturnType<typeof useAppDispatch>) => {
       if (nextAppState === 'active') {
         // App came to foreground - process any stored background locations
         try {
+          // Process real background locations
           const storedLocations = await BackgroundLocationService.processStoredLocations();
           if (storedLocations.length > 0) {
             dispatch(processBackgroundLocations(storedLocations));
@@ -155,6 +181,7 @@ const useAppStateHandler = (dispatch: ReturnType<typeof useAppDispatch>) => {
               component: 'MapScreen',
               action: 'handleAppStateChange',
               count: storedLocations.length,
+              source: 'BACKGROUND_SERVICE',
             });
           }
 
@@ -181,10 +208,67 @@ const useAppStateHandler = (dispatch: ReturnType<typeof useAppDispatch>) => {
   }, [dispatch]);
 };
 
+// Hook for simple location refresh polling (disabled in test environment)
+const useLocationRefreshPolling = (
+  dispatch: ReturnType<typeof useAppDispatch>,
+  mapRef: React.RefObject<MapView>,
+  currentRegion: Region | undefined
+) => {
+  useEffect(() => {
+    // Skip polling in test environment to prevent infinite loops
+    if (process.env.NODE_ENV === 'test') {
+      return;
+    }
+
+    // Simple polling that just re-checks the current location
+    const pollInterval = setInterval(async () => {
+      try {
+        // Just get the current position from the simulator
+        const location = await Location.getCurrentPositionAsync({
+          accuracy: Location.Accuracy.High,
+        });
+
+        logger.debug('Location refresh', {
+          component: 'MapScreen',
+          action: 'useLocationRefreshPolling',
+          lat: location.coords.latitude.toFixed(6),
+          lon: location.coords.longitude.toFixed(6),
+        });
+
+        // Update Redux with the current simulator location
+        dispatch(
+          updateLocation({
+            latitude: location.coords.latitude,
+            longitude: location.coords.longitude,
+          })
+        );
+
+        // Auto-center map on any location change
+        if (mapRef.current) {
+          const newRegion = {
+            latitude: location.coords.latitude,
+            longitude: location.coords.longitude,
+            latitudeDelta: currentRegion?.latitudeDelta ?? DEFAULT_LOCATION.latitudeDelta,
+            longitudeDelta: currentRegion?.longitudeDelta ?? DEFAULT_LOCATION.longitudeDelta,
+          };
+          mapRef.current.animateToRegion(newRegion, 500);
+        }
+      } catch (_error) {
+        // Silent fail
+      }
+    }, 2000); // Check every 2 seconds
+
+    return () => {
+      clearInterval(pollInterval);
+    };
+  }, [dispatch, mapRef, currentRegion?.latitudeDelta, currentRegion?.longitudeDelta]);
+};
+
 // Hook for location setup logic
 const useLocationSetup = (
   dispatch: ReturnType<typeof useAppDispatch>,
-  mapRef: React.RefObject<MapView>
+  mapRef: React.RefObject<MapView>,
+  currentRegion: Region | undefined
 ) => {
   useEffect(() => {
     let isActive = true;
@@ -221,7 +305,12 @@ const useLocationSetup = (
           mapRef.current.animateToRegion(userRegion, 1000);
         }
 
-        const localSubscription = await setupLocationWatcher(dispatch, isActive);
+        const localSubscription = await setupLocationWatcher(
+          dispatch,
+          isActive,
+          mapRef,
+          currentRegion
+        );
         if (isActive && localSubscription) {
           subscription = localSubscription;
         } else if (localSubscription) {
@@ -244,7 +333,7 @@ const useLocationSetup = (
         subscription.remove();
       }
     };
-  }, [dispatch, mapRef]);
+  }, [dispatch, mapRef, currentRegion]);
 };
 
 // Hook for zoom restriction logic
@@ -507,9 +596,10 @@ export const MapScreen = () => {
   const insets = useSafeAreaInsets();
 
   // Use our custom hooks
-  useLocationSetup(dispatch, mapRef);
+  useLocationSetup(dispatch, mapRef, currentRegion);
+  useLocationRefreshPolling(dispatch, mapRef, currentRegion); // Simple location polling
   useZoomRestriction(currentRegion, mapRef);
-  useBackgroundLocationService(dispatch);
+  useBackgroundLocationService(dispatch); // Re-enabled - should work with GPS injection
   useAppStateHandler(dispatch);
 
   const { centerOnUserLocation, onRegionChange, onPanDrag, onRegionChangeComplete } =

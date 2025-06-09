@@ -1,0 +1,133 @@
+appId: com.fogofdog.app
+---
+# Practical Fog + GPS Validation Test
+# Tests fog clearing behavior and coordinate processing in realistic scenarios
+
+# 1. Setup and baseline
+- launchApp:
+    appId: com.fogofdog.app
+    clearState: true
+
+- assertVisible: 
+    text: "Sign In"
+- tapOn:
+    id: "signInButton"
+
+- runFlow:
+    when:
+      visible: "Allow"
+    commands:
+      - tapOn: "Allow While Using App"
+
+- waitForAnimationToEnd
+- assertVisible:
+    id: "map-screen"
+
+# 2. Capture initial fog state (should be mostly fogged)
+- takeScreenshot: test_artifacts/initial-fog-coverage.png
+
+# Verify user marker is present (indicates GPS is working)
+- assertVisible:
+    text: "You are here"
+
+# 3. Allow time for initial location processing into path
+- waitForAnimationToEnd:
+    timeout: 5000
+
+# Take screenshot after initial location processing
+- takeScreenshot: test_artifacts/post-initial-location.png
+
+# 4. Test background/foreground cycle to trigger coordinate processing
+- pressKey: Home
+
+# Wait for background service to potentially collect data
+- waitForAnimationToEnd:
+    timeout: 3000
+
+# Return to foreground - this triggers processStoredLocations()
+- launchApp:
+    appId: com.fogofdog.app
+
+# Wait for background location processing
+- waitForAnimationToEnd:
+    timeout: 8000
+
+# 5. Capture state after background processing
+- takeScreenshot: test_artifacts/post-background-processing.png
+
+# 6. Test fog behavior during map interactions
+# Pan map to verify fog overlay moves correctly
+- swipe:
+    start: "50%,50%"
+    end: "30%,30%"
+
+- waitForAnimationToEnd
+
+- takeScreenshot: test_artifacts/fog-after-pan-northeast.png
+
+# Pan back to original position
+- swipe:
+    start: "30%,30%"
+    end: "50%,50%"
+
+- waitForAnimationToEnd
+
+- takeScreenshot: test_artifacts/fog-after-pan-back.png
+
+# 7. Test zoom behavior with fog
+# Zoom in (double tap)
+- tapOn: "50%,50%"
+- tapOn: "50%,50%"
+
+- waitForAnimationToEnd
+
+- takeScreenshot: test_artifacts/fog-zoomed-in.png
+
+# Zoom out (pinch simulation with two taps)
+- tapOn: "40%,50%"
+- tapOn: "60%,50%"
+
+- waitForAnimationToEnd
+
+- takeScreenshot: test_artifacts/fog-zoomed-out.png
+
+# 8. Test location button functionality
+- tapOn:
+    id: "location-button"
+
+- waitForAnimationToEnd:
+    timeout: 3000
+
+- takeScreenshot: test_artifacts/fog-after-center-location.png
+
+# 9. Final background/foreground test
+- pressKey: Home
+- waitForAnimationToEnd:
+    timeout: 2000
+
+- launchApp:
+    appId: com.fogofdog.app
+
+- waitForAnimationToEnd:
+    timeout: 3000
+
+- takeScreenshot: test_artifacts/final-fog-state.png
+
+# Test Validation Criteria:
+# 
+# Visual Inspection Required:
+# 1. initial-fog-coverage.png: Should show black fog covering most of map
+# 2. post-initial-location.png: Should show small cleared area around user location
+# 3. post-background-processing.png: May show additional cleared areas if background GPS worked
+# 4. fog-after-pan-*: Fog should move smoothly with map, no white gaps or misalignment
+# 5. fog-zoomed-*: Cleared areas should scale appropriately with zoom level
+# 6. fog-after-center-location.png: Should show user centered with fog properly aligned
+# 7. final-fog-state.png: Fog state should persist correctly
+#
+# Success Indicators:
+# ✓ Black fog visible covering unexplored areas
+# ✓ Clear circular areas around GPS path points (~75m radius)
+# ✓ Fog overlay moves perfectly with map during pan/zoom
+# ✓ No visual artifacts (white seams, misalignment, flickering)
+# ✓ Fog state persists through app backgrounding/foregrounding
+# ✓ Location button works and maintains fog alignment 

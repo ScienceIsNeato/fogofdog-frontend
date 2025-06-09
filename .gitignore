@@ -39,10 +39,15 @@ yarn-error.*
 # e2e test artifacts
 artifacts/*
 **/artifacts/
+test_artifacts/
 
 # Coverage reports
 coverage/
 **/coverage/
+
+# GPS injection runtime files
+current-location.json
+gps-injection.json
 
 # Cursor IDE specific files
 .cursorignore

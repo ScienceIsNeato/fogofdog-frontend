@@ -108,11 +108,11 @@ const FogMask: React.FC<{
       <Fill color="white" />
 
       {/* Draw circles at each point to ensure visible holes */}
-      {pathPoints.map((point) => {
+      {pathPoints.map((point, _index) => {
         const { x, y } = geoPointToPixel(point, mapRegion);
         return (
           <Circle
-            key={`circle-${point.latitude}-${point.longitude}`}
+            key={`circle-${point.latitude.toFixed(6)}-${point.longitude.toFixed(6)}`}
             cx={x}
             cy={y}
             r={radiusPixels}

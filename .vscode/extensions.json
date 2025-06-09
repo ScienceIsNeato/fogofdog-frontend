@@ -1,0 +1,30 @@
+{
+  "recommendations": [
+    // Essential for TypeScript/ESLint dev-check compliance
+    "ms-vscode.vscode-typescript-next",
+    "dbaeumer.vscode-eslint",
+    "esbenp.prettier-vscode",
+
+    // Enhanced error visibility (highly recommended)
+    "usernamehw.errorlens",
+
+    // React Native/Expo development
+    "msjsdiag.vscode-react-native",
+    "byCedric.vscode-expo",
+
+    // Additional code quality tools
+    "bradlc.vscode-tailwindcss",
+    "ms-vscode.vscode-json",
+
+    // Testing support
+    "orta.vscode-jest",
+
+    // Git integration
+    "eamodio.gitlens"
+  ],
+  "unwantedRecommendations": [
+    // Avoid conflicts with our ESLint setup
+    "ms-vscode.vscode-typescript-next",
+    "hookyqr.beautify"
+  ]
+}

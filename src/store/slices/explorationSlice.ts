@@ -75,6 +75,16 @@ const explorationSlice = createSlice({
         return;
       }
 
+      // Check if this is the exact same location as current location (avoid redundant processing)
+      if (
+        state.currentLocation &&
+        state.currentLocation.latitude === newPoint.latitude &&
+        state.currentLocation.longitude === newPoint.longitude
+      ) {
+        // Same location, no need to process or log anything
+        return;
+      }
+
       state.currentLocation = newPoint;
 
       const lastPoint = state.path.length > 0 ? state.path[state.path.length - 1] : null;
@@ -92,10 +102,16 @@ const explorationSlice = createSlice({
         const distance = haversineDistance(newPoint, lastPoint);
 
         if (distance >= MIN_DISTANCE_FOR_NEW_AREA) {
-          // Note: This constant was MIN_DISTANCE_FOR_NEW_AREA, might relate to explored area logic if path drives it
-          // console.log(`[explorationSlice] Adding new path point at: ${newPoint.latitude}, ${newPoint.longitude}. Distance from last: ${distance.toFixed(2)}m. Total points: ${state.path.length + 1}`);
           state.path.push({ ...newPoint });
+          logger.debug(
+            `Added new path point at: ${newPoint.latitude}, ${newPoint.longitude}. Distance: ${distance.toFixed(2)}m. Total points: ${state.path.length}`,
+            {
+              component: 'explorationSlice',
+              action: 'updateLocation',
+            }
+          );
         } else {
+          // Log once, but don't spam logs for the same location
           logger.debug(
             `New point is too close to last point (${distance.toFixed(2)}m). Not adding to path. Total points: ${state.path.length}`,
             {
@@ -139,6 +155,15 @@ const explorationSlice = createSlice({
       if (backgroundLocations.length === 0) {
         return;
       }
+
+      logger.debug('GPS INJECTION: Redux processing background locations', {
+        component: 'explorationSlice',
+        action: 'processBackgroundLocations',
+        count: backgroundLocations.length,
+        locations: backgroundLocations.map(
+          (l) => `${l.latitude.toFixed(6)}, ${l.longitude.toFixed(6)}`
+        ),
+      });
 
       logger.info(`Processing ${backgroundLocations.length} background locations in Redux`, {
         component: 'explorationSlice',
