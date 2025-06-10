@@ -169,7 +169,7 @@ describe('Background GPS Integration Tests', () => {
   };
 
   const simulateAppStateChange = (state: AppStateStatus) => {
-    appStateListeners.forEach(listener => listener(state));
+    appStateListeners.forEach((listener) => listener(state));
   };
 
   describe('Background Location Collection', () => {
@@ -185,7 +185,7 @@ describe('Background GPS Integration Tests', () => {
     it('should store background locations when app is in background', async () => {
       const mockLocation: StoredLocationData = {
         latitude: 40.7128,
-        longitude: -74.0060,
+        longitude: -74.006,
         timestamp: Date.now(),
         accuracy: 5,
       };
@@ -203,8 +203,8 @@ describe('Background GPS Integration Tests', () => {
   describe('Background to Foreground Transition', () => {
     it('should process stored locations when app comes to foreground', async () => {
       const mockStoredLocations: StoredLocationData[] = [
-        { latitude: 40.7128, longitude: -74.0060, timestamp: Date.now() - 60000 },
-        { latitude: 40.7130, longitude: -74.0062, timestamp: Date.now() - 30000 },
+        { latitude: 40.7128, longitude: -74.006, timestamp: Date.now() - 60000 },
+        { latitude: 40.713, longitude: -74.0062, timestamp: Date.now() - 30000 },
         { latitude: 40.7132, longitude: -74.0064, timestamp: Date.now() },
       ];
 
@@ -237,7 +237,7 @@ describe('Background GPS Integration Tests', () => {
 
     it('should clear stored locations after processing', async () => {
       const mockStoredLocations: StoredLocationData[] = [
-        { latitude: 40.7128, longitude: -74.0060, timestamp: Date.now() },
+        { latitude: 40.7128, longitude: -74.006, timestamp: Date.now() },
       ];
 
       (LocationStorageService.getStoredBackgroundLocations as jest.Mock).mockResolvedValue(
@@ -265,9 +265,9 @@ describe('Background GPS Integration Tests', () => {
   describe('Fog Clearing Integration', () => {
     it('should update exploration path with background locations', async () => {
       const mockBackgroundLocations: StoredLocationData[] = [
-        { latitude: 40.7128, longitude: -74.0060, timestamp: Date.now() - 120000 },
+        { latitude: 40.7128, longitude: -74.006, timestamp: Date.now() - 120000 },
         { latitude: 40.7135, longitude: -74.0055, timestamp: Date.now() - 60000 },
-        { latitude: 40.7140, longitude: -74.0050, timestamp: Date.now() },
+        { latitude: 40.714, longitude: -74.005, timestamp: Date.now() },
       ];
 
       (BackgroundLocationService.processStoredLocations as jest.Mock).mockResolvedValue(
@@ -284,11 +284,12 @@ describe('Background GPS Integration Tests', () => {
         const state = store.getState() as RootState;
         // Verify that background locations were added to exploration path
         const pathCoords = state.exploration.path;
-        
+
         // Check if background locations are in the path
-        mockBackgroundLocations.forEach(location => {
+        mockBackgroundLocations.forEach((location) => {
           const exists = pathCoords.some(
-            (coord: GeoPoint) => coord.latitude === location.latitude && coord.longitude === location.longitude
+            (coord: GeoPoint) =>
+              coord.latitude === location.latitude && coord.longitude === location.longitude
           );
           expect(exists).toBe(true);
         });
@@ -300,9 +301,9 @@ describe('Background GPS Integration Tests', () => {
       // to test something else that's relevant to the integration
       // For now, let's test that locations are added in sequence
       const mockBackgroundLocations: StoredLocationData[] = [
-        { latitude: 40.7110, longitude: -74.0070, timestamp: Date.now() - 200000 },
-        { latitude: 40.7120, longitude: -74.0065, timestamp: Date.now() - 100000 },
-        { latitude: 40.7130, longitude: -74.0060, timestamp: Date.now() },
+        { latitude: 40.711, longitude: -74.007, timestamp: Date.now() - 200000 },
+        { latitude: 40.712, longitude: -74.0065, timestamp: Date.now() - 100000 },
+        { latitude: 40.713, longitude: -74.006, timestamp: Date.now() },
       ];
 
       (BackgroundLocationService.processStoredLocations as jest.Mock).mockResolvedValue(
@@ -322,27 +323,27 @@ describe('Background GPS Integration Tests', () => {
 
         // Verify that new locations were added
         expect(path.length).toBeGreaterThan(initialPathLength);
-        
+
         // Since the explorationSlice filters locations based on distance,
         // we can't guarantee all locations will be added.
         // Instead, verify that at least some of our locations made it into the path
-        const pathLatitudes = path.map(p => p.latitude);
-        const pathLongitudes = path.map(p => p.longitude);
-        
+        const pathLatitudes = path.map((p) => p.latitude);
+        const pathLongitudes = path.map((p) => p.longitude);
+
         // Check if any of our mock locations are in the path (with some tolerance)
         let foundLocations = 0;
-        mockBackgroundLocations.forEach(bgLocation => {
-          const latitudeMatch = pathLatitudes.some(lat => 
-            Math.abs(lat - bgLocation.latitude) < 0.01
+        mockBackgroundLocations.forEach((bgLocation) => {
+          const latitudeMatch = pathLatitudes.some(
+            (lat) => Math.abs(lat - bgLocation.latitude) < 0.01
           );
-          const longitudeMatch = pathLongitudes.some(lon => 
-            Math.abs(lon - bgLocation.longitude) < 0.01
+          const longitudeMatch = pathLongitudes.some(
+            (lon) => Math.abs(lon - bgLocation.longitude) < 0.01
           );
           if (latitudeMatch && longitudeMatch) {
             foundLocations++;
           }
         });
-        
+
         // At least one of our background locations should have been added
         expect(foundLocations).toBeGreaterThan(0);
       });
@@ -375,15 +376,13 @@ describe('Background GPS Integration Tests', () => {
     it('should continue functioning after background location processing error', async () => {
       (BackgroundLocationService.processStoredLocations as jest.Mock)
         .mockRejectedValueOnce(new Error('First error'))
-        .mockResolvedValueOnce([
-          { latitude: 40.7128, longitude: -74.0060, timestamp: Date.now() },
-        ]);
+        .mockResolvedValueOnce([{ latitude: 40.7128, longitude: -74.006, timestamp: Date.now() }]);
 
       renderMapScreen();
 
       // First attempt fails
       simulateAppStateChange('active');
-      
+
       await waitFor(() => {
         expect(BackgroundLocationService.processStoredLocations).toHaveBeenCalled();
       });
@@ -439,7 +438,7 @@ describe('Background GPS Integration Tests', () => {
         .mockResolvedValueOnce(updatedStatus);
 
       (BackgroundLocationService.processStoredLocations as jest.Mock).mockResolvedValue([
-        { latitude: 40.7128, longitude: -74.0060, timestamp: Date.now() },
+        { latitude: 40.7128, longitude: -74.006, timestamp: Date.now() },
       ]);
 
       renderMapScreen();
