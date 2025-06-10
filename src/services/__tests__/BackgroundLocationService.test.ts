@@ -101,6 +101,140 @@ describe('BackgroundLocationService', () => {
     });
   });
 
+  describe('initializeWithPermissionCheck', () => {
+    it('should initialize successfully when permissions are already granted', async () => {
+      mockedLocation.getBackgroundPermissionsAsync.mockResolvedValue(
+        createMockPermissionResponse('granted')
+      );
+
+      const result = await BackgroundLocationService.initializeWithPermissionCheck();
+
+      expect(result.success).toBe(true);
+      expect(result.hasPermissions).toBe(true);
+      expect(result.errorMessage).toBeUndefined();
+      expect(mockedTaskManager.defineTask).toHaveBeenCalledWith(
+        'background-location-task',
+        expect.any(Function)
+      );
+      expect((BackgroundLocationService as any).isInitialized).toBe(true);
+    });
+
+    it('should request permissions and initialize when permissions are not granted initially', async () => {
+      mockedLocation.getBackgroundPermissionsAsync.mockResolvedValue(
+        createMockPermissionResponse('denied')
+      );
+      mockedLocation.requestBackgroundPermissionsAsync.mockResolvedValue(
+        createMockPermissionResponse('granted')
+      );
+
+      const result = await BackgroundLocationService.initializeWithPermissionCheck();
+
+      expect(result.success).toBe(true);
+      expect(result.hasPermissions).toBe(true);
+      expect(result.errorMessage).toBeUndefined();
+      expect(mockedLocation.requestBackgroundPermissionsAsync).toHaveBeenCalled();
+      expect(mockedTaskManager.defineTask).toHaveBeenCalledWith(
+        'background-location-task',
+        expect.any(Function)
+      );
+    });
+
+    it('should fail gracefully when permissions are denied after request', async () => {
+      mockedLocation.getBackgroundPermissionsAsync.mockResolvedValue(
+        createMockPermissionResponse('denied')
+      );
+      mockedLocation.requestBackgroundPermissionsAsync.mockResolvedValue(
+        createMockPermissionResponse('denied')
+      );
+
+      const result = await BackgroundLocationService.initializeWithPermissionCheck();
+
+      expect(result.success).toBe(false);
+      expect(result.hasPermissions).toBe(false);
+      expect(result.errorMessage).toBe(
+        'Location permissions are required for FogOfDog to function. Please enable location permissions in your device settings.'
+      );
+      expect(mockedTaskManager.defineTask).not.toHaveBeenCalled();
+      expect((BackgroundLocationService as any).isInitialized).toBe(false);
+    });
+
+    it('should fail gracefully when permissions request throws error', async () => {
+      mockedLocation.getBackgroundPermissionsAsync.mockResolvedValue(
+        createMockPermissionResponse('denied')
+      );
+      mockedLocation.requestBackgroundPermissionsAsync.mockRejectedValue(
+        new Error('Permission request failed')
+      );
+
+      const result = await BackgroundLocationService.initializeWithPermissionCheck();
+
+      expect(result.success).toBe(false);
+      expect(result.hasPermissions).toBe(false);
+      expect(result.errorMessage).toBe(
+        'Failed to request location permissions. Please check your device settings.'
+      );
+      expect(mockedTaskManager.defineTask).not.toHaveBeenCalled();
+    });
+
+    it('should not initialize twice if already initialized', async () => {
+      // First initialization
+      mockedLocation.getBackgroundPermissionsAsync.mockResolvedValue(
+        createMockPermissionResponse('granted')
+      );
+
+      await BackgroundLocationService.initializeWithPermissionCheck();
+      expect(mockedTaskManager.defineTask).toHaveBeenCalledTimes(1);
+
+      // Second initialization attempt
+      const result = await BackgroundLocationService.initializeWithPermissionCheck();
+
+      expect(result.success).toBe(true);
+      expect(result.hasPermissions).toBe(true);
+      expect(mockedTaskManager.defineTask).toHaveBeenCalledTimes(1); // Should not be called again
+    });
+  });
+
+  describe('getPermissionStatus', () => {
+    it('should return permission status when permissions are granted', async () => {
+      mockedLocation.getBackgroundPermissionsAsync.mockResolvedValue(
+        createMockPermissionResponse('granted')
+      );
+
+      const status = await BackgroundLocationService.getPermissionStatus();
+
+      expect(status.hasPermissions).toBe(true);
+      expect(status.canAskAgain).toBe(true);
+      expect(status.status).toBe('granted');
+    });
+
+    it('should return permission status when permissions are denied', async () => {
+      mockedLocation.getBackgroundPermissionsAsync.mockResolvedValue({
+        status: 'denied' as any,
+        granted: false,
+        expires: 'never',
+        canAskAgain: false,
+      });
+
+      const status = await BackgroundLocationService.getPermissionStatus();
+
+      expect(status.hasPermissions).toBe(false);
+      expect(status.canAskAgain).toBe(false);
+      expect(status.status).toBe('denied');
+    });
+
+    it('should handle permission check errors', async () => {
+      mockedLocation.getBackgroundPermissionsAsync.mockRejectedValue(
+        new Error('Permission check failed')
+      );
+
+      const status = await BackgroundLocationService.getPermissionStatus();
+
+      expect(status.hasPermissions).toBe(false);
+      expect(status.canAskAgain).toBe(true);
+      expect(status.status).toBe('undetermined');
+    });
+  });
+
   describe('startBackgroundLocationTracking', () => {
     it('should start tracking successfully when permissions are granted', async () => {
       // Mock successful permission request

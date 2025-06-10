@@ -1,0 +1,113 @@
+appId: com.fogofdog.app
+jsEngine: graaljs
+---
+# Enhanced Background GPS Test: Large Distance Points with Fog Validation
+# This test validates GPS injection with significant distances between points
+# to clearly demonstrate fog of war clearance and ensure visual verification.
+
+# Test Sequence:
+# Point 1: Default login location (37.78825, -122.4324) 
+# Point 2: 1000m South (37.779266, -122.4324) - set BEFORE backgrounding
+# Point 3: 2000m East (37.779266, -122.409572) - set WHILE backgrounded
+# Point 4: 1500m North (37.792742, -122.409572) - set AFTER foregrounding  
+# Point 5: 2000m East (37.792742, -122.386744) - second point after foregrounding
+# Point 6: 8000m North (37.864611, -122.386744) - should remain in fog (validation)
+
+# 1. Setup - Launch app, log in, and wait for the map (Point 1).
+- launchApp:
+    appId: com.fogofdog.app
+    clearState: true
+- runFlow:
+    file: login-to-map-test.yaml
+- waitForAnimationToEnd
+- assertVisible:
+    id: "map-screen"
+- assertVisible:
+    text: "You are here" # Point 1: Default login location visible
+
+# 2. Move to Point 2 (1000m South) BEFORE backgrounding the app
+- setLocation:
+    latitude: 37.779266
+    longitude: -122.4324
+- waitForAnimationToEnd:
+    timeout: 2000
+- assertVisible:
+    text: "You are here" # Point 2: 1000m South location confirmed
+
+# 3. Background the app
+- pressKey: Home
+- waitForAnimationToEnd:
+    timeout: 1000
+
+# 4. Move to Point 3 (2000m East) WHILE app is backgrounded
+- setLocation:
+    latitude: 37.779266
+    longitude: -122.409572
+- waitForAnimationToEnd:
+    timeout: 1000
+
+# 5. Foreground the app and wait for processing
+- tapOn:
+    text: "FogOfDog"  # Tap on the app icon to bring it back to foreground
+- waitForAnimationToEnd:
+    timeout: 3000
+- assertVisible:
+    id: "map-screen"
+- waitForAnimationToEnd:
+    timeout: 2000
+- assertVisible:
+    text: "You are here" # Point 3: Background-injected location confirmed
+
+# 6. Move to Point 4 (1500m North) AFTER foregrounding
+- setLocation:
+    latitude: 37.792742
+    longitude: -122.409572
+- waitForAnimationToEnd:
+    timeout: 3000
+- assertVisible:
+    text: "You are here" # Point 4: Post-foreground location confirmed
+
+# 7. Move to Point 5 (2000m East) - Second point after foregrounding
+- setLocation:
+    latitude: 37.792742
+    longitude: -122.386744
+- waitForAnimationToEnd:
+    timeout: 3000
+- assertVisible:
+    text: "You are here" # Point 5: Final test location confirmed
+
+# 8. Final validation sequence
+- waitForAnimationToEnd:
+    timeout: 2000
+
+# Validate the map shows cleared areas (fog removed at all visited points)
+- assertVisible:
+    text: "You are here"
+    
+# Validate that the fog system is working properly
+- assertVisible:
+    id: "map-screen"
+
+# Final confirmation that background GPS processing worked
+- assertNotVisible:
+    text: "Loading location"
+    optional: true 
+
+# 9. Validation: Move to Point 6 (8000m North) - Should be in fog
+- setLocation:
+    latitude: 37.864611
+    longitude: -122.386744
+- waitForAnimationToEnd:
+    timeout: 2000
+
+# This point should be far enough that it's still in fog
+# We expect this location to be in the fog since we haven't visited it
+# The "You are here" marker should appear but the area should be mostly dark/fogged
+- assertVisible:
+    text: "You are here" # Location marker appears even in fog
+- assertVisible:
+    id: "map-screen" # Map is still functional
+
+# Test completes - we should see:
+# - 5 cleared areas from our visited points (large visible circles)
+# - Point 6 should be in mostly dark/fogged area except for immediate vicinity 

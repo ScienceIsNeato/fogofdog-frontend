@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LocationStorageService, StoredLocationData } from '../LocationStorageService';
+import { withConsoleErrorSpy } from '../../__tests__/test-helpers/console-spy-helpers';
 
 // Mock AsyncStorage
 jest.mock('@react-native-async-storage/async-storage');
@@ -116,20 +117,19 @@ describe('LocationStorageService', () => {
     });
 
     it('should handle storage errors gracefully', async () => {
-      const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
-      mockedAsyncStorage.getItem.mockRejectedValue(new Error('Storage error'));
+      await withConsoleErrorSpy(async (consoleSpy) => {
+        mockedAsyncStorage.getItem.mockRejectedValue(new Error('Storage error'));
 
-      const locationData: StoredLocationData = {
-        latitude: 34.0522,
-        longitude: -118.2437,
-        timestamp: Date.now(),
-      };
+        const locationData: StoredLocationData = {
+          latitude: 34.0522,
+          longitude: -118.2437,
+          timestamp: Date.now(),
+        };
 
-      // Should not throw - errors are handled internally
-      await LocationStorageService.storeBackgroundLocation(locationData);
-      expect(consoleSpy).toHaveBeenCalled();
-
-      consoleSpy.mockRestore();
+        // Should not throw - errors are handled internally
+        await LocationStorageService.storeBackgroundLocation(locationData);
+        expect(consoleSpy).toHaveBeenCalled();
+      });
     });
 
     it('should handle setItem errors gracefully', async () => {

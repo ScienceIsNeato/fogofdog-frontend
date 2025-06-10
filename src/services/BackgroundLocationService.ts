@@ -12,6 +12,18 @@ export interface BackgroundLocationServiceStatus {
   storedLocationCount: number;
 }
 
+export interface InitializationResult {
+  success: boolean;
+  hasPermissions: boolean;
+  errorMessage?: string;
+}
+
+export interface PermissionStatus {
+  hasPermissions: boolean;
+  canAskAgain: boolean;
+  status: string;
+}
+
 export class BackgroundLocationService {
   private static isInitialized = false;
   private static isRunning = false;
@@ -53,6 +65,104 @@ export class BackgroundLocationService {
         action: 'initialize',
       });
       throw error;
+    }
+  }
+
+  /**
+   * Initialize the background location service with permission checking
+   * This will only initialize if permissions are granted, and handles graceful failure
+   */
+  static async initializeWithPermissionCheck(): Promise<InitializationResult> {
+    if (this.isInitialized) {
+      return {
+        success: true,
+        hasPermissions: true,
+      };
+    }
+
+    try {
+      // Check current permissions
+      const permissionStatus = await this.getPermissionStatus();
+
+      // If permissions are already granted, initialize immediately
+      if (permissionStatus.hasPermissions) {
+        await this.initialize();
+        return {
+          success: true,
+          hasPermissions: true,
+        };
+      }
+
+      // If permissions are not granted, try to request them
+      try {
+        const { status, granted } = await Location.requestBackgroundPermissionsAsync();
+
+        if (granted && status === 'granted') {
+          // Permissions granted, proceed with initialization
+          await this.initialize();
+          return {
+            success: true,
+            hasPermissions: true,
+          };
+        } else {
+          // Permissions denied
+          return {
+            success: false,
+            hasPermissions: false,
+            errorMessage:
+              'Location permissions are required for FogOfDog to function. Please enable location permissions in your device settings.',
+          };
+        }
+      } catch (permissionError) {
+        logger.error('Failed to request location permissions', permissionError, {
+          component: 'BackgroundLocationService',
+          action: 'initializeWithPermissionCheck',
+        });
+
+        return {
+          success: false,
+          hasPermissions: false,
+          errorMessage:
+            'Failed to request location permissions. Please check your device settings.',
+        };
+      }
+    } catch (error) {
+      logger.error('Failed to initialize with permission check', error, {
+        component: 'BackgroundLocationService',
+        action: 'initializeWithPermissionCheck',
+      });
+
+      return {
+        success: false,
+        hasPermissions: false,
+        errorMessage: 'Failed to initialize location services. Please restart the app.',
+      };
+    }
+  }
+
+  /**
+   * Get the current permission status for location services
+   */
+  static async getPermissionStatus(): Promise<PermissionStatus> {
+    try {
+      const { status, granted, canAskAgain } = await Location.getBackgroundPermissionsAsync();
+
+      return {
+        hasPermissions: granted,
+        canAskAgain: canAskAgain ?? true,
+        status,
+      };
+    } catch (error) {
+      logger.error('Failed to get permission status', error, {
+        component: 'BackgroundLocationService',
+        action: 'getPermissionStatus',
+      });
+
+      return {
+        hasPermissions: false,
+        canAskAgain: true,
+        status: 'undetermined',
+      };
     }
   }
 

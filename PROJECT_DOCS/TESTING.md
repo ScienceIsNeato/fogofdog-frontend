@@ -178,12 +178,19 @@ appId: com.fogofdog.app
     id: "map-screen"
 ```
 
+### GPS Location Injection for Testing
+
+For complete GPS injection documentation including coordinates, commands, and troubleshooting, see:
+
+📍 **[GPS Injection Guide](./GPS_INJECTION_GUIDE.md)**
+
 ### Writing New Tests
 
 #### Test Flow Structure
 ```yaml
 # App identifier (must match app.json)
 appId: com.fogofdog.app
+jsEngine: graaljs  # REQUIRED for JavaScript features
 ---
 # Test steps go here
 - launchApp:

@@ -15,6 +15,7 @@ import LocationButton from '../../components/LocationButton';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { logger } from '../../utils/logger';
 import { BackgroundLocationService } from '../../services/BackgroundLocationService';
+import { usePermissionDependentBackgroundLocation } from './hooks/usePermissionDependentBackgroundLocation';
 
 // Default location (will be used as a fallback or before real location is fetched)
 const DEFAULT_LOCATION = {
@@ -126,45 +127,8 @@ const setupLocationWatcher = async (
   );
 };
 
-// Hook for background location service management
-const useBackgroundLocationService = (dispatch: ReturnType<typeof useAppDispatch>) => {
-  useEffect(() => {
-    let isActive = true;
-
-    const initializeBackgroundService = async () => {
-      try {
-        await BackgroundLocationService.initialize();
-
-        // Start background location tracking
-        const started = await BackgroundLocationService.startBackgroundLocationTracking();
-
-        if (isActive) {
-          // Update status in Redux
-          const status = await BackgroundLocationService.getStatus();
-          dispatch(updateBackgroundLocationStatus(status));
-
-          logger.info(`Background location service ${started ? 'started' : 'failed to start'}`, {
-            component: 'MapScreen',
-            action: 'initializeBackgroundService',
-            started,
-            status,
-          });
-        }
-      } catch (error) {
-        logger.error('Failed to initialize background location service', error, {
-          component: 'MapScreen',
-          action: 'initializeBackgroundService',
-        });
-      }
-    };
-
-    initializeBackgroundService();
-
-    return () => {
-      isActive = false;
-    };
-  }, [dispatch]);
-};
+// This hook has been replaced by usePermissionDependentBackgroundLocation
+// which handles permission checking before initialization to prevent CoreLocation errors
 
 // Hook for app state management and background location processing
 const useAppStateHandler = (dispatch: ReturnType<typeof useAppDispatch>) => {
@@ -254,7 +218,12 @@ const useLocationRefreshPolling = (
           mapRef.current.animateToRegion(newRegion, 500);
         }
       } catch (_error) {
-        // Silent fail
+        // Log silent failure to console
+        logger.error('Location refresh failed', {
+          component: 'MapScreen',
+          action: 'useLocationRefreshPolling',
+          error: _error,
+        });
       }
     }, 2000); // Check every 2 seconds
 
@@ -599,7 +568,7 @@ export const MapScreen = () => {
   useLocationSetup(dispatch, mapRef, currentRegion);
   useLocationRefreshPolling(dispatch, mapRef, currentRegion); // Simple location polling
   useZoomRestriction(currentRegion, mapRef);
-  useBackgroundLocationService(dispatch); // Re-enabled - should work with GPS injection
+  usePermissionDependentBackgroundLocation(); // Permission-safe background location initialization
   useAppStateHandler(dispatch);
 
   const { centerOnUserLocation, onRegionChange, onPanDrag, onRegionChangeComplete } =

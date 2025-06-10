@@ -158,21 +158,34 @@ async function setSimulatorLocation(lat, lon) {
 }
 
 /**
- * Parse command line arguments
+ * Parse command line arguments or environment variables (for Maestro)
  */
 function parseArgs() {
-  const args = process.argv.slice(2);
-  const parsed = {};
-  
-  for (let i = 0; i < args.length; i += 2) {
-    const key = args[i]?.replace('--', '');
-    const value = args[i + 1];
-    if (key && value !== undefined) {
-      parsed[key] = value;
+  // Check if we're being called from Maestro (env vars) or command line
+  if (process.env.MODE) {
+    // Maestro passes env vars
+    return {
+      mode: process.env.MODE,
+      lat: process.env.LAT,
+      lon: process.env.LON,
+      angle: process.env.ANGLE,
+      distance: process.env.DISTANCE,
+    };
+  } else {
+    // Command line arguments
+    const args = process.argv.slice(2);
+    const parsed = {};
+    
+    for (let i = 0; i < args.length; i += 2) {
+      const key = args[i]?.replace('--', '');
+      const value = args[i + 1];
+      if (key && value !== undefined) {
+        parsed[key] = value;
+      }
     }
+    
+    return parsed;
   }
-  
-  return parsed;
 }
 
 /**
@@ -249,59 +262,29 @@ async function main() {
         process.exit(1);
       }
       
+      const { latitude, longitude } = getCurrentLocation();
+      
       const angle = parseFloat(args.angle);
       const distance = parseFloat(args.distance);
       
-      if (angle < 0 || angle >= 360) {
-        throw new Error(`Invalid angle: ${angle}. Must be between 0 and 359.`);
-      }
+      const newCoords = calculateRelativeCoordinates(latitude, longitude, angle, distance);
+      targetLat = newCoords.latitude;
+      targetLon = newCoords.longitude;
       
-      if (distance <= 0) {
-        throw new Error(`Invalid distance: ${distance}. Must be positive.`);
-      }
-      
-      const currentLocation = getCurrentLocation();
-      const newCoord = calculateRelativeCoordinates(
-        currentLocation.latitude,
-        currentLocation.longitude,
-        angle,
-        distance
-      );
-      
-      targetLat = newCoord.latitude;
-      targetLon = newCoord.longitude;
-      
-      validateCoordinates(targetLat, targetLon);
-      
-      console.log(`📍 Moving ${distance}m at ${angle}° from current position`);
-      console.log(`📍 Target coordinate: ${targetLat.toFixed(6)}, ${targetLon.toFixed(6)}`);
+      console.log(`🏃 Moving from ${latitude.toFixed(6)}, ${longitude.toFixed(6)} by ${distance}m at ${angle}°`);
+      console.log(`🎯 New target coordinate: ${targetLat.toFixed(6)}, ${targetLon.toFixed(6)}`);
     }
     
-    // Set the simulator location
-    const success = await setSimulatorLocation(targetLat, targetLon);
+    // Save the new location as the current location for the next run
+    saveCurrentLocation(targetLat, targetLon);
     
-    if (success) {
-      // Save the new location for future relative calculations
-      saveCurrentLocation(targetLat, targetLon);
-      
-      console.log(`
-✅ GPS injection complete!
-
-📱 The simulator location has been updated to: ${targetLat.toFixed(6)}, ${targetLon.toFixed(6)}
-🎯 Your app should now receive this new location through its location services
-🗺️ Check the app for updated user position and any new fog clearing
-      `);
-    } else {
-      process.exit(1);
-    }
+    // Set the simulator's location
+    await setSimulatorLocation(targetLat, targetLon);
     
   } catch (error) {
-    console.error(`❌ Error: ${error.message}`);
+    console.error(`❌ An error occurred: ${error.message}`);
     process.exit(1);
   }
 }
 
-// Run the tool
-if (require.main === module) {
-  main();
-} 
+main(); 
