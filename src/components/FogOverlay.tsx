@@ -71,19 +71,11 @@ const useFogCalculations = (mapRegion: MapRegion & { width: number; height: numb
 const useFogPerformance = (pathPoints: GeoPoint[], radiusPixels: number, strokeWidth: number) => {
   const lastRenderTime = useRef(0);
 
-  // Filter out very frequent updates to avoid over-rendering during fast pans
-  const shouldSkipRender = () => {
-    const now = Date.now();
-    if (now - lastRenderTime.current < FOG_CONFIG.RENDER_THROTTLE_MS) {
-      return true;
-    }
-    lastRenderTime.current = now;
-    return false;
-  };
-
-  // Debug logging
+  // Debug logging with throttling to avoid spam
   useEffect(() => {
-    if (!shouldSkipRender()) {
+    const now = Date.now();
+    if (now - lastRenderTime.current >= FOG_CONFIG.RENDER_THROTTLE_MS) {
+      lastRenderTime.current = now;
       logger.debug(
         `FogOverlay: rendering with ${pathPoints.length} points, radius: ${radiusPixels.toFixed(2)}px, stroke: ${strokeWidth.toFixed(2)}px`,
         { component: 'FogOverlay', action: 'render' }
@@ -173,10 +165,11 @@ const FogOverlay: React.FC<FogOverlayProps> = ({ mapRegion }) => {
   );
 };
 
+// Memoize the component to prevent unnecessary re-renders
+export default React.memo(FogOverlay);
+
 const styles = StyleSheet.create({
   canvas: {
     ...StyleSheet.absoluteFillObject,
   },
 });
-
-export default FogOverlay;

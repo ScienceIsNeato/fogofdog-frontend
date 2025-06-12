@@ -138,13 +138,17 @@ export PATH="$PATH":"$HOME/.maestro/bin"
 # Build standalone app for testing
 npm run ios -- --configuration Release
 
-# Run Maestro tests
-maestro test .maestro/
+# ⚠️ IMPORTANT: Always use the integration test script (never run maestro directly)
+# This ensures proper app readiness checks and prevents white screen issues
+
+# Run all integration tests
+./scripts/run_integration_tests.sh .maestro/
 
 # Run specific test flow
-maestro test .maestro/login-to-map-test.yaml
+./scripts/run_integration_tests.sh .maestro/login-to-map-test.yaml
+./scripts/run_integration_tests.sh .maestro/background-gps-test.yaml
 
-# Record test execution (for debugging)
+# For debugging only (record test execution)
 maestro record .maestro/login-to-map-test.yaml
 ```
 
