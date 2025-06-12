@@ -8,6 +8,7 @@ module.exports = {
   testEnvironment: 'node',
   setupFilesAfterEnv: [
     '<rootDir>/jest.setup.js',
+    '<rootDir>/jest.console-setup.js',
   ],
   testPathIgnorePatterns: [
     '/node_modules/',

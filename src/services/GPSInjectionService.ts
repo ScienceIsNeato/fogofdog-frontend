@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { StoredLocationData } from './LocationStorageService';
+import { CoordinateDeduplicationService } from './CoordinateDeduplicationService';
 import { logger } from '../utils/logger';
 import { DeviceEventEmitter } from 'react-native';
 
@@ -106,19 +107,37 @@ export class GPSInjectionService {
         injectedAt: injectionData.injectedAt,
       });
 
+      // Apply deduplication to injected coordinates
+      const processedCoordinates: StoredLocationData[] = [];
+      let skippedCount = 0;
+
+      for (const coordinate of injectionData.coordinates) {
+        const deduplicationResult =
+          CoordinateDeduplicationService.shouldProcessCoordinate(coordinate);
+
+        if (deduplicationResult.shouldProcess) {
+          processedCoordinates.push(coordinate);
+        } else {
+          skippedCount++;
+          // Log already handled by CoordinateDeduplicationService
+        }
+      }
+
       await this.markAsProcessed(injectionData);
 
       logger.info(
-        `🧪 Processing GPS injection with ${injectionData.coordinates.length} coordinates`,
+        `🧪 GPS injection: ${processedCoordinates.length} processed, ${skippedCount} skipped (duplicates)`,
         {
           component: 'GPSInjectionService',
           action: 'processInjectedGPS',
-          count: injectionData.coordinates.length,
+          totalReceived: injectionData.coordinates.length,
+          processed: processedCoordinates.length,
+          skipped: skippedCount,
           injectedAt: injectionData.injectedAt,
         }
       );
 
-      return injectionData.coordinates;
+      return processedCoordinates;
     } catch (error) {
       logger.error('Failed to process GPS injection', error, {
         component: 'GPSInjectionService',

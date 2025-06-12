@@ -1,6 +1,7 @@
 import * as TaskManager from 'expo-task-manager';
 import * as Location from 'expo-location';
 import { LocationStorageService, StoredLocationData } from './LocationStorageService';
+import { CoordinateDeduplicationService } from './CoordinateDeduplicationService';
 import { logger } from '../utils/logger';
 
 const BACKGROUND_LOCATION_TASK = 'background-location-task';
@@ -282,6 +283,9 @@ export class BackgroundLocationService {
     locations: Location.LocationObject[]
   ): Promise<void> {
     try {
+      let processedCount = 0;
+      let skippedCount = 0;
+
       for (const location of locations) {
         const locationData: StoredLocationData = {
           latitude: location.coords.latitude,
@@ -291,14 +295,29 @@ export class BackgroundLocationService {
             location.coords.accuracy !== null && { accuracy: location.coords.accuracy }),
         };
 
-        await LocationStorageService.storeBackgroundLocation(locationData);
+        // Check if this coordinate should be processed or skipped
+        const deduplicationResult =
+          CoordinateDeduplicationService.shouldProcessCoordinate(locationData);
+
+        if (deduplicationResult.shouldProcess) {
+          await LocationStorageService.storeBackgroundLocation(locationData);
+          processedCount++;
+        } else {
+          skippedCount++;
+          // Log already handled by CoordinateDeduplicationService
+        }
       }
 
-      logger.info(`Processed ${locations.length} background location(s)`, {
-        component: 'BackgroundLocationService',
-        action: 'handleBackgroundLocations',
-        count: locations.length,
-      });
+      logger.info(
+        `Background location batch: ${processedCount} processed, ${skippedCount} skipped (duplicates)`,
+        {
+          component: 'BackgroundLocationService',
+          action: 'handleBackgroundLocations',
+          totalReceived: locations.length,
+          processed: processedCount,
+          skipped: skippedCount,
+        }
+      );
     } catch (error) {
       logger.error('Failed to handle background locations', error, {
         component: 'BackgroundLocationService',

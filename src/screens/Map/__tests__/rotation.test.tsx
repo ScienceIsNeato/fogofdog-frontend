@@ -150,6 +150,8 @@ describe('Map Rotation Disabled Tests', () => {
   });
 
   it('should have rotation and pitch disabled on the MapView', async () => {
+    (global as any).expectConsoleErrors = true; // This test expects console errors from background location service
+
     const { getByTestId } = render(
       <Provider store={store}>
         <MapScreen />
@@ -170,6 +172,8 @@ describe('Map Rotation Disabled Tests', () => {
   });
 
   it('renders FogOverlay without rotation props', async () => {
+    (global as any).expectConsoleErrors = true; // This test expects console errors from background location service
+
     const { getByTestId } = render(
       <Provider store={store}>
         <MapScreen />

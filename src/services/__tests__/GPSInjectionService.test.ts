@@ -2,6 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { GPSInjectionService } from '../GPSInjectionService';
 import { logger } from '../../utils/logger';
 import { DeviceEventEmitter } from 'react-native';
+import { CoordinateDeduplicationService } from '../CoordinateDeduplicationService';
 
 // Mock dependencies
 jest.mock('@react-native-async-storage/async-storage');
@@ -20,6 +21,8 @@ const mockDeviceEventEmitter = DeviceEventEmitter as jest.Mocked<typeof DeviceEv
 describe('GPSInjectionService', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    // Clear deduplication state before each test
+    CoordinateDeduplicationService.clearDuplicateHistory();
     // Set NODE_ENV to development for tests to run
     process.env.NODE_ENV = 'development';
     // @ts-expect-error - __DEV__ is not typed in test environment

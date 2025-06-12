@@ -2,6 +2,7 @@ import * as Location from 'expo-location';
 import * as TaskManager from 'expo-task-manager';
 import { BackgroundLocationService } from '../BackgroundLocationService';
 import { LocationStorageService } from '../LocationStorageService';
+import { CoordinateDeduplicationService } from '../CoordinateDeduplicationService';
 import {
   createMockPermissionResponse,
   createMockTaskData,
@@ -46,6 +47,8 @@ const mockedLocationStorageService = LocationStorageService as jest.Mocked<
 describe('BackgroundLocationService', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    // Clear deduplication state before each test
+    CoordinateDeduplicationService.clearDuplicateHistory();
     // Reset static state
     (BackgroundLocationService as any).isInitialized = false;
     (BackgroundLocationService as any).isRunning = false;
@@ -159,6 +162,8 @@ describe('BackgroundLocationService', () => {
     });
 
     it('should fail gracefully when permissions request throws error', async () => {
+      (global as any).expectConsoleErrors = true; // This test expects console errors
+
       mockedLocation.getBackgroundPermissionsAsync.mockResolvedValue(
         createMockPermissionResponse('denied')
       );
@@ -223,6 +228,8 @@ describe('BackgroundLocationService', () => {
     });
 
     it('should handle permission check errors', async () => {
+      (global as any).expectConsoleErrors = true; // This test expects console errors
+
       mockedLocation.getBackgroundPermissionsAsync.mockRejectedValue(
         new Error('Permission check failed')
       );
@@ -269,6 +276,8 @@ describe('BackgroundLocationService', () => {
     });
 
     it('should return false when background permissions are denied', async () => {
+      (global as any).expectConsoleErrors = true; // This test expects console warnings
+
       mockedLocation.requestBackgroundPermissionsAsync.mockResolvedValue({
         status: 'denied' as any,
         granted: false,

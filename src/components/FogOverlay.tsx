@@ -108,16 +108,13 @@ const FogMask: React.FC<{
       <Fill color="white" />
 
       {/* Draw circles at each point to ensure visible holes */}
-      {pathPoints.map((point, _index) => {
+      {pathPoints.map((point, index) => {
         const { x, y } = geoPointToPixel(point, mapRegion);
+        // Create unique key using coordinate hash and position to avoid duplicates
+        const coordHash = `${point.latitude.toFixed(6)}-${point.longitude.toFixed(6)}`;
+        const uniqueKey = `circle-${coordHash}-pos${index}`;
         return (
-          <Circle
-            key={`circle-${point.latitude.toFixed(6)}-${point.longitude.toFixed(6)}`}
-            cx={x}
-            cy={y}
-            r={radiusPixels}
-            color={FOG_CONFIG.PATH_COLOR}
-          />
+          <Circle key={uniqueKey} cx={x} cy={y} r={radiusPixels} color={FOG_CONFIG.PATH_COLOR} />
         );
       })}
 

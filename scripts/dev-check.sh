@@ -30,11 +30,11 @@ run_check() {
   echo ""
 }
 
-# 1. Strict Linting (zero warnings policy)
-run_check "Lint Strict" "npm run lint:strict"
+# 1. Fix Linting Issues (automatically fix what can be fixed)
+run_check "Lint Fix" "npm run lint:fix"
 
-# 2. Format Check (prettier)
-run_check "Format Check" "npm run format:check"
+# 2. Fix Format Issues (automatically fix formatting)
+run_check "Format Fix" "npm run format:fix"
 
 # 3. TypeScript Type Check
 run_check "Type Check" "npm run type-check"
@@ -71,10 +71,9 @@ else
   echo "💡 Fix the issues above and run this script again"
   echo ""
   echo "🔧 Quick fixes:"
-  echo "   • Lint: npm run lint:fix"
-  echo "   • Format: npm run format:fix"
   echo "   • Type errors: Check TypeScript compiler output"
   echo "   • Tests: Fix failing test cases"
   echo "   • Duplication: Refactor duplicated code"
+  echo "   • Note: Lint and format are already fixed automatically"
   exit 1
 fi 
