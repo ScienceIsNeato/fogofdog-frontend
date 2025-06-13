@@ -1,5 +1,5 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { StoredLocationData } from './LocationStorageService';
-import { GPSInjectionService } from './GPSInjectionService';
 import { logger } from '../utils/logger';
 
 /**
@@ -58,7 +58,14 @@ export class GPSInjectionEndpoint {
    */
   static async injectCoordinates(coordinates: StoredLocationData[]): Promise<void> {
     try {
-      await GPSInjectionService.storeInjectionData(coordinates);
+      // Convert to simple coordinates format for the simplified service
+      const simpleCoords = coordinates.map((coord) => ({
+        latitude: coord.latitude,
+        longitude: coord.longitude,
+      }));
+
+      // Store in AsyncStorage for the simplified GPS injection service to pick up
+      await AsyncStorage.setItem('@fogofdog:gps_injection_data', JSON.stringify(simpleCoords));
       logger.info(`Injected ${coordinates.length} GPS coordinates`, {
         component: 'GPSInjectionEndpoint',
         action: 'injectCoordinates',

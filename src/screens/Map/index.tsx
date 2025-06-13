@@ -1,21 +1,18 @@
 import React, { useEffect, useState, useRef, useMemo } from 'react';
-import { View, StyleSheet, Dimensions, AppState, AppStateStatus } from 'react-native';
+import { View, StyleSheet, Dimensions, DeviceEventEmitter } from 'react-native';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
-import {
-  updateLocation,
-  updateZoom,
-  setCenterOnUser,
-  processBackgroundLocations,
-  updateBackgroundLocationStatus,
-} from '../../store/slices/explorationSlice';
+import { updateLocation, updateZoom, setCenterOnUser } from '../../store/slices/explorationSlice';
 import MapView, { Marker, Region } from 'react-native-maps';
-import * as Location from 'expo-location'; // Import expo-location
+import * as Location from 'expo-location';
+import * as TaskManager from 'expo-task-manager';
 import FogOverlay from '../../components/FogOverlay';
 import LocationButton from '../../components/LocationButton';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { logger } from '../../utils/logger';
-import { BackgroundLocationService } from '../../services/BackgroundLocationService';
-import { usePermissionDependentBackgroundLocation } from './hooks/usePermissionDependentBackgroundLocation';
+import { GPSInjectionService } from '../../services/GPSInjectionService';
+
+// Unified location task name
+const LOCATION_TASK = 'unified-location-task';
 
 // Default location (will be used as a fallback or before real location is fetched)
 const DEFAULT_LOCATION = {
@@ -43,225 +40,253 @@ interface SafeAreaInsets {
   right: number;
 }
 
-// Location setup helper functions
-const handleLocationPermissionDenied = (
-  dispatch: ReturnType<typeof useAppDispatch>,
-  isActive: boolean
-) => {
-  if (isActive) {
-    dispatch(
-      updateLocation({
-        latitude: DEFAULT_LOCATION.latitude,
-        longitude: DEFAULT_LOCATION.longitude,
-      })
-    );
-  }
-};
-
-const handleLocationError = (
-  error: Error,
-  dispatch: ReturnType<typeof useAppDispatch>,
-  isActive: boolean
-) => {
-  if (isActive) {
-    logger.error('Error fetching location:', error, {
-      component: 'MapScreen',
-      action: 'useEffect',
-    });
-    dispatch(
-      updateLocation({
-        latitude: DEFAULT_LOCATION.latitude,
-        longitude: DEFAULT_LOCATION.longitude,
-      })
-    );
-  }
-};
-
-const setupLocationWatcher = async (options: {
+// Refactor handleLocationUpdate to use an options object
+interface HandleLocationUpdateOptions {
+  location: { latitude: number; longitude: number };
   dispatch: ReturnType<typeof useAppDispatch>;
-  isActive: boolean;
   mapRef: React.RefObject<MapView>;
-  currentRegion: Region | undefined;
   isMapCenteredOnUser: boolean;
-}) => {
-  const { dispatch, isActive, mapRef, currentRegion, isMapCenteredOnUser } = options;
-  if (!isActive) return null;
+  currentRegion: Region | undefined;
+}
 
-  return await Location.watchPositionAsync(
-    {
-      accuracy: Location.Accuracy.High,
-      timeInterval: 3000, // Reduced from 1000ms to 3000ms to prevent excessive updates
-      distanceInterval: 5, // Increased from 1m to 5m to reduce noise
-    },
-    (newLocation) => {
-      if (isActive) {
-        logger.debug('Location update received', {
-          component: 'MapScreen',
-          action: 'setupLocationWatcher',
-          lat: newLocation.coords.latitude.toFixed(6),
-          lon: newLocation.coords.longitude.toFixed(6),
-          accuracy: newLocation.coords.accuracy,
-        });
+const handleLocationUpdate = ({
+  location,
+  dispatch,
+  mapRef,
+  isMapCenteredOnUser,
+  currentRegion,
+}: HandleLocationUpdateOptions) => {
+  dispatch(updateLocation(location));
+  if (isMapCenteredOnUser && mapRef.current) {
+    const newRegion = {
+      latitude: location.latitude,
+      longitude: location.longitude,
+      latitudeDelta: currentRegion?.latitudeDelta ?? DEFAULT_LOCATION.latitudeDelta,
+      longitudeDelta: currentRegion?.longitudeDelta ?? DEFAULT_LOCATION.longitudeDelta,
+    };
+    mapRef.current.animateToRegion(newRegion, 500);
+  }
+};
 
-        dispatch(
-          updateLocation({
-            latitude: newLocation.coords.latitude,
-            longitude: newLocation.coords.longitude,
-          })
-        );
+// Helper: requestLocationPermissions
+async function requestLocationPermissions() {
+  const { status: foregroundStatus } = await Location.requestForegroundPermissionsAsync();
+  if (foregroundStatus !== 'granted') {
+    return { foregroundGranted: false, backgroundGranted: false };
+  }
+  const { status: backgroundStatus } = await Location.requestBackgroundPermissionsAsync();
+  return {
+    foregroundGranted: true,
+    backgroundGranted: backgroundStatus === 'granted',
+  };
+}
 
-        // Only auto-center map when follow mode is enabled
-        if (isMapCenteredOnUser && mapRef.current) {
-          const newRegion = {
-            latitude: newLocation.coords.latitude,
-            longitude: newLocation.coords.longitude,
-            latitudeDelta: currentRegion?.latitudeDelta ?? DEFAULT_LOCATION.latitudeDelta,
-            longitudeDelta: currentRegion?.longitudeDelta ?? DEFAULT_LOCATION.longitudeDelta,
-          };
-          mapRef.current.animateToRegion(newRegion, 500);
-          logger.debug('Map auto-centered to new location (follow mode enabled)', {
-            component: 'MapScreen',
-            action: 'setupLocationWatcher',
+// Helper: defineUnifiedLocationTask
+function defineUnifiedLocationTask() {
+  TaskManager.defineTask(LOCATION_TASK, async ({ data, error }) => {
+    if (error) {
+      logger.warn('Location task error', { error: error?.message || String(error) });
+      return Promise.resolve();
+    }
+    if (data) {
+      const { locations } = data as { locations: Location.LocationObject[] };
+      if (locations.length > 0) {
+        const location = locations[0];
+        if (location?.coords) {
+          DeviceEventEmitter.emit('locationUpdate', {
+            latitude: location.coords.latitude,
+            longitude: location.coords.longitude,
           });
         }
+      }
+    }
+    return Promise.resolve();
+  });
+}
+
+// Helper: startLocationUpdates
+async function startLocationUpdates() {
+  await Location.startLocationUpdatesAsync(LOCATION_TASK, {
+    accuracy: Location.Accuracy.High,
+    timeInterval: 3000,
+    distanceInterval: 5,
+    foregroundService: {
+      notificationTitle: 'Fog of Dog',
+      notificationBody: 'Tracking your location to reveal the map',
+    },
+  });
+}
+
+// Helper: setupLocationListeners
+function setupLocationListeners({
+  isActiveRef,
+  dispatch,
+  mapRef,
+  isMapCenteredOnUser,
+  currentRegion,
+}: {
+  isActiveRef: { current: boolean };
+  dispatch: ReturnType<typeof useAppDispatch>;
+  mapRef: React.RefObject<MapView>;
+  isMapCenteredOnUser: boolean;
+  currentRegion: Region | undefined;
+}) {
+  const locationUpdateListener = DeviceEventEmitter.addListener(
+    'locationUpdate',
+    (location: { latitude: number; longitude: number }) => {
+      if (isActiveRef.current) {
+        handleLocationUpdate({
+          location,
+          dispatch,
+          mapRef,
+          isMapCenteredOnUser,
+          currentRegion,
+        });
       }
     }
   );
-};
 
-// This hook has been replaced by usePermissionDependentBackgroundLocation
-// which handles permission checking before initialization to prevent CoreLocation errors
-
-// Hook for app state management and background location processing
-const useAppStateHandler = (
-  dispatch: ReturnType<typeof useAppDispatch>,
-  backgroundServiceState: { isInitialized: boolean; hasPermissions: boolean }
-) => {
-  useEffect(() => {
-    const handleAppStateChange = async (nextAppState: AppStateStatus) => {
-      if (nextAppState === 'active') {
-        // Only process background locations if the service is properly initialized
-        if (!backgroundServiceState.isInitialized || !backgroundServiceState.hasPermissions) {
-          logger.debug('Skipping background location processing - service not ready', {
-            component: 'MapScreen',
-            action: 'handleAppStateChange',
-            isInitialized: backgroundServiceState.isInitialized,
-            hasPermissions: backgroundServiceState.hasPermissions,
-          });
-          return;
-        }
-
-        // App came to foreground - process any stored background locations
-        try {
-          // Process real background locations
-          const storedLocations = await BackgroundLocationService.processStoredLocations();
-          if (storedLocations.length > 0) {
-            dispatch(processBackgroundLocations(storedLocations));
-            logger.info(`Processed ${storedLocations.length} background locations on app resume`, {
-              component: 'MapScreen',
-              action: 'handleAppStateChange',
-              count: storedLocations.length,
-              source: 'BACKGROUND_SERVICE',
-            });
-          }
-
-          // Update background service status
-          const status = await BackgroundLocationService.getStatus();
-          dispatch(updateBackgroundLocationStatus(status));
-        } catch (error) {
-          logger.error('Failed to process background locations on app resume', error, {
-            component: 'MapScreen',
-            action: 'handleAppStateChange',
-          });
-        }
+  const gpsInjectionListener = DeviceEventEmitter.addListener(
+    'GPS_COORDINATES_INJECTED',
+    (location: { latitude: number; longitude: number }) => {
+      if (isActiveRef.current) {
+        logger.info('GPS coordinates injected:', location);
+        handleLocationUpdate({
+          location,
+          dispatch,
+          mapRef,
+          isMapCenteredOnUser,
+          currentRegion,
+        });
       }
-    };
-
-    const subscription = AppState.addEventListener('change', handleAppStateChange);
-
-    // Only process existing background locations on mount if service is ready
-    if (backgroundServiceState.isInitialized && backgroundServiceState.hasPermissions) {
-      handleAppStateChange('active');
     }
+  );
 
-    return () => {
-      subscription?.remove();
-    };
-  }, [dispatch, backgroundServiceState.isInitialized, backgroundServiceState.hasPermissions]);
-};
+  return { locationUpdateListener, gpsInjectionListener };
+}
 
-// Hook for location setup logic
-const useLocationSetup = (
+// Helper: cleanupLocationListeners
+function cleanupLocationListeners(listeners: {
+  locationUpdateListener: any;
+  gpsInjectionListener: any;
+}) {
+  listeners.locationUpdateListener.remove();
+  listeners.gpsInjectionListener.remove();
+}
+
+// Helper to get initial location
+async function getInitialLocation({
+  isActiveRef,
+  dispatch,
+  mapRef,
+  isMapCenteredOnUser,
+  currentRegion,
+}: {
+  isActiveRef: { current: boolean };
+  dispatch: ReturnType<typeof useAppDispatch>;
+  mapRef: React.RefObject<MapView>;
+  isMapCenteredOnUser: boolean;
+  currentRegion: Region | undefined;
+}) {
+  try {
+    const initialLocation = await Location.getCurrentPositionAsync({
+      accuracy: Location.Accuracy.High,
+    });
+    if (isActiveRef.current) {
+      handleLocationUpdate({
+        location: {
+          latitude: initialLocation.coords.latitude,
+          longitude: initialLocation.coords.longitude,
+        },
+        dispatch,
+        mapRef,
+        isMapCenteredOnUser,
+        currentRegion,
+      });
+    }
+  } catch (_error) {
+    logger.warn('Could not get initial location, using default');
+    if (isActiveRef.current) {
+      dispatch(
+        updateLocation({
+          latitude: DEFAULT_LOCATION.latitude,
+          longitude: DEFAULT_LOCATION.longitude,
+        })
+      );
+    }
+  }
+}
+
+// Refactor useUnifiedLocationService to use helpers and further reduce line count
+const useUnifiedLocationService = (
   dispatch: ReturnType<typeof useAppDispatch>,
   mapRef: React.RefObject<MapView>,
-  currentRegion: Region | undefined,
-  isMapCenteredOnUser: boolean
+  isMapCenteredOnUser: boolean,
+  currentRegion: Region | undefined
 ) => {
   useEffect(() => {
-    let isActive = true;
-    let subscription: Location.LocationSubscription | null = null;
+    const isActiveRef = { current: true };
 
-    const setupLocation = async () => {
-      let { status } = await Location.requestForegroundPermissionsAsync();
-      if (!isActive) return;
-
-      if (status !== 'granted') {
-        handleLocationPermissionDenied(dispatch, isActive);
-        return;
-      }
-
+    const setupUnifiedLocationService = async () => {
       try {
-        let location = await Location.getCurrentPositionAsync({});
-        if (!isActive) return;
-
-        const userLatitude = location.coords.latitude;
-        const userLongitude = location.coords.longitude;
-
-        if (isActive) {
-          dispatch(updateLocation({ latitude: userLatitude, longitude: userLongitude }));
+        const { foregroundGranted, backgroundGranted } = await requestLocationPermissions();
+        if (!foregroundGranted) {
+          logger.warn('Foreground location permission denied, using default location');
+          if (isActiveRef.current) {
+            dispatch(
+              updateLocation({
+                latitude: DEFAULT_LOCATION.latitude,
+                longitude: DEFAULT_LOCATION.longitude,
+              })
+            );
+          }
+          return;
         }
-
-        const userRegion = {
-          latitude: userLatitude,
-          longitude: userLongitude,
-          latitudeDelta: DEFAULT_LOCATION.latitudeDelta,
-          longitudeDelta: DEFAULT_LOCATION.longitudeDelta,
-        };
-
-        if (isActive && mapRef.current) {
-          mapRef.current.animateToRegion(userRegion, 1000);
+        if (!backgroundGranted) {
+          logger.warn('Background location permission denied, foreground only');
         }
-
-        const localSubscription = await setupLocationWatcher({
+        defineUnifiedLocationTask();
+        await startLocationUpdates();
+        await getInitialLocation({
+          isActiveRef,
           dispatch,
-          isActive,
           mapRef,
-          currentRegion,
           isMapCenteredOnUser,
+          currentRegion,
         });
-        if (isActive && localSubscription) {
-          subscription = localSubscription;
-        } else if (localSubscription) {
-          localSubscription.remove();
-        }
+        logger.info('Unified location service started');
       } catch (error) {
-        handleLocationError(
-          error instanceof Error ? error : new Error(String(error)),
-          dispatch,
-          isActive
-        );
+        logger.error('Failed to setup unified location service:', error);
+        if (isActiveRef.current) {
+          dispatch(
+            updateLocation({
+              latitude: DEFAULT_LOCATION.latitude,
+              longitude: DEFAULT_LOCATION.longitude,
+            })
+          );
+        }
       }
     };
 
-    setupLocation();
+    const listeners = setupLocationListeners({
+      isActiveRef,
+      dispatch,
+      mapRef,
+      isMapCenteredOnUser,
+      currentRegion,
+    });
+
+    setupUnifiedLocationService();
 
     return () => {
-      isActive = false;
-      if (subscription) {
-        subscription.remove();
-      }
+      isActiveRef.current = false;
+      cleanupLocationListeners(listeners);
+      Location.stopLocationUpdatesAsync(LOCATION_TASK)?.catch(() => {
+        /* ignore error if task is already stopped */
+      });
+      logger.info('Unified location service stopped.');
     };
-  }, [dispatch, mapRef, currentRegion, isMapCenteredOnUser]);
+  }, [dispatch, mapRef, isMapCenteredOnUser, currentRegion]);
 };
 
 // Hook for zoom restriction logic
@@ -322,7 +347,69 @@ const createCenterOnUserHandler =
     }
   };
 
-// Map event handlers
+// Extracted event handler helpers for useMapEventHandlers
+function handleRegionChange({
+  region,
+  setCurrentRegion,
+  isMapCenteredOnUser,
+  currentLocation,
+  dispatch,
+}: {
+  region: Region;
+  setCurrentRegion: (region: Region) => void;
+  isMapCenteredOnUser: boolean;
+  currentLocation: LocationCoordinate | null;
+  dispatch: ReturnType<typeof useAppDispatch>;
+}) {
+  setCurrentRegion(region);
+  if (isMapCenteredOnUser && currentLocation) {
+    const latDiff = Math.abs(region.latitude - currentLocation.latitude);
+    const lonDiff = Math.abs(region.longitude - currentLocation.longitude);
+    const threshold = Math.min(region.latitudeDelta, region.longitudeDelta) * 0.1;
+    if (latDiff > threshold || lonDiff > threshold) {
+      dispatch(setCenterOnUser(false));
+    }
+  }
+}
+
+function handlePanDrag({ mapRef }: { mapRef: React.RefObject<MapView> }) {
+  mapRef.current
+    ?.getCamera()
+    .then((camera) => {
+      logger.throttledDebug(
+        'MapScreen:onPanDrag',
+        'Camera position updated',
+        {
+          component: 'MapScreen',
+          action: 'onPanDrag',
+          heading: camera.heading,
+        },
+        1000 // 1 second interval
+      );
+    })
+    .catch((err) => {
+      logger.error('Error getting camera:', err, {
+        component: 'MapScreen',
+        action: 'onPanDrag',
+      });
+    });
+}
+
+function handleRegionChangeComplete({
+  region,
+  setCurrentRegion,
+  handleZoomChange,
+}: {
+  region: Region;
+  setCurrentRegion: (region: Region) => void;
+  handleZoomChange: (zoom: number) => void;
+}) {
+  setCurrentRegion(region);
+  const zoom = Math.round(Math.log(360 / region.latitudeDelta) / Math.LN2);
+  handleZoomChange(zoom);
+}
+
+// Refactor useMapEventHandlers to use helpers
 const useMapEventHandlers = (options: {
   dispatch: ReturnType<typeof useAppDispatch>;
   currentLocation: LocationCoordinate | null;
@@ -348,43 +435,19 @@ const useMapEventHandlers = (options: {
     dispatch
   );
 
-  const onRegionChange = (region: Region) => {
-    setCurrentRegion(region);
+  const onRegionChange = (region: Region) =>
+    handleRegionChange({
+      region,
+      setCurrentRegion,
+      isMapCenteredOnUser,
+      currentLocation,
+      dispatch,
+    });
 
-    if (isMapCenteredOnUser && currentLocation) {
-      const latDiff = Math.abs(region.latitude - currentLocation.latitude);
-      const lonDiff = Math.abs(region.longitude - currentLocation.longitude);
-      const threshold = Math.min(region.latitudeDelta, region.longitudeDelta) * 0.1;
-      if (latDiff > threshold || lonDiff > threshold) {
-        dispatch(setCenterOnUser(false));
-      }
-    }
-  };
+  const onPanDrag = () => handlePanDrag({ mapRef });
 
-  const onPanDrag = () => {
-    mapRef.current
-      ?.getCamera()
-      .then((camera) => {
-        // Rotation functionality temporarily removed
-        logger.debug('Camera position updated', {
-          component: 'MapScreen',
-          action: 'onPanDrag',
-          heading: camera.heading,
-        });
-      })
-      .catch((err) => {
-        logger.error('Error getting camera:', err, {
-          component: 'MapScreen',
-          action: 'onPanDrag',
-        });
-      });
-  };
-
-  const onRegionChangeComplete = (region: Region) => {
-    setCurrentRegion(region);
-    const zoom = Math.round(Math.log(360 / region.latitudeDelta) / Math.LN2);
-    handleZoomChange(zoom);
-  };
+  const onRegionChangeComplete = (region: Region) =>
+    handleRegionChangeComplete({ region, setCurrentRegion, handleZoomChange });
 
   return {
     centerOnUserLocation,
@@ -524,11 +587,21 @@ export const MapScreen = () => {
 
   const insets = useSafeAreaInsets();
 
-  // Use our custom hooks
-  useLocationSetup(dispatch, mapRef, currentRegion, isMapCenteredOnUser);
+  // Use simplified unified location service
+  useUnifiedLocationService(dispatch, mapRef, isMapCenteredOnUser, currentRegion);
   useZoomRestriction(currentRegion, mapRef);
-  const backgroundServiceState = usePermissionDependentBackgroundLocation(); // Permission-safe background location initialization
-  useAppStateHandler(dispatch, backgroundServiceState);
+
+  // Start GPS injection check only once on mount
+
+  // The empty dependency array is intentional: we only want to start the periodic check once on mount, not on updates.
+  useEffect(() => {
+    const stopGPSInjectionCheck = GPSInjectionService.startPeriodicCheck(2000);
+    return () => {
+      if (typeof stopGPSInjectionCheck === 'function') {
+        stopGPSInjectionCheck();
+      }
+    };
+  }, []);
 
   const { centerOnUserLocation, onRegionChange, onPanDrag, onRegionChangeComplete } =
     useMapEventHandlers({

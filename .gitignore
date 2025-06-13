@@ -64,3 +64,5 @@ cursor-rules/
 **/ios/
 
 .envrc
+
+metro.log

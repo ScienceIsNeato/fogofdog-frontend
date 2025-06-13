@@ -8,6 +8,13 @@ import userReducer from '../../../store/slices/userSlice';
 import type { RootState } from '../../../store';
 import * as Location from 'expo-location';
 
+// Mock GPSInjectionService
+jest.mock('../../../services/GPSInjectionService', () => ({
+  GPSInjectionService: {
+    startPeriodicCheck: jest.fn(() => jest.fn()), // Return a mock cleanup function
+  },
+}));
+
 // Mock react-native-maps
 jest.mock('react-native-maps', () => {
   const React = jest.requireActual<typeof import('react')>('react');
@@ -26,7 +33,7 @@ jest.mock('react-native-maps', () => {
 
     React.useImperativeHandle(ref, () => ({
       animateToRegion: jest.fn(),
-      getCamera: jest.fn(() => Promise.resolve({ heading: 0 })), // Always return 0 heading
+      getCamera: jest.fn(() => Promise.resolve({ heading: 0 })),
     }));
 
     return React.createElement(
@@ -65,7 +72,7 @@ jest.mock('react-native-maps', () => {
   };
 });
 
-// Mock FogOverlay (no rotation props expected)
+// Mock FogOverlay
 jest.mock('../../../components/FogOverlay', () => {
   const React = jest.requireActual<typeof import('react')>('react');
   const { View } = jest.requireActual<typeof import('react-native')>('react-native');
@@ -83,39 +90,15 @@ jest.mock('../../../components/FogOverlay', () => {
   };
 });
 
-// Mock expo-location
-const mockLocationCoords = {
-  latitude: 41.6867,
-  longitude: -91.5802,
-};
-
-const mockLocationObject = {
-  coords: {
-    latitude: mockLocationCoords.latitude,
-    longitude: mockLocationCoords.longitude,
-    altitude: null,
-    accuracy: null,
-    altitudeAccuracy: null,
-    heading: null,
-    speed: null,
-  },
-  timestamp: Date.now(),
-};
-
-const mockPermissionResponse = {
-  status: 'granted',
-  granted: true,
-  expires: 'never',
-  canAskAgain: true,
-};
-
+// Consolidated mock for expo-location
 jest.mock('expo-location', () => ({
   requestForegroundPermissionsAsync: jest.fn(),
+  requestBackgroundPermissionsAsync: jest.fn(),
+  getBackgroundPermissionsAsync: jest.fn(),
   getCurrentPositionAsync: jest.fn(),
-  watchPositionAsync: jest.fn((_options, callback) => {
-    callback(mockLocationObject);
-    return Promise.resolve({ remove: jest.fn() });
-  }),
+  startLocationUpdatesAsync: jest.fn(),
+  stopLocationUpdatesAsync: jest.fn(),
+  watchPositionAsync: jest.fn(),
   Accuracy: { High: 1, Balanced: 2, LowPower: 3 },
 }));
 
@@ -132,11 +115,38 @@ describe('Map Rotation Disabled Tests', () => {
       },
     });
 
-    // Set up location mocks
+    const mockPermissionResponse = {
+      status: 'granted',
+      granted: true,
+      expires: 'never',
+      canAskAgain: true,
+    };
+    const mockLocationObject = {
+      coords: {
+        latitude: 41.6867,
+        longitude: -91.5802,
+        altitude: null,
+        accuracy: null,
+        altitudeAccuracy: null,
+        heading: null,
+        speed: null,
+      },
+      timestamp: Date.now(),
+    };
+
+    // Set up location mocks for each test
     (Location.requestForegroundPermissionsAsync as jest.Mock).mockResolvedValue(
       mockPermissionResponse
     );
+    (Location.requestBackgroundPermissionsAsync as jest.Mock).mockResolvedValue({
+      status: 'granted',
+    });
+    (Location.getBackgroundPermissionsAsync as jest.Mock).mockResolvedValue({
+      status: 'granted',
+    });
     (Location.getCurrentPositionAsync as jest.Mock).mockResolvedValue(mockLocationObject);
+    (Location.startLocationUpdatesAsync as jest.Mock).mockResolvedValue(undefined);
+    (Location.stopLocationUpdatesAsync as jest.Mock).mockResolvedValue(undefined);
     (Location.watchPositionAsync as jest.Mock).mockImplementation((_options, callback) => {
       callback(mockLocationObject);
       return Promise.resolve({ remove: jest.fn() });
@@ -150,8 +160,6 @@ describe('Map Rotation Disabled Tests', () => {
   });
 
   it('should have rotation and pitch disabled on the MapView', async () => {
-    (global as any).expectConsoleErrors = true; // This test expects console errors from background location service
-
     const { getByTestId } = render(
       <Provider store={store}>
         <MapScreen />
@@ -172,8 +180,6 @@ describe('Map Rotation Disabled Tests', () => {
   });
 
   it('renders FogOverlay without rotation props', async () => {
-    (global as any).expectConsoleErrors = true; // This test expects console errors from background location service
-
     const { getByTestId } = render(
       <Provider store={store}>
         <MapScreen />

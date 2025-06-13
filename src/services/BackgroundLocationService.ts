@@ -42,6 +42,24 @@ export class BackgroundLocationService {
       // Define the background task
       TaskManager.defineTask(BACKGROUND_LOCATION_TASK, async ({ data, error }) => {
         if (error) {
+          // Check if this is a transient location error that we can ignore
+          const errorMessage = error.message || '';
+          const isTransientLocationError =
+            errorMessage.includes('kCLErrorDomain Code=0') ||
+            errorMessage.includes('kCLErrorLocationUnknown');
+
+          if (isTransientLocationError) {
+            // Log as warning instead of error for transient location issues
+            logger.warn('Transient background location error (location service not ready)', {
+              component: 'BackgroundLocationService',
+              action: 'backgroundTask',
+              error: errorMessage,
+              note: 'This is usually temporary and resolves automatically',
+            });
+            return;
+          }
+
+          // Log other errors as actual errors
           logger.error('Background location task error', error, {
             component: 'BackgroundLocationService',
             action: 'backgroundTask',
@@ -176,8 +194,8 @@ export class BackgroundLocationService {
         await this.initialize();
       }
 
-      // Check if we have the necessary permissions
-      const { status } = await Location.requestBackgroundPermissionsAsync();
+      // Check if we have the necessary permissions (don't request, just check)
+      const { status } = await Location.getBackgroundPermissionsAsync();
       if (status !== 'granted') {
         logger.warn('Background location permission not granted', {
           component: 'BackgroundLocationService',

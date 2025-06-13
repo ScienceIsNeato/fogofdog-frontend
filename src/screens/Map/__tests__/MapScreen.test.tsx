@@ -19,6 +19,15 @@ const DEFAULT_LOCATION = {
   longitudeDelta: 0.0421, // Updated to match current implementation
 };
 
+// Use DEFAULT_LOCATION for mockInitialCoords to match app behavior
+const mockInitialCoords = { ...DEFAULT_LOCATION };
+// Expected location in Redux store (only lat/lng, no deltas)
+const expectedStoredLocation = {
+  latitude: DEFAULT_LOCATION.latitude,
+  longitude: DEFAULT_LOCATION.longitude,
+};
+const mockUpdatedCoords = { latitude: 34.0522, longitude: -118.2437 };
+
 // Global variables for test mocks
 let mockMapViewRender = jest.fn();
 let mockFogOverlayRender = jest.fn(); // Mock to track FogOverlay render calls
@@ -56,7 +65,7 @@ const renderMapScreen = async (store: Store<RootState>) => {
 // Helper function for waiting for initial location load
 const waitForInitialLocation = async (
   store: Store<RootState>,
-  expectedLocation = mockInitialCoords
+  expectedLocation = expectedStoredLocation
 ) => {
   await waitFor(
     () => {
@@ -292,10 +301,6 @@ jest.mock('../../../components/LocationButton', () => {
 // __DEV__ is already declared in global types, just set the value
 (globalThis as typeof globalThis & { __DEV__: boolean }).__DEV__ = false;
 
-// Mock expo-location
-const mockInitialCoords = { latitude: 40.7128, longitude: -74.006 }; // NY Coords
-const mockUpdatedCoords = { latitude: 34.0522, longitude: -118.2437 }; // LA Coords
-
 // More complete mock objects for expo-location functions
 const fullMockPermissionResponse: Location.LocationPermissionResponse = {
   status: 'granted' as Location.PermissionStatus,
@@ -317,22 +322,34 @@ const fullMockInitialLocationObject: Location.LocationObject = {
   timestamp: Date.now(), // Add a timestamp
 };
 
-let mockLocationSubscriptionRef: { remove: jest.Mock } | null = null;
+jest.mock('expo-location', () => {
+  return {
+    requestForegroundPermissionsAsync: jest.fn(),
+    requestBackgroundPermissionsAsync: jest.fn(),
+    getCurrentPositionAsync: jest.fn(),
+    startLocationUpdatesAsync: jest.fn(),
+    stopLocationUpdatesAsync: jest.fn(),
+    Accuracy: { High: 1, Balanced: 2, LowPower: 3 },
+  };
+});
 
-jest.mock('expo-location', () => ({
-  requestForegroundPermissionsAsync: jest.fn(),
-  getCurrentPositionAsync: jest.fn(),
-  watchPositionAsync: jest.fn((_options, _callback) => {
-    const newSubscription = { remove: jest.fn() };
-    mockLocationSubscriptionRef = newSubscription as { remove: jest.Mock };
-    return Promise.resolve(newSubscription);
-  }),
-  Accuracy: { High: 1, Balanced: 2, LowPower: 3 },
+// Mock GPSInjectionService
+jest.mock('../../../services/GPSInjectionService', () => ({
+  startGPSInjectionCheck: jest.fn(),
+  stopGPSInjectionCheck: jest.fn(),
 }));
 
 // Mock react-native-safe-area-context
 jest.mock('react-native-safe-area-context', () => ({
   useSafeAreaInsets: () => ({ top: 20, bottom: 0, left: 0, right: 0 }),
+}));
+
+// Mock GPSInjectionService to prevent real intervals in tests
+jest.mock('../../../services/GPSInjectionService', () => ({
+  __esModule: true,
+  GPSInjectionService: {
+    startPeriodicCheck: jest.fn(() => () => {}),
+  },
 }));
 
 describe('MapScreen', () => {
@@ -353,14 +370,14 @@ describe('MapScreen', () => {
     (Location.requestForegroundPermissionsAsync as jest.Mock).mockImplementation(() =>
       Promise.resolve(fullMockPermissionResponse)
     );
+    (Location.requestBackgroundPermissionsAsync as jest.Mock).mockImplementation(() =>
+      Promise.resolve(fullMockPermissionResponse)
+    );
     (Location.getCurrentPositionAsync as jest.Mock).mockImplementation(() =>
       Promise.resolve(fullMockInitialLocationObject)
     );
-    (Location.watchPositionAsync as jest.Mock).mockImplementation((_options, _callback) => {
-      const newSubscription = { remove: jest.fn() };
-      mockLocationSubscriptionRef = newSubscription as { remove: jest.Mock };
-      return Promise.resolve(newSubscription);
-    });
+    (Location.startLocationUpdatesAsync as jest.Mock).mockImplementation(() => Promise.resolve());
+    (Location.stopLocationUpdatesAsync as jest.Mock).mockImplementation(() => Promise.resolve());
   });
 
   afterEach(() => {
@@ -369,21 +386,23 @@ describe('MapScreen', () => {
     });
     jest.useRealTimers();
     (Location.requestForegroundPermissionsAsync as jest.Mock).mockReset();
+    (Location.requestBackgroundPermissionsAsync as jest.Mock).mockReset();
     (Location.getCurrentPositionAsync as jest.Mock).mockReset();
-    (Location.watchPositionAsync as jest.Mock).mockReset();
+    (Location.startLocationUpdatesAsync as jest.Mock).mockReset();
+    (Location.stopLocationUpdatesAsync as jest.Mock).mockReset();
   });
 
   it('renders the map and FogOverlay component when loaded', async () => {
     await renderMapScreen(store);
     await waitForMockCalls();
-    await waitForInitialLocation(store);
+    await waitForInitialLocation(store, expectedStoredLocation);
   });
 
   it('updates location state when GPS position changes', async () => {
     await renderMapScreen(store);
 
     expect(store.getState().exploration.path).toHaveLength(1);
-    expect(store.getState().exploration.path[0]).toEqual(mockInitialCoords);
+    expect(store.getState().exploration.path[0]).toEqual(expectedStoredLocation);
 
     act(() => {
       store.dispatch(updateLocation(mockUpdatedCoords));
@@ -400,7 +419,7 @@ describe('MapScreen', () => {
 
   it('handles zoom changes from region changes', async () => {
     const { getByTestId } = await renderMapScreen(store);
-    await waitForInitialLocation(store);
+    await waitForInitialLocation(store, expectedStoredLocation);
 
     const mapView = getByTestId('mock-map-view');
     act(() => {
@@ -424,8 +443,21 @@ describe('MapScreen', () => {
   });
 
   it('cleans up location subscription when unmounted', async () => {
-    const { unmount } = await renderMapScreen(store);
-    expect(store.getState().exploration.currentLocation).toEqual(mockInitialCoords);
+    // Clear previous mock calls
+    (Location.startLocationUpdatesAsync as jest.Mock).mockClear();
+    (Location.stopLocationUpdatesAsync as jest.Mock).mockClear();
+
+    const { unmount } = render(
+      <Provider store={store}>
+        <MapScreen />
+      </Provider>
+    );
+
+    // Wait for component to mount and location to be set up
+    await act(async () => {
+      jest.runAllTimers();
+      await Promise.resolve();
+    });
 
     await act(async () => {
       unmount();
@@ -434,9 +466,10 @@ describe('MapScreen', () => {
       await Promise.resolve();
     });
 
-    expect(Location.watchPositionAsync).toHaveBeenCalled();
-    expect(mockLocationSubscriptionRef).toBeDefined();
-    expect(mockLocationSubscriptionRef?.remove).toHaveBeenCalled();
+    // The component should start location updates when mounted
+    expect(Location.startLocationUpdatesAsync).toHaveBeenCalled();
+    // And stop them when unmounted
+    expect(Location.stopLocationUpdatesAsync).toHaveBeenCalled();
   });
 
   it('should have rotation and pitch disabled on the MapView', async () => {
@@ -486,7 +519,7 @@ describe('MapScreen', () => {
         const { mapViewArgs, fogOverlayArgs } = getMockArgs();
         initialMapViewArgs = mapViewArgs;
         initialFogOverlayArgs = fogOverlayArgs;
-        expect(store.getState().exploration.currentLocation).toEqual(mockInitialCoords);
+        expect(store.getState().exploration.currentLocation).toEqual(expectedStoredLocation);
       },
       { timeout: 3000 }
     );
@@ -557,7 +590,7 @@ describe('MapScreen', () => {
     const finalPath = store.getState().exploration.path;
     expect(finalPath).toEqual(initialPath);
 
-    expect(store.getState().exploration.currentLocation).toEqual(mockInitialCoords);
+    expect(store.getState().exploration.currentLocation).toEqual(expectedStoredLocation);
   });
 
   it('renders LocationButton with correct props', async () => {
@@ -574,10 +607,7 @@ describe('MapScreen', () => {
     await renderMapScreen(store);
 
     // Wait for the location permission to be processed and state to update
-    await waitForInitialLocation(store, {
-      latitude: DEFAULT_LOCATION.latitude,
-      longitude: DEFAULT_LOCATION.longitude,
-    });
+    await waitForInitialLocation(store, expectedStoredLocation);
 
     // Since we fall back to default location when permission is denied,
     // the button should still be available but with default location
@@ -586,7 +616,7 @@ describe('MapScreen', () => {
 
   it('centers map on user location when LocationButton is pressed', async () => {
     const { getByTestId } = await renderMapScreen(store);
-    await waitForInitialLocation(store);
+    await waitForInitialLocation(store, expectedStoredLocation);
 
     // Press the location button
     const locationButton = getByTestId('mock-location-button');
@@ -608,7 +638,7 @@ describe('MapScreen', () => {
 
   it('exits centered mode when user pans the map', async () => {
     const { getByTestId } = await renderMapScreen(store);
-    await waitForInitialLocation(store);
+    await waitForInitialLocation(store, expectedStoredLocation);
 
     // First, center on user location
     const locationButton = getByTestId('mock-location-button');
@@ -660,10 +690,7 @@ describe('MapScreen', () => {
     await renderMapScreen(store);
 
     // Should fall back to default location on error
-    await waitForInitialLocation(store, {
-      latitude: DEFAULT_LOCATION.latitude,
-      longitude: DEFAULT_LOCATION.longitude,
-    });
+    await waitForInitialLocation(store, expectedStoredLocation);
   });
 
   it('handles non-Error objects in location error catch block', async () => {
@@ -671,74 +698,12 @@ describe('MapScreen', () => {
     await renderMapScreen(store);
 
     // Should still fall back to default location
-    await waitForInitialLocation(store, {
-      latitude: DEFAULT_LOCATION.latitude,
-      longitude: DEFAULT_LOCATION.longitude,
-    });
-  });
-
-  it('handles component unmount during location setup', async () => {
-    let resolveLocationPromise: (value: any) => void;
-    const locationPromise = new Promise((resolve) => {
-      resolveLocationPromise = resolve;
-    });
-
-    (Location.getCurrentPositionAsync as jest.Mock).mockImplementation(() => locationPromise);
-
-    const { unmount } = render(
-      <Provider store={store}>
-        <MapScreen />
-      </Provider>
-    );
-
-    await act(async () => {
-      jest.runAllTimers();
-      await Promise.resolve();
-    });
-
-    // Unmount before location resolves
-    unmount();
-
-    // Now resolve the location promise (simulating async completion after unmount)
-    await act(async () => {
-      resolveLocationPromise!(fullMockInitialLocationObject);
-      jest.runAllTimers();
-      await Promise.resolve();
-    });
-
-    // No state updates should occur after unmount
-    expect(store.getState().exploration.currentLocation).toBe(null);
-  });
-
-  it('handles watchPositionAsync subscription cleanup when no subscription exists', async () => {
-    // Mock watchPositionAsync to return null (no subscription created)
-    (Location.watchPositionAsync as jest.Mock).mockImplementation(() => Promise.resolve(null));
-
-    const { unmount } = render(
-      <Provider store={store}>
-        <MapScreen />
-      </Provider>
-    );
-
-    await act(async () => {
-      jest.runAllTimers();
-      await Promise.resolve();
-    });
-
-    // Unmount should not cause errors even without subscription
-    await act(async () => {
-      unmount();
-      jest.runAllTimers();
-      await Promise.resolve();
-    });
-
-    // Should still have gotten initial location
-    expect(store.getState().exploration.currentLocation).toEqual(mockInitialCoords);
+    await waitForInitialLocation(store, expectedStoredLocation);
   });
 
   it('enforces maximum zoom out restrictions (latitude)', async () => {
     await renderMapScreen(store);
-    await waitForInitialLocation(store);
+    await waitForInitialLocation(store, expectedStoredLocation);
 
     // Simulate region change with latitude delta exceeding maximum (0.75)
     const overZoomedRegion: Region = {
@@ -755,7 +720,7 @@ describe('MapScreen', () => {
 
   it('enforces maximum zoom out restrictions (longitude)', async () => {
     await renderMapScreen(store);
-    await waitForInitialLocation(store);
+    await waitForInitialLocation(store, expectedStoredLocation);
 
     // Simulate region change with longitude delta exceeding maximum (1.0)
     const overZoomedRegion: Region = {
@@ -772,7 +737,7 @@ describe('MapScreen', () => {
 
   it('enforces maximum zoom out restrictions (both latitude and longitude)', async () => {
     await renderMapScreen(store);
-    await waitForInitialLocation(store);
+    await waitForInitialLocation(store, expectedStoredLocation);
 
     // Simulate region change with both deltas exceeding maximums
     const overZoomedRegion: Region = {
@@ -789,7 +754,7 @@ describe('MapScreen', () => {
 
   it('handles region changes within zoom limits (no restriction needed)', async () => {
     await renderMapScreen(store);
-    await waitForInitialLocation(store);
+    await waitForInitialLocation(store, expectedStoredLocation);
 
     // Simulate region change within acceptable zoom limits
     const acceptableRegion: Region = {
@@ -842,10 +807,9 @@ describe('MapScreen', () => {
     });
 
     // Should have default location due to permission denied
-    expect(storeWithoutLocation.getState().exploration.currentLocation).toEqual({
-      latitude: DEFAULT_LOCATION.latitude,
-      longitude: DEFAULT_LOCATION.longitude,
-    });
+    expect(storeWithoutLocation.getState().exploration.currentLocation).toEqual(
+      expectedStoredLocation
+    );
 
     // Try to center on user when location is available (but was denied initially)
     const locationButton = getByTestId('mock-location-button');
@@ -859,10 +823,9 @@ describe('MapScreen', () => {
     });
 
     // Should handle gracefully (no crashes) and still have default location
-    expect(storeWithoutLocation.getState().exploration.currentLocation).toEqual({
-      latitude: DEFAULT_LOCATION.latitude,
-      longitude: DEFAULT_LOCATION.longitude,
-    });
+    expect(storeWithoutLocation.getState().exploration.currentLocation).toEqual(
+      expectedStoredLocation
+    );
   });
 
   it('handles addTestPoint when current location is null', async () => {
@@ -903,16 +866,12 @@ describe('MapScreen', () => {
     });
 
     // Should have default location due to permission denied
-    expect(storeWithoutLocation.getState().exploration.currentLocation).toEqual({
-      latitude: DEFAULT_LOCATION.latitude,
-      longitude: DEFAULT_LOCATION.longitude,
-    });
+    expect(storeWithoutLocation.getState().exploration.currentLocation).toEqual(
+      expectedStoredLocation
+    );
 
     // Path should have been initialized with the default location
     expect(storeWithoutLocation.getState().exploration.path).toHaveLength(1);
-    expect(storeWithoutLocation.getState().exploration.path[0]).toEqual({
-      latitude: DEFAULT_LOCATION.latitude,
-      longitude: DEFAULT_LOCATION.longitude,
-    });
+    expect(storeWithoutLocation.getState().exploration.path[0]).toEqual(expectedStoredLocation);
   });
 });

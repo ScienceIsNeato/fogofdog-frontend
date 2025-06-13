@@ -244,8 +244,8 @@ describe('BackgroundLocationService', () => {
 
   describe('startBackgroundLocationTracking', () => {
     it('should start tracking successfully when permissions are granted', async () => {
-      // Mock successful permission request
-      mockedLocation.requestBackgroundPermissionsAsync.mockResolvedValue({
+      // Mock checking permissions (not requesting)
+      mockedLocation.getBackgroundPermissionsAsync.mockResolvedValue({
         status: 'granted' as any,
         granted: true,
         expires: 'never',
@@ -259,7 +259,7 @@ describe('BackgroundLocationService', () => {
       const result = await BackgroundLocationService.startBackgroundLocationTracking();
 
       expect(result).toBe(true);
-      expect(mockedLocation.requestBackgroundPermissionsAsync).toHaveBeenCalled();
+      expect(mockedLocation.getBackgroundPermissionsAsync).toHaveBeenCalled();
       expect(mockedLocation.startLocationUpdatesAsync).toHaveBeenCalledWith(
         'background-location-task',
         expect.objectContaining({
@@ -278,7 +278,7 @@ describe('BackgroundLocationService', () => {
     it('should return false when background permissions are denied', async () => {
       (global as any).expectConsoleErrors = true; // This test expects console warnings
 
-      mockedLocation.requestBackgroundPermissionsAsync.mockResolvedValue({
+      mockedLocation.getBackgroundPermissionsAsync.mockResolvedValue({
         status: 'denied' as any,
         granted: false,
         expires: 'never',
@@ -292,7 +292,7 @@ describe('BackgroundLocationService', () => {
     });
 
     it('should handle already registered task', async () => {
-      mockedLocation.requestBackgroundPermissionsAsync.mockResolvedValue({
+      mockedLocation.getBackgroundPermissionsAsync.mockResolvedValue({
         status: 'granted' as any,
         granted: true,
         expires: 'never',
@@ -309,9 +309,7 @@ describe('BackgroundLocationService', () => {
 
     it('should handle errors gracefully', async () => {
       const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
-      mockedLocation.requestBackgroundPermissionsAsync.mockRejectedValue(
-        new Error('Permission error')
-      );
+      mockedLocation.getBackgroundPermissionsAsync.mockRejectedValue(new Error('Permission error'));
 
       const result = await BackgroundLocationService.startBackgroundLocationTracking();
 

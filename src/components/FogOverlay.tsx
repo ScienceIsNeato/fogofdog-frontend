@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useEffect } from 'react';
+import React, { useMemo, useEffect } from 'react';
 import { Skia, Canvas, Path, Fill, Circle, Mask, Rect, Group } from '@shopify/react-native-skia';
 import type { SkPath } from '@shopify/react-native-skia';
 import { StyleSheet } from 'react-native';
@@ -69,18 +69,14 @@ const useFogCalculations = (mapRegion: MapRegion & { width: number; height: numb
 
 // Hook for performance optimization and debugging
 const useFogPerformance = (pathPoints: GeoPoint[], radiusPixels: number, strokeWidth: number) => {
-  const lastRenderTime = useRef(0);
-
   // Debug logging with throttling to avoid spam
   useEffect(() => {
-    const now = Date.now();
-    if (now - lastRenderTime.current >= FOG_CONFIG.RENDER_THROTTLE_MS) {
-      lastRenderTime.current = now;
-      logger.debug(
-        `FogOverlay: rendering with ${pathPoints.length} points, radius: ${radiusPixels.toFixed(2)}px, stroke: ${strokeWidth.toFixed(2)}px`,
-        { component: 'FogOverlay', action: 'render' }
-      );
-    }
+    logger.throttledDebug(
+      'FogOverlay:render',
+      `FogOverlay: rendering with ${pathPoints.length} points, radius: ${radiusPixels.toFixed(2)}px, stroke: ${strokeWidth.toFixed(2)}px`,
+      { component: 'FogOverlay', action: 'render' },
+      1000 // 1 second interval
+    );
   }, [pathPoints, radiusPixels, strokeWidth]);
 };
 
