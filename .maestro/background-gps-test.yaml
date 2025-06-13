@@ -13,6 +13,11 @@ jsEngine: graaljs
 # Point 5: 2000m East (37.792742, -122.386744) - second point after foregrounding
 # Point 6: 8000m North (37.864611, -122.386744) - should remain in fog (validation)
 
+# 0. Set initial GPS location BEFORE launching the app
+- setLocation:
+    latitude: 37.78825
+    longitude: -122.4324
+
 # 1. Setup - Launch app, log in, and wait for the map (Point 1).
 - launchApp:
     appId: com.fogofdog.app
