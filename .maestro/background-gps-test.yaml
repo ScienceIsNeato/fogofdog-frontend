@@ -31,6 +31,10 @@ jsEngine: graaljs
     longitude: -122.4324
 - waitForAnimationToEnd:
     timeout: 2000
+- tapOn:
+    id: "location-button"
+- waitForAnimationToEnd:
+    timeout: 1000
 - assertVisible:
     text: "You are here" # Point 2: 1000m South location confirmed
 
@@ -55,6 +59,10 @@ jsEngine: graaljs
     id: "map-screen"
 - waitForAnimationToEnd:
     timeout: 2000
+- tapOn:
+    id: "location-button"
+- waitForAnimationToEnd:
+    timeout: 1000
 - assertVisible:
     text: "You are here" # Point 3: Background-injected location confirmed
 
@@ -64,6 +72,10 @@ jsEngine: graaljs
     longitude: -122.409572
 - waitForAnimationToEnd:
     timeout: 3000
+- tapOn:
+    id: "location-button"
+- waitForAnimationToEnd:
+    timeout: 1000
 - assertVisible:
     text: "You are here" # Point 4: Post-foreground location confirmed
 
@@ -73,6 +85,10 @@ jsEngine: graaljs
     longitude: -122.386744
 - waitForAnimationToEnd:
     timeout: 3000
+- tapOn:
+    id: "location-button"
+- waitForAnimationToEnd:
+    timeout: 1000
 - assertVisible:
     text: "You are here" # Point 5: Final test location confirmed
 
@@ -99,6 +115,10 @@ jsEngine: graaljs
     longitude: -122.386744
 - waitForAnimationToEnd:
     timeout: 2000
+- tapOn:
+    id: "location-button"
+- waitForAnimationToEnd:
+    timeout: 1000
 
 # This point should be far enough that it's still in fog
 # We expect this location to be in the fog since we haven't visited it
