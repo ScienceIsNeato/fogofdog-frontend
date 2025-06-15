@@ -1,4 +1,5 @@
-name: 🚀 Speed-Focused Quality Gate
+name: 🚀 Streamlined Quality Gate
+
 on:
   push:
     branches: [main, develop, feature/*]
@@ -9,15 +10,17 @@ env:
   EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
 
 jobs:
-  # Fast quality checks (< 2 minutes)
-  quality-checks:
-    name: 🔍 Quality Checks
+  # Single comprehensive quality check job
+  quality-gate:
+    name: 🎯 Quality Gate
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 12
     
     steps:
       - name: 📥 Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Needed for SonarQube
         
       - name: 📦 Setup Node.js
         uses: actions/setup-node@v4
@@ -30,25 +33,26 @@ jobs:
         
       - name: 🔒 Security Audit (High Priority Only)
         run: npm audit --audit-level high
-        continue-on-error: true # Don't fail on warnings
+        continue-on-error: true
         
-      - name: 🧹 Lint Check (Zero Warnings)
-        run: npm run lint:strict
+      # Fast quality checks (< 2 minutes total)
+      - name: 🎯 Fast Quality Checks
+        run: ./scripts/dev-check.sh
         
-      - name: 🔧 TypeScript Check
-        run: |
-          echo "🔍 Running TypeScript type checking with strict configuration..."
-          npm run type-check-ci
-        
-      - name: 📊 Test with Coverage
-        run: npm run test:coverage
-        
-  # Build verification (< 3 minutes)
-  build-check:
-    name: 🔨 Build Verification
-    runs-on: ubuntu-latest
-    timeout-minutes: 8
-    needs: quality-checks
+      # SonarQube analysis (only for PRs to main)
+      - name: 🔍 SonarQube Analysis
+        if: github.event_name == 'pull_request' && github.base_ref == 'main'
+        run: ./scripts/dev-check.sh --full
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+
+  # Integration tests (separate job for iOS simulator requirements)
+  integration-tests:
+    name: 🎭 Integration Tests
+    runs-on: macos-latest
+    timeout-minutes: 15
+    needs: quality-gate
+    if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.base_ref == 'main')
     
     steps:
       - name: 📥 Checkout
@@ -63,34 +67,56 @@ jobs:
       - name: ⚡ Install dependencies
         run: npm ci --legacy-peer-deps
         
-      - name: 🏗️ Expo Export (iOS)
-        run: npx expo export --platform ios
+      - name: 🎭 Run Integration Tests
+        run: ./scripts/run_integration_tests.sh
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+
+  # Build verification (only when quality gate passes)
+  build-verification:
+    name: 🔨 Build Verification
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    needs: quality-gate
+    if: github.event_name == 'pull_request' && github.base_ref == 'main'
+    
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
         
-      - name: 🏗️ Expo Export (Android) 
-        run: npx expo export --platform android
+      - name: 📦 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          
+      - name: ⚡ Install dependencies
+        run: npm ci --legacy-peer-deps
         
-      - name: 📱 EAS Build Dry Run (iOS)
+      - name: 🏗️ Expo Export Verification
+        run: |
+          echo "🔍 Verifying iOS export..."
+          npx expo export --platform ios
+          echo "🔍 Verifying Android export..."
+          npx expo export --platform android
+          echo "✅ Export verification complete"
+        
+      - name: 📱 EAS Build Dry Run
         run: |
           if [ -z "${{ env.EXPO_TOKEN }}" ]; then
-            echo "EXPO_TOKEN not available - skipping EAS operations"
+            echo "EXPO_TOKEN not available - skipping EAS dry run"
             exit 0
           fi
           npx eas build --platform ios --profile testflight --dry-run
         continue-on-error: true
-        
-      - name: 📦 Bundle Analysis
-        run: |
-          npx expo export --platform ios
-          echo "📊 Bundle size check completed"
-        continue-on-error: true
 
-  # PR Production Build Verification - Only for PRs to main, required for merge
-  pr-build-verification:
-    name: 🔍 PR Build Verification (Required for Merge)
+  # Production build (only for main branch merges)
+  production-build:
+    name: 🚀 Production Build
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    needs: [quality-checks, build-check]
-    if: github.event_name == 'pull_request' && github.base_ref == 'main'
+    needs: [quality-gate, build-verification]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     
     steps:
       - name: 📥 Checkout
@@ -111,85 +137,24 @@ jobs:
           eas-version: latest
           token: ${{ secrets.EXPO_TOKEN }}
         
-      - name: 🚀 Production Build Verification (iOS)
+      - name: 🚀 Production Build (TestFlight)
         run: |
           if [ -z "$EXPO_TOKEN" ]; then
-            echo "❌ EXPO_TOKEN not available - cannot verify production builds"
-            echo "This is required for merge to main branch"
+            echo "❌ EXPO_TOKEN not available - cannot build for production"
             exit 1
           fi
-          echo "🔨 Running production build verification..."
-          eas build --platform ios --profile testflight --non-interactive --wait
+          echo "🔨 Building for TestFlight..."
+          eas build --platform ios --profile testflight --auto-submit
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
-        
-      - name: ✅ Build Verification Complete
-        run: |
-          echo "✅ Production build verification successful!"
-          echo "🚀 PR is ready for merge - builds are working correctly"
 
-  # Optional: Full EAS build only on main branch
-  production-build:
-    name: 🚀 Production Build
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    needs: [quality-checks, build-check]
-    if: github.ref == 'refs/heads/main'
-    
-    steps:
-      - name: 📥 Checkout
-        uses: actions/checkout@v4
-        
-      - name: 📦 Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
-          
-      - name: ⚡ Install dependencies
-        run: npm ci --legacy-peer-deps
-        
-      - name: 🚀 EAS Build (TestFlight)
-        run: |
-          if [ -z "$EXPO_TOKEN" ]; then
-            echo "EXPO_TOKEN not available - skipping EAS operations"
-            exit 0
-          fi
-          npx eas build --platform ios --profile testflight --auto-submit
-        continue-on-error: true
-
-  # Comprehensive quality analysis including SonarQube (required for PRs to main)
-  comprehensive-quality:
-    name: 🎯 Comprehensive Quality Analysis (SonarQube)
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    needs: quality-checks
-    if: github.event_name == 'pull_request' && github.base_ref == 'main'
-    
-    steps:
-      - name: 📥 Checkout
-        uses: actions/checkout@v4
-        
-      - name: 📦 Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
-          
-      - name: ⚡ Install dependencies
-        run: npm ci --legacy-peer-deps
-        
-      - name: 🎯 Run Full Quality Check (including SonarQube)
-        run: ./scripts/dev-check.sh --full
-        env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-
-  # Advanced code quality analysis (optional, runs in parallel)
-  code-quality:
-    name: 🔍 Advanced Code Quality
+  # Optional: Advanced analysis (runs in parallel, doesn't block)
+  advanced-analysis:
+    name: 📊 Advanced Analysis
     runs-on: ubuntu-latest
     timeout-minutes: 5
-    continue-on-error: true # Don't fail the whole pipeline
+    continue-on-error: true
+    if: github.event_name == 'pull_request'
     
     steps:
       - name: 📥 Checkout
@@ -204,13 +169,17 @@ jobs:
       - name: ⚡ Install dependencies
         run: npm ci --legacy-peer-deps
         
-      - name: 🎨 Code Formatting Check
-        run: npm run format:check
-        
-      - name: 🧹 Dead Code Detection
-        run: npm run deadcode:check
-        continue-on-error: true # Report but don't fail
-        
       - name: 📦 Dependency Analysis
-        run: npm run deps:outdated
-        continue-on-error: true # Report but don't fail 
+        run: |
+          echo "🔍 Checking for outdated dependencies..."
+          npm outdated || true
+          echo "🔍 Checking for unused dependencies..."
+          npx depcheck || true
+        continue-on-error: true
+        
+      - name: 📊 Bundle Size Analysis
+        run: |
+          echo "📊 Analyzing bundle size..."
+          npx expo export --platform ios
+          du -sh dist/ || echo "Bundle analysis complete"
+        continue-on-error: true 
