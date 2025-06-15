@@ -19,7 +19,7 @@ export class GPSInjectionEndpoint {
 
     try {
       // For React Native, we'll use the event-driven approach
-      this.startPollingForInjection();
+      await this.startPollingForInjection();
     } catch (error) {
       logger.error('Failed to start GPS injection endpoint', error, {
         component: 'GPSInjectionEndpoint',

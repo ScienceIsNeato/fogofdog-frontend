@@ -204,8 +204,12 @@ async function getInitialLocation({
         currentRegion,
       });
     }
-  } catch (_error) {
-    logger.warn('Could not get initial location, using default');
+  } catch (error) {
+    logger.warn('Could not get initial location, using default', {
+      component: 'MapScreen',
+      action: 'getInitialLocation',
+      error: error instanceof Error ? error.message : String(error),
+    });
     if (isActiveRef.current) {
       dispatch(
         updateLocation({
@@ -373,6 +377,7 @@ function handleRegionChange({
 }
 
 function handlePanDrag({ mapRef }: { mapRef: React.RefObject<MapView> }) {
+  // Handle camera position update asynchronously
   mapRef.current
     ?.getCamera()
     .then((camera) => {

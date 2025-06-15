@@ -45,6 +45,10 @@ test_artifacts/
 coverage/
 **/coverage/
 
+# SonarQube
+.scannerwork/
+**/.scannerwork/
+
 # GPS injection runtime files
 current-location.json
 gps-injection.json

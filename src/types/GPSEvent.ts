@@ -111,8 +111,7 @@ export class GPSEvents {
     // Check if this event is too close to any recent event (within time window)
     const currentTime = event.timestamp;
 
-    for (let i = 0; i < this.events.length; i++) {
-      const existingEvent = this.events[i]!;
+    for (const existingEvent of this.events) {
       const timeDiff = Math.abs(currentTime - existingEvent.timestamp);
 
       // Only check distance if the events are within the time window

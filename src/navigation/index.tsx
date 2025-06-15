@@ -42,13 +42,9 @@ export default function Navigation() {
       <NavigationContainer>
         <RootStack.Navigator screenOptions={{ headerShown: false }}>
           {user ? (
-            <>
-              <RootStack.Screen name="Main" component={MainNavigator} />
-            </>
+            <RootStack.Screen name="Main" component={MainNavigator} />
           ) : (
-            <>
-              <RootStack.Screen name="Auth" component={AuthNavigator} />
-            </>
+            <RootStack.Screen name="Auth" component={AuthNavigator} />
           )}
         </RootStack.Navigator>
       </NavigationContainer>

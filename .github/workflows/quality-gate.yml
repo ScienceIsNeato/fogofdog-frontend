@@ -158,6 +158,32 @@ jobs:
           npx eas build --platform ios --profile testflight --auto-submit
         continue-on-error: true
 
+  # Comprehensive quality analysis including SonarQube (required for PRs to main)
+  comprehensive-quality:
+    name: 🎯 Comprehensive Quality Analysis (SonarQube)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: quality-checks
+    if: github.event_name == 'pull_request' && github.base_ref == 'main'
+    
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+        
+      - name: 📦 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          
+      - name: ⚡ Install dependencies
+        run: npm ci --legacy-peer-deps
+        
+      - name: 🎯 Run Full Quality Check (including SonarQube)
+        run: ./scripts/dev-check.sh --full
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+
   # Advanced code quality analysis (optional, runs in parallel)
   code-quality:
     name: 🔍 Advanced Code Quality
