@@ -1,0 +1,120 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "🔍 Dev Check - Full Suite",
+      "type": "shell",
+      "command": "./scripts/dev-check.sh",
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared",
+        "showReuseMessage": true,
+        "clear": false
+      },
+      "problemMatcher": ["$eslint-stylish", "$tsc"],
+      "runOptions": {
+        "runOn": "default"
+      }
+    },
+    {
+      "label": "🔍 Lint Strict (Zero Warnings)",
+      "type": "shell",
+      "command": "npm",
+      "args": ["run", "lint:strict"],
+      "group": "build",
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared"
+      },
+      "problemMatcher": "$eslint-stylish"
+    },
+    {
+      "label": "🎨 Format Check",
+      "type": "shell",
+      "command": "npm",
+      "args": ["run", "format:check"],
+      "group": "build",
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared"
+      }
+    },
+    {
+      "label": "🔧 TypeScript Check",
+      "type": "shell",
+      "command": "npm",
+      "args": ["run", "type-check"],
+      "group": "build",
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared"
+      },
+      "problemMatcher": "$tsc"
+    },
+    {
+      "label": "🧪 Test Coverage",
+      "type": "shell",
+      "command": "npm",
+      "args": ["run", "test:coverage"],
+      "group": "test",
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared"
+      }
+    },
+    {
+      "label": "🔄 Duplication Check",
+      "type": "shell",
+      "command": "npm",
+      "args": ["run", "duplication:check"],
+      "group": "build",
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared"
+      }
+    },
+    {
+      "label": "📊 SonarQube Check",
+      "type": "shell",
+      "command": "npm",
+      "args": ["run", "sonar:check"],
+      "group": "build",
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared"
+      },
+      "problemMatcher": ["$eslint-stylish", "$tsc"]
+    },
+    {
+      "label": "🚀 Quick Fix All",
+      "type": "shell",
+      "command": "npm",
+      "args": ["run", "quality:fix"],
+      "group": "build",
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared"
+      }
+    }
+  ]
+}

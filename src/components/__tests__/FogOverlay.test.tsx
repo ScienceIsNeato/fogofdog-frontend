@@ -201,6 +201,8 @@ describe('FogOverlay', () => {
   });
 
   it('handles edge case with zero dimensions', () => {
+    (global as any).expectConsoleErrors = true; // This test expects console warnings for invalid parameters
+
     const zeroMapRegion = {
       ...defaultMapRegion,
       width: 0,

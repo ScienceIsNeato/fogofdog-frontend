@@ -1,20 +1,18 @@
-import React, { useEffect, useState, useRef } from 'react';
-import { View, StyleSheet, Dimensions, AppState, AppStateStatus } from 'react-native';
+import React, { useEffect, useState, useRef, useMemo } from 'react';
+import { View, StyleSheet, Dimensions, DeviceEventEmitter } from 'react-native';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
-import {
-  updateLocation,
-  updateZoom,
-  setCenterOnUser,
-  processBackgroundLocations,
-  updateBackgroundLocationStatus,
-} from '../../store/slices/explorationSlice';
+import { updateLocation, updateZoom, setCenterOnUser } from '../../store/slices/explorationSlice';
 import MapView, { Marker, Region } from 'react-native-maps';
-import * as Location from 'expo-location'; // Import expo-location
+import * as Location from 'expo-location';
+import * as TaskManager from 'expo-task-manager';
 import FogOverlay from '../../components/FogOverlay';
 import LocationButton from '../../components/LocationButton';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { logger } from '../../utils/logger';
-import { BackgroundLocationService } from '../../services/BackgroundLocationService';
+import { GPSInjectionService } from '../../services/GPSInjectionService';
+
+// Unified location task name
+const LOCATION_TASK = 'unified-location-task';
 
 // Default location (will be used as a fallback or before real location is fetched)
 const DEFAULT_LOCATION = {
@@ -42,209 +40,257 @@ interface SafeAreaInsets {
   right: number;
 }
 
-// Location setup helper functions
-const handleLocationPermissionDenied = (
-  dispatch: ReturnType<typeof useAppDispatch>,
-  isActive: boolean
-) => {
-  if (isActive) {
-    dispatch(
-      updateLocation({
-        latitude: DEFAULT_LOCATION.latitude,
-        longitude: DEFAULT_LOCATION.longitude,
-      })
-    );
+// Refactor handleLocationUpdate to use an options object
+interface HandleLocationUpdateOptions {
+  location: { latitude: number; longitude: number };
+  dispatch: ReturnType<typeof useAppDispatch>;
+  mapRef: React.RefObject<MapView>;
+  isMapCenteredOnUser: boolean;
+  currentRegion: Region | undefined;
+}
+
+const handleLocationUpdate = ({
+  location,
+  dispatch,
+  mapRef,
+  isMapCenteredOnUser,
+  currentRegion,
+}: HandleLocationUpdateOptions) => {
+  dispatch(updateLocation(location));
+  if (isMapCenteredOnUser && mapRef.current) {
+    const newRegion = {
+      latitude: location.latitude,
+      longitude: location.longitude,
+      latitudeDelta: currentRegion?.latitudeDelta ?? DEFAULT_LOCATION.latitudeDelta,
+      longitudeDelta: currentRegion?.longitudeDelta ?? DEFAULT_LOCATION.longitudeDelta,
+    };
+    mapRef.current.animateToRegion(newRegion, 500);
   }
 };
 
-const handleLocationError = (
-  error: Error,
-  dispatch: ReturnType<typeof useAppDispatch>,
-  isActive: boolean
-) => {
-  if (isActive) {
-    logger.error('Error fetching location:', error, {
-      component: 'MapScreen',
-      action: 'useEffect',
-    });
-    dispatch(
-      updateLocation({
-        latitude: DEFAULT_LOCATION.latitude,
-        longitude: DEFAULT_LOCATION.longitude,
-      })
-    );
+// Helper: requestLocationPermissions
+async function requestLocationPermissions() {
+  const { status: foregroundStatus } = await Location.requestForegroundPermissionsAsync();
+  if (foregroundStatus !== 'granted') {
+    return { foregroundGranted: false, backgroundGranted: false };
   }
-};
+  const { status: backgroundStatus } = await Location.requestBackgroundPermissionsAsync();
+  return {
+    foregroundGranted: true,
+    backgroundGranted: backgroundStatus === 'granted',
+  };
+}
 
-const setupLocationWatcher = async (
-  dispatch: ReturnType<typeof useAppDispatch>,
-  isActive: boolean
-) => {
-  if (!isActive) return null;
+// Helper: defineUnifiedLocationTask
+function defineUnifiedLocationTask() {
+  TaskManager.defineTask(LOCATION_TASK, async ({ data, error }) => {
+    if (error) {
+      logger.warn('Location task error', { error: error?.message || String(error) });
+      return Promise.resolve();
+    }
+    if (data) {
+      const { locations } = data as { locations: Location.LocationObject[] };
+      if (locations.length > 0) {
+        const location = locations[0];
+        if (location?.coords) {
+          DeviceEventEmitter.emit('locationUpdate', {
+            latitude: location.coords.latitude,
+            longitude: location.coords.longitude,
+          });
+        }
+      }
+    }
+    return Promise.resolve();
+  });
+}
 
-  return await Location.watchPositionAsync(
-    {
-      accuracy: Location.Accuracy.High,
-      timeInterval: 5000,
-      distanceInterval: 10,
+// Helper: startLocationUpdates
+async function startLocationUpdates() {
+  await Location.startLocationUpdatesAsync(LOCATION_TASK, {
+    accuracy: Location.Accuracy.High,
+    timeInterval: 3000,
+    distanceInterval: 5,
+    foregroundService: {
+      notificationTitle: 'Fog of Dog',
+      notificationBody: 'Tracking your location to reveal the map',
     },
-    (newLocation) => {
-      if (isActive) {
-        dispatch(
-          updateLocation({
-            latitude: newLocation.coords.latitude,
-            longitude: newLocation.coords.longitude,
-          })
-        );
+  });
+}
+
+// Helper: setupLocationListeners
+function setupLocationListeners({
+  isActiveRef,
+  dispatch,
+  mapRef,
+  isMapCenteredOnUser,
+  currentRegion,
+}: {
+  isActiveRef: { current: boolean };
+  dispatch: ReturnType<typeof useAppDispatch>;
+  mapRef: React.RefObject<MapView>;
+  isMapCenteredOnUser: boolean;
+  currentRegion: Region | undefined;
+}) {
+  const locationUpdateListener = DeviceEventEmitter.addListener(
+    'locationUpdate',
+    (location: { latitude: number; longitude: number }) => {
+      if (isActiveRef.current) {
+        handleLocationUpdate({
+          location,
+          dispatch,
+          mapRef,
+          isMapCenteredOnUser,
+          currentRegion,
+        });
       }
     }
   );
-};
 
-// Hook for background location service management
-const useBackgroundLocationService = (dispatch: ReturnType<typeof useAppDispatch>) => {
-  useEffect(() => {
-    let isActive = true;
-
-    const initializeBackgroundService = async () => {
-      try {
-        await BackgroundLocationService.initialize();
-
-        // Start background location tracking
-        const started = await BackgroundLocationService.startBackgroundLocationTracking();
-
-        if (isActive) {
-          // Update status in Redux
-          const status = await BackgroundLocationService.getStatus();
-          dispatch(updateBackgroundLocationStatus(status));
-
-          logger.info(`Background location service ${started ? 'started' : 'failed to start'}`, {
-            component: 'MapScreen',
-            action: 'initializeBackgroundService',
-            started,
-            status,
-          });
-        }
-      } catch (error) {
-        logger.error('Failed to initialize background location service', error, {
-          component: 'MapScreen',
-          action: 'initializeBackgroundService',
+  const gpsInjectionListener = DeviceEventEmitter.addListener(
+    'GPS_COORDINATES_INJECTED',
+    (location: { latitude: number; longitude: number }) => {
+      if (isActiveRef.current) {
+        logger.info('GPS coordinates injected:', location);
+        handleLocationUpdate({
+          location,
+          dispatch,
+          mapRef,
+          isMapCenteredOnUser,
+          currentRegion,
         });
       }
-    };
+    }
+  );
 
-    initializeBackgroundService();
+  return { locationUpdateListener, gpsInjectionListener };
+}
 
-    return () => {
-      isActive = false;
-    };
-  }, [dispatch]);
-};
+// Helper: cleanupLocationListeners
+function cleanupLocationListeners(listeners: {
+  locationUpdateListener: any;
+  gpsInjectionListener: any;
+}) {
+  listeners.locationUpdateListener.remove();
+  listeners.gpsInjectionListener.remove();
+}
 
-// Hook for app state management and background location processing
-const useAppStateHandler = (dispatch: ReturnType<typeof useAppDispatch>) => {
-  useEffect(() => {
-    const handleAppStateChange = async (nextAppState: AppStateStatus) => {
-      if (nextAppState === 'active') {
-        // App came to foreground - process any stored background locations
-        try {
-          const storedLocations = await BackgroundLocationService.processStoredLocations();
-          if (storedLocations.length > 0) {
-            dispatch(processBackgroundLocations(storedLocations));
-            logger.info(`Processed ${storedLocations.length} background locations on app resume`, {
-              component: 'MapScreen',
-              action: 'handleAppStateChange',
-              count: storedLocations.length,
-            });
-          }
+// Helper to get initial location
+async function getInitialLocation({
+  isActiveRef,
+  dispatch,
+  mapRef,
+  isMapCenteredOnUser,
+  currentRegion,
+}: {
+  isActiveRef: { current: boolean };
+  dispatch: ReturnType<typeof useAppDispatch>;
+  mapRef: React.RefObject<MapView>;
+  isMapCenteredOnUser: boolean;
+  currentRegion: Region | undefined;
+}) {
+  try {
+    const initialLocation = await Location.getCurrentPositionAsync({
+      accuracy: Location.Accuracy.High,
+    });
+    if (isActiveRef.current) {
+      handleLocationUpdate({
+        location: {
+          latitude: initialLocation.coords.latitude,
+          longitude: initialLocation.coords.longitude,
+        },
+        dispatch,
+        mapRef,
+        isMapCenteredOnUser,
+        currentRegion,
+      });
+    }
+  } catch (error) {
+    logger.warn('Could not get initial location, using default', {
+      component: 'MapScreen',
+      action: 'getInitialLocation',
+      error: error instanceof Error ? error.message : String(error),
+    });
+    if (isActiveRef.current) {
+      dispatch(
+        updateLocation({
+          latitude: DEFAULT_LOCATION.latitude,
+          longitude: DEFAULT_LOCATION.longitude,
+        })
+      );
+    }
+  }
+}
 
-          // Update background service status
-          const status = await BackgroundLocationService.getStatus();
-          dispatch(updateBackgroundLocationStatus(status));
-        } catch (error) {
-          logger.error('Failed to process background locations on app resume', error, {
-            component: 'MapScreen',
-            action: 'handleAppStateChange',
-          });
-        }
-      }
-    };
-
-    const subscription = AppState.addEventListener('change', handleAppStateChange);
-
-    // Process any existing background locations on mount
-    handleAppStateChange('active');
-
-    return () => {
-      subscription?.remove();
-    };
-  }, [dispatch]);
-};
-
-// Hook for location setup logic
-const useLocationSetup = (
+// Refactor useUnifiedLocationService to use helpers and further reduce line count
+const useUnifiedLocationService = (
   dispatch: ReturnType<typeof useAppDispatch>,
-  mapRef: React.RefObject<MapView>
+  mapRef: React.RefObject<MapView>,
+  isMapCenteredOnUser: boolean,
+  currentRegion: Region | undefined
 ) => {
   useEffect(() => {
-    let isActive = true;
-    let subscription: Location.LocationSubscription | null = null;
+    const isActiveRef = { current: true };
 
-    const setupLocation = async () => {
-      let { status } = await Location.requestForegroundPermissionsAsync();
-      if (!isActive) return;
-
-      if (status !== 'granted') {
-        handleLocationPermissionDenied(dispatch, isActive);
-        return;
-      }
-
+    const setupUnifiedLocationService = async () => {
       try {
-        let location = await Location.getCurrentPositionAsync({});
-        if (!isActive) return;
-
-        const userLatitude = location.coords.latitude;
-        const userLongitude = location.coords.longitude;
-
-        if (isActive) {
-          dispatch(updateLocation({ latitude: userLatitude, longitude: userLongitude }));
+        const { foregroundGranted, backgroundGranted } = await requestLocationPermissions();
+        if (!foregroundGranted) {
+          logger.warn('Foreground location permission denied, using default location');
+          if (isActiveRef.current) {
+            dispatch(
+              updateLocation({
+                latitude: DEFAULT_LOCATION.latitude,
+                longitude: DEFAULT_LOCATION.longitude,
+              })
+            );
+          }
+          return;
         }
-
-        const userRegion = {
-          latitude: userLatitude,
-          longitude: userLongitude,
-          latitudeDelta: DEFAULT_LOCATION.latitudeDelta,
-          longitudeDelta: DEFAULT_LOCATION.longitudeDelta,
-        };
-
-        if (isActive && mapRef.current) {
-          mapRef.current.animateToRegion(userRegion, 1000);
+        if (!backgroundGranted) {
+          logger.warn('Background location permission denied, foreground only');
         }
-
-        const localSubscription = await setupLocationWatcher(dispatch, isActive);
-        if (isActive && localSubscription) {
-          subscription = localSubscription;
-        } else if (localSubscription) {
-          localSubscription.remove();
-        }
-      } catch (error) {
-        handleLocationError(
-          error instanceof Error ? error : new Error(String(error)),
+        defineUnifiedLocationTask();
+        await startLocationUpdates();
+        await getInitialLocation({
+          isActiveRef,
           dispatch,
-          isActive
-        );
+          mapRef,
+          isMapCenteredOnUser,
+          currentRegion,
+        });
+        logger.info('Unified location service started');
+      } catch (error) {
+        logger.error('Failed to setup unified location service:', error);
+        if (isActiveRef.current) {
+          dispatch(
+            updateLocation({
+              latitude: DEFAULT_LOCATION.latitude,
+              longitude: DEFAULT_LOCATION.longitude,
+            })
+          );
+        }
       }
     };
 
-    setupLocation();
+    const listeners = setupLocationListeners({
+      isActiveRef,
+      dispatch,
+      mapRef,
+      isMapCenteredOnUser,
+      currentRegion,
+    });
+
+    setupUnifiedLocationService();
 
     return () => {
-      isActive = false;
-      if (subscription) {
-        subscription.remove();
-      }
+      isActiveRef.current = false;
+      cleanupLocationListeners(listeners);
+      Location.stopLocationUpdatesAsync(LOCATION_TASK)?.catch(() => {
+        /* ignore error if task is already stopped */
+      });
+      logger.info('Unified location service stopped.');
     };
-  }, [dispatch, mapRef]);
+  }, [dispatch, mapRef, isMapCenteredOnUser, currentRegion]);
 };
 
 // Hook for zoom restriction logic
@@ -305,7 +351,70 @@ const createCenterOnUserHandler =
     }
   };
 
-// Map event handlers
+// Extracted event handler helpers for useMapEventHandlers
+function handleRegionChange({
+  region,
+  setCurrentRegion,
+  isMapCenteredOnUser,
+  currentLocation,
+  dispatch,
+}: {
+  region: Region;
+  setCurrentRegion: (region: Region) => void;
+  isMapCenteredOnUser: boolean;
+  currentLocation: LocationCoordinate | null;
+  dispatch: ReturnType<typeof useAppDispatch>;
+}) {
+  setCurrentRegion(region);
+  if (isMapCenteredOnUser && currentLocation) {
+    const latDiff = Math.abs(region.latitude - currentLocation.latitude);
+    const lonDiff = Math.abs(region.longitude - currentLocation.longitude);
+    const threshold = Math.min(region.latitudeDelta, region.longitudeDelta) * 0.1;
+    if (latDiff > threshold || lonDiff > threshold) {
+      dispatch(setCenterOnUser(false));
+    }
+  }
+}
+
+function handlePanDrag({ mapRef }: { mapRef: React.RefObject<MapView> }) {
+  // Handle camera position update asynchronously
+  mapRef.current
+    ?.getCamera()
+    .then((camera) => {
+      logger.throttledDebug(
+        'MapScreen:onPanDrag',
+        'Camera position updated',
+        {
+          component: 'MapScreen',
+          action: 'onPanDrag',
+          heading: camera.heading,
+        },
+        1000 // 1 second interval
+      );
+    })
+    .catch((err) => {
+      logger.error('Error getting camera:', err, {
+        component: 'MapScreen',
+        action: 'onPanDrag',
+      });
+    });
+}
+
+function handleRegionChangeComplete({
+  region,
+  setCurrentRegion,
+  handleZoomChange,
+}: {
+  region: Region;
+  setCurrentRegion: (region: Region) => void;
+  handleZoomChange: (zoom: number) => void;
+}) {
+  setCurrentRegion(region);
+  const zoom = Math.round(Math.log(360 / region.latitudeDelta) / Math.LN2);
+  handleZoomChange(zoom);
+}
+
+// Refactor useMapEventHandlers to use helpers
 const useMapEventHandlers = (options: {
   dispatch: ReturnType<typeof useAppDispatch>;
   currentLocation: LocationCoordinate | null;
@@ -331,43 +440,19 @@ const useMapEventHandlers = (options: {
     dispatch
   );
 
-  const onRegionChange = (region: Region) => {
-    setCurrentRegion(region);
+  const onRegionChange = (region: Region) =>
+    handleRegionChange({
+      region,
+      setCurrentRegion,
+      isMapCenteredOnUser,
+      currentLocation,
+      dispatch,
+    });
 
-    if (isMapCenteredOnUser && currentLocation) {
-      const latDiff = Math.abs(region.latitude - currentLocation.latitude);
-      const lonDiff = Math.abs(region.longitude - currentLocation.longitude);
-      const threshold = Math.min(region.latitudeDelta, region.longitudeDelta) * 0.1;
-      if (latDiff > threshold || lonDiff > threshold) {
-        dispatch(setCenterOnUser(false));
-      }
-    }
-  };
+  const onPanDrag = () => handlePanDrag({ mapRef });
 
-  const onPanDrag = () => {
-    mapRef.current
-      ?.getCamera()
-      .then((camera) => {
-        // Rotation functionality temporarily removed
-        logger.debug('Camera position updated', {
-          component: 'MapScreen',
-          action: 'onPanDrag',
-          heading: camera.heading,
-        });
-      })
-      .catch((err) => {
-        logger.error('Error getting camera:', err, {
-          component: 'MapScreen',
-          action: 'onPanDrag',
-        });
-      });
-  };
-
-  const onRegionChangeComplete = (region: Region) => {
-    setCurrentRegion(region);
-    const zoom = Math.round(Math.log(360 / region.latitudeDelta) / Math.LN2);
-    handleZoomChange(zoom);
-  };
+  const onRegionChangeComplete = (region: Region) =>
+    handleRegionChangeComplete({ region, setCurrentRegion, handleZoomChange });
 
   return {
     centerOnUserLocation,
@@ -398,8 +483,6 @@ const getLocationButtonStyle = (insets: SafeAreaInsets) => ({
 interface MapScreenRendererProps {
   mapRef: React.RefObject<MapView>;
   currentLocation: LocationCoordinate | null;
-  currentRegion: Region | undefined;
-  mapDimensions: { width: number; height: number };
   insets: SafeAreaInsets;
   isMapCenteredOnUser: boolean;
   onRegionChange: (region: Region) => void;
@@ -407,14 +490,13 @@ interface MapScreenRendererProps {
   onRegionChangeComplete: (region: Region) => void;
   centerOnUserLocation: () => void;
   setMapDimensions: (dimensions: { width: number; height: number }) => void;
+  memoizedMapRegion: (Region & { width: number; height: number }) | undefined;
 }
 
 // Render component for the map view and overlays
 const MapScreenRenderer = ({
   mapRef,
   currentLocation,
-  currentRegion,
-  mapDimensions,
   insets,
   isMapCenteredOnUser,
   onRegionChange,
@@ -422,6 +504,7 @@ const MapScreenRenderer = ({
   onRegionChangeComplete,
   centerOnUserLocation,
   setMapDimensions,
+  memoizedMapRegion,
 }: MapScreenRendererProps) => (
   <View
     style={styles.container}
@@ -450,15 +533,7 @@ const MapScreenRenderer = ({
       )}
     </MapView>
 
-    {currentRegion && (
-      <FogOverlay
-        mapRegion={{
-          ...currentRegion,
-          width: mapDimensions.width,
-          height: mapDimensions.height,
-        }}
-      />
-    )}
+    {memoizedMapRegion && <FogOverlay mapRegion={memoizedMapRegion} />}
 
     <LocationButton
       onPress={centerOnUserLocation}
@@ -480,6 +555,17 @@ const useMapScreenState = () => {
     height: Dimensions.get('window').height,
   });
 
+  // Memoize the mapRegion object to prevent unnecessary FogOverlay re-renders
+  const memoizedMapRegion = useMemo(() => {
+    if (!currentRegion) return undefined;
+
+    return {
+      ...currentRegion,
+      width: mapDimensions.width,
+      height: mapDimensions.height,
+    };
+  }, [currentRegion, mapDimensions]);
+
   return {
     dispatch,
     currentLocation,
@@ -487,8 +573,8 @@ const useMapScreenState = () => {
     mapRef,
     currentRegion,
     setCurrentRegion,
-    mapDimensions,
     setMapDimensions,
+    memoizedMapRegion,
   };
 };
 
@@ -500,17 +586,27 @@ export const MapScreen = () => {
     mapRef,
     currentRegion,
     setCurrentRegion,
-    mapDimensions,
     setMapDimensions,
+    memoizedMapRegion,
   } = useMapScreenState();
 
   const insets = useSafeAreaInsets();
 
-  // Use our custom hooks
-  useLocationSetup(dispatch, mapRef);
+  // Use simplified unified location service
+  useUnifiedLocationService(dispatch, mapRef, isMapCenteredOnUser, currentRegion);
   useZoomRestriction(currentRegion, mapRef);
-  useBackgroundLocationService(dispatch);
-  useAppStateHandler(dispatch);
+
+  // Start GPS injection check only once on mount
+
+  // The empty dependency array is intentional: we only want to start the periodic check once on mount, not on updates.
+  useEffect(() => {
+    const stopGPSInjectionCheck = GPSInjectionService.startPeriodicCheck(2000);
+    return () => {
+      if (typeof stopGPSInjectionCheck === 'function') {
+        stopGPSInjectionCheck();
+      }
+    };
+  }, []);
 
   const { centerOnUserLocation, onRegionChange, onPanDrag, onRegionChangeComplete } =
     useMapEventHandlers({
@@ -526,8 +622,6 @@ export const MapScreen = () => {
     <MapScreenRenderer
       mapRef={mapRef}
       currentLocation={currentLocation}
-      currentRegion={currentRegion}
-      mapDimensions={mapDimensions}
       insets={insets}
       isMapCenteredOnUser={isMapCenteredOnUser}
       onRegionChange={onRegionChange}
@@ -535,6 +629,7 @@ export const MapScreen = () => {
       onRegionChangeComplete={onRegionChangeComplete}
       centerOnUserLocation={centerOnUserLocation}
       setMapDimensions={setMapDimensions}
+      memoizedMapRegion={memoizedMapRegion}
     />
   );
 };

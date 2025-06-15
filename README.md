@@ -114,6 +114,8 @@ npm run android
 ## 🛠️ Development Workflow
 
 ### 🧪 Testing
+
+#### Unit & Integration Tests (Jest)
 ```bash
 # Run all tests
 npm test
@@ -123,9 +125,31 @@ npm run test:ci
 
 # Run with coverage
 npm run test:coverage
+```
 
-# Run E2E tests
-npm run test:e2e
+#### End-to-End Testing (Maestro)
+```bash
+# Install Maestro CLI (one-time setup)
+curl -Ls "https://get.maestro.mobile.dev" | bash
+
+# Add to PATH
+export PATH="$PATH":"$HOME/.maestro/bin"
+
+# Build standalone app for testing
+npm run ios -- --configuration Release
+
+# ⚠️ IMPORTANT: Always use the integration test script (never run maestro directly)
+# This ensures proper app readiness checks and prevents white screen issues
+
+# Run all integration tests
+./scripts/run_integration_tests.sh .maestro/
+
+# Run specific test flow
+./scripts/run_integration_tests.sh .maestro/login-to-map-test.yaml
+./scripts/run_integration_tests.sh .maestro/background-gps-test.yaml
+
+# For debugging only (record test execution)
+maestro record .maestro/login-to-map-test.yaml
 ```
 
 ### 🔍 Code Quality
@@ -181,7 +205,7 @@ src/
 - **Maps**: React Native Maps
 - **Graphics**: React Native Skia
 - **Location**: Expo Location
-- **Testing**: Jest + React Native Testing Library
+- **Testing**: Jest + React Native Testing Library + Maestro E2E
 - **Quality**: ESLint + SonarJS + Prettier
 
 ---

@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useEffect } from 'react';
+import React, { useMemo, useEffect } from 'react';
 import { Skia, Canvas, Path, Fill, Circle, Mask, Rect, Group } from '@shopify/react-native-skia';
 import type { SkPath } from '@shopify/react-native-skia';
 import { StyleSheet } from 'react-native';
@@ -69,26 +69,14 @@ const useFogCalculations = (mapRegion: MapRegion & { width: number; height: numb
 
 // Hook for performance optimization and debugging
 const useFogPerformance = (pathPoints: GeoPoint[], radiusPixels: number, strokeWidth: number) => {
-  const lastRenderTime = useRef(0);
-
-  // Filter out very frequent updates to avoid over-rendering during fast pans
-  const shouldSkipRender = () => {
-    const now = Date.now();
-    if (now - lastRenderTime.current < FOG_CONFIG.RENDER_THROTTLE_MS) {
-      return true;
-    }
-    lastRenderTime.current = now;
-    return false;
-  };
-
-  // Debug logging
+  // Debug logging with throttling to avoid spam
   useEffect(() => {
-    if (!shouldSkipRender()) {
-      logger.debug(
-        `FogOverlay: rendering with ${pathPoints.length} points, radius: ${radiusPixels.toFixed(2)}px, stroke: ${strokeWidth.toFixed(2)}px`,
-        { component: 'FogOverlay', action: 'render' }
-      );
-    }
+    logger.throttledDebug(
+      'FogOverlay:render',
+      `FogOverlay: rendering with ${pathPoints.length} points, radius: ${radiusPixels.toFixed(2)}px, stroke: ${strokeWidth.toFixed(2)}px`,
+      { component: 'FogOverlay', action: 'render' },
+      1000 // 1 second interval
+    );
   }, [pathPoints, radiusPixels, strokeWidth]);
 };
 
@@ -108,16 +96,13 @@ const FogMask: React.FC<{
       <Fill color="white" />
 
       {/* Draw circles at each point to ensure visible holes */}
-      {pathPoints.map((point) => {
+      {pathPoints.map((point, index) => {
         const { x, y } = geoPointToPixel(point, mapRegion);
+        // Create unique key using coordinate hash and position to avoid duplicates
+        const coordHash = `${point.latitude.toFixed(6)}-${point.longitude.toFixed(6)}`;
+        const uniqueKey = `circle-${coordHash}-pos${index}`;
         return (
-          <Circle
-            key={`circle-${point.latitude}-${point.longitude}`}
-            cx={x}
-            cy={y}
-            r={radiusPixels}
-            color={FOG_CONFIG.PATH_COLOR}
-          />
+          <Circle key={uniqueKey} cx={x} cy={y} r={radiusPixels} color={FOG_CONFIG.PATH_COLOR} />
         );
       })}
 
@@ -176,10 +161,11 @@ const FogOverlay: React.FC<FogOverlayProps> = ({ mapRegion }) => {
   );
 };
 
+// Memoize the component to prevent unnecessary re-renders
+export default React.memo(FogOverlay);
+
 const styles = StyleSheet.create({
   canvas: {
     ...StyleSheet.absoluteFillObject,
   },
 });
-
-export default FogOverlay;

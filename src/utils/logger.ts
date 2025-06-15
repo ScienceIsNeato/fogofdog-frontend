@@ -54,6 +54,24 @@ class Logger {
     }
   }
 
+  /**
+   * Log debug information with throttling (only in development)
+   * @param key Unique key for the log site (e.g., 'FogOverlay:render')
+   * @param message Log message
+   * @param context Log context
+   * @param intervalMs Minimum interval between logs (default 1000ms)
+   */
+  private _throttleTimestamps: Record<string, number> = {};
+  throttledDebug(key: string, message: string, context?: LogContext, intervalMs = 1000): void {
+    if (__DEV__) {
+      const now = Date.now();
+      if (!this._throttleTimestamps[key] || now - this._throttleTimestamps[key] >= intervalMs) {
+        this._throttleTimestamps[key] = now;
+        this.debug(message, context);
+      }
+    }
+  }
+
   private formatPrefix(level: string, context?: LogContext): string {
     const timestamp = new Date().toISOString();
     const component = context?.component ?? 'App';

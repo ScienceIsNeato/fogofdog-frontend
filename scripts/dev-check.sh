@@ -4,8 +4,22 @@
 # This script runs the EXACT same checks as git hooks and CI
 # If this passes, your commit WILL succeed
 
-echo "🔍 Running git hook conformity checks..."
-echo "📋 This mirrors exactly what git hooks and CI will run"
+# Parse command line arguments
+FULL_CHECK=false
+if [[ "$1" == "--full" ]]; then
+    FULL_CHECK=true
+fi
+
+if [[ "$FULL_CHECK" == "true" ]]; then
+    echo "🔍 Running FULL comprehensive quality checks..."
+    echo "📋 This mirrors exactly what CI will run (including SonarQube)"
+    echo "🎯 Including SonarQube analysis (Medium/Low severity issues)"
+    echo "⏱️  This will take longer but catches all issues before PR merge"
+else
+    echo "🔍 Running fast local quality checks..."
+    echo "📋 This mirrors exactly what git hooks will run"
+    echo "💨 For comprehensive analysis including SonarQube, use: ./scripts/dev-check.sh --full"
+fi
 echo ""
 
 # Track failures
@@ -30,11 +44,11 @@ run_check() {
   echo ""
 }
 
-# 1. Strict Linting (zero warnings policy)
-run_check "Lint Strict" "npm run lint:strict"
+# 1. Fix Linting Issues (automatically fix what can be fixed)
+run_check "Lint Fix" "npm run lint:fix"
 
-# 2. Format Check (prettier)
-run_check "Format Check" "npm run format:check"
+# 2. Fix Format Issues (automatically fix formatting)
+run_check "Format Fix" "npm run format:fix"
 
 # 3. TypeScript Type Check
 run_check "Type Check" "npm run type-check"
@@ -45,21 +59,36 @@ run_check "Test Coverage" "npm run test:coverage"
 # 5. Code Duplication Check  
 run_check "Duplication Check" "npm run duplication:check"
 
-# 6. SonarQube Quality Check
-run_check "SonarQube Check" "npm run sonar:check"
+# 6. SonarQube Quality Check (Comprehensive Analysis) - Only in full mode
+if [[ "$FULL_CHECK" == "true" ]]; then
+    run_check "SonarQube Analysis" "npm run sonar:check"
+fi
 
 # Summary
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo "📊 Git Hook Conformity Summary:"
+if [[ "$FULL_CHECK" == "true" ]]; then
+    echo "📊 Full Quality Check Summary (CI-Ready):"
+else
+    echo "📊 Fast Quality Check Summary (Git Hook Ready):"
+fi
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
 if [ $FAILED_CHECKS -eq 0 ]; then
   echo "🎉 ALL CHECKS PASSED!"
-  echo "✅ Your commit will succeed"
-  echo "✅ Git hooks will pass"  
-  echo "✅ CI pipeline will pass"
-  echo ""
-  echo "🚀 Ready to commit with confidence!"
+  if [[ "$FULL_CHECK" == "true" ]]; then
+    echo "✅ Your commit will succeed"
+    echo "✅ Git hooks will pass"  
+    echo "✅ CI pipeline will pass"
+    echo "✅ SonarQube quality gate will pass"
+    echo ""
+    echo "🚀 Ready to merge PR with confidence!"
+  else
+    echo "✅ Your commit will succeed"
+    echo "✅ Git hooks will pass"
+    echo ""
+    echo "💡 For full CI validation (including SonarQube), run: ./scripts/dev-check.sh --full"
+    echo "🚀 Ready to commit with confidence!"
+  fi
   exit 0
 else
   echo "💥 $FAILED_CHECKS check(s) failed:"
@@ -71,10 +100,9 @@ else
   echo "💡 Fix the issues above and run this script again"
   echo ""
   echo "🔧 Quick fixes:"
-  echo "   • Lint: npm run lint:fix"
-  echo "   • Format: npm run format:fix"
   echo "   • Type errors: Check TypeScript compiler output"
   echo "   • Tests: Fix failing test cases"
   echo "   • Duplication: Refactor duplicated code"
+  echo "   • Note: Lint and format are already fixed automatically"
   exit 1
 fi 

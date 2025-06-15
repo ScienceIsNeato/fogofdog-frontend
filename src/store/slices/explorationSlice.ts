@@ -46,6 +46,50 @@ const isValidGeoPoint = (point: GeoPoint): boolean => {
 // Reduced minimum distance to ensure more regular fog holes
 const MIN_DISTANCE_FOR_NEW_AREA = 20; // Only add new circle if current point is this far from an existing center
 
+// Helper function to process a single background location
+const processLocationForPath = (
+  geoPoint: GeoPoint,
+  currentPath: GeoPoint[]
+): { shouldAdd: boolean; distance?: number } => {
+  const lastPoint = currentPath.length > 0 ? currentPath[currentPath.length - 1] : null;
+
+  if (!lastPoint) {
+    return { shouldAdd: true };
+  }
+
+  try {
+    const distance = haversineDistance(geoPoint, lastPoint);
+    return {
+      shouldAdd: distance >= MIN_DISTANCE_FOR_NEW_AREA,
+      distance,
+    };
+  } catch (error) {
+    logger.error(`Error calculating distance for background location: ${error}`, error, {
+      component: 'explorationSlice',
+      action: 'processBackgroundLocations',
+    });
+    return { shouldAdd: false };
+  }
+};
+
+// Helper function to convert and validate stored location
+const convertStoredLocation = (storedLocation: StoredLocationData): GeoPoint | null => {
+  const geoPoint: GeoPoint = {
+    latitude: storedLocation.latitude,
+    longitude: storedLocation.longitude,
+  };
+
+  if (!isValidGeoPoint(geoPoint)) {
+    logger.warn(`Invalid background geo point: ${JSON.stringify(geoPoint)}. Skipping.`, {
+      component: 'explorationSlice',
+      action: 'processBackgroundLocations',
+    });
+    return null;
+  }
+
+  return geoPoint;
+};
+
 const initialState: ExplorationState = {
   currentLocation: null,
   zoomLevel: 14,
@@ -75,12 +119,25 @@ const explorationSlice = createSlice({
         return;
       }
 
+      // Check if this is the exact same location as current location (avoid redundant processing)
+      if (
+        state.currentLocation &&
+        state.currentLocation.latitude === newPoint.latitude &&
+        state.currentLocation.longitude === newPoint.longitude
+      ) {
+        // Same location, no need to process or log anything
+        return;
+      }
+
       state.currentLocation = newPoint;
 
       const lastPoint = state.path.length > 0 ? state.path[state.path.length - 1] : null;
 
       if (!lastPoint) {
-        // console.log(`[explorationSlice] Adding first path point at: ${newPoint.latitude}, ${newPoint.longitude}`);
+        logger.debug(`Adding first path point at: ${newPoint.latitude}, ${newPoint.longitude}`, {
+          component: 'explorationSlice',
+          action: 'updateLocation',
+        });
         state.path.push({ ...newPoint });
         return;
       }
@@ -89,11 +146,23 @@ const explorationSlice = createSlice({
         const distance = haversineDistance(newPoint, lastPoint);
 
         if (distance >= MIN_DISTANCE_FOR_NEW_AREA) {
-          // Note: This constant was MIN_DISTANCE_FOR_NEW_AREA, might relate to explored area logic if path drives it
-          // console.log(`[explorationSlice] Adding new path point at: ${newPoint.latitude}, ${newPoint.longitude}. Distance from last: ${distance.toFixed(2)}m. Total points: ${state.path.length + 1}`);
           state.path.push({ ...newPoint });
+          logger.debug(
+            `Added new path point at: ${newPoint.latitude}, ${newPoint.longitude}. Distance: ${distance.toFixed(2)}m. Total points: ${state.path.length}`,
+            {
+              component: 'explorationSlice',
+              action: 'updateLocation',
+            }
+          );
         } else {
-          // console.log(`[explorationSlice] New point is too close to last point (${distance.toFixed(2)}m). Not adding to path. Total points: ${state.path.length}`);
+          // Log once, but don't spam logs for the same location
+          logger.debug(
+            `New point is too close to last point (${distance.toFixed(2)}m). Not adding to path. Total points: ${state.path.length}`,
+            {
+              component: 'explorationSlice',
+              action: 'updateLocation',
+            }
+          );
         }
       } catch (error) {
         logger.error(`Error calculating distance: ${error}. Not adding to path.`, error, {
@@ -108,7 +177,10 @@ const explorationSlice = createSlice({
     addPathPoint: (state, action: PayloadAction<GeoPoint>) => {
       const point = action.payload;
       if (isValidGeoPoint(point)) {
-        // console.log(`[explorationSlice] Manually adding path point at: ${point.latitude}, ${point.longitude}`);
+        logger.debug(`Manually adding path point at: ${point.latitude}, ${point.longitude}`, {
+          component: 'explorationSlice',
+          action: 'addPathPoint',
+        });
         state.path.push({ ...point });
       } else {
         logger.error('addPathPoint: Invalid position provided', {
@@ -128,6 +200,15 @@ const explorationSlice = createSlice({
         return;
       }
 
+      logger.debug('GPS INJECTION: Redux processing background locations', {
+        component: 'explorationSlice',
+        action: 'processBackgroundLocations',
+        count: backgroundLocations.length,
+        locations: backgroundLocations.map(
+          (l) => `${l.latitude.toFixed(6)}, ${l.longitude.toFixed(6)}`
+        ),
+      });
+
       logger.info(`Processing ${backgroundLocations.length} background locations in Redux`, {
         component: 'explorationSlice',
         action: 'processBackgroundLocations',
@@ -136,41 +217,22 @@ const explorationSlice = createSlice({
 
       let latestValidLocation: GeoPoint | null = null;
 
-      // Convert stored locations to GeoPoints and process them
+      // Process each stored location
       for (const storedLocation of backgroundLocations) {
-        const geoPoint: GeoPoint = {
-          latitude: storedLocation.latitude,
-          longitude: storedLocation.longitude,
-        };
+        const geoPoint = convertStoredLocation(storedLocation);
 
-        if (!isValidGeoPoint(geoPoint)) {
-          logger.warn(`Invalid background geo point: ${JSON.stringify(geoPoint)}. Skipping.`, {
-            component: 'explorationSlice',
-            action: 'processBackgroundLocations',
-          });
+        if (!geoPoint) {
           continue;
         }
 
         // Track the most recent valid location
         latestValidLocation = geoPoint;
 
-        // Add to path if it meets distance requirements
-        const lastPoint = state.path.length > 0 ? state.path[state.path.length - 1] : null;
+        // Check if we should add this point to the path
+        const pathResult = processLocationForPath(geoPoint, state.path);
 
-        if (!lastPoint) {
+        if (pathResult.shouldAdd) {
           state.path.push({ ...geoPoint });
-        } else {
-          try {
-            const distance = haversineDistance(geoPoint, lastPoint);
-            if (distance >= MIN_DISTANCE_FOR_NEW_AREA) {
-              state.path.push({ ...geoPoint });
-            }
-          } catch (error) {
-            logger.error(`Error calculating distance for background location: ${error}`, error, {
-              component: 'explorationSlice',
-              action: 'processBackgroundLocations',
-            });
-          }
         }
       }
 
