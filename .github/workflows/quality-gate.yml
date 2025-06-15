@@ -2,9 +2,9 @@ name: 🚀 Streamlined Quality Gate
 
 on:
   push:
-    branches: [main, develop, feature/*]
+    branches: [main, develop]  # Only run on push to main/develop (not feature branches)
   pull_request:
-    branches: [main]
+    branches: [main]  # Run on PRs to main
 
 env:
   EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
@@ -52,7 +52,7 @@ jobs:
     runs-on: macos-latest
     timeout-minutes: 15
     needs: quality-gate
-    if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.base_ref == 'main')
+    if: github.event_name == 'pull_request' && github.base_ref == 'main'
     
     steps:
       - name: 📥 Checkout
@@ -66,6 +66,12 @@ jobs:
           
       - name: ⚡ Install dependencies
         run: npm ci --legacy-peer-deps
+        
+      - name: 🔧 Setup EAS CLI
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
         
       - name: 🎭 Run Integration Tests
         run: ./scripts/run_integration_tests.sh

@@ -151,15 +151,22 @@ if [ "$IS_CI" = "true" ]; then
     log "📦 Running Expo export..."
     npx expo export --platform ios
     
-    # Build with EAS for testing
-    log "🔨 Building test version with EAS..."
+    # Setup EAS CLI for building
+    log "🔧 Setting up EAS CLI..."
     if [ -z "$EXPO_TOKEN" ]; then
         log "❌ EXPO_TOKEN not available - cannot build app for testing"
         exit 1
     fi
     
+    # Install EAS CLI if not available
+    if ! command_exists eas; then
+        log "📦 Installing EAS CLI..."
+        npm install -g @expo/eas-cli
+    fi
+    
     # Build for simulator (development build)
-    npx eas build --platform ios --profile development --local --output ./build/app.tar.gz
+    log "🔨 Building test version with EAS..."
+    eas build --platform ios --profile development --local --output ./build/app.tar.gz
     
     # Extract and install the app
     log "📲 Installing app on simulator..."
