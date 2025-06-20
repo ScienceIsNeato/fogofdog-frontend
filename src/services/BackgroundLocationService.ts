@@ -280,7 +280,10 @@ export class BackgroundLocationService {
           });
         } catch (stopError: any) {
           // Handle the specific case where task is not found (already stopped)
-          if (stopError?.code === 'E_TASK_NOT_FOUND' || stopError?.message?.includes('E_TASK_NOT_FOUND')) {
+          if (
+            stopError?.code === 'E_TASK_NOT_FOUND' ||
+            stopError?.message?.includes('E_TASK_NOT_FOUND')
+          ) {
             logger.info('Background location task was already stopped', {
               component: 'BackgroundLocationService',
               action: 'stopBackgroundLocationTracking',

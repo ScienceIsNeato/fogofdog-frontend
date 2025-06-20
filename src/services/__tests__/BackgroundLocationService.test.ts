@@ -347,17 +347,23 @@ describe('BackgroundLocationService', () => {
     it('should handle E_TASK_NOT_FOUND error gracefully when stopping', async () => {
       // Mock task as registered
       mockedTaskManager.isTaskRegisteredAsync.mockResolvedValue(true);
-      
+
       // Mock Location.stopLocationUpdatesAsync to throw E_TASK_NOT_FOUND error
-      const taskNotFoundError = new Error('The operation couldn\'t be completed. (E_TASK_NOT_FOUND error 0.)');
+      const taskNotFoundError = new Error(
+        "The operation couldn't be completed. (E_TASK_NOT_FOUND error 0.)"
+      );
       (taskNotFoundError as any).code = 'E_TASK_NOT_FOUND';
       mockedLocation.stopLocationUpdatesAsync.mockRejectedValue(taskNotFoundError);
 
       await BackgroundLocationService.stopBackgroundLocationTracking();
 
-      expect(mockedTaskManager.isTaskRegisteredAsync).toHaveBeenCalledWith('background-location-task');
-      expect(mockedLocation.stopLocationUpdatesAsync).toHaveBeenCalledWith('background-location-task');
-      
+      expect(mockedTaskManager.isTaskRegisteredAsync).toHaveBeenCalledWith(
+        'background-location-task'
+      );
+      expect(mockedLocation.stopLocationUpdatesAsync).toHaveBeenCalledWith(
+        'background-location-task'
+      );
+
       // Should not throw error and should complete successfully
       // The error should be handled gracefully and logged as info
     });
