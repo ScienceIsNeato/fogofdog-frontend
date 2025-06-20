@@ -129,6 +129,16 @@ const explorationSlice = createSlice({
         return;
       }
 
+      // Auto-center on user location when first valid location is received
+      if (!state.currentLocation && !state.isMapCenteredOnUser) {
+        state.isMapCenteredOnUser = true;
+        logger.info('Auto-centering map on first location received', {
+          component: 'explorationSlice',
+          action: 'updateLocation',
+          location: newPoint,
+        });
+      }
+
       state.currentLocation = newPoint;
 
       const lastPoint = state.path.length > 0 ? state.path[state.path.length - 1] : null;

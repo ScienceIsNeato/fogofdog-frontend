@@ -595,7 +595,8 @@ describe('MapScreen', () => {
 
   it('renders LocationButton with correct props', async () => {
     await renderMapScreen(store);
-    await waitForLocationButton({ isLocationAvailable: true, isCentered: false });
+    // With auto-centering feature, map automatically centers on first location
+    await waitForLocationButton({ isLocationAvailable: true, isCentered: true });
   });
 
   it('LocationButton is disabled when location is not available', async () => {

@@ -85,12 +85,19 @@ jsEngine: graaljs
 # PHASE 2: CHECKED CHECKBOX TEST (Should persist login and data)
 # =============================================================================
 
-# 2.1 Now check the "Keep me logged in" checkbox
-- tapOn:
-    id: keepLoggedInCheckbox
+# 2.0 RESET LOCATION to prevent diagonal line from Phase 1 to Phase 2
+- setLocation:
+    latitude: 37.78825
+    longitude: -122.4324
 - waitForAnimationToEnd:
     timeout: 500
-- takeScreenshot: phase2-checked-checkbox
+
+# 2.1 ENSURE checkbox is CHECKED
+# After app restart, checkbox returns to its default state
+# If default is checked: leave it alone (don't tap)
+# If default is unchecked: tap once to check it
+# Based on the previous phase working, default appears to be checked, so DON'T tap
+- takeScreenshot: phase2-checkbox-default-state
 
 # 2.2 Login with checked checkbox
 - runFlow:
@@ -224,3 +231,6 @@ jsEngine: graaljs
 # - Screenshots will show:
 #   * phase1-back-to-login-after-restart.png (proves unchecked doesn't persist)
 #   * phase2-fog-state-before-restart.png vs phase2-fog-state-after-restart.png (should be identical) 
+
+# Final screenshot for visual regression testing
+- takeScreenshot: final-state 

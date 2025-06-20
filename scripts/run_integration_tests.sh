@@ -2,16 +2,38 @@
 
 # Integration Test Runner - Ensures app is running before executing Maestro tests
 # Captures Metro console logs and saves them as test artifacts
+# Includes visual regression testing using SSIM comparison
 
 set -e
 
-if [ $# -eq 0 ]; then
-    echo "Usage: $0 <test-file>"
+# Parse command line arguments
+CREATE_REFERENCE=false
+TEST_FILE=""
+
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --create-reference)
+            CREATE_REFERENCE=true
+            shift
+            ;;
+        *)
+            if [ -z "$TEST_FILE" ]; then
+                TEST_FILE="$1"
+            else
+                echo "Error: Multiple test files specified"
+                exit 1
+            fi
+            shift
+            ;;
+    esac
+done
+
+if [ -z "$TEST_FILE" ]; then
+    echo "Usage: $0 [--create-reference] <test-file>"
     echo "Example: $0 .maestro/background-gps-test.yaml"
+    echo "         $0 --create-reference .maestro/smoke-test.yaml"
     exit 1
 fi
-
-TEST_FILE="$1"
 
 if [ ! -f "$TEST_FILE" ]; then
     echo "Error: Test file '$TEST_FILE' not found"
@@ -116,19 +138,24 @@ fi
 
 # Move any screenshots from current directory to artifacts directory
 # Handle both .png and .png.png files
-if ls *.png *.png.png 2>/dev/null; then
+if find . -maxdepth 1 \( -name "*.png" -o -name "*.png.png" \) | grep -q .; then
     echo "📸 Moving screenshots to artifacts directory..."
-    for file in *.png *.png.png; do
+    
+    # Process .png files
+    for file in *.png; do
+        if [ -f "$file" ]; then
+            mv "$file" "$ARTIFACTS_DIR/"
+            echo "  Moved: $file"
+        fi
+    done
+    
+    # Process .png.png files (if any exist)
+    for file in *.png.png; do
         if [ -f "$file" ]; then
             # Fix .png.png duplication by removing the extra .png
-            if [[ "$file" == *.png.png ]]; then
-                new_name="${file%.png}"
-                mv "$file" "$ARTIFACTS_DIR/$new_name"
-                echo "  Moved and renamed: $file → $new_name"
-            else
-                mv "$file" "$ARTIFACTS_DIR/"
-                echo "  Moved: $file"
-            fi
+            new_name="${file%.png}"
+            mv "$file" "$ARTIFACTS_DIR/$new_name"
+            echo "  Moved and renamed: $file → $new_name"
         fi
     done
 fi
@@ -151,10 +178,17 @@ if [ -n "$METRO_LOG" ] && [ -f "$METRO_LOG" ]; then
         CRITICAL_ERRORS_FOUND=true
     fi
 
-    # Check for warnings (log but don't fail)
-    if grep -i "WARN" "$METRO_LOG" > "$ARTIFACTS_DIR/console_warnings.log"; then
-        echo "⚠️  Console warnings detected - saved to: $ARTIFACTS_DIR/console_warnings.log"
-        # Don't fail the test for warnings, but log them
+    # Check for warnings (log but don't fail) - filter out benign Metro warnings
+    if grep -i "WARN" "$METRO_LOG" | grep -v "Bundler cache is empty, rebuilding" > "$ARTIFACTS_DIR/console_warnings.log"; then
+        # Only report warnings if there are any after filtering
+        if [ -s "$ARTIFACTS_DIR/console_warnings.log" ]; then
+            echo "⚠️  Console warnings detected - saved to: $ARTIFACTS_DIR/console_warnings.log"
+        else
+            echo "✅ Only benign Metro warnings detected (filtered out)"
+            rm "$ARTIFACTS_DIR/console_warnings.log"  # Clean up empty file
+        fi
+    else
+        echo "✅ No significant console warnings detected"
     fi
 
     # Determine final test result
@@ -185,6 +219,100 @@ if [ -n "$MAESTRO_TEST_DIR" ] && [ -d "$MAESTRO_TEST_DIR" ]; then
     echo "Maestro test artifacts copied to: $ARTIFACTS_DIR/"
 fi
 
+# Visual regression testing (only if Maestro test passed)
+VISUAL_REGRESSION_RESULT="SKIPPED"
+if [ "$MAESTRO_EXIT_CODE" -eq 0 ] && [ "$CRITICAL_ERRORS_FOUND" = false ]; then
+    echo ""
+    echo "🖼️  Running visual regression testing..."
+    
+    # Extract test name from file path for screenshot naming
+    TEST_NAME=$(basename "$TEST_FILE" .yaml)
+    FINAL_SCREENSHOT="$ARTIFACTS_DIR/${TEST_NAME}-final.png"
+    REFERENCE_SCREENSHOT="test_data/reference_screenshots/${TEST_NAME}-final.png"
+    
+    # Find the final screenshot (look for common final screenshot patterns)
+    ACTUAL_FINAL_SCREENSHOT=""
+    for pattern in "*final*.png" "*after-restart*.png" "*complete*.png"; do
+        FOUND_SCREENSHOT=$(find "$ARTIFACTS_DIR" -name "$pattern" | head -1)
+        if [ -n "$FOUND_SCREENSHOT" ]; then
+            ACTUAL_FINAL_SCREENSHOT="$FOUND_SCREENSHOT"
+            break
+        fi
+    done
+    
+    # If no final screenshot found, use the last screenshot taken
+    if [ -z "$ACTUAL_FINAL_SCREENSHOT" ]; then
+        ACTUAL_FINAL_SCREENSHOT=$(find "$ARTIFACTS_DIR" -name "*.png" | tail -1)
+    fi
+    
+    if [ -n "$ACTUAL_FINAL_SCREENSHOT" ]; then
+        # Copy the final screenshot to a standardized name
+        cp "$ACTUAL_FINAL_SCREENSHOT" "$FINAL_SCREENSHOT"
+        echo "📸 Final screenshot: $(basename "$ACTUAL_FINAL_SCREENSHOT")"
+        
+        if [ "$CREATE_REFERENCE" = true ]; then
+            # Create reference screenshot
+            mkdir -p "test_data/reference_screenshots"
+            cp "$FINAL_SCREENSHOT" "$REFERENCE_SCREENSHOT"
+            echo "✅ Reference screenshot created: $REFERENCE_SCREENSHOT"
+            VISUAL_REGRESSION_RESULT="REFERENCE_CREATED"
+        elif [ -f "$REFERENCE_SCREENSHOT" ]; then
+            # Compare with reference using SSIM
+            echo "🔍 Comparing with reference screenshot..."
+            
+            # Extract SSIM value using ffmpeg
+            SSIM_OUTPUT=$(ffmpeg -i "$FINAL_SCREENSHOT" -i "$REFERENCE_SCREENSHOT" -lavfi ssim -f null - 2>&1 | grep "All:" | awk '{print $4}' || echo "0.0")
+            
+            if [ -n "$SSIM_OUTPUT" ] && [ "$SSIM_OUTPUT" != "0.0" ]; then
+                # Use bc for floating point comparison
+                SSIM_THRESHOLD="0.98"
+                if command -v bc >/dev/null 2>&1; then
+                    SSIM_PASS=$(echo "$SSIM_OUTPUT > $SSIM_THRESHOLD" | bc -l)
+                else
+                    # Fallback for systems without bc
+                    SSIM_PASS=$(awk "BEGIN {print ($SSIM_OUTPUT > $SSIM_THRESHOLD) ? 1 : 0}")
+                fi
+                
+                echo "📊 SSIM Score: $SSIM_OUTPUT (threshold: $SSIM_THRESHOLD)"
+                
+                if [ "$SSIM_PASS" -eq 1 ]; then
+                    echo "✅ Visual regression test PASSED"
+                    VISUAL_REGRESSION_RESULT="PASSED"
+                else
+                    echo "❌ Visual regression test FAILED"
+                    VISUAL_REGRESSION_RESULT="FAILED"
+                    
+                    # Create diff image for debugging
+                    DIFF_IMAGE="$ARTIFACTS_DIR/visual_diff.png"
+                    if command -v ffmpeg >/dev/null 2>&1; then
+                        ffmpeg -i "$REFERENCE_SCREENSHOT" -i "$FINAL_SCREENSHOT" -lavfi "[0:v][1:v]blend=all_mode=difference" -y "$DIFF_IMAGE" 2>/dev/null || true
+                        if [ -f "$DIFF_IMAGE" ]; then
+                            echo "🔍 Visual diff saved to: visual_diff.png"
+                        fi
+                    fi
+                    
+                    # Update test result if visual regression failed
+                    if [ "$TEST_RESULT" = "PASSED" ]; then
+                        TEST_RESULT="FAILED"
+                        EXIT_CODE=1
+                    fi
+                fi
+            else
+                echo "⚠️  Could not extract SSIM value from ffmpeg output"
+                VISUAL_REGRESSION_RESULT="ERROR"
+            fi
+        else
+            echo "⚠️  No reference screenshot found. Run with --create-reference to create one."
+            VISUAL_REGRESSION_RESULT="NO_REFERENCE"
+        fi
+    else
+        echo "⚠️  No final screenshot found in test artifacts"
+        VISUAL_REGRESSION_RESULT="NO_SCREENSHOT"
+    fi
+else
+    echo "⏭️  Skipping visual regression testing (Maestro test failed or critical errors found)"
+fi
+
 # Create test summary
 cat > "$ARTIFACTS_DIR/test_summary.txt" << EOF
 Integration Test Summary
@@ -192,9 +320,11 @@ Integration Test Summary
 Test File: $TEST_FILE
 Timestamp: $TIMESTAMP
 Maestro Result: $MAESTRO_RESULT
+Visual Regression Result: $VISUAL_REGRESSION_RESULT
 Final Result: $TEST_RESULT
 Exit Code: $EXIT_CODE
 Critical Errors Found: $CRITICAL_ERRORS_FOUND
+Create Reference Mode: $CREATE_REFERENCE
 
 Artifacts Location: $ARTIFACTS_DIR
 EOF
