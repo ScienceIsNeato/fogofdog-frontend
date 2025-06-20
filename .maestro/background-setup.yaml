@@ -1,0 +1,33 @@
+appId: com.fogofdog.app
+jsEngine: graaljs
+---
+# Background Test Setup - Part 1
+# Sets up the app for background GPS injection
+
+# Setup - Fresh app launch and login
+- setLocation:
+    latitude: 37.78825
+    longitude: -122.4324
+- launchApp:
+    appId: com.fogofdog.app
+    clearState: true
+- runFlow:
+    file: robust-login.yaml
+- assertVisible:
+    text: "You are here"
+
+# Move to starting position
+- setLocation:
+    latitude: 37.779266
+    longitude: -122.4324
+- waitForAnimationToEnd:
+    timeout: 800
+- tapOn:
+    id: "location-button"
+- waitForAnimationToEnd:
+    timeout: 500
+
+# Background the app
+- pressKey: Home
+- waitForAnimationToEnd:
+    timeout: 1000

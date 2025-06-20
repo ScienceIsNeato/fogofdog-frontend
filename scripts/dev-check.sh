@@ -47,19 +47,22 @@ run_check() {
 # 1. Fix Linting Issues (automatically fix what can be fixed)
 run_check "Lint Fix" "npm run lint:fix"
 
-# 2. Fix Format Issues (automatically fix formatting)
+# 2. Strict Lint Check (catch warnings that can't be auto-fixed)
+run_check "Lint Strict Check" "npm run lint:strict"
+
+# 3. Fix Format Issues (automatically fix formatting)
 run_check "Format Fix" "npm run format:fix"
 
-# 3. TypeScript Type Check
+# 4. TypeScript Type Check
 run_check "Type Check" "npm run type-check"
 
-# 4. Test Coverage
+# 5. Test Coverage
 run_check "Test Coverage" "npm run test:coverage"
 
-# 5. Code Duplication Check  
+# 6. Code Duplication Check  
 run_check "Duplication Check" "npm run duplication:check"
 
-# 6. SonarQube Quality Check (Comprehensive Analysis) - Only in full mode
+# 7. SonarQube Quality Check (Comprehensive Analysis) - Only in full mode
 if [[ "$FULL_CHECK" == "true" ]]; then
     run_check "SonarQube Analysis" "npm run sonar:check"
 fi

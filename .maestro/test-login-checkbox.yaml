@@ -1,0 +1,38 @@
+appId: com.fogofdog.app
+---
+# Test to verify the "keep me logged in" checkbox exists
+
+# Force logout by clearing all state
+- launchApp:
+    appId: com.fogofdog.app
+    clearState: true
+- waitForAnimationToEnd:
+    timeout: 2000
+
+# Should now see the login screen
+- assertVisible:
+    text: "Sign In"
+# Use testID instead of text for more reliable detection
+- assertVisible:
+    id: "keepLoggedInCheckbox"
+
+# Verify checkbox is checked by default
+- takeScreenshot: login-screen-with-checkbox
+
+# Test unchecking the checkbox
+- tapOn:
+    id: "keepLoggedInCheckbox"
+- takeScreenshot: login-screen-checkbox-unchecked
+
+# Test checking it again
+- tapOn:
+    id: "keepLoggedInCheckbox"
+- takeScreenshot: login-screen-checkbox-checked
+
+# Login to verify functionality
+- tapOn:
+    id: "signInButton"
+- waitForAnimationToEnd:
+    timeout: 2000
+- assertVisible:
+    id: "map-screen" 

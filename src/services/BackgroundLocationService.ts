@@ -3,6 +3,7 @@ import * as Location from 'expo-location';
 import { LocationStorageService, StoredLocationData } from './LocationStorageService';
 import { CoordinateDeduplicationService } from './CoordinateDeduplicationService';
 import { logger } from '../utils/logger';
+import { AppState, DeviceEventEmitter } from 'react-native';
 
 const BACKGROUND_LOCATION_TASK = 'background-location-task';
 
@@ -28,6 +29,8 @@ export interface PermissionStatus {
 export class BackgroundLocationService {
   private static isInitialized = false;
   private static isRunning = false;
+  private static appStateSubscription: any;
+  private static lastBackgroundUpdate: number = 0;
 
   /**
    * Initialize the background location service
@@ -41,6 +44,15 @@ export class BackgroundLocationService {
     try {
       // Define the background task
       TaskManager.defineTask(BACKGROUND_LOCATION_TASK, async ({ data, error }) => {
+        // Enhanced logging for debugging
+        logger.info('Background location task executed', {
+          component: 'BackgroundLocationService',
+          action: 'backgroundTask',
+          appState: AppState.currentState,
+          locationsReceived: (data as any)?.locations?.length ?? 0,
+          timestamp: new Date().toISOString(),
+        });
+
         if (error) {
           // Check if this is a transient location error that we can ignore
           const errorMessage = error.message || '';
@@ -63,6 +75,11 @@ export class BackgroundLocationService {
           logger.error('Background location task error', error, {
             component: 'BackgroundLocationService',
             action: 'backgroundTask',
+          });
+          logger.error('Background location task error details', error, {
+            component: 'BackgroundLocationService',
+            action: 'backgroundTask',
+            errorDetails: error.message || String(error),
           });
           return;
         }
@@ -216,21 +233,25 @@ export class BackgroundLocationService {
         return true;
       }
 
-      // Start location updates
+      // Start location updates with enhanced configuration
       await Location.startLocationUpdatesAsync(BACKGROUND_LOCATION_TASK, {
-        accuracy: Location.Accuracy.Balanced, // Balance between accuracy and battery
-        timeInterval: 30000, // 30 seconds - conservative for battery life
-        distanceInterval: 20, // 20 meters - reasonable for exploration tracking
-        deferredUpdatesInterval: 60000, // 1 minute - batch updates for efficiency
+        accuracy: Location.Accuracy.High, // Higher accuracy for better tracking
+        timeInterval: 30000, // 30 seconds - longer than foreground
+        distanceInterval: 10, // 10 meters - more frequent updates
         foregroundService: {
-          notificationTitle: 'FogOfDog is tracking your exploration',
-          notificationBody: 'Discovering new areas in the background',
-          notificationColor: '#4A90E2',
+          notificationTitle: 'FogOfDog Tracking',
+          notificationBody: 'Recording your route in the background',
+          killServiceOnDestroy: false,
         },
+        showsBackgroundLocationIndicator: true, // iOS
+        pausesUpdatesAutomatically: false, // iOS
       });
 
+      // Add AppState listener to process stored locations
+      this.appStateSubscription = AppState.addEventListener('change', this.handleAppStateChange);
+
       this.isRunning = true;
-      logger.info('Background location tracking started', {
+      logger.info('Background location tracking started with AppState integration', {
         component: 'BackgroundLocationService',
         action: 'startBackgroundLocationTracking',
       });
@@ -257,6 +278,13 @@ export class BackgroundLocationService {
           action: 'stopBackgroundLocationTracking',
         });
       }
+
+      // Remove AppState listener
+      if (this.appStateSubscription) {
+        this.appStateSubscription.remove();
+        this.appStateSubscription = null;
+      }
+
       this.isRunning = false;
     } catch (error) {
       logger.error('Failed to stop background location tracking', error, {
@@ -301,6 +329,9 @@ export class BackgroundLocationService {
     locations: Location.LocationObject[]
   ): Promise<void> {
     try {
+      // Log background performance
+      this.logBackgroundPerformance(locations);
+
       let processedCount = 0;
       let skippedCount = 0;
 
@@ -359,6 +390,17 @@ export class BackgroundLocationService {
           count: storedLocations.length,
         });
 
+        // Emit location events for each stored location to trigger UI updates
+        storedLocations.forEach((location, index) => {
+          // Add a small delay between events to ensure proper processing
+          setTimeout(() => {
+            DeviceEventEmitter.emit('locationUpdate', {
+              latitude: location.latitude,
+              longitude: location.longitude,
+            });
+          }, index * 100); // 100ms delay between each location
+        });
+
         // Clear the stored locations after retrieving them
         await LocationStorageService.clearStoredBackgroundLocations();
       }
@@ -371,5 +413,45 @@ export class BackgroundLocationService {
       });
       return [];
     }
+  }
+
+  /**
+   * Handle app state changes to process stored locations
+   */
+  private static readonly handleAppStateChange = async (nextAppState: string) => {
+    logger.info(`App state changed to: ${nextAppState}`, {
+      component: 'BackgroundLocationService',
+      action: 'handleAppStateChange',
+    });
+
+    if (nextAppState === 'active') {
+      // Process any stored locations when app becomes active
+      logger.info('App became active, processing stored locations', {
+        component: 'BackgroundLocationService',
+        action: 'handleAppStateChange',
+      });
+      await BackgroundLocationService.processStoredLocations();
+    }
+  };
+
+  /**
+   * Log background task execution frequency for debugging
+   */
+  private static logBackgroundPerformance(locations: Location.LocationObject[]) {
+    const now = Date.now();
+    const timeSinceLastUpdate = now - this.lastBackgroundUpdate;
+
+    logger.info('Background location performance', {
+      component: 'BackgroundLocationService',
+      action: 'logBackgroundPerformance',
+      timeSinceLastUpdate,
+      expectedInterval: 30000,
+      locationsInBatch: locations.length,
+      intervalDifference: timeSinceLastUpdate - 30000,
+      backgroundUpdateIntervalMs: timeSinceLastUpdate,
+      expectedIntervalMs: 30000,
+    });
+
+    this.lastBackgroundUpdate = now;
   }
 }

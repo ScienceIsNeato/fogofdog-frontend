@@ -41,6 +41,15 @@ artifacts/*
 **/artifacts/
 test_artifacts/
 
+# Test screenshots (temporary files before moving to artifacts)
+*.png
+*-screenshot*.png
+phase*.png
+fog-state*.png
+initial-login*.png
+foreground_baseline*.png
+background_test*.png
+
 # Coverage reports
 coverage/
 **/coverage/

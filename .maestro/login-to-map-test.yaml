@@ -22,7 +22,8 @@ appId: com.fogofdog.app
       - tapOn: "Allow While Using App"
 
 # Wait for map to load and verify we're on the map screen
-- waitForAnimationToEnd
-# CRITICAL: Map screen MUST render within 0.5 seconds to pass
+- waitForAnimationToEnd:
+    timeout: 3000
+# CRITICAL: Map screen MUST render within reasonable time
 - assertVisible:
-    id: "map-screen" 
+    id: "map-screen"

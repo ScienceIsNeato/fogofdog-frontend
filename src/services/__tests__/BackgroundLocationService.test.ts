@@ -263,14 +263,16 @@ describe('BackgroundLocationService', () => {
       expect(mockedLocation.startLocationUpdatesAsync).toHaveBeenCalledWith(
         'background-location-task',
         expect.objectContaining({
-          accuracy: Location.Accuracy.Balanced,
+          accuracy: Location.Accuracy.High,
           timeInterval: 30000,
-          distanceInterval: 20,
-          deferredUpdatesInterval: 60000,
+          distanceInterval: 10,
           foregroundService: expect.objectContaining({
-            notificationTitle: 'FogOfDog is tracking your exploration',
-            notificationBody: 'Discovering new areas in the background',
+            notificationTitle: 'FogOfDog Tracking',
+            notificationBody: 'Recording your route in the background',
+            killServiceOnDestroy: false,
           }),
+          showsBackgroundLocationIndicator: true,
+          pausesUpdatesAutomatically: false,
         })
       );
     });

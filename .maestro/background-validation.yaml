@@ -1,0 +1,50 @@
+appId: com.fogofdog.app
+jsEngine: graaljs
+---
+# Background Test Validation - Part 2
+# Foregrounds the app and captures the result after background GPS injection
+
+# Foreground the app and process stored locations
+- launchApp:
+    appId: com.fogofdog.app
+    clearState: false  # Preserve login session
+- waitForAnimationToEnd:
+    timeout: 3000  # Time for background location processing
+- assertVisible:
+    id: "map-screen"
+- waitForAnimationToEnd:
+    timeout: 3000  # Extra time for AppState integration
+- tapOn:
+    id: "location-button"
+- waitForAnimationToEnd:
+    timeout: 500
+
+# Zoom out to same level as baseline (identical zoom sequence)
+- tapOn:
+    point: 450,300  # Center of screen
+- waitForAnimationToEnd:
+    timeout: 500
+# Zoom out to show full pattern (same as baseline)
+- tapOn:
+    point: 400,250
+- tapOn:
+    point: 500,350
+- waitForAnimationToEnd:
+    timeout: 1000
+- tapOn:
+    point: 400,250
+- tapOn:
+    point: 500,350
+- waitForAnimationToEnd:
+    timeout: 1000
+
+# Take comparison screenshot
+- takeScreenshot: background_test.png
+- waitForAnimationToEnd:
+    timeout: 500
+
+# Final assertions to ensure test completed successfully
+- assertVisible:
+    id: "map-screen"
+- assertVisible:
+    text: "You are here"

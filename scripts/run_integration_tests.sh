@@ -23,25 +23,56 @@ fi
 # 1. Define App Bundle ID
 APP_BUNDLE_ID="com.fogofdog.app"
 
-# 2. Check if Simulator app is running
-if ! pgrep -x "Simulator" > /dev/null; then
-    echo "🚀 Starting iOS Simulator..."
-    open -a Simulator
-    echo "⏳ Waiting for Simulator to launch..."
-    sleep 10
-fi
+# 2. Define target simulator (from .detoxrc.js - known working config)
+TARGET_DEVICE="iPhone 15 Pro"
+TARGET_RUNTIME="iOS 18.4"
 
-# 3. Get Booted Device UDID
-BOOTED_DEVICE_UDID=$(xcrun simctl list devices | grep "Booted" | awk -F'[()]' '{print $2}')
+# 3. Check for existing booted device first
+BOOTED_DEVICE_UDID=$(xcrun simctl list devices | grep "Booted" | awk -F'[()]' '{print $2}' | head -1)
 
-if [ -z "$BOOTED_DEVICE_UDID" ]; then
-    echo "❌ No booted device found. Please launch a simulator and run the script again."
-    exit 1
+if [ -n "$BOOTED_DEVICE_UDID" ]; then
+    echo "✅ Simulator already running (Device UDID: $BOOTED_DEVICE_UDID)."
 else
-    echo "✅ Simulator is running (Device UDID: $BOOTED_DEVICE_UDID)."
+    # 4. Find the target device UDID
+    echo "🔍 Looking for $TARGET_DEVICE simulator..."
+    DEVICE_UDID=$(xcrun simctl list devices | grep "$TARGET_DEVICE" | grep -v "unavailable" | head -1 | awk -F'[()]' '{print $2}')
+    
+    if [ -z "$DEVICE_UDID" ]; then
+        echo "❌ $TARGET_DEVICE not found. Available devices:"
+        xcrun simctl list devices | grep "iPhone"
+        exit 1
+    fi
+    
+    # 5. Boot the specific simulator
+    echo "🚀 Booting $TARGET_DEVICE (UDID: $DEVICE_UDID)..."
+    xcrun simctl boot "$DEVICE_UDID"
+    
+    # 6. Wait for boot to complete
+    echo "⏳ Waiting for simulator to boot..."
+    TIMEOUT=30
+    ELAPSED=0
+    
+    while [ $ELAPSED -lt $TIMEOUT ]; do
+        BOOTED_DEVICE_UDID=$(xcrun simctl list devices | grep "Booted" | awk -F'[()]' '{print $2}' | head -1)
+        if [ -n "$BOOTED_DEVICE_UDID" ]; then
+            echo "✅ Simulator is running (Device UDID: $BOOTED_DEVICE_UDID)."
+            break
+        fi
+        sleep 2
+        ELAPSED=$((ELAPSED + 2))
+    done
+    
+    if [ -z "$BOOTED_DEVICE_UDID" ]; then
+        echo "❌ Failed to boot simulator after ${TIMEOUT}s."
+        exit 1
+    fi
+    
+    # 7. Open Simulator app
+    open -a Simulator
+    sleep 3
 fi
 
-# 4. Check if the app is installed
+# 5. Check if the app is installed
 if ! xcrun simctl appinfo "$BOOTED_DEVICE_UDID" "$APP_BUNDLE_ID" > /dev/null 2>&1; then
     echo "❌ App '$APP_BUNDLE_ID' is not installed on the booted simulator."
     echo "👉 Please run './scripts/setup-e2e-tests.sh' first to install the correct build."
@@ -57,18 +88,23 @@ echo "🔍 Running app readiness check (refreshes Metro and validates bundle)...
 echo "📲 Launching app '$APP_BUNDLE_ID'..."
 xcrun simctl launch "$BOOTED_DEVICE_UDID" "$APP_BUNDLE_ID"
 echo "⏳ Waiting for app to launch and connect to Metro..."
-sleep 10 # Give the app time to connect
+sleep 5 # Give the app time to connect
 
 # Create test artifacts directory
 TIMESTAMP=$(date +"%Y-%m-%d_%H%M%S")
 ARTIFACTS_DIR="test_artifacts/integration_${TIMESTAMP}"
 mkdir -p "$ARTIFACTS_DIR"
 
+# Set Maestro output directory to our artifacts directory
+export MAESTRO_OUTPUT_DIR="$PWD/$ARTIFACTS_DIR"
+
 echo "📱 Capturing Metro console logs..."
 # Find the most recent Metro log file
 METRO_LOG=$(ls -t /tmp/metro_console_*.log 2>/dev/null | head -1)
 
 echo "🎭 Starting integration test: $TEST_FILE"
+echo "📸 Screenshots will be saved to: $ARTIFACTS_DIR"
+
 # Run the test and capture exit code
 if maestro test "$TEST_FILE"; then
     MAESTRO_RESULT="PASSED"
@@ -76,6 +112,25 @@ if maestro test "$TEST_FILE"; then
 else
     MAESTRO_RESULT="FAILED"
     MAESTRO_EXIT_CODE=1
+fi
+
+# Move any screenshots from current directory to artifacts directory
+# Handle both .png and .png.png files
+if ls *.png *.png.png 2>/dev/null; then
+    echo "📸 Moving screenshots to artifacts directory..."
+    for file in *.png *.png.png; do
+        if [ -f "$file" ]; then
+            # Fix .png.png duplication by removing the extra .png
+            if [[ "$file" == *.png.png ]]; then
+                new_name="${file%.png}"
+                mv "$file" "$ARTIFACTS_DIR/$new_name"
+                echo "  Moved and renamed: $file → $new_name"
+            else
+                mv "$file" "$ARTIFACTS_DIR/"
+                echo "  Moved: $file"
+            fi
+        fi
+    done
 fi
 
 echo "📋 Analyzing console logs for critical errors..."

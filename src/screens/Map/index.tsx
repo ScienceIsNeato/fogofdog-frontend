@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef, useMemo } from 'react';
-import { View, StyleSheet, Dimensions, DeviceEventEmitter } from 'react-native';
+import { View, StyleSheet, Dimensions, DeviceEventEmitter, AppState } from 'react-native';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import { updateLocation, updateZoom, setCenterOnUser } from '../../store/slices/explorationSlice';
 import MapView, { Marker, Region } from 'react-native-maps';
@@ -10,6 +10,8 @@ import LocationButton from '../../components/LocationButton';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { logger } from '../../utils/logger';
 import { GPSInjectionService } from '../../services/GPSInjectionService';
+import { BackgroundLocationService } from '../../services/BackgroundLocationService';
+import { AuthPersistenceService } from '../../services/AuthPersistenceService';
 
 // Unified location task name
 const LOCATION_TASK = 'unified-location-task';
@@ -68,16 +70,30 @@ const handleLocationUpdate = ({
   }
 };
 
-// Helper: requestLocationPermissions
+// Helper: requestLocationPermissions with proper sequence
 async function requestLocationPermissions() {
+  // Request foreground first
   const { status: foregroundStatus } = await Location.requestForegroundPermissionsAsync();
   if (foregroundStatus !== 'granted') {
+    logger.warn('Foreground location permission denied');
     return { foregroundGranted: false, backgroundGranted: false };
   }
+
+  // Then request background
   const { status: backgroundStatus } = await Location.requestBackgroundPermissionsAsync();
+  const backgroundGranted = backgroundStatus === 'granted';
+
+  logger.info('Location permissions requested', {
+    component: 'MapScreen',
+    action: 'requestLocationPermissions',
+    foregroundStatus,
+    backgroundStatus,
+    backgroundGranted,
+  });
+
   return {
     foregroundGranted: true,
-    backgroundGranted: backgroundStatus === 'granted',
+    backgroundGranted,
   };
 }
 
@@ -221,6 +237,119 @@ async function getInitialLocation({
   }
 }
 
+// Helper function to process stored locations on startup
+const processStoredLocationsOnStartup = async (options: {
+  isActiveRef: { current: boolean };
+  dispatch: ReturnType<typeof useAppDispatch>;
+  mapRef: React.RefObject<MapView>;
+  isMapCenteredOnUser: boolean;
+  currentRegion: Region | undefined;
+}) => {
+  const storedLocations = await BackgroundLocationService.processStoredLocations();
+  if (storedLocations.length === 0) return;
+
+  logger.info(`Processed ${storedLocations.length} stored background locations on startup`);
+  // Update Redux with the most recent stored location if available
+  const mostRecent = storedLocations[storedLocations.length - 1];
+  if (options.isActiveRef.current && mostRecent) {
+    handleLocationUpdate({
+      location: {
+        latitude: mostRecent.latitude,
+        longitude: mostRecent.longitude,
+      },
+      dispatch: options.dispatch,
+      mapRef: options.mapRef,
+      isMapCenteredOnUser: options.isMapCenteredOnUser,
+      currentRegion: options.currentRegion,
+    });
+  }
+};
+
+// Helper function to setup background location tracking
+const setupBackgroundLocationTracking = async (backgroundGranted: boolean) => {
+  if (!backgroundGranted) {
+    logger.warn('Background location permission denied, foreground only');
+    return;
+  }
+
+  // Start background location tracking
+  const backgroundStarted = await BackgroundLocationService.startBackgroundLocationTracking();
+  if (backgroundStarted) {
+    logger.info('Background location tracking started successfully');
+  } else {
+    logger.warn('Failed to start background location tracking');
+  }
+};
+
+// Helper function for setting up unified location service
+const setupUnifiedLocationService = async ({
+  isActiveRef,
+  dispatch,
+  mapRef,
+  isMapCenteredOnUser,
+  currentRegion,
+}: {
+  isActiveRef: { current: boolean };
+  dispatch: ReturnType<typeof useAppDispatch>;
+  mapRef: React.RefObject<MapView>;
+  isMapCenteredOnUser: boolean;
+  currentRegion: Region | undefined;
+}) => {
+  try {
+    const { foregroundGranted, backgroundGranted } = await requestLocationPermissions();
+    if (!foregroundGranted) {
+      logger.warn('Foreground location permission denied, using default location');
+      if (isActiveRef.current) {
+        dispatch(
+          updateLocation({
+            latitude: DEFAULT_LOCATION.latitude,
+            longitude: DEFAULT_LOCATION.longitude,
+          })
+        );
+      }
+      return;
+    }
+
+    // Initialize BackgroundLocationService
+    await BackgroundLocationService.initialize();
+
+    // Setup background location tracking
+    await setupBackgroundLocationTracking(backgroundGranted);
+
+    // Start foreground location tracking
+    defineUnifiedLocationTask();
+    await startLocationUpdates();
+
+    // Process any stored background locations
+    await processStoredLocationsOnStartup({
+      isActiveRef,
+      dispatch,
+      mapRef,
+      isMapCenteredOnUser,
+      currentRegion,
+    });
+
+    await getInitialLocation({
+      isActiveRef,
+      dispatch,
+      mapRef,
+      isMapCenteredOnUser,
+      currentRegion,
+    });
+    logger.info('Unified location service started with background integration');
+  } catch (error) {
+    logger.error('Failed to setup unified location service:', error);
+    if (isActiveRef.current) {
+      dispatch(
+        updateLocation({
+          latitude: DEFAULT_LOCATION.latitude,
+          longitude: DEFAULT_LOCATION.longitude,
+        })
+      );
+    }
+  }
+};
+
 // Refactor useUnifiedLocationService to use helpers and further reduce line count
 const useUnifiedLocationService = (
   dispatch: ReturnType<typeof useAppDispatch>,
@@ -231,47 +360,6 @@ const useUnifiedLocationService = (
   useEffect(() => {
     const isActiveRef = { current: true };
 
-    const setupUnifiedLocationService = async () => {
-      try {
-        const { foregroundGranted, backgroundGranted } = await requestLocationPermissions();
-        if (!foregroundGranted) {
-          logger.warn('Foreground location permission denied, using default location');
-          if (isActiveRef.current) {
-            dispatch(
-              updateLocation({
-                latitude: DEFAULT_LOCATION.latitude,
-                longitude: DEFAULT_LOCATION.longitude,
-              })
-            );
-          }
-          return;
-        }
-        if (!backgroundGranted) {
-          logger.warn('Background location permission denied, foreground only');
-        }
-        defineUnifiedLocationTask();
-        await startLocationUpdates();
-        await getInitialLocation({
-          isActiveRef,
-          dispatch,
-          mapRef,
-          isMapCenteredOnUser,
-          currentRegion,
-        });
-        logger.info('Unified location service started');
-      } catch (error) {
-        logger.error('Failed to setup unified location service:', error);
-        if (isActiveRef.current) {
-          dispatch(
-            updateLocation({
-              latitude: DEFAULT_LOCATION.latitude,
-              longitude: DEFAULT_LOCATION.longitude,
-            })
-          );
-        }
-      }
-    };
-
     const listeners = setupLocationListeners({
       isActiveRef,
       dispatch,
@@ -280,7 +368,13 @@ const useUnifiedLocationService = (
       currentRegion,
     });
 
-    setupUnifiedLocationService();
+    setupUnifiedLocationService({
+      isActiveRef,
+      dispatch,
+      mapRef,
+      isMapCenteredOnUser,
+      currentRegion,
+    });
 
     return () => {
       isActiveRef.current = false;
@@ -288,7 +382,11 @@ const useUnifiedLocationService = (
       Location.stopLocationUpdatesAsync(LOCATION_TASK)?.catch(() => {
         /* ignore error if task is already stopped */
       });
-      logger.info('Unified location service stopped.');
+      // Stop background location tracking
+      BackgroundLocationService.stopBackgroundLocationTracking().catch(() => {
+        /* ignore error if already stopped */
+      });
+      logger.info('Unified location service stopped with background tracking.');
     };
   }, [dispatch, mapRef, isMapCenteredOnUser, currentRegion]);
 };
@@ -544,6 +642,144 @@ const MapScreenRenderer = ({
   </View>
 );
 
+// Custom hook for exploration state persistence
+const useExplorationStatePersistence = (explorationState: any) => {
+  useEffect(() => {
+    const persistExplorationState = async () => {
+      try {
+        logger.info('🔄 Starting exploration state persistence', {
+          component: 'MapScreen',
+          action: 'persistExplorationState',
+          pathLength: explorationState.path.length,
+          hasCurrentLocation: !!explorationState.currentLocation,
+        });
+
+        await AuthPersistenceService.saveExplorationState({
+          currentLocation: explorationState.currentLocation,
+          path: explorationState.path,
+          exploredAreas: explorationState.exploredAreas,
+          zoomLevel: explorationState.zoomLevel,
+        });
+
+        logger.info('✅ Exploration state persistence completed successfully', {
+          component: 'MapScreen',
+          action: 'persistExplorationState',
+          pathLength: explorationState.path.length,
+        });
+
+        // Immediately verify the data was saved
+        const savedState = await AuthPersistenceService.getExplorationState();
+        logger.info('🔍 Verified saved exploration state', {
+          component: 'MapScreen',
+          action: 'persistExplorationState',
+          savedPathLength: savedState?.path.length ?? 0,
+          savedSuccessfully: savedState !== null,
+        });
+      } catch (error) {
+        logger.error('❌ Failed to persist exploration state', error, {
+          component: 'MapScreen',
+          action: 'persistExplorationState',
+        });
+      }
+    };
+
+    // Only persist if we have meaningful data
+    if (explorationState.path.length > 0 || explorationState.currentLocation) {
+      logger.info('📊 Triggering exploration state persistence', {
+        component: 'MapScreen',
+        pathLength: explorationState.path.length,
+        hasCurrentLocation: !!explorationState.currentLocation,
+      });
+      persistExplorationState();
+    }
+  }, [
+    explorationState.currentLocation,
+    explorationState.path,
+    explorationState.exploredAreas,
+    explorationState.zoomLevel,
+  ]);
+};
+
+// Custom hook for GPS injection service
+const useGPSInjectionService = () => {
+  useEffect(() => {
+    const stopGPSInjectionCheck = GPSInjectionService.startPeriodicCheck(2000);
+    return () => {
+      if (typeof stopGPSInjectionCheck === 'function') {
+        stopGPSInjectionCheck();
+      }
+    };
+  }, []);
+};
+
+// Helper function to process stored locations
+const processStoredBackgroundLocations = async (
+  storedLocations: any[],
+  options: {
+    dispatch: ReturnType<typeof useAppDispatch>;
+    isMapCenteredOnUser: boolean;
+    currentRegion: Region | undefined;
+    mapRef: React.RefObject<MapView>;
+  }
+) => {
+  const { dispatch, isMapCenteredOnUser, currentRegion, mapRef } = options;
+
+  if (storedLocations.length === 0) return;
+
+  logger.info(`Processed ${storedLocations.length} stored background locations`);
+  // Update Redux with the most recent stored location if available
+  const mostRecent = storedLocations[storedLocations.length - 1];
+  if (!mostRecent) return;
+
+  dispatch(
+    updateLocation({
+      latitude: mostRecent.latitude,
+      longitude: mostRecent.longitude,
+    })
+  );
+
+  // Center map on new location if user tracking is enabled
+  if (isMapCenteredOnUser && mapRef.current) {
+    const newRegion = {
+      latitude: mostRecent.latitude,
+      longitude: mostRecent.longitude,
+      latitudeDelta: currentRegion?.latitudeDelta ?? DEFAULT_LOCATION.latitudeDelta,
+      longitudeDelta: currentRegion?.longitudeDelta ?? DEFAULT_LOCATION.longitudeDelta,
+    };
+    mapRef.current.animateToRegion(newRegion, 500);
+  }
+};
+
+// Custom hook for app state change handling
+const useAppStateChangeHandler = (
+  dispatch: ReturnType<typeof useAppDispatch>,
+  isMapCenteredOnUser: boolean,
+  currentRegion: Region | undefined,
+  mapRef: React.RefObject<MapView>
+) => {
+  useEffect(() => {
+    const handleAppStateChange = async (nextAppState: string) => {
+      if (nextAppState !== 'active') return;
+
+      logger.info('App became active, processing stored background locations');
+      try {
+        const storedLocations = await BackgroundLocationService.processStoredLocations();
+        await processStoredBackgroundLocations(storedLocations, {
+          dispatch,
+          isMapCenteredOnUser,
+          currentRegion,
+          mapRef,
+        });
+      } catch (error) {
+        logger.error('Failed to process stored locations on app state change', error);
+      }
+    };
+
+    const subscription = AppState.addEventListener('change', handleAppStateChange);
+    return () => subscription?.remove();
+  }, [dispatch, isMapCenteredOnUser, currentRegion, mapRef]);
+};
+
 // Hook for map screen state initialization
 const useMapScreenState = () => {
   const dispatch = useAppDispatch();
@@ -592,21 +828,21 @@ export const MapScreen = () => {
 
   const insets = useSafeAreaInsets();
 
+  // Get exploration state for persistence
+  const explorationState = useAppSelector((state) => state.exploration);
+
   // Use simplified unified location service
   useUnifiedLocationService(dispatch, mapRef, isMapCenteredOnUser, currentRegion);
   useZoomRestriction(currentRegion, mapRef);
 
-  // Start GPS injection check only once on mount
+  // Persist exploration state whenever it changes
+  useExplorationStatePersistence(explorationState);
 
-  // The empty dependency array is intentional: we only want to start the periodic check once on mount, not on updates.
-  useEffect(() => {
-    const stopGPSInjectionCheck = GPSInjectionService.startPeriodicCheck(2000);
-    return () => {
-      if (typeof stopGPSInjectionCheck === 'function') {
-        stopGPSInjectionCheck();
-      }
-    };
-  }, []);
+  // Start GPS injection check only once on mount
+  useGPSInjectionService();
+
+  // Add AppState listener to process stored locations when app becomes active
+  useAppStateChangeHandler(dispatch, isMapCenteredOnUser, currentRegion, mapRef);
 
   const { centerOnUserLocation, onRegionChange, onPanDrag, onRegionChangeComplete } =
     useMapEventHandlers({

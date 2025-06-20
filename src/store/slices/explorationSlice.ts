@@ -251,6 +251,42 @@ const explorationSlice = createSlice({
     ) => {
       state.backgroundLocationStatus = action.payload;
     },
+    restorePersistedState: (
+      state,
+      action: PayloadAction<{
+        currentLocation: GeoPoint | null;
+        path: GeoPoint[];
+        exploredAreas: GeoPoint[];
+        zoomLevel: number;
+      }>
+    ) => {
+      const { currentLocation, path, exploredAreas, zoomLevel } = action.payload;
+
+      // Validate and restore the persisted state
+      if (currentLocation && isValidGeoPoint(currentLocation)) {
+        state.currentLocation = currentLocation;
+      }
+
+      // Validate and restore path points
+      state.path = path.filter((point) => isValidGeoPoint(point));
+
+      // Validate and restore explored areas
+      state.exploredAreas = exploredAreas.filter((point) => isValidGeoPoint(point));
+
+      // Restore zoom level with bounds checking
+      if (zoomLevel >= 1 && zoomLevel <= 20) {
+        state.zoomLevel = zoomLevel;
+      }
+
+      logger.info('Exploration state restored from persistence', {
+        component: 'explorationSlice',
+        action: 'restorePersistedState',
+        pathPoints: state.path.length,
+        exploredAreas: state.exploredAreas.length,
+        hasCurrentLocation: state.currentLocation !== null,
+        zoomLevel: state.zoomLevel,
+      });
+    },
   },
 });
 
@@ -262,5 +298,6 @@ export const {
   setCenterOnUser,
   processBackgroundLocations,
   updateBackgroundLocationStatus,
+  restorePersistedState,
 } = explorationSlice.actions;
 export default explorationSlice.reducer;

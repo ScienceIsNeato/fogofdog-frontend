@@ -1,0 +1,184 @@
+appId: com.fogofdog.app
+---
+# Data Persistence Workflow Test
+# This test validates that both login state and fog clearing data persist across app restarts
+# when the "Keep me logged in" checkbox is checked.
+
+# Test Strategy:
+# 1. Fresh login with "Keep me logged in" checked
+# 2. Generate GPS coordinates to clear fog
+# 3. Take screenshot of fog state
+# 4. Restart app (should skip login due to persistence)
+# 5. Take second screenshot
+# 6. Compare screenshots (should be identical, proving fog data persisted)
+
+# =============================================================================
+# PHASE 1: INITIAL LOGIN AND FOG GENERATION
+# =============================================================================
+
+# 1.1 Fresh app launch and force login screen
+- setLocation:
+    latitude: 37.78825
+    longitude: -122.4324
+- launchApp:
+    appId: com.fogofdog.app
+    clearState: true
+- waitForAnimationToEnd:
+    timeout: 2000
+
+# 1.2 Verify login screen and "Keep me logged in" checkbox
+- assertVisible:
+    text: "Sign In"
+- assertVisible:
+    id: "keepLoggedInCheckbox"
+
+# 1.3 Verify checkbox is checked by default and login
+- takeScreenshot: initial-login-screen
+- runFlow:
+    file: robust-login.yaml
+- waitForAnimationToEnd:
+    timeout: 2000
+
+# 1.4 Verify we're on the map screen
+- assertVisible:
+    id: "map-screen"
+- assertVisible:
+    text: "You are here"
+
+# 1.5 Generate distinct GPS coordinates to create fog clearing pattern
+# Point 1: Starting position
+- setLocation:
+    latitude: 37.78825
+    longitude: -122.4324
+- waitForAnimationToEnd:
+    timeout: 800
+- tapOn:
+    id: "location-button"
+- waitForAnimationToEnd:
+    timeout: 500
+
+# Point 2: Move 500m South
+- setLocation:
+    latitude: 37.783750
+    longitude: -122.4324
+- waitForAnimationToEnd:
+    timeout: 800
+- tapOn:
+    id: "location-button"
+- waitForAnimationToEnd:
+    timeout: 500
+
+# Point 3: Move 500m East  
+- setLocation:
+    latitude: 37.783750
+    longitude: -122.426900
+- waitForAnimationToEnd:
+    timeout: 800
+- tapOn:
+    id: "location-button"
+- waitForAnimationToEnd:
+    timeout: 500
+
+# Point 4: Move 500m North (creating L-shape pattern)
+- setLocation:
+    latitude: 37.788250
+    longitude: -122.426900
+- waitForAnimationToEnd:
+    timeout: 800
+- tapOn:
+    id: "location-button"
+- waitForAnimationToEnd:
+    timeout: 500
+
+# 1.6 Zoom out to show the fog clearing pattern
+- tapOn:
+    point: 450,300  # Center of screen
+- waitForAnimationToEnd:
+    timeout: 500
+# Zoom out to show full pattern
+- tapOn:
+    point: 400,250
+- tapOn:
+    point: 500,350
+- waitForAnimationToEnd:
+    timeout: 1000
+- tapOn:
+    point: 400,250
+- tapOn:
+    point: 500,350
+- waitForAnimationToEnd:
+    timeout: 1000
+
+# 1.7 Take screenshot of initial fog state
+- takeScreenshot: fog-state-before-restart
+- waitForAnimationToEnd:
+    timeout: 500
+
+# =============================================================================
+# PHASE 2: APP RESTART AND PERSISTENCE VALIDATION
+# =============================================================================
+
+# 2.1 Restart the app (should preserve login state due to "Keep me logged in")
+- launchApp:
+    appId: com.fogofdog.app
+    clearState: false  # Don't clear state - test persistence
+- waitForAnimationToEnd:
+    timeout: 3000  # Extra time for state restoration
+
+# 2.2 Verify login screen is SKIPPED (key test - proves persistence working)
+# We should go directly to map screen, not see "Sign In"
+- assertVisible:
+    id: "map-screen"
+- assertVisible:
+    text: "You are here"
+
+# 2.3 Verify we're at the same location (last GPS coordinate)
+- tapOn:
+    id: "location-button"
+- waitForAnimationToEnd:
+    timeout: 500
+
+# 2.4 Set same zoom level as before restart
+- tapOn:
+    point: 450,300  # Center of screen
+- waitForAnimationToEnd:
+    timeout: 500
+# Zoom out to same level as before restart
+- tapOn:
+    point: 400,250
+- tapOn:
+    point: 500,350
+- waitForAnimationToEnd:
+    timeout: 1000
+- tapOn:
+    point: 400,250
+- tapOn:
+    point: 500,350
+- waitForAnimationToEnd:
+    timeout: 1000
+
+# 2.5 Take screenshot of fog state after restart
+- takeScreenshot: fog-state-after-restart
+- waitForAnimationToEnd:
+    timeout: 500
+
+# =============================================================================
+# VALIDATION ASSERTIONS
+# =============================================================================
+
+# 3.1 Final verification that we're still on map screen
+- assertVisible:
+    id: "map-screen"
+- assertVisible:
+    text: "You are here"
+
+# Note: Image comparison between fog-state-before-restart.png and fog-state-after-restart.png
+# will be handled by the test runner. They should be nearly identical, proving that:
+# 1. Login state persisted (no login screen shown on restart)
+# 2. Fog clearing data persisted (same fog pattern visible)
+# 3. GPS location state persisted (same final position)
+
+# SUCCESS CRITERIA:
+# - Test completes without seeing "Sign In" screen on restart
+# - Both screenshots show identical fog clearing patterns
+# - App maintains same GPS position and zoom level 
