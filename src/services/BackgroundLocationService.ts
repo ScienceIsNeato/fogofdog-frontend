@@ -272,10 +272,30 @@ export class BackgroundLocationService {
     try {
       const isTaskRunning = await TaskManager.isTaskRegisteredAsync(BACKGROUND_LOCATION_TASK);
       if (isTaskRunning) {
-        await Location.stopLocationUpdatesAsync(BACKGROUND_LOCATION_TASK);
-        logger.info('Background location tracking stopped', {
+        try {
+          await Location.stopLocationUpdatesAsync(BACKGROUND_LOCATION_TASK);
+          logger.info('Background location tracking stopped', {
+            component: 'BackgroundLocationService',
+            action: 'stopBackgroundLocationTracking',
+          });
+        } catch (stopError: any) {
+          // Handle the specific case where task is not found (already stopped)
+          if (stopError?.code === 'E_TASK_NOT_FOUND' || stopError?.message?.includes('E_TASK_NOT_FOUND')) {
+            logger.info('Background location task was already stopped', {
+              component: 'BackgroundLocationService',
+              action: 'stopBackgroundLocationTracking',
+              note: 'Task not found - already stopped',
+            });
+          } else {
+            // Re-throw other errors
+            throw stopError;
+          }
+        }
+      } else {
+        logger.info('Background location task was not registered', {
           component: 'BackgroundLocationService',
           action: 'stopBackgroundLocationTracking',
+          note: 'Task not registered - nothing to stop',
         });
       }
 
