@@ -2,6 +2,9 @@ import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import { clearUser } from '../../store/slices/userSlice';
+import { reset } from '../../store/slices/explorationSlice';
+import { AuthPersistenceService } from '../../services/AuthPersistenceService';
+import { logger } from '../../utils/logger';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { MainStackParamList } from '../../types/navigation';
 
@@ -11,8 +14,30 @@ export const ProfileScreen: React.FC<Props> = () => {
   const dispatch = useAppDispatch();
   const user = useAppSelector((state) => state.user.user);
 
-  const handleSignOut = () => {
-    dispatch(clearUser());
+  const handleSignOut = async () => {
+    try {
+      // Clear all persisted data
+      await AuthPersistenceService.clearAllPersistedData();
+
+      // Clear Redux state
+      dispatch(clearUser());
+      dispatch(reset());
+
+      logger.info('User signed out successfully', {
+        component: 'ProfileScreen',
+        action: 'handleSignOut',
+        userId: user?.id,
+      });
+    } catch (error) {
+      logger.error('Error during sign out', error, {
+        component: 'ProfileScreen',
+        action: 'handleSignOut',
+      });
+
+      // Still clear Redux state even if persistence clearing fails
+      dispatch(clearUser());
+      dispatch(reset());
+    }
   };
 
   return (

@@ -1,0 +1,67 @@
+appId: com.fogofdog.app
+---
+# Smoke Test: Basic app health check
+# Quick validation that core functionality works:
+# - App launches
+# - Login flow works
+# - Map loads
+# - Location button responds
+# - Basic movement works
+
+# Setup initial location
+- setLocation:
+    latitude: 37.78825
+    longitude: -122.4324
+
+# Launch app fresh with clean state
+- launchApp:
+    appId: com.fogofdog.app
+    clearState: true
+- waitForAnimationToEnd:
+    timeout: 1000
+
+# Verify login screen
+- assertVisible: 
+    text: "Sign In"
+- assertVisible:
+    id: "signInButton"
+
+# Login
+- tapOn:
+    id: "signInButton"
+
+# Handle location permission if needed
+- runFlow:
+    when:
+      visible: "Allow"
+    commands:
+      - tapOn: "Allow While Using App"
+
+# Verify map loads
+- waitForAnimationToEnd:
+    timeout: 3000
+- assertVisible:
+    id: "map-screen"
+- assertVisible:
+    text: "You are here"
+
+# Test location button works
+- tapOn:
+    id: "location-button"
+- waitForAnimationToEnd:
+    timeout: 500
+
+# Test basic movement
+- setLocation:
+    latitude: 37.783750
+    longitude: -122.4324
+- waitForAnimationToEnd:
+    timeout: 800
+- tapOn:
+    id: "location-button"
+- waitForAnimationToEnd:
+    timeout: 500
+- assertVisible:
+    text: "You are here"
+
+# Smoke test complete - basic functionality verified 

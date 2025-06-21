@@ -2,9 +2,9 @@
   "expo": {
     "name": "FogOfDog",
     "slug": "fogofdog",
-    "version": "1.0.2",
+    "version": "1.0.3",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
+    "icon": "assets/icon.png",
     "userInterfaceStyle": "light",
     "updates": {
       "enabled": true,
@@ -24,7 +24,7 @@
           "location"
         ]
       },
-      "buildNumber": "1"
+      "buildNumber": "4"
     },
     "android": {
       "adaptiveIcon": {
@@ -37,7 +37,7 @@
         "ACCESS_FINE_LOCATION",
         "ACCESS_BACKGROUND_LOCATION"
       ],
-      "versionCode": 1
+      "versionCode": 4
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -47,7 +47,10 @@
         "expo-location",
         {
           "locationAlwaysAndWhenInUsePermission": "FogOfDog needs location access to track your exploration progress even when the app is in the background, allowing you to discover new areas while walking, running, or cycling with your phone in your pocket.",
-          "locationWhenInUsePermission": "FogOfDog needs location access to track your exploration progress and show your current position on the map."
+          "locationWhenInUsePermission": "FogOfDog needs location access to track your exploration progress and show your current position on the map.",
+          "isIosBackgroundLocationEnabled": true,
+          "isAndroidBackgroundLocationEnabled": true,
+          "isAndroidForegroundServiceEnabled": true
         }
       ],
       "expo-font"

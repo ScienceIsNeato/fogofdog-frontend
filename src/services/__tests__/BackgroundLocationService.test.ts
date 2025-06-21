@@ -263,14 +263,16 @@ describe('BackgroundLocationService', () => {
       expect(mockedLocation.startLocationUpdatesAsync).toHaveBeenCalledWith(
         'background-location-task',
         expect.objectContaining({
-          accuracy: Location.Accuracy.Balanced,
+          accuracy: Location.Accuracy.High,
           timeInterval: 30000,
-          distanceInterval: 20,
-          deferredUpdatesInterval: 60000,
+          distanceInterval: 10,
           foregroundService: expect.objectContaining({
-            notificationTitle: 'FogOfDog is tracking your exploration',
-            notificationBody: 'Discovering new areas in the background',
+            notificationTitle: 'FogOfDog Tracking',
+            notificationBody: 'Recording your route in the background',
+            killServiceOnDestroy: false,
           }),
+          showsBackgroundLocationIndicator: true,
+          pausesUpdatesAutomatically: false,
         })
       );
     });
@@ -340,6 +342,30 @@ describe('BackgroundLocationService', () => {
 
       expect(mockedLocation.stopLocationUpdatesAsync).not.toHaveBeenCalled();
       expect((BackgroundLocationService as any).isRunning).toBe(false);
+    });
+
+    it('should handle E_TASK_NOT_FOUND error gracefully when stopping', async () => {
+      // Mock task as registered
+      mockedTaskManager.isTaskRegisteredAsync.mockResolvedValue(true);
+
+      // Mock Location.stopLocationUpdatesAsync to throw E_TASK_NOT_FOUND error
+      const taskNotFoundError = new Error(
+        "The operation couldn't be completed. (E_TASK_NOT_FOUND error 0.)"
+      );
+      (taskNotFoundError as any).code = 'E_TASK_NOT_FOUND';
+      mockedLocation.stopLocationUpdatesAsync.mockRejectedValue(taskNotFoundError);
+
+      await BackgroundLocationService.stopBackgroundLocationTracking();
+
+      expect(mockedTaskManager.isTaskRegisteredAsync).toHaveBeenCalledWith(
+        'background-location-task'
+      );
+      expect(mockedLocation.stopLocationUpdatesAsync).toHaveBeenCalledWith(
+        'background-location-task'
+      );
+
+      // Should not throw error and should complete successfully
+      // The error should be handled gracefully and logged as info
     });
 
     it('should handle errors gracefully', async () => {

@@ -26,8 +26,13 @@ const userSlice = createSlice({
       state.user = null;
       state.error = null;
     },
+    restorePersistedUser: (state, action: PayloadAction<User>) => {
+      state.user = action.payload;
+      state.error = null;
+      state.isLoading = false;
+    },
   },
 });
 
-export const { setUser, setLoading, setError, clearUser } = userSlice.actions;
+export const { setUser, setLoading, setError, clearUser, restorePersistedUser } = userSlice.actions;
 export default userSlice.reducer;

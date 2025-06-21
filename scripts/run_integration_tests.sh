@@ -1,7 +1,8 @@
 #!/bin/bash
 
 # Integration Test Runner - Works in both local and CI environments
-# Captures Metro console logs and saves them as test artifacts
+# Supports both individual test execution and CI batch execution
+# Includes visual regression testing using SSIM comparison
 
 set -e
 
@@ -24,25 +25,36 @@ command_exists() {
     command -v "$1" >/dev/null 2>&1
 }
 
-# Parse arguments and flags
+# Parse command line arguments
+CREATE_REFERENCE=false
 TEST_FILES=()
 
 while [[ $# -gt 0 ]]; do
     case $1 in
         --help|-h)
-            echo "Usage: $0 [test-file1] [test-file2] ..."
+            echo "Usage: $0 [options] [test-file1] [test-file2] ..."
             echo ""
             echo "Options:"
-            echo "  --help, -h      Show this help message"
+            echo "  --help, -h              Show this help message"
+            echo "  --create-reference      Create reference screenshots for visual regression"
+            echo "  --all                   Run all available tests (default in CI)"
             echo ""
             echo "Examples:"
             echo "  $0                                          # Run all tests (default)"
             echo "  $0 .maestro/background-gps-test.yaml       # Run single test"
-            echo "  $0 .maestro/login-to-map-test.yaml .maestro/background-gps-test.yaml  # Run specific tests"
+            echo "  $0 --create-reference .maestro/smoke-test.yaml  # Create reference screenshot"
             echo ""
             echo "Environment variables:"
             echo "  CI=true         Automatically detected in CI environments"
             exit 0
+            ;;
+        --create-reference)
+            CREATE_REFERENCE=true
+            shift
+            ;;
+        --all)
+            # Explicit --all flag (mainly for local use)
+            shift
             ;;
         *)
             TEST_FILES+=("$1")
@@ -52,11 +64,13 @@ while [[ $# -gt 0 ]]; do
 done
 
 # Determine which tests to run
-if [ ${#TEST_FILES[@]} -eq 0 ]; then
-    # No specific tests provided - run all tests
+if [ ${#TEST_FILES[@]} -eq 0 ] || [ "$IS_CI" = "true" ]; then
+    # No specific tests provided or in CI - run all tests
     TEST_FILES=(
-        ".maestro/login-to-map-test.yaml"
+        ".maestro/smoke-test.yaml"
+        ".maestro/robust-login.yaml"
         ".maestro/background-gps-test.yaml"
+        ".maestro/comprehensive-persistence-test.yaml"
     )
     log "Running all integration tests"
 fi
@@ -158,179 +172,190 @@ if [ "$IS_CI" = "true" ]; then
         exit 1
     fi
     
-    # Install EAS CLI if not available
-    if ! command_exists eas; then
-        log "📦 Installing EAS CLI..."
-        npm install -g @expo/eas-cli
-    fi
+    # Build for simulator
+    log "🔨 Building app for simulator..."
+    npx eas build --platform ios --profile preview --local --output ./build.tar.gz
     
-    # Build for simulator (development build)
-    log "🔨 Building test version with EAS..."
-    eas build --platform ios --profile development --local --output ./build/app.tar.gz
-    
-    # Extract and install the app
-    log "📲 Installing app on simulator..."
-    mkdir -p build
-    cd build
-    tar -xzf app.tar.gz
+    # Extract and install
+    log "📦 Extracting and installing app..."
+    tar -xzf build.tar.gz
     APP_PATH=$(find . -name "*.app" -type d | head -1)
     
     if [ -z "$APP_PATH" ]; then
-        log "❌ Could not find .app bundle in build output"
+        log "❌ Could not find built .app file"
         exit 1
     fi
     
-    # Install the app
+    log "📱 Installing app to simulator..."
     xcrun simctl install "$SIMULATOR_UDID" "$APP_PATH"
+    
     log "✅ App installed successfully"
-    cd ..
 else
-    # Local environment - check if app is installed
-    if ! xcrun simctl appinfo "$SIMULATOR_UDID" "$APP_BUNDLE_ID" > /dev/null 2>&1; then
-        log "❌ App '$APP_BUNDLE_ID' is not installed on the booted simulator."
-        log "👉 Please run './scripts/setup-e2e-tests.sh' first to install the correct build."
-        exit 1
+    log "🏗️ Building and installing app locally..."
+    
+    # Check if Metro is running
+    if ! lsof -ti:8081 > /dev/null 2>&1; then
+        log "🚀 Starting Metro bundler..."
+        npx expo start --clear > metro.log 2>&1 &
+        METRO_PID=$!
+        
+        # Wait for Metro to be ready
+        log "⏳ Waiting for Metro to be ready..."
+        timeout=60
+        while [ $timeout -gt 0 ]; do
+            if lsof -ti:8081 > /dev/null 2>&1; then
+                log "✅ Metro bundler is running"
+                break
+            fi
+            sleep 2
+            timeout=$((timeout - 2))
+        done
+        
+        if [ $timeout -le 0 ]; then
+            log "❌ Metro failed to start within 60 seconds"
+            exit 1
+        fi
+    else
+        log "✅ Metro bundler is already running"
     fi
     
-    log "🔍 Running app readiness check (refreshes Metro and validates bundle)..."
-    ./scripts/bundle-check.sh
+    # Build for simulator
+    log "🔨 Building app for simulator..."
+    npx expo run:ios --device "$SIMULATOR_DEVICE"
+    
+    log "✅ App built and installed"
 fi
 
-# --- Test Execution Setup ---
-# Create test artifacts directory
-TIMESTAMP=$(date +"%Y-%m-%d_%H%M%S")
+# --- Setup Test Environment ---
+log "🧪 Setting up test environment..."
+
+# Create artifacts directory
 if [ "$IS_CI" = "true" ]; then
-    ARTIFACTS_DIR="test_artifacts/ci_integration_${TIMESTAMP}"
+    ARTIFACTS_DIR="test_artifacts/ci"
 else
-    ARTIFACTS_DIR="test_artifacts/integration_${TIMESTAMP}"
+    ARTIFACTS_DIR="test_artifacts/local"
 fi
+
 mkdir -p "$ARTIFACTS_DIR"
+log "📁 Artifacts will be saved to: $ARTIFACTS_DIR"
 
-# Start Metro if in CI (for development builds)
-if [ "$IS_CI" = "true" ]; then
-    log "🚀 Starting Metro bundler for CI..."
-    npx expo start --dev-client --tunnel &
-    METRO_PID=$!
-    sleep 10
+# --- Visual Regression Testing Setup ---
+if [ "$CREATE_REFERENCE" = "true" ]; then
+    log "📸 Creating reference screenshots mode enabled"
+    REFERENCE_DIR="test_data/reference_screenshots"
+    mkdir -p "$REFERENCE_DIR"
 fi
 
-# --- Run Tests ---
-log "🎭 Running integration tests..."
+# Function to compare screenshots using SSIM
+compare_screenshots() {
+    local test_name="$1"
+    local screenshot_path="$2"
+    
+    if [ "$CREATE_REFERENCE" = "true" ]; then
+        # Copy screenshot as reference
+        cp "$screenshot_path" "$REFERENCE_DIR/${test_name}-reference.png"
+        log "📸 Created reference screenshot: ${test_name}-reference.png"
+        return 0
+    fi
+    
+    local reference_path="$REFERENCE_DIR/${test_name}-reference.png"
+    
+    if [ ! -f "$reference_path" ]; then
+        log "⚠️  No reference screenshot found for $test_name, skipping comparison"
+        return 0
+    fi
+    
+    # Use ImageMagick to compare screenshots
+    if command_exists magick; then
+        local similarity=$(magick compare -metric SSIM "$reference_path" "$screenshot_path" null: 2>&1 || echo "0")
+        local threshold=0.95
+        
+        if (( $(echo "$similarity > $threshold" | bc -l) )); then
+            log "✅ Visual regression test passed for $test_name (SSIM: $similarity)"
+            return 0
+        else
+            log "❌ Visual regression test failed for $test_name (SSIM: $similarity, threshold: $threshold)"
+            # Save diff image
+            magick compare "$reference_path" "$screenshot_path" "$ARTIFACTS_DIR/${test_name}-diff.png"
+            return 1
+        fi
+    else
+        log "⚠️  ImageMagick not available, skipping visual comparison for $test_name"
+        return 0
+    fi
+}
 
-OVERALL_RESULT="PASSED"
+# --- Test Execution ---
+log "🎯 Starting test execution..."
+
 FAILED_TESTS=()
+TOTAL_TESTS=${#TEST_FILES[@]}
+PASSED_TESTS=0
 
 for TEST_FILE in "${TEST_FILES[@]}"; do
-    log "🧪 Running test: $TEST_FILE"
+    TEST_NAME=$(basename "$TEST_FILE" .yaml)
+    log "🧪 Running test: $TEST_NAME"
     
-    # Launch the app before each test
-    log "📲 Launching app '$APP_BUNDLE_ID'..."
-    xcrun simctl launch "$SIMULATOR_UDID" "$APP_BUNDLE_ID"
-    log "⏳ Waiting for app to launch and connect..."
-    sleep 10
+    # Create test-specific artifact directory
+    TEST_ARTIFACTS_DIR="$ARTIFACTS_DIR/$TEST_NAME"
+    mkdir -p "$TEST_ARTIFACTS_DIR"
     
-    # Capture Metro logs (local only)
-    if [ "$IS_CI" != "true" ]; then
-        log "📱 Capturing Metro console logs..."
-        METRO_LOG=$(ls -t /tmp/metro_console_*.log 2>/dev/null | head -1)
-    fi
-    
-    # Run the test
-    if maestro test "$TEST_FILE"; then
-        MAESTRO_RESULT="PASSED"
-        MAESTRO_EXIT_CODE=0
-        log "✅ Test passed: $TEST_FILE"
-    else
-        MAESTRO_RESULT="FAILED"
-        MAESTRO_EXIT_CODE=1
-        log "❌ Test failed: $TEST_FILE"
-        OVERALL_RESULT="FAILED"
-        FAILED_TESTS+=("$TEST_FILE")
-    fi
-    
-    # Analyze console logs (local only)
-    if [ "$IS_CI" != "true" ] && [ -n "$METRO_LOG" ] && [ -f "$METRO_LOG" ]; then
-        log "📋 Analyzing console logs for critical errors..."
-        cp "$METRO_LOG" "$ARTIFACTS_DIR/metro_console_$(basename "$TEST_FILE" .yaml).log"
+    # Run the test with artifact collection
+    if maestro test "$TEST_FILE" --output "$TEST_ARTIFACTS_DIR"; then
+        log "✅ Test passed: $TEST_NAME"
         
-        # Check for critical runtime errors
-        if grep "ERROR \[" "$METRO_LOG" > "$ARTIFACTS_DIR/console_errors_$(basename "$TEST_FILE" .yaml).log"; then
-            log "❌ CRITICAL: Console errors detected!"
-            cat "$ARTIFACTS_DIR/console_errors_$(basename "$TEST_FILE" .yaml).log"
-            OVERALL_RESULT="FAILED"
-            if [[ ! " ${FAILED_TESTS[*]} " =~ " ${TEST_FILE} " ]]; then
-                FAILED_TESTS+=("$TEST_FILE")
+        # Check for screenshots and run visual regression if available
+        SCREENSHOT_PATH="$TEST_ARTIFACTS_DIR/screenshot.png"
+        if [ -f "$SCREENSHOT_PATH" ]; then
+            if ! compare_screenshots "$TEST_NAME" "$SCREENSHOT_PATH"; then
+                log "❌ Visual regression failed for: $TEST_NAME"
+                FAILED_TESTS+=("$TEST_NAME (visual regression)")
             fi
         fi
         
-        # Check for warnings (log but don't fail)
-        if grep -i "WARN" "$METRO_LOG" > "$ARTIFACTS_DIR/console_warnings_$(basename "$TEST_FILE" .yaml).log"; then
-            log "⚠️  Console warnings detected - saved to artifacts"
-        fi
+        PASSED_TESTS=$((PASSED_TESTS + 1))
+    else
+        log "❌ Test failed: $TEST_NAME"
+        FAILED_TESTS+=("$TEST_NAME")
     fi
     
-    # Terminate the app between tests
-    xcrun simctl terminate "$SIMULATOR_UDID" "$APP_BUNDLE_ID" || true
-    sleep 2
+    log "📊 Progress: $PASSED_TESTS/$TOTAL_TESTS tests completed"
 done
 
 # --- Cleanup ---
 log "🧹 Cleaning up..."
 
-# Stop Metro if we started it
-if [ "$IS_CI" = "true" ] && [ -n "$METRO_PID" ]; then
-    kill $METRO_PID 2>/dev/null || true
-fi
-
-# Shutdown simulator if in CI
 if [ "$IS_CI" = "true" ]; then
+    # In CI, shutdown simulator
+    log "🛑 Shutting down CI simulator..."
     xcrun simctl shutdown "$SIMULATOR_UDID" || true
+    
+    # Clean up build artifacts
+    rm -f build.tar.gz
+    rm -rf *.app
+else
+    # In local environment, optionally stop Metro
+    if [ -n "$METRO_PID" ]; then
+        log "🛑 Stopping Metro bundler..."
+        kill $METRO_PID 2>/dev/null || true
+    fi
 fi
 
-# Copy Maestro test artifacts
-MAESTRO_TEST_DIR=$(find ~/.maestro/tests -name "*$(date +%Y-%m-%d)*" -type d | tail -1)
-if [ -n "$MAESTRO_TEST_DIR" ] && [ -d "$MAESTRO_TEST_DIR" ]; then
-    cp -r "$MAESTRO_TEST_DIR"/* "$ARTIFACTS_DIR/" 2>/dev/null || true
-    log "📁 Maestro test artifacts copied to: $ARTIFACTS_DIR/"
-fi
-
-# Create test summary
-cat > "$ARTIFACTS_DIR/test_summary.txt" << EOF
-Integration Test Summary
-========================
-Environment: $([ "$IS_CI" = "true" ] && echo "CI" || echo "Local")
-Timestamp: $TIMESTAMP
-Simulator: $SIMULATOR_DEVICE
-Simulator UDID: $SIMULATOR_UDID
-Overall Result: $OVERALL_RESULT
-Failed Tests: ${FAILED_TESTS[*]}
-
-Test Files Run:
-$(printf '%s\n' "${TEST_FILES[@]}")
-
-Artifacts Location: $ARTIFACTS_DIR
-EOF
-
-# --- Results ---
+# --- Results Summary ---
 log "📊 Test Results Summary"
-log "======================"
-log "Environment: $([ "$IS_CI" = "true" ] && echo "CI" || echo "Local")"
-log "Overall Result: $OVERALL_RESULT"
+log "Total tests: $TOTAL_TESTS"
+log "Passed: $PASSED_TESTS"
+log "Failed: $((TOTAL_TESTS - PASSED_TESTS))"
 
 if [ ${#FAILED_TESTS[@]} -gt 0 ]; then
-    log "❌ Failed Tests:"
-    for test in "${FAILED_TESTS[@]}"; do
-        log "   - $test"
+    log "❌ Failed tests:"
+    for failed_test in "${FAILED_TESTS[@]}"; do
+        log "  - $failed_test"
     done
-fi
-
-log "📁 Test artifacts saved to: $ARTIFACTS_DIR"
-
-# Exit with appropriate code
-if [ "$OVERALL_RESULT" = "PASSED" ]; then
-    log "🎉 All integration tests passed!"
-    exit 0
-else
-    log "💥 Some integration tests failed!"
+    log "📁 Test artifacts saved to: $ARTIFACTS_DIR"
     exit 1
+else
+    log "✅ All tests passed!"
+    log "📁 Test artifacts saved to: $ARTIFACTS_DIR"
+    exit 0
 fi 

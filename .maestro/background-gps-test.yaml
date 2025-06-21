@@ -1,17 +1,20 @@
 appId: com.fogofdog.app
 jsEngine: graaljs
 ---
-# Enhanced Background GPS Test: Large Distance Points with Fog Validation
-# This test validates GPS injection with significant distances between points
-# to clearly demonstrate fog of war clearance and ensure visual verification.
+# Enhanced Background GPS Test: Zigzag Pattern with Background Processing
+# This test validates background GPS tracking while app is backgrounded using a distinctive
+# zigzag pattern that creates easily recognizable cleared fog areas.
 
 # Test Sequence:
-# Point 1: Default login location (37.78825, -122.4324) 
+# Point 1: Default login location (37.78825, -122.4324)
 # Point 2: 1000m South (37.779266, -122.4324) - set BEFORE backgrounding
-# Point 3: 2000m East (37.779266, -122.409572) - set WHILE backgrounded
-# Point 4: 1500m North (37.792742, -122.409572) - set AFTER foregrounding  
-# Point 5: 2000m East (37.792742, -122.386744) - second point after foregrounding
-# Point 6: 8000m North (37.864611, -122.386744) - should remain in fog (validation)
+# BACKGROUND + ZIGZAG PATTERN (4 points injected while app is backgrounded):
+#   - Point A: (37.779266, -122.409572) - 2000m East
+#   - Point B: (37.785266, -122.415572) - NE zigzag
+#   - Point C: (37.779266, -122.421572) - SE zigzag
+#   - Point D: (37.785266, -122.427572) - NE zigzag
+# APP FOREGROUND + Final validation point
+# Distant point: (37.864611, -122.386744) - should remain in fog (validation)
 
 # 0. Set initial GPS location BEFORE launching the app
 - setLocation:
@@ -23,10 +26,7 @@ jsEngine: graaljs
     appId: com.fogofdog.app
     clearState: true
 - runFlow:
-    file: login-to-map-test.yaml
-- waitForAnimationToEnd
-- assertVisible:
-    id: "map-screen"
+    file: robust-login.yaml
 - assertVisible:
     text: "You are here" # Point 1: Default login location visible
 
@@ -35,73 +35,79 @@ jsEngine: graaljs
     latitude: 37.779266
     longitude: -122.4324
 - waitForAnimationToEnd:
-    timeout: 2000
+    timeout: 800
 - tapOn:
     id: "location-button"
 - waitForAnimationToEnd:
-    timeout: 1000
+    timeout: 500
 - assertVisible:
     text: "You are here" # Point 2: 1000m South location confirmed
 
-# 3. Background the app
+# 3. Background the app (simulates real-world background GPS scenario)
 - pressKey: Home
 - waitForAnimationToEnd:
-    timeout: 1000
+    timeout: 2000
 
-# 4. Move to Point 3 (2000m East) WHILE app is backgrounded
+# 4. Inject ZIGZAG PATTERN while app is backgrounded (easily recognizable pattern)
+# This creates a distinctive visual pattern that should clear fog
 - setLocation:
     latitude: 37.779266
-    longitude: -122.409572
+    longitude: -122.409572  # Point A: 2000m East
 - waitForAnimationToEnd:
-    timeout: 1000
+    timeout: 800
+- setLocation:
+    latitude: 37.785266
+    longitude: -122.415572  # Point B: NE zigzag
+- waitForAnimationToEnd:
+    timeout: 800
+- setLocation:
+    latitude: 37.779266
+    longitude: -122.421572  # Point C: SE zigzag
+- waitForAnimationToEnd:
+    timeout: 800
+- setLocation:
+    latitude: 37.785266
+    longitude: -122.427572  # Point D: NE zigzag
+- waitForAnimationToEnd:
+    timeout: 800
 
-# 5. Foreground the app and wait for processing
-- tapOn:
-    text: "FogOfDog"  # Tap on the app icon to bring it back to foreground
+# 5. Return to app after background GPS processing
+
+# 6. Foreground the app and verify zigzag pattern was processed
+- launchApp:
+    appId: com.fogofdog.app
+    clearState: false  # Explicitly preserve login state
 - waitForAnimationToEnd:
     timeout: 3000
 - assertVisible:
     id: "map-screen"
 - waitForAnimationToEnd:
-    timeout: 2000
+    timeout: 3000  # Time for background location processing
 - tapOn:
     id: "location-button"
 - waitForAnimationToEnd:
-    timeout: 1000
+    timeout: 500
 - assertVisible:
-    text: "You are here" # Point 3: Background-injected location confirmed
+    text: "You are here" # Zigzag pattern end point confirmed
 
-# 6. Move to Point 4 (1500m North) AFTER foregrounding
+# 7. Move to final validation point AFTER foregrounding
 - setLocation:
     latitude: 37.792742
     longitude: -122.409572
 - waitForAnimationToEnd:
-    timeout: 3000
+    timeout: 800
 - tapOn:
     id: "location-button"
 - waitForAnimationToEnd:
-    timeout: 1000
+    timeout: 500
 - assertVisible:
-    text: "You are here" # Point 4: Post-foreground location confirmed
+    text: "You are here" # Final location confirmed
 
-# 7. Move to Point 5 (2000m East) - Second point after foregrounding
-- setLocation:
-    latitude: 37.792742
-    longitude: -122.386744
+# 8. Final validation sequence - Zigzag pattern should have cleared fog
 - waitForAnimationToEnd:
-    timeout: 3000
-- tapOn:
-    id: "location-button"
-- waitForAnimationToEnd:
-    timeout: 1000
-- assertVisible:
-    text: "You are here" # Point 5: Final test location confirmed
+    timeout: 800
 
-# 8. Final validation sequence
-- waitForAnimationToEnd:
-    timeout: 2000
-
-# Validate the map shows cleared areas (fog removed at all visited points)
+# Validate the map shows cleared areas (fog removed at zigzag pattern points)
 - assertVisible:
     text: "You are here"
     
@@ -112,27 +118,29 @@ jsEngine: graaljs
 # Final confirmation that background GPS processing worked
 - assertNotVisible:
     text: "Loading location"
-    optional: true 
+    optional: true
 
-# 9. Validation: Move to Point 6 (8000m North) - Should be in fog
+# 9. Validation: Move to distant point - Should be in fog (not part of zigzag)
 - setLocation:
     latitude: 37.864611
     longitude: -122.386744
 - waitForAnimationToEnd:
-    timeout: 2000
+    timeout: 800
 - tapOn:
     id: "location-button"
 - waitForAnimationToEnd:
-    timeout: 1000
+    timeout: 500
 
-# This point should be far enough that it's still in fog
-# We expect this location to be in the fog since we haven't visited it
-# The "You are here" marker should appear but the area should be mostly dark/fogged
+# This distant point should still be in fog since it wasn't part of our zigzag pattern
 - assertVisible:
     text: "You are here" # Location marker appears even in fog
 - assertVisible:
     id: "map-screen" # Map is still functional
 
 # Test completes - we should see:
-# - 5 cleared areas from our visited points (large visible circles)
-# - Point 6 should be in mostly dark/fogged area except for immediate vicinity 
+# - ZIGZAG PATTERN of cleared fog areas from background GPS injection while app was backgrounded
+# - Distant point should remain mostly fogged (validation that fog system works)
+# - Visual confirmation that background location tracking processed the zigzag coordinates
+
+# Final screenshot for visual regression testing
+- takeScreenshot: final-state
