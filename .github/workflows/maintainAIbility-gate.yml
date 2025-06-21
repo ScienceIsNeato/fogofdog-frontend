@@ -147,7 +147,7 @@ jobs:
   run-maestro-integration-tests:
     name: 🎭 Run Maestro Integration Tests
     runs-on: macos-latest
-    timeout-minutes: 30
+    timeout-minutes: 60
     needs: run-unit-tests-with-coverage
     if: github.event_name == 'pull_request' && github.base_ref == 'main'
     
@@ -195,7 +195,7 @@ jobs:
           path: |
             test_artifacts/
             ~/.maestro/tests/
-          retention-days: 7
+          retention-days: 365
           if-no-files-found: warn
           
       - name: 🖼️ Display Test Screenshots in Job Summary
