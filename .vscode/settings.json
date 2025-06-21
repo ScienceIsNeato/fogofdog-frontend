@@ -1,9 +1,9 @@
 {
-  // TypeScript validation - matches dev-check script
+  // TypeScript validation - matches maintainAIbility-gate script
   "typescript.validate.enable": true,
   "typescript.preferences.includePackageJsonAutoImports": "auto",
 
-  // ESLint configuration - matches dev-check eslint.config.js
+  // ESLint configuration - matches maintainAIbility-gate eslint.config.js
   "eslint.enable": true,
   "eslint.validate": ["typescript", "typescriptreact"],
   "eslint.run": "onType",

@@ -1,0 +1,315 @@
+name: 🤖 maintainAIbility-gate
+
+on:
+  push:
+    branches: [main, develop]  # Only run on push to main/develop (not feature branches)
+  pull_request:
+    branches: [main]  # Run on PRs to main
+
+env:
+  EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+
+jobs:
+  # Foundation Layer - Basic Code Quality (run in parallel)
+  format-code:
+    name: 📝 Format Code
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+        
+      - name: 📦 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          
+      - name: ⚡ Install dependencies
+        run: npm ci --legacy-peer-deps
+        
+      - name: 📝 Run Prettier Code Formatting
+        run: ./scripts/maintainAIbility-gate.sh --format
+
+  lint-typescript:
+    name: 🔍 Lint TypeScript
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+        
+      - name: 📦 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          
+      - name: ⚡ Install dependencies
+        run: npm ci --legacy-peer-deps
+        
+      - name: 🔍 Run ESLint TypeScript Linting
+        run: ./scripts/maintainAIbility-gate.sh --lint
+
+  # Static Analysis Layer - Depends on clean code
+  check-typescript-types:
+    name: 🏗️ Check TypeScript Types
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    needs: [format-code, lint-typescript]
+    
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+        
+      - name: 📦 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          
+      - name: ⚡ Install dependencies
+        run: npm ci --legacy-peer-deps
+        
+      - name: 🏗️ Run TypeScript Compiler
+        run: ./scripts/maintainAIbility-gate.sh --types
+
+  detect-code-duplication:
+    name: 🔄 Detect Code Duplication
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    needs: [format-code, lint-typescript]
+    
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+        
+      - name: 📦 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          
+      - name: ⚡ Install dependencies
+        run: npm ci --legacy-peer-deps
+        
+      - name: 🔄 Run JSCPD Duplication Detection
+        run: ./scripts/maintainAIbility-gate.sh --duplication
+
+  audit-security-vulnerabilities:
+    name: 🔒 Audit Security Vulnerabilities
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+        
+      - name: 📦 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          
+      - name: ⚡ Install dependencies
+        run: npm ci --legacy-peer-deps
+        
+      - name: 🔒 Run NPM Security Audit
+        run: npm audit --audit-level high
+        continue-on-error: true
+
+  # Testing Layer - Depends on static analysis
+  run-unit-tests-with-coverage:
+    name: 🧪 Run Unit Tests with Coverage
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    needs: [check-typescript-types, detect-code-duplication]
+    
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+        
+      - name: 📦 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          
+      - name: ⚡ Install dependencies
+        run: npm ci --legacy-peer-deps
+        
+      - name: 🧪 Run Jest Unit Tests with Coverage Reports
+        run: ./scripts/maintainAIbility-gate.sh --tests
+
+  # Integration Layer - Depends on unit tests
+  run-maestro-integration-tests:
+    name: 🎭 Run Maestro Integration Tests
+    runs-on: macos-latest
+    timeout-minutes: 30
+    needs: run-unit-tests-with-coverage
+    if: github.event_name == 'pull_request' && github.base_ref == 'main'
+    
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+        
+      - name: 📦 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          
+      - name: ⚡ Install dependencies
+        run: npm ci --legacy-peer-deps
+        
+      - name: 🔧 Setup EAS CLI
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+        
+      - name: 🎭 Execute Maestro Integration Test Suite
+        run: ./scripts/run_integration_tests.sh
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+
+  analyze-code-quality-with-sonarqube:
+    name: 📊 Analyze Code Quality with SonarQube
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    needs: [check-typescript-types, detect-code-duplication, run-unit-tests-with-coverage]
+    if: github.event_name == 'pull_request' && github.base_ref == 'main'
+    
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Needed for SonarQube
+        
+      - name: 📦 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          
+      - name: ⚡ Install dependencies
+        run: npm ci --legacy-peer-deps
+        
+      - name: 📊 Run SonarQube Code Quality Analysis
+        run: ./scripts/maintainAIbility-gate.sh --sonar
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+
+  # Build Layer - Depends on testing
+  verify-expo-build-process:
+    name: 🔨 Verify Expo Build Process
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    needs: run-unit-tests-with-coverage
+    if: github.event_name == 'pull_request' && github.base_ref == 'main'
+    
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+        
+      - name: 📦 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          
+      - name: ⚡ Install dependencies
+        run: npm ci --legacy-peer-deps
+        
+      - name: 🏗️ Test Expo Export for iOS and Android
+        run: |
+          echo "🔍 Verifying iOS export..."
+          npx expo export --platform ios
+          echo "🔍 Verifying Android export..."
+          npx expo export --platform android
+          echo "✅ Export verification complete"
+        
+      - name: 📱 Test EAS Build Configuration
+        run: |
+          if [ -z "${{ env.EXPO_TOKEN }}" ]; then
+            echo "EXPO_TOKEN not available - skipping EAS dry run"
+            exit 0
+          fi
+          npx eas build --platform ios --profile testflight --dry-run
+        continue-on-error: true
+
+  # Dependency Analysis - Optional, runs in parallel
+  analyze-npm-dependencies:
+    name: 📦 Analyze NPM Dependencies
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    continue-on-error: true
+    if: github.event_name == 'pull_request'
+    
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+        
+      - name: 📦 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          
+      - name: ⚡ Install dependencies
+        run: npm ci --legacy-peer-deps
+        
+      - name: 📦 Check for Outdated Dependencies
+        run: |
+          echo "🔍 Checking for outdated dependencies..."
+          npm outdated || true
+          echo "🔍 Checking for unused dependencies..."
+          npx depcheck || true
+        continue-on-error: true
+        
+      - name: 📊 Measure Bundle Size
+        run: |
+          echo "📊 Analyzing bundle size..."
+          npx expo export --platform ios
+          du -sh dist/ || echo "Bundle analysis complete"
+        continue-on-error: true
+
+  # Production Build - Final step, depends on everything critical
+  build-for-testflight-production:
+    name: 🚀 Build for TestFlight Production
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs: [run-unit-tests-with-coverage, verify-expo-build-process, run-maestro-integration-tests, analyze-code-quality-with-sonarqube]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+        
+      - name: 📦 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          
+      - name: ⚡ Install dependencies
+        run: npm ci --legacy-peer-deps
+        
+      - name: 🔧 Setup EAS CLI
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+        
+      - name: 🚀 Execute Production Build for TestFlight
+        run: |
+          if [ -z "$EXPO_TOKEN" ]; then
+            echo "❌ EXPO_TOKEN not available - cannot build for production"
+            exit 1
+          fi
+          echo "🔨 Building for TestFlight..."
+          eas build --platform ios --profile testflight --auto-submit
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }} 
