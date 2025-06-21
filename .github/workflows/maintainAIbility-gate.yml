@@ -170,6 +170,18 @@ jobs:
           eas-version: latest
           token: ${{ secrets.EXPO_TOKEN }}
         
+      - name: 🔍 Debug Environment
+        run: |
+          echo "🔍 Environment debugging..."
+          echo "Node version: $(node --version)"
+          echo "NPM version: $(npm --version)"
+          echo "PATH: $PATH"
+          echo "EAS CLI available: $(command -v eas || echo 'not found')"
+          if command -v eas; then
+            echo "EAS version: $(eas --version)"
+          fi
+          echo "EXPO_TOKEN set: ${{ secrets.EXPO_TOKEN != '' }}"
+        
       - name: 🎭 Execute Maestro Integration Test Suite
         run: ./scripts/run_integration_tests.sh
         env:

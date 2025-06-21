@@ -172,9 +172,33 @@ if [ "$IS_CI" = "true" ]; then
         exit 1
     fi
     
-    # Build for simulator
+    # Verify EAS CLI is available and working
+    if ! command_exists eas; then
+        log "📦 Installing EAS CLI globally..."
+        npm install -g @expo/eas-cli
+        # Verify installation
+        if ! command_exists eas; then
+            log "❌ Failed to install EAS CLI"
+            exit 1
+        fi
+    fi
+    
+    # Verify EAS CLI can run
+    log "🔍 Verifying EAS CLI..."
+    if ! eas --version; then
+        log "❌ EAS CLI is not working properly"
+        exit 1
+    fi
+    
+    # Build for simulator using development profile (optimized for simulator)
     log "🔨 Building app for simulator..."
-    npx eas build --platform ios --profile preview --local --output ./build.tar.gz
+    if ! eas build --platform ios --profile development --local --output ./build.tar.gz --non-interactive; then
+        log "❌ EAS build failed"
+        log "🔍 Checking build logs..."
+        # Try to get more information about the failure
+        eas build:list --limit 1 || true
+        exit 1
+    fi
     
     # Extract and install
     log "📦 Extracting and installing app..."
