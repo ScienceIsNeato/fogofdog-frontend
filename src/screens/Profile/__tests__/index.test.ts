@@ -1,4 +1,5 @@
 import { ProfileScreen } from '../index';
+import * as ProfileModule from '../index';
 
 describe('Profile Module Exports', () => {
   it('should export ProfileScreen', () => {
@@ -7,7 +8,6 @@ describe('Profile Module Exports', () => {
   });
 
   it('should export all expected components', () => {
-    const exports = require('../index');
-    expect(Object.keys(exports)).toEqual(['ProfileScreen']);
+    expect(Object.keys(ProfileModule)).toEqual(['ProfileScreen']);
   });
-}); 
+});

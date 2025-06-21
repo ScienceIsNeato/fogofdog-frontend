@@ -1,4 +1,5 @@
 import { SignInScreen, SignUpScreen } from '../index';
+import * as AuthModule from '../index';
 
 describe('Auth Module Exports', () => {
   it('should export SignInScreen', () => {
@@ -12,7 +13,6 @@ describe('Auth Module Exports', () => {
   });
 
   it('should export all expected components', () => {
-    const exports = require('../index');
-    expect(Object.keys(exports)).toEqual(['SignInScreen', 'SignUpScreen']);
+    expect(Object.keys(AuthModule)).toEqual(['SignInScreen', 'SignUpScreen']);
   });
-}); 
+});

@@ -45,4 +45,4 @@ describe('Store Configuration', () => {
       storedLocationCount: 0,
     });
   });
-}); 
+});

@@ -1,8 +1,8 @@
-import type { 
-  RootStackParamList, 
-  AuthStackParamList, 
-  MainStackParamList, 
-  MapRegion 
+import type {
+  RootStackParamList,
+  AuthStackParamList,
+  MainStackParamList,
+  MapRegion,
 } from '../navigation';
 
 describe('Navigation Types', () => {
@@ -10,7 +10,7 @@ describe('Navigation Types', () => {
     it('should define Auth route with undefined params', () => {
       const authRoute: keyof RootStackParamList = 'Auth';
       const authParams: RootStackParamList['Auth'] = undefined;
-      
+
       expect(authRoute).toBe('Auth');
       expect(authParams).toBeUndefined();
     });
@@ -18,7 +18,7 @@ describe('Navigation Types', () => {
     it('should define Main route with undefined params', () => {
       const mainRoute: keyof RootStackParamList = 'Main';
       const mainParams: RootStackParamList['Main'] = undefined;
-      
+
       expect(mainRoute).toBe('Main');
       expect(mainParams).toBeUndefined();
     });
@@ -35,7 +35,7 @@ describe('Navigation Types', () => {
     it('should define SignIn route with undefined params', () => {
       const signInRoute: keyof AuthStackParamList = 'SignIn';
       const signInParams: AuthStackParamList['SignIn'] = undefined;
-      
+
       expect(signInRoute).toBe('SignIn');
       expect(signInParams).toBeUndefined();
     });
@@ -43,7 +43,7 @@ describe('Navigation Types', () => {
     it('should define SignUp route with undefined params', () => {
       const signUpRoute: keyof AuthStackParamList = 'SignUp';
       const signUpParams: AuthStackParamList['SignUp'] = undefined;
-      
+
       expect(signUpRoute).toBe('SignUp');
       expect(signUpParams).toBeUndefined();
     });
@@ -60,7 +60,7 @@ describe('Navigation Types', () => {
     it('should define Map route with undefined params', () => {
       const mapRoute: keyof MainStackParamList = 'Map';
       const mapParams: MainStackParamList['Map'] = undefined;
-      
+
       expect(mapRoute).toBe('Map');
       expect(mapParams).toBeUndefined();
     });
@@ -68,7 +68,7 @@ describe('Navigation Types', () => {
     it('should define Profile route with undefined params', () => {
       const profileRoute: keyof MainStackParamList = 'Profile';
       const profileParams: MainStackParamList['Profile'] = undefined;
-      
+
       expect(profileRoute).toBe('Profile');
       expect(profileParams).toBeUndefined();
     });
@@ -99,13 +99,13 @@ describe('Navigation Types', () => {
     it('should work with different coordinate values', () => {
       const newYorkRegion: MapRegion = {
         latitude: 40.7128,
-        longitude: -74.0060,
+        longitude: -74.006,
         latitudeDelta: 0.1,
         longitudeDelta: 0.1,
       };
 
       expect(newYorkRegion.latitude).toBe(40.7128);
-      expect(newYorkRegion.longitude).toBe(-74.0060);
+      expect(newYorkRegion.longitude).toBe(-74.006);
       expect(newYorkRegion.latitudeDelta).toBe(0.1);
       expect(newYorkRegion.longitudeDelta).toBe(0.1);
     });

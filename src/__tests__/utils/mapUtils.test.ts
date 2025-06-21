@@ -143,7 +143,7 @@ describe('mapUtils', () => {
     it('should handle invalid meters values', () => {
       // This test expects console warnings for invalid inputs
       (global as any).expectConsoleErrors = true;
-      
+
       const region = {
         latitude: 37.7749,
         longitude: -122.4194,
@@ -161,7 +161,7 @@ describe('mapUtils', () => {
     it('should handle invalid region that results in invalid metersPerPixel', () => {
       // This test expects console warnings for invalid inputs
       (global as any).expectConsoleErrors = true;
-      
+
       const invalidRegion = {
         latitude: NaN,
         longitude: 0,
@@ -181,7 +181,7 @@ describe('mapUtils', () => {
       it('should handle invalid numeric values', () => {
         // This test expects console warnings for invalid inputs
         (global as any).expectConsoleErrors = true;
-        
+
         const region = {
           latitude: NaN,
           longitude: Infinity,
@@ -200,7 +200,7 @@ describe('mapUtils', () => {
       it('should handle invalid numeric values', () => {
         // This test expects console warnings for invalid inputs
         (global as any).expectConsoleErrors = true;
-        
+
         const invalidRegion = {
           latitude: NaN,
           longitude: 0,
@@ -215,7 +215,7 @@ describe('mapUtils', () => {
       it('should handle zero width', () => {
         // This test expects console warnings for invalid inputs
         (global as any).expectConsoleErrors = true;
-        
+
         const invalidRegion = {
           latitude: 37.7749,
           longitude: -122.4194,
