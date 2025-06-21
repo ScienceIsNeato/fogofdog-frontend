@@ -47,14 +47,15 @@ fi
 
 # Step 2: Check for obvious import/export issues
 print_status "Checking for import/export issues..."
+# Run lint:fix proactively (silent) then check if any unfixable issues remain
+npm run lint:fix > /dev/null 2>&1
 if npm run lint:check > /dev/null 2>&1; then
-  print_success "No obvious import/export issues found"
+  print_success "No import/export issues found"
 else
-  print_warning "Linting issues detected - running lint:fix..."
-  npm run lint:fix
+  print_warning "Some linting issues remain after auto-fix - may affect bundle"
 fi
 
-# Step 3: Test bundle creation with timeout
+# Step 3: Test bundle creation with timeout (reduced from 120s to 90s)
 print_status "Testing bundle creation (this may take 30-60 seconds)..."
 
 # Create a temporary bundle to test
@@ -64,8 +65,8 @@ BUNDLE_MAP="/tmp/fogofdog-bundle-test.js.map"
 # Clean up any existing test bundles
 rm -f "$BUNDLE_OUTPUT" "$BUNDLE_MAP"
 
-# Try to create the bundle with a timeout
-timeout 120s npx react-native bundle \
+# Try to create the bundle with a slightly reduced timeout
+timeout 90s npx react-native bundle \
   --platform ios \
   --dev false \
   --entry-file index.ts \
@@ -99,4 +100,4 @@ else
   # Clean up
   rm -f "$BUNDLE_OUTPUT" "$BUNDLE_MAP"
   exit 1
-fi 
+fi

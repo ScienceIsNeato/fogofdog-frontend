@@ -41,6 +41,19 @@ artifacts/*
 **/artifacts/
 test_artifacts/
 
+# Test screenshots (temporary files before moving to artifacts)
+# Only exclude PNG files in specific test/artifact directories
+artifacts/*.png
+test_artifacts/*.png
+**/artifacts/*.png
+**/test_artifacts/*.png
+*-screenshot*.png
+phase*.png
+fog-state*.png
+initial-login*.png
+foreground_baseline*.png
+background_test*.png
+
 # Coverage reports
 coverage/
 **/coverage/

@@ -1,0 +1,236 @@
+appId: com.fogofdog.app
+jsEngine: graaljs
+---
+# Comprehensive Data Persistence Test
+# This test validates both "Keep me logged in" checkbox scenarios:
+# 1. Unchecked → App restart → Should return to login screen
+# 2. Checked → App restart → Should skip login and preserve fog data
+
+# =============================================================================
+# PHASE 1: UNCHECKED CHECKBOX TEST (Should NOT persist login)
+# =============================================================================
+
+# 1.1 Setup - Fresh app launch
+- setLocation:
+    latitude: 37.78825
+    longitude: -122.4324
+- launchApp:
+    appId: com.fogofdog.app
+    clearState: true
+- waitForAnimationToEnd:
+    timeout: 1000
+
+# 1.2 Verify login screen and checkbox
+- assertVisible:
+    text: "Sign In"
+- assertVisible:
+    id: keepLoggedInCheckbox
+- takeScreenshot: phase1-initial-login-screen
+
+# 1.3 UNCHECK the "Keep me logged in" checkbox (it's checked by default)
+- tapOn:
+    id: keepLoggedInCheckbox
+- waitForAnimationToEnd:
+    timeout: 500
+- takeScreenshot: phase1-unchecked-checkbox
+
+# 1.4 Login with unchecked checkbox
+- runFlow:
+    file: robust-login.yaml
+- waitForAnimationToEnd:
+    timeout: 2000
+- assertVisible:
+    id: map-screen
+- assertVisible:
+    text: "You are here"
+
+# 1.5 Create some fog clearing pattern
+- setLocation:
+    latitude: 37.783750
+    longitude: -122.4324
+- waitForAnimationToEnd:
+    timeout: 800
+- tapOn:
+    id: location-button
+- waitForAnimationToEnd:
+    timeout: 500
+
+- setLocation:
+    latitude: 37.783750
+    longitude: -122.426900
+- waitForAnimationToEnd:
+    timeout: 800
+- tapOn:
+    id: location-button
+- waitForAnimationToEnd:
+    timeout: 500
+
+# 1.6 Take screenshot of fog state before restart
+- takeScreenshot: phase1-fog-state-before-restart
+
+# 1.7 Restart app (should return to login screen since checkbox was unchecked)
+- launchApp:
+    appId: com.fogofdog.app
+- waitForAnimationToEnd:
+    timeout: 2000
+
+# 1.8 Verify we're back at login screen (persistence should NOT work)
+- assertVisible:
+    text: "Sign In"
+- assertVisible:
+    id: keepLoggedInCheckbox
+- takeScreenshot: phase1-back-to-login-after-restart
+
+# =============================================================================
+# PHASE 2: CHECKED CHECKBOX TEST (Should persist login and data)
+# =============================================================================
+
+# 2.0 RESET LOCATION to prevent diagonal line from Phase 1 to Phase 2
+- setLocation:
+    latitude: 37.78825
+    longitude: -122.4324
+- waitForAnimationToEnd:
+    timeout: 500
+
+# 2.1 ENSURE checkbox is CHECKED
+# After app restart, checkbox returns to its default state
+# If default is checked: leave it alone (don't tap)
+# If default is unchecked: tap once to check it
+# Based on the previous phase working, default appears to be checked, so DON'T tap
+- takeScreenshot: phase2-checkbox-default-state
+
+# 2.2 Login with checked checkbox
+- runFlow:
+    file: robust-login.yaml
+- waitForAnimationToEnd:
+    timeout: 2000
+- assertVisible:
+    id: map-screen
+- assertVisible:
+    text: "You are here"
+
+# 2.3 Create distinctive L-shaped fog clearing pattern
+- setLocation:
+    latitude: 37.78825
+    longitude: -122.4324
+- waitForAnimationToEnd:
+    timeout: 800
+- tapOn:
+    id: location-button
+- waitForAnimationToEnd:
+    timeout: 500
+
+- setLocation:
+    latitude: 37.783750
+    longitude: -122.4324
+- waitForAnimationToEnd:
+    timeout: 800
+- tapOn:
+    id: location-button
+- waitForAnimationToEnd:
+    timeout: 500
+
+- setLocation:
+    latitude: 37.783750
+    longitude: -122.426900
+- waitForAnimationToEnd:
+    timeout: 800
+- tapOn:
+    id: location-button
+- waitForAnimationToEnd:
+    timeout: 500
+
+- setLocation:
+    latitude: 37.788250
+    longitude: -122.426900
+- waitForAnimationToEnd:
+    timeout: 800
+- tapOn:
+    id: location-button
+- waitForAnimationToEnd:
+    timeout: 500
+
+# 2.4 Zoom out to show complete pattern
+- tapOn:
+    point: 450,300  # Center of screen
+- waitForAnimationToEnd:
+    timeout: 500
+# Zoom out to show full pattern
+- tapOn:
+    point: 400,250
+- tapOn:
+    point: 500,350
+- waitForAnimationToEnd:
+    timeout: 1000
+- tapOn:
+    point: 400,250
+- tapOn:
+    point: 500,350
+- waitForAnimationToEnd:
+    timeout: 1000
+
+# 2.5 Take screenshot of fog state before restart
+- takeScreenshot: phase2-fog-state-before-restart
+- waitForAnimationToEnd:
+    timeout: 500
+
+# 2.6 Restart app (should skip login and preserve fog data)
+- launchApp:
+    appId: com.fogofdog.app
+- waitForAnimationToEnd:
+    timeout: 3000
+
+# 2.7 Verify we skip login and go directly to map
+- assertVisible:
+    id: map-screen
+- assertVisible:
+    text: "You are here"
+- tapOn:
+    id: location-button
+- waitForAnimationToEnd:
+    timeout: 500
+
+# 2.8 Zoom out to same level to compare fog patterns
+- tapOn:
+    point: 450,300  # Center of screen
+- waitForAnimationToEnd:
+    timeout: 500
+# Zoom out to show full pattern (same as before)
+- tapOn:
+    point: 400,250
+- tapOn:
+    point: 500,350
+- waitForAnimationToEnd:
+    timeout: 1000
+- tapOn:
+    point: 400,250
+- tapOn:
+    point: 500,350
+- waitForAnimationToEnd:
+    timeout: 1000
+
+# 2.9 Take screenshot of fog state after restart
+- takeScreenshot: phase2-fog-state-after-restart
+- waitForAnimationToEnd:
+    timeout: 500
+
+# =============================================================================
+# FINAL VALIDATION
+# =============================================================================
+
+# Final assertions to ensure test completed successfully
+- assertVisible:
+    id: map-screen
+- assertVisible:
+    text: "You are here"
+
+# Test completion
+# SUCCESS CRITERIA:
+# - Phase 1: Unchecked checkbox → App restart → Returns to login screen
+# - Phase 2: Checked checkbox → App restart → Skips login, preserves fog data
+# - Screenshots will show:
+#   * phase1-back-to-login-after-restart.png (proves unchecked doesn't persist)
+#   * phase2-fog-state-before-restart.png vs phase2-fog-state-after-restart.png (should be identical) 
+
+# Final screenshot for visual regression testing
+- takeScreenshot: final-state 

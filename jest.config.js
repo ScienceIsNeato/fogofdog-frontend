@@ -47,6 +47,10 @@ module.exports = {
   },
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/src/$1',
+    '^expo-location$': '<rootDir>/__mocks__/expo-location.ts',
+    '^expo-modules-core$': '<rootDir>/__mocks__/expo-modules-core.ts',
+    '^expo-task-manager$': '<rootDir>/__mocks__/expo-task-manager.ts',
+    '^@shopify/react-native-skia$': '<rootDir>/__mocks__/@shopify/react-native-skia.ts',
   },
   testTimeout: 30000,
   maxWorkers: '50%', // Optimize for CI speed
