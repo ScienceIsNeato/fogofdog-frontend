@@ -340,6 +340,38 @@ for TEST_FILE in "${TEST_FILES[@]}"; do
         PASSED_TESTS=$((PASSED_TESTS + 1))
     else
         log "❌ Test failed: $TEST_NAME"
+        
+        # Capture debugging information on failure
+        if [ "$IS_CI" = "true" ]; then
+            log "🔍 Capturing debug information for failed test..."
+            
+            # Take a screenshot of current state
+            xcrun simctl io booted screenshot "$TEST_ARTIFACTS_DIR/failure_screenshot.png" 2>/dev/null || true
+            
+            # Get app state information
+            log "📱 Current simulator state:"
+            xcrun simctl list devices | grep -A 5 "iPhone 15 Pro" || true
+            
+            # List installed apps
+            log "📦 Installed apps containing 'fog':"
+            xcrun simctl listapps booted | grep -i fog || echo "No fog apps found"
+            
+            # Check if app is running
+            log "🏃 Running processes containing 'fog':"
+            xcrun simctl spawn booted ps aux | grep -i fog || echo "No fog processes found"
+            
+            # Check simulator logs for errors
+            log "📋 Recent simulator logs (last 20 lines):"
+            xcrun simctl spawn booted log show --last 20 --predicate 'process CONTAINS "fog"' || true
+            
+            # Copy Maestro debug output if available
+            MAESTRO_DEBUG_DIR=$(find ~/.maestro/tests -name "*$(date +%Y-%m-%d)*" -type d | tail -1)
+            if [ -n "$MAESTRO_DEBUG_DIR" ] && [ -d "$MAESTRO_DEBUG_DIR" ]; then
+                log "📸 Copying Maestro debug output..."
+                cp -r "$MAESTRO_DEBUG_DIR"/* "$TEST_ARTIFACTS_DIR/" 2>/dev/null || true
+            fi
+        fi
+        
         FAILED_TESTS+=("$TEST_NAME")
     fi
     

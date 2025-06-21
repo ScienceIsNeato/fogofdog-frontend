@@ -186,6 +186,106 @@ jobs:
         run: ./scripts/run_integration_tests.sh
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+          
+      - name: 📸 Upload Test Screenshots and Artifacts
+        uses: actions/upload-artifact@v4
+        if: always()  # Always upload artifacts, even on failure
+        with:
+          name: maestro-test-artifacts
+          path: |
+            test_artifacts/
+            ~/.maestro/tests/
+          retention-days: 7
+          if-no-files-found: warn
+          
+      - name: 🖼️ Display Test Screenshots in Job Summary
+        if: always()  # Always run, even on failure
+        run: |
+          echo "# 📸 Test Screenshots and Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          # Function to convert image to base64 and embed
+          embed_image() {
+            local image_path="$1"
+            local title="$2"
+            if [ -f "$image_path" ]; then
+              echo "### $title" >> $GITHUB_STEP_SUMMARY
+              echo "<details>" >> $GITHUB_STEP_SUMMARY
+              echo "<summary>Click to view screenshot</summary>" >> $GITHUB_STEP_SUMMARY
+              echo "" >> $GITHUB_STEP_SUMMARY
+              echo "![Screenshot](data:image/png;base64,$(base64 -i "$image_path"))" >> $GITHUB_STEP_SUMMARY
+              echo "" >> $GITHUB_STEP_SUMMARY
+              echo "</details>" >> $GITHUB_STEP_SUMMARY
+              echo "" >> $GITHUB_STEP_SUMMARY
+            fi
+          }
+          
+          # Find and display screenshots from test artifacts
+          if [ -d "test_artifacts/ci" ]; then
+            echo "## 🔍 Test Failure Screenshots" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            
+            for screenshot in test_artifacts/ci/*/failure_screenshot.png; do
+              if [ -f "$screenshot" ]; then
+                test_name=$(basename $(dirname "$screenshot"))
+                embed_image "$screenshot" "❌ Failed Test: $test_name"
+              fi
+            done
+            
+            # Display Maestro debug screenshots
+            for screenshot in test_artifacts/ci/*/*.png; do
+              if [ -f "$screenshot" ] && [[ "$screenshot" != *"failure_screenshot"* ]]; then
+                test_name=$(basename $(dirname "$screenshot"))
+                screenshot_name=$(basename "$screenshot")
+                embed_image "$screenshot" "🔍 Debug Screenshot: $test_name - $screenshot_name"
+              fi
+            done
+          fi
+          
+          # Find and display screenshots from Maestro debug output
+          if [ -d "$HOME/.maestro/tests" ]; then
+            echo "## 🎭 Maestro Debug Output" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            
+            # Find today's test runs
+            today=$(date +%Y-%m-%d)
+            for debug_dir in $HOME/.maestro/tests/*$today*; do
+              if [ -d "$debug_dir" ]; then
+                echo "### 📁 Debug Session: $(basename "$debug_dir")" >> $GITHUB_STEP_SUMMARY
+                echo "" >> $GITHUB_STEP_SUMMARY
+                
+                # Display all screenshots from this debug session
+                for screenshot in "$debug_dir"/*.png; do
+                  if [ -f "$screenshot" ]; then
+                    screenshot_name=$(basename "$screenshot")
+                    embed_image "$screenshot" "🖼️ Maestro Debug: $screenshot_name"
+                  fi
+                done
+                
+                # Display any log files
+                for log_file in "$debug_dir"/*.log; do
+                  if [ -f "$log_file" ]; then
+                    echo "#### 📋 $(basename "$log_file")" >> $GITHUB_STEP_SUMMARY
+                    echo "<details>" >> $GITHUB_STEP_SUMMARY
+                    echo "<summary>Click to view logs</summary>" >> $GITHUB_STEP_SUMMARY
+                    echo "" >> $GITHUB_STEP_SUMMARY
+                    echo '```' >> $GITHUB_STEP_SUMMARY
+                    head -50 "$log_file" >> $GITHUB_STEP_SUMMARY
+                    echo '```' >> $GITHUB_STEP_SUMMARY
+                    echo "</details>" >> $GITHUB_STEP_SUMMARY
+                    echo "" >> $GITHUB_STEP_SUMMARY
+                  fi
+                done
+              fi
+            done
+          fi
+          
+          # Summary of test results
+          echo "## 📊 Test Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Artifacts Location**: \`test_artifacts/ci/\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Maestro Debug**: \`~/.maestro/tests/\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Screenshots**: Available in job artifacts and embedded above" >> $GITHUB_STEP_SUMMARY
 
   analyze-code-quality-with-sonarqube:
     name: 📊 Analyze Code Quality with SonarQube
