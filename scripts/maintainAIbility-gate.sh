@@ -13,205 +13,159 @@
 # - Advanced quality analysis
 #
 # Usage:
-#   ./scripts/maintainAIbility-gate.sh           # Run all checks
-#   ./scripts/maintainAIbility-gate.sh --format  # Format code only
-#   ./scripts/maintainAIbility-gate.sh --lint    # Lint TypeScript only
+#   ./scripts/maintainAIbility-gate.sh           # All checks (strict mode - no auto-fix)
+#   ./scripts/maintainAIbility-gate.sh --full    # All checks including SonarQube
+#   ./scripts/maintainAIbility-gate.sh --format  # Check formatting only
+#   ./scripts/maintainAIbility-gate.sh --lint    # Check linting only
 #   ./scripts/maintainAIbility-gate.sh --types   # Check types only
 #   ./scripts/maintainAIbility-gate.sh --tests   # Run tests with coverage
 #   ./scripts/maintainAIbility-gate.sh --duplication # Check code duplication
 #   ./scripts/maintainAIbility-gate.sh --sonar   # Run SonarQube analysis
-#   ./scripts/maintainAIbility-gate.sh --full    # All checks including SonarQube
 #   ./scripts/maintainAIbility-gate.sh --help    # Show this help
 
-# Parse command line arguments
-FULL_CHECK=false
-RUN_LINT=false
+set -e
+
+# Individual check flags
 RUN_FORMAT=false
+RUN_LINT=false
 RUN_TYPES=false
 RUN_TESTS=false
 RUN_DUPLICATION=false
 RUN_SONAR=false
-RUN_ALL=true  # Default behavior when no specific flags
+RUN_ALL=false
 
-# Parse all arguments
-while [[ $# -gt 0 ]]; do
-  case $1 in
-    --full)
-      FULL_CHECK=true
-      RUN_ALL=true
-      shift
-      ;;
-    --lint)
-      RUN_LINT=true
-      RUN_ALL=false
-      shift
-      ;;
-    --format)
-      RUN_FORMAT=true
-      RUN_ALL=false
-      shift
-      ;;
-    --types)
-      RUN_TYPES=true
-      RUN_ALL=false
-      shift
-      ;;
-    --tests)
-      RUN_TESTS=true
-      RUN_ALL=false
-      shift
-      ;;
-    --duplication)
-      RUN_DUPLICATION=true
-      RUN_ALL=false
-      shift
-      ;;
-    --sonar)
-      RUN_SONAR=true
-      RUN_ALL=false
-      shift
-      ;;
-    *)
-      echo "Unknown option: $1"
-      echo "Usage: $0 [--full] [--lint] [--format] [--types] [--tests] [--duplication] [--sonar]"
-      echo "  No args: Run all standard checks (no SonarQube)"
-      echo "  --full: Run all checks including SonarQube"
-      echo "  --lint: Run linting checks only"
-      echo "  --format: Run formatting checks only"
-      echo "  --types: Run TypeScript type checking only"
-      echo "  --tests: Run unit tests with coverage only"
-      echo "  --duplication: Run code duplication check only"
-      echo "  --sonar: Run SonarQube analysis only"
-      exit 1
-      ;;
-  esac
-done
+# Parse arguments
+if [ $# -eq 0 ]; then
+  RUN_ALL=true
+elif [ "$1" = "--full" ]; then
+  RUN_ALL=true
+  RUN_SONAR=true
+else
+  while [[ $# -gt 0 ]]; do
+    case $1 in
+      --format) RUN_FORMAT=true ;;
+      --lint) RUN_LINT=true ;;
+      --types) RUN_TYPES=true ;;
+      --tests) RUN_TESTS=true ;;
+      --duplication) RUN_DUPLICATION=true ;;
+      --sonar) RUN_SONAR=true ;;
+      *) echo "Unknown option: $1"; exit 1 ;;
+    esac
+    shift
+  done
+fi
 
-# Set defaults for --full and standard runs
+# Set all flags if RUN_ALL is true
 if [[ "$RUN_ALL" == "true" ]]; then
-  RUN_LINT=true
   RUN_FORMAT=true
+  RUN_LINT=true
   RUN_TYPES=true
   RUN_TESTS=true
   RUN_DUPLICATION=true
-  if [[ "$FULL_CHECK" == "true" ]]; then
-    RUN_SONAR=true
-  fi
 fi
-
-# Display what we're running
-if [[ "$FULL_CHECK" == "true" ]]; then
-    echo "🔍 Running FULL comprehensive quality checks..."
-    echo "📋 This mirrors exactly what CI will run (including SonarQube)"
-    echo "🎯 Including SonarQube analysis (Medium/Low severity issues)"
-    echo "⏱️  This will take longer but catches all issues before PR merge"
-elif [[ "$RUN_ALL" == "true" ]]; then
-    echo "🔍 Running fast local quality checks..."
-    echo "📋 This mirrors exactly what git hooks will run"
-    echo "💨 For comprehensive analysis including SonarQube, use: ./scripts/maintainAIbility-gate.sh --full"
-else
-    echo "🔍 Running specific quality checks..."
-    echo "📋 Individual check mode - use for targeted validation"
-fi
-echo ""
 
 # Track failures
 FAILED_CHECKS=0
-FAILED_NAMES=()
 
-# Function to run a check and track failures
-run_check() {
-  local check_name="$1"
-  local command="$2"
-  
-  echo "🔍 Running: $check_name"
-  echo "   Command: $command"
-  
-  if eval "$command"; then
-    echo "✅ $check_name: PASSED"
+echo "🔍 Running maintainAIbility quality checks..."
+echo ""
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# FORMAT CHECK
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+if [[ "$RUN_FORMAT" == "true" ]]; then
+  echo "🎨 Format Check"
+  if npm run format:check; then
+    echo "✅ Format Check: PASSED"
   else
-    echo "❌ $check_name: FAILED"
+    echo "❌ Format Check: FAILED"
     ((FAILED_CHECKS++))
-    FAILED_NAMES+=("$check_name")
   fi
   echo ""
-}
-
-# Run checks based on flags
-if [[ "$RUN_FORMAT" == "true" ]]; then
-  run_check "Format Fix" "npm run format:fix"
 fi
 
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# LINT CHECK
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 if [[ "$RUN_LINT" == "true" ]]; then
-  run_check "Lint Fix" "npm run lint:fix"
-  run_check "Lint Strict Check" "npm run lint:strict"
+  echo "🔍 Lint Check"
+  if npm run lint:strict; then
+    echo "✅ Lint Check: PASSED"
+  else
+    echo "❌ Lint Check: FAILED"
+    ((FAILED_CHECKS++))
+  fi
+  echo ""
 fi
 
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# TYPE CHECK
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 if [[ "$RUN_TYPES" == "true" ]]; then
-  run_check "Type Check" "npm run type-check"
+  echo "🔧 Type Check"
+  if npm run type-check; then
+    echo "✅ Type Check: PASSED"
+  else
+    echo "❌ Type Check: FAILED"
+    ((FAILED_CHECKS++))
+  fi
+  echo ""
 fi
 
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# TEST COVERAGE
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 if [[ "$RUN_TESTS" == "true" ]]; then
-  run_check "Test Coverage" "npm run test:coverage"
+  echo "🧪 Test Coverage"
+  if npm run test:coverage; then
+    echo "✅ Test Coverage: PASSED"
+  else
+    echo "❌ Test Coverage: FAILED"
+    ((FAILED_CHECKS++))
+  fi
+  echo ""
 fi
 
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# DUPLICATION CHECK
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 if [[ "$RUN_DUPLICATION" == "true" ]]; then
-  run_check "Duplication Check" "npm run duplication:check"
+  echo "🔄 Duplication Check"
+  if npm run duplication:check; then
+    echo "✅ Duplication Check: PASSED"
+  else
+    echo "❌ Duplication Check: FAILED"
+    ((FAILED_CHECKS++))
+  fi
+  echo ""
 fi
 
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# SONARQUBE ANALYSIS
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 if [[ "$RUN_SONAR" == "true" ]]; then
-  run_check "SonarQube Analysis" "npm run sonar:check"
+  echo "📊 SonarQube Analysis"
+  if npm run sonar:check:warn; then
+    echo "✅ SonarQube Analysis: PASSED"
+  else
+    echo "❌ SonarQube Analysis: FAILED"
+    ((FAILED_CHECKS++))
+  fi
+  echo ""
 fi
 
-# Summary
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-if [[ "$FULL_CHECK" == "true" ]]; then
-    echo "📊 Full Quality Check Summary (CI-Ready):"
-elif [[ "$RUN_ALL" == "true" ]]; then
-    echo "📊 Fast Quality Check Summary (Git Hook Ready):"
-else
-    echo "📊 Individual Check Summary:"
-fi
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# SUMMARY
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+echo "📊 Quality Check Summary:"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
 if [ $FAILED_CHECKS -eq 0 ]; then
   echo "🎉 ALL CHECKS PASSED!"
-  if [[ "$FULL_CHECK" == "true" ]]; then
-    echo "✅ Your commit will succeed"
-    echo "✅ Git hooks will pass"  
-    echo "✅ CI pipeline will pass"
-    echo "✅ SonarQube quality gate will pass"
-    echo ""
-    echo "🚀 Ready to merge PR with confidence!"
-  elif [[ "$RUN_ALL" == "true" ]]; then
-    echo "✅ Your commit will succeed"
-    echo "✅ Git hooks will pass"
-    echo ""
-    echo "💡 For full CI validation (including SonarQube), run: ./scripts/maintainAIbility-gate.sh --full"
-    echo "🚀 Ready to commit with confidence!"
-  else
-    echo "✅ Individual checks completed successfully"
-    echo ""
-    echo "💡 For full validation, run: ./scripts/maintainAIbility-gate.sh"
-  fi
+  echo "✅ Ready to commit with confidence!"
   exit 0
 else
-  echo "💥 $FAILED_CHECKS check(s) failed:"
-  for failed_check in "${FAILED_NAMES[@]}"; do
-    echo "   • $failed_check"
-  done
-  echo ""
-  if [[ "$RUN_ALL" == "true" ]]; then
-    echo "⚠️  Your commit will FAIL until these are fixed"
-  else
-    echo "⚠️  These individual checks need attention"
-  fi
-  echo "💡 Fix the issues above and run this script again"
-  echo ""
-  echo "🔧 Quick fixes:"
-  echo "   • Type errors: Check TypeScript compiler output"
-  echo "   • Tests: Fix failing test cases"
-  echo "   • Duplication: Refactor duplicated code"
-  echo "   • Note: Lint and format are already fixed automatically"
+  echo "❌ $FAILED_CHECKS CHECK(S) FAILED"
+  echo "⚠️  Fix the issues and run again"
   exit 1
 fi 

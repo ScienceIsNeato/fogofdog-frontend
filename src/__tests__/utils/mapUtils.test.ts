@@ -138,5 +138,94 @@ describe('mapUtils', () => {
 
       expect(result).toBeCloseTo(expectedPixels, 1);
     });
+
+    // NEW TESTS: Error handling branches
+    it('should handle invalid meters values', () => {
+      // This test expects console warnings for invalid inputs
+      (global as any).expectConsoleErrors = true;
+      
+      const region = {
+        latitude: 37.7749,
+        longitude: -122.4194,
+        latitudeDelta: 0.1,
+        longitudeDelta: 0.1,
+        width: 1000,
+      };
+
+      expect(metersToPixels(-100, region)).toBe(0);
+      expect(metersToPixels(0, region)).toBe(0);
+      expect(metersToPixels(NaN, region)).toBe(0);
+      expect(metersToPixels(Infinity, region)).toBe(0);
+    });
+
+    it('should handle invalid region that results in invalid metersPerPixel', () => {
+      // This test expects console warnings for invalid inputs
+      (global as any).expectConsoleErrors = true;
+      
+      const invalidRegion = {
+        latitude: NaN,
+        longitude: 0,
+        latitudeDelta: 0.1,
+        longitudeDelta: 0.1,
+        width: 1000,
+      };
+
+      // When calculateMetersPerPixel returns 1 (default), metersToPixels(100, region) = 100/1 = 100
+      expect(metersToPixels(100, invalidRegion)).toBe(100);
+    });
+  });
+
+  // NEW TESTS: Error handling for other functions
+  describe('Error handling', () => {
+    describe('geoPointToPixel error cases', () => {
+      it('should handle invalid numeric values', () => {
+        // This test expects console warnings for invalid inputs
+        (global as any).expectConsoleErrors = true;
+        
+        const region = {
+          latitude: NaN,
+          longitude: Infinity,
+          latitudeDelta: 0,
+          longitudeDelta: 0.1,
+          width: 300,
+          height: 300,
+        };
+        const point = { latitude: NaN, longitude: -Infinity };
+        const result = geoPointToPixel(point, region);
+        expect(result).toEqual({ x: 150, y: 150 }); // Fallback to center
+      });
+    });
+
+    describe('calculateMetersPerPixel error cases', () => {
+      it('should handle invalid numeric values', () => {
+        // This test expects console warnings for invalid inputs
+        (global as any).expectConsoleErrors = true;
+        
+        const invalidRegion = {
+          latitude: NaN,
+          longitude: 0,
+          latitudeDelta: Infinity,
+          longitudeDelta: 0.1,
+          width: 0,
+        };
+        const result = calculateMetersPerPixel(invalidRegion);
+        expect(result).toBe(1);
+      });
+
+      it('should handle zero width', () => {
+        // This test expects console warnings for invalid inputs
+        (global as any).expectConsoleErrors = true;
+        
+        const invalidRegion = {
+          latitude: 37.7749,
+          longitude: -122.4194,
+          latitudeDelta: 0.1,
+          longitudeDelta: 0.1,
+          width: 0,
+        };
+        const result = calculateMetersPerPixel(invalidRegion);
+        expect(result).toBe(1);
+      });
+    });
   });
 });
