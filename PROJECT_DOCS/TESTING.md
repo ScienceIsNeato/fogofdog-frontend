@@ -2,6 +2,24 @@
 
 This document covers the comprehensive testing strategy for FogOfDog frontend, including unit tests, integration tests, and end-to-end testing.
 
+## 💰 CI Cost Awareness (Updated June 22, 2025)
+
+**GitHub Actions Pricing** (current rates):
+- **Linux runners**: $0.008/minute
+- **macOS runners**: $0.08/minute (10x more expensive!)
+- **Storage**: $0.000336/GB-month
+
+**Current Usage** (June 2025):
+- Actions Linux: 921 min = $7.37
+- Actions macOS: 107.9 min = $8.63
+- Actions storage: 1.91 GB-hr = <$0.01
+
+**Cost Control Measures**:
+- Maestro integration tests run **manual trigger only** (not on every PR)
+- Use `workflow_dispatch` for expensive macOS tests
+- Monitor usage via GitHub billing dashboard
+- Target <30 minutes total macOS time per month
+
 ## 📋 Testing Strategy
 
 Our testing approach follows a pyramid structure:

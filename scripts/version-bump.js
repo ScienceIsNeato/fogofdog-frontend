@@ -9,6 +9,7 @@
  *   npm run version:major   (1.0.0 → 2.0.0) - Breaking changes
  * 
  * This script updates both package.json and app.json versions and creates a git tag.
+ * Build numbers are reset to 1 with each version bump for clean versioning.
  */
 
 const fs = require('fs');
@@ -45,20 +46,18 @@ try {
   const appJson = JSON.parse(fs.readFileSync('app.json', 'utf8'));
   appJson.expo.version = newVersion;
   
-  // Increment build numbers
-  const currentIosBuild = parseInt(appJson.expo.ios.buildNumber || '1');
-  appJson.expo.ios.buildNumber = (currentIosBuild + 1).toString();
+  // Reset build numbers to 1 for new version
+  appJson.expo.ios.buildNumber = "1";
   
   if (!appJson.expo.android) appJson.expo.android = {};
-  const currentAndroidVersionCode = parseInt(appJson.expo.android.versionCode || '1');
-  appJson.expo.android.versionCode = currentAndroidVersionCode + 1;
+  appJson.expo.android.versionCode = 1;
   
   fs.writeFileSync('app.json', JSON.stringify(appJson, null, 2));
   
   console.log(`📱 Updated app.json:`);
   console.log(`   Version: ${newVersion}`);
-  console.log(`   iOS build: ${appJson.expo.ios.buildNumber}`);
-  console.log(`   Android version code: ${appJson.expo.android.versionCode}`);
+  console.log(`   iOS build: ${appJson.expo.ios.buildNumber} (reset to 1)`);
+  console.log(`   Android version code: ${appJson.expo.android.versionCode} (reset to 1)`);
   
   // Stage changes
   execSync('git add package.json app.json');
@@ -66,11 +65,11 @@ try {
   // Commit changes
   const commitMessage = `🔖 ${versionType.charAt(0).toUpperCase() + versionType.slice(1)} version bump to ${newVersion}
 
-Manual ${versionType} version bump.
+Manual ${versionType} version bump with build number reset.
 
 Changes:
 - package.json: ${currentVersion} → ${newVersion}
-- app.json: Updated version and build numbers`;
+- app.json: Updated version and reset build numbers to 1`;
 
   execSync(`git commit -m "${commitMessage}"`);
   

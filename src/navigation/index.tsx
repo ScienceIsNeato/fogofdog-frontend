@@ -33,7 +33,7 @@ const RootStack = createNativeStackNavigator<RootStackParamList>();
 
 const LoadingScreen = () => (
   <View style={styles.loadingContainer}>
-    <ActivityIndicator size="large" color="#007AFF" />
+    <ActivityIndicator testID="activity-indicator" size="large" color="#007AFF" />
     <Text style={styles.loadingText}>Loading...</Text>
   </View>
 );

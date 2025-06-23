@@ -19,13 +19,14 @@ export const Skia = {
   })),
 };
 
-export const Canvas = (props: any) => React.createElement(View, props);
-export const Path = (props: any) => React.createElement(View, props);
-export const Fill = (props: any) => React.createElement(View, props);
-export const Circle = (props: any) => React.createElement(View, props);
-export const Mask = (props: any) => React.createElement(View, props);
-export const Rect = (props: any) => React.createElement(View, props);
-export const Group = (props: any) => React.createElement(View, props);
+// Preserve all props including testID for better testing
+export const Canvas = (props: any) => React.createElement(View, { ...props, testID: props.testID || 'mock-skia-canvas' });
+export const Path = (props: any) => React.createElement(View, { ...props, testID: props.testID || 'mock-skia-path' });
+export const Fill = (props: any) => React.createElement(View, { ...props, testID: props.testID || 'mock-skia-fill' });
+export const Circle = (props: any) => React.createElement(View, { ...props, testID: props.testID || 'mock-skia-circle' });
+export const Mask = (props: any) => React.createElement(View, { ...props, testID: props.testID || 'mock-skia-mask' });
+export const Rect = (props: any) => React.createElement(View, { ...props, testID: props.testID || 'mock-skia-rect' });
+export const Group = (props: any) => React.createElement(View, { ...props, testID: props.testID || 'mock-skia-group' });
 
 export const useSharedValueEffect = jest.fn();
 export const useDerivedValue = jest.fn();

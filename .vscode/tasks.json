@@ -4,7 +4,7 @@
     {
       "label": "🔍 Dev Check - Full Suite",
       "type": "shell",
-      "command": "./scripts/dev-check.sh",
+                  "command": "./scripts/maintainAIbility-gate.sh",
       "group": {
         "kind": "build",
         "isDefault": true

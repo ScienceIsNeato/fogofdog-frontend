@@ -8,7 +8,7 @@ This project now includes comprehensive SonarQube analysis that can be run local
 
 ### Fast Local Checks (Git Hook Validation)
 ```bash
-./scripts/dev-check.sh
+./scripts/maintainAIbility-gate.sh
 ```
 - Runs: Lint, Format, TypeScript, Tests, Duplication
 - Duration: ~30 seconds
@@ -16,7 +16,7 @@ This project now includes comprehensive SonarQube analysis that can be run local
 
 ### Full Quality Analysis (CI Validation)
 ```bash
-./scripts/dev-check.sh --full
+./scripts/maintainAIbility-gate.sh --full
 ```
 - Runs: All fast checks + SonarQube analysis
 - Duration: ~2-3 minutes
@@ -80,12 +80,12 @@ The project uses `direnv` for environment management. Ensure you have:
 
 ### Regular Development
 1. Make code changes
-2. Run `./scripts/dev-check.sh` for fast validation
+2. Run `./scripts/maintainAIbility-gate.sh` for fast validation
 3. Commit if all checks pass
 
 ### Pre-Merge Validation
 1. Before creating PR or merging to main
-2. Run `./scripts/dev-check.sh --full` for comprehensive analysis
+2. Run `./scripts/maintainAIbility-gate.sh --full` for comprehensive analysis
 3. Fix any SonarQube issues found
 4. Commit fixes and verify with another full check
 
@@ -118,13 +118,13 @@ The Node.js-based scanner handles Java requirements automatically. If you see Ja
 
 ## Scripts Reference
 
-### `scripts/dev-check.sh`
+### `scripts/maintainAIbility-gate.sh`
 - **Purpose**: Fast local quality validation
 - **Duration**: ~30 seconds
 - **Includes**: Lint, Format, TypeScript, Tests, Duplication
 - **Use case**: Regular development workflow
 
-### `scripts/dev-check.sh --full`
+### `scripts/maintainAIbility-gate.sh --full`
 - **Purpose**: Comprehensive quality validation
 - **Duration**: ~2-3 minutes  
 - **Includes**: All fast checks + SonarQube analysis

@@ -1,6 +1,6 @@
 {
   "recommendations": [
-    // Essential for TypeScript/ESLint dev-check compliance
+    // Essential for TypeScript/ESLint maintainAIbility-gate compliance
     "ms-vscode.vscode-typescript-next",
     "dbaeumer.vscode-eslint",
     "esbenp.prettier-vscode",
