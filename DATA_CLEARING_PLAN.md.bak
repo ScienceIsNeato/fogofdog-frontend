@@ -1,0 +1,324 @@
+# Data Clearing Feature Plan
+
+## 📋 Overview
+
+Implement a data clearing button that allows users to clear recent exploration data or all stored data. The button will be positioned in the bottom right corner, vertically aligned with the GPS toggle button and horizontally aligned with other bottom UI elements.
+
+## 🎯 Requirements
+
+### Visual Design
+- **Position**: Bottom right corner of screen, topmost layer (above map)
+- **Alignment**: 
+  - Vertically aligned with GPS toggle button (same bottom distance)
+  - Horizontally positioned in right corner (mirroring GPS toggle's center position)
+- **Icon**: Clean/trash/clear icon (need to source appropriate icon)
+- **States**: Normal, pressed, loading (during clear operation)
+
+### Behavior
+- **Default State**: Always visible when user has exploration data
+- **Tap Action**: Show confirmation dialog with clearing options
+- **Clear Options**: 
+  - Recent data (last 24 hours)
+  - All exploration data
+  - Cancel action
+- **Feedback**: Show progress indicator and success/error messages
+
+### Data Clearing Options
+
+#### Recent Data (24 Hours)
+```
+Title: "Clear Recent Data"
+Message: "This will remove exploration data from the last 24 hours. Your fog map will revert to its state from yesterday."
+Options: [Cancel] [Clear Recent Data]
+```
+
+#### All Data
+```
+Title: "Clear All Exploration Data"
+Message: "⚠️ This will permanently delete ALL your exploration data and reset your fog map completely. This action cannot be undone."
+Options: [Cancel] [Clear All Data]
+```
+
+#### Confirmation with Options
+```
+Title: "Clear Exploration Data"
+Message: "What would you like to clear?"
+Options: [Cancel] [Recent (24h)] [All Data]
+```
+
+## 🏗️ Technical Implementation
+
+### 1. State Management (Redux)
+
+#### Extend Existing Slices
+```typescript
+// explorationSlice.ts additions
+interface ExplorationState {
+  // ... existing fields
+  lastClearTime: number;
+  totalDataPoints: number;
+  oldestDataTime: number;
+}
+
+// New actions:
+// - clearRecentData(hours: number)
+// - clearAllData()
+// - setDataStats(stats: DataStats)
+```
+
+### 2. UI Components
+
+#### New Component: `DataClearButton.tsx`
+```typescript
+interface DataClearButtonProps {
+  dataPointCount: number;
+  onClearRequest: (type: 'recent' | 'all') => void;
+  isClearing: boolean;
+  style?: ViewStyle;
+}
+```
+
+**Features**:
+- Animated loading states during clear operations
+- Badge showing data point count (optional)
+- Haptic feedback on press
+- Accessibility support
+
+#### New Component: `DataClearDialog.tsx`
+```typescript
+interface DataClearDialogProps {
+  visible: boolean;
+  dataStats: {
+    totalPoints: number;
+    recentPoints: number; // last 24h
+    oldestDate: Date;
+  };
+  onClearRecent: () => void;
+  onClearAll: () => void;
+  onCancel: () => void;
+  isClearing: boolean;
+}
+```
+
+### 3. Service Layer Updates
+
+#### New Service: `DataClearingService.ts`
+```typescript
+class DataClearingService {
+  // Clear exploration data by time range
+  static async clearDataByTimeRange(
+    startTime: number, 
+    endTime?: number
+  ): Promise<void>
+  
+  // Clear all exploration data
+  static async clearAllData(): Promise<void>
+  
+  // Get data statistics
+  static async getDataStats(): Promise<DataStats>
+  
+  // Clear stored locations from LocationStorageService
+  static async clearStoredLocations(timeRange?: TimeRange): Promise<void>
+  
+  // Clear background location data
+  static async clearBackgroundData(timeRange?: TimeRange): Promise<void>
+}
+```
+
+#### Integration Points
+- **LocationStorageService**: Clear stored GPS coordinates
+- **BackgroundLocationService**: Clear background tracking data
+- **AuthPersistenceService**: Update user preferences/stats
+- **ExplorationSlice**: Update Redux state after clearing
+
+### 4. File Structure
+
+```
+src/
+├── components/
+│   ├── DataClearButton.tsx
+│   ├── DataClearDialog.tsx
+│   └── __tests__/
+│       ├── DataClearButton.test.tsx
+│       └── DataClearDialog.test.tsx
+├── services/
+│   ├── DataClearingService.ts
+│   └── __tests__/
+│       └── DataClearingService.test.ts
+└── types/
+    └── dataClear.ts
+```
+
+## 🎨 UI/UX Details
+
+### Button Positioning
+```css
+position: absolute
+bottom: 100px (same as GPS toggle)
+right: 20px (mirroring GPS toggle's center position)
+zIndex: 1000 (topmost layer)
+width: 56px (slightly smaller than GPS toggle)
+height: 56px
+borderRadius: 28px
+backgroundColor: white with shadow
+```
+
+### Visual Hierarchy
+```
+Bottom UI Layout:
+┌─────────────────────────────────┐
+│                                 │
+│              MAP                │
+│                                 │
+│                                 │
+│     [GPS Toggle]    [Clear]     │  ← Same vertical level
+│         (64px)       (56px)     │
+│       (center)     (right)      │
+└─────────────────────────────────┘
+```
+
+### Animation States
+- **Idle**: Subtle rotation animation (cleaning motion)
+- **Pressed**: Scale down + haptic feedback
+- **Clearing**: Spinner overlay with progress
+- **Success**: Brief checkmark animation
+- **Error**: Shake animation + error color
+
+### Data Count Badge (Optional)
+- Small badge showing number of data points
+- Only show if >100 data points
+- Position: top-right corner of button
+- Auto-hide after clearing
+
+## 🧪 Testing Strategy
+
+### Unit Tests
+- **DataClearingService**: All clearing operations, error handling
+- **DataClearButton**: Rendering, interactions, loading states
+- **DataClearDialog**: Dialog flow, confirmation logic
+- **Redux Integration**: State updates after clearing
+
+### Integration Tests
+- **MapScreen**: Button integration, positioning
+- **Service Coordination**: Multiple service clearing
+- **Error Scenarios**: Network failures, permission issues
+- **Data Persistence**: Verify data actually cleared
+
+### Test Scenarios
+1. **No Data**: Button disabled/hidden when no data exists
+2. **Recent Data Only**: Show appropriate options
+3. **Large Dataset**: Performance during clearing
+4. **Clear Recent**: Verify only recent data removed
+5. **Clear All**: Verify complete data removal
+6. **Clear Cancellation**: Ensure no data lost on cancel
+7. **Offline Clearing**: Handle offline scenarios
+8. **Background App**: Clear while app backgrounded
+
+## 📱 Platform Considerations
+
+### iOS Specific
+- Use `Haptics.notificationAsync('success')` after successful clear
+- Integrate with iOS storage management
+- Handle iCloud sync implications
+
+### Android Specific
+- Use appropriate vibration patterns
+- Handle Android storage permissions
+- Consider Android backup/restore
+
+## 🚀 Implementation Phases
+
+### Phase 1: Core Infrastructure
+1. Create `DataClearingService.ts` with basic clearing logic
+2. Implement `DataClearButton.tsx` with static states
+3. Add button to MapScreen with proper positioning
+4. Write comprehensive unit tests
+
+### Phase 2: Dialog & Confirmation
+1. Create `DataClearDialog.tsx` with options
+2. Implement confirmation flow with proper messaging
+3. Add loading states and progress feedback
+4. Test dialog interactions
+
+### Phase 3: Service Integration
+1. Integrate with all data storage services
+2. Add proper error handling and recovery
+3. Implement data statistics calculation
+4. Add service-level testing
+
+### Phase 4: Polish & Performance
+1. Add animations and haptic feedback
+2. Optimize clearing performance for large datasets
+3. Add accessibility features
+4. End-to-end testing with Maestro
+
+## 📊 Success Metrics
+
+### Functional Requirements
+- ✅ Button clears data correctly (recent vs all)
+- ✅ Confirmation dialogs prevent accidental clearing
+- ✅ Data statistics are accurate
+- ✅ All related services are properly cleared
+- ✅ No data corruption or partial clearing
+
+### User Experience Requirements
+- ✅ Button is discoverable but not intrusive
+- ✅ Clear confirmation prevents accidental data loss
+- ✅ Progress feedback during clearing operations
+- ✅ Success/error messaging is clear
+- ✅ Button positioning doesn't interfere with map usage
+
+### Technical Requirements
+- ✅ 100% test coverage for clearing operations
+- ✅ Performance acceptable for large datasets (>10k points)
+- ✅ Proper error handling and recovery
+- ✅ No memory leaks during clearing operations
+
+## 🔄 Integration with GPS Toggle
+
+### Coordinated Positioning
+- Both buttons at same vertical level (bottom: 100px)
+- GPS toggle: center position (alignSelf: center)
+- Clear button: right position (right: 20px)
+- Consistent shadow and styling
+
+### State Coordination
+- Clear button availability based on tracking state
+- Show data count only when tracking is active
+- Disable clearing while tracking is paused (optional)
+
+### Visual Consistency
+- Similar button styling with size differentiation
+- Coordinated animations (stagger timing)
+- Consistent haptic feedback patterns
+
+## 🎯 Data Types to Clear
+
+### Location Data
+- GPS coordinates from LocationStorageService
+- Background location tracking data
+- Cached current location
+
+### Exploration Data
+- Fog map exploration progress
+- Visited coordinates and timestamps
+- Exploration statistics and metrics
+
+### User Data (Optional)
+- Exploration achievements/milestones
+- Usage analytics and preferences
+- Cached map tiles (if implemented)
+
+## ⚠️ Safety Considerations
+
+### Confirmation Requirements
+- Always require confirmation for clearing
+- Show data impact clearly (number of points, time range)
+- Provide "undo" information (cannot be undone)
+- Use destructive action styling (red colors)
+
+### Error Prevention
+- Disable button during clearing operations
+- Prevent multiple simultaneous clear operations
+- Validate data integrity before clearing
+- Log clearing operations for debugging 

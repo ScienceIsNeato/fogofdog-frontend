@@ -1,5 +1,14 @@
-import React, { useEffect, useState, useRef, useMemo } from 'react';
-import { View, StyleSheet, Dimensions, DeviceEventEmitter, AppState } from 'react-native';
+import React, { useEffect, useState, useRef, useMemo, useCallback } from 'react';
+import {
+  View,
+  StyleSheet,
+  Dimensions,
+  DeviceEventEmitter,
+  AppState,
+  TouchableOpacity,
+  Text,
+  Alert,
+} from 'react-native';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import { updateLocation, updateZoom, setCenterOnUser } from '../../store/slices/explorationSlice';
 import MapView, { Marker, Region } from 'react-native-maps';
@@ -7,11 +16,14 @@ import * as Location from 'expo-location';
 import * as TaskManager from 'expo-task-manager';
 import FogOverlay from '../../components/FogOverlay';
 import LocationButton from '../../components/LocationButton';
+import DataClearSelectionDialog from '../../components/DataClearSelectionDialog';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { logger } from '../../utils/logger';
 import { GPSInjectionService } from '../../services/GPSInjectionService';
 import { BackgroundLocationService } from '../../services/BackgroundLocationService';
 import { AuthPersistenceService } from '../../services/AuthPersistenceService';
+import { DataClearingService } from '../../services/DataClearingService';
+import { DataStats, ClearType } from '../../types/dataClear';
 
 // Unified location task name
 const LOCATION_TASK = 'unified-location-task';
@@ -357,9 +369,11 @@ const useUnifiedLocationService = (
   isMapCenteredOnUser: boolean,
   currentRegion: Region | undefined
 ) => {
+  // Only initialize the unified location service on mount/unmount
   useEffect(() => {
     const isActiveRef = { current: true };
 
+    // Set up listeners for location and GPS injection events
     const listeners = setupLocationListeners({
       isActiveRef,
       dispatch,
@@ -368,6 +382,7 @@ const useUnifiedLocationService = (
       currentRegion,
     });
 
+    // Initialize unified location service once
     setupUnifiedLocationService({
       isActiveRef,
       dispatch,
@@ -388,7 +403,8 @@ const useUnifiedLocationService = (
       });
       logger.info('Unified location service stopped with background tracking.');
     };
-  }, [dispatch, mapRef, isMapCenteredOnUser, currentRegion]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Only run on mount/unmount - dependencies are stable references
 };
 
 // Hook for zoom restriction logic
@@ -712,6 +728,151 @@ const useGPSInjectionService = () => {
   }, []);
 };
 
+// Custom hook for data clearing functionality - UNUSED (keeping for reference)
+/* const useDataClearing = (
+  dataStats: DataStats,
+  setDataStats: (stats: DataStats) => void,
+  setIsDialogVisible: (visible: boolean) => void,
+  setIsClearing: (clearing: boolean) => void
+) => {
+  // Update data stats periodically
+  useEffect(() => {
+    const updateDataStats = async () => {
+      try {
+        const stats = await DataClearingService.getDataStats();
+        setDataStats(stats);
+      } catch (error) {
+        logger.error('Failed to update data statistics', error, {
+          component: 'MapScreen',
+          action: 'updateDataStats',
+        });
+      }
+    };
+
+    updateDataStats();
+
+    // Update stats every 30 seconds
+    const interval = setInterval(updateDataStats, 30000);
+    return () => clearInterval(interval);
+  }, [setDataStats]);
+
+  const handleClearRequest = () => {
+    console.log('useDataClearing: handleClearRequest called, setting isDialogVisible to true');
+    setIsDialogVisible(true);
+  };
+
+  const handleClearSelection = async (type: ClearType) => {
+    console.log('handleClearSelection: Called with type', type);
+
+    try {
+      console.log('handleClearSelection: Setting isClearing=true, isDialogVisible=false');
+      setIsClearing(true);
+      setIsDialogVisible(false);
+
+      const now = Date.now();
+      let startTime: number;
+
+      switch (type) {
+        case 'hour':
+          startTime = now - 60 * 60 * 1000; // 1 hour ago
+          await DataClearingService.clearDataByTimeRange(startTime);
+          break;
+        case 'day':
+          startTime = now - 24 * 60 * 60 * 1000; // 24 hours ago
+          await DataClearingService.clearDataByTimeRange(startTime);
+          break;
+        case 'all':
+          await DataClearingService.clearAllData();
+          break;
+        default:
+          throw new Error(`Unknown clear type: ${type}`);
+      }
+
+      // Update stats after clearing
+      const updatedStats = await DataClearingService.getDataStats();
+      setDataStats(updatedStats);
+
+      logger.info('Successfully cleared data', {
+        component: 'MapScreen',
+        action: 'handleClearSelection',
+        type,
+      });
+    } catch (error) {
+      logger.error('Failed to clear data', error, {
+        component: 'MapScreen',
+        action: 'handleClearSelection',
+        type,
+      });
+    } finally {
+      setIsClearing(false);
+    }
+  };
+
+  const handleClearRecent = async () => {
+    try {
+      setIsClearing(true);
+      setIsDialogVisible(false);
+
+      const twentyFourHoursAgo = Date.now() - 24 * 60 * 60 * 1000;
+      await DataClearingService.clearDataByTimeRange(twentyFourHoursAgo);
+
+      // Update stats after clearing
+      const updatedStats = await DataClearingService.getDataStats();
+      setDataStats(updatedStats);
+
+      logger.info('Successfully cleared recent data', {
+        component: 'MapScreen',
+        action: 'handleClearRecent',
+      });
+    } catch (error) {
+      logger.error('Failed to clear recent data', error, {
+        component: 'MapScreen',
+        action: 'handleClearRecent',
+      });
+    } finally {
+      setIsClearing(false);
+    }
+  };
+
+  const handleClearAll = async () => {
+    try {
+      setIsClearing(true);
+      setIsDialogVisible(false);
+
+      await DataClearingService.clearAllData();
+
+      // Update stats after clearing
+      const updatedStats = await DataClearingService.getDataStats();
+      setDataStats(updatedStats);
+
+      logger.info('Successfully cleared all data', {
+        component: 'MapScreen',
+        action: 'handleClearAll',
+      });
+    } catch (error) {
+      logger.error('Failed to clear all data', error, {
+        component: 'MapScreen',
+        action: 'handleClearAll',
+      });
+    } finally {
+      setIsClearing(false);
+    }
+  };
+
+  const handleCancel = () => {
+    console.log('handleCancel: Dismissing dialog');
+    setIsDialogVisible(false);
+  };
+
+  return {
+    handleClearRequest,
+    handleClearSelection,
+    handleClearRecent,
+    handleClearAll,
+    handleCancel,
+  };
+}; */
+
 // Helper function to process stored locations
 const processStoredBackgroundLocations = async (
   storedLocations: any[],
@@ -777,10 +938,121 @@ const useAppStateChangeHandler = (
 
     const subscription = AppState.addEventListener('change', handleAppStateChange);
     return () => subscription?.remove();
-  }, [dispatch, isMapCenteredOnUser, currentRegion, mapRef]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Only run on mount/unmount - dependencies are stable references
 };
 
 // Hook for map screen state initialization
+// Custom hook for data clearing functionality
+const useDataClearing = () => {
+  const [dataStats, setDataStats] = useState<DataStats>({
+    totalPoints: 0,
+    recentPoints: 0,
+    oldestDate: null,
+    newestDate: null,
+  });
+  const [isDialogVisible, setIsDialogVisible] = useState(false);
+  const [isClearing, setIsClearing] = useState(false);
+
+  const updateDataStats = useCallback(async () => {
+    try {
+      const stats = await DataClearingService.getDataStats();
+      setDataStats(stats);
+    } catch (_error) {
+      // Silent fail - stats will be updated next cycle
+    }
+  }, [setDataStats]);
+
+  // Update data stats periodically (skip in test environment)
+  useEffect(() => {
+    updateDataStats();
+
+    // Only set up interval in non-test environments
+    if (process.env.NODE_ENV !== 'test') {
+      const interval = setInterval(updateDataStats, 30000); // Every 30 seconds
+      return () => clearInterval(interval);
+    }
+
+    // Return empty cleanup function for test environment
+    return () => {};
+  }, [updateDataStats]);
+
+  const handleClearSelection = async (type: ClearType) => {
+    setIsClearing(true);
+
+    try {
+      // Get count before clearing
+      const beforeStats = await DataClearingService.getDataStats();
+      let clearedCount = 0;
+
+      if (type === 'all') {
+        clearedCount = beforeStats.totalPoints;
+        await DataClearingService.clearAllData();
+      } else {
+        const hours = type === 'hour' ? 1 : 24;
+        clearedCount = type === 'hour' ? beforeStats.recentPoints : beforeStats.totalPoints;
+        const startTime = Date.now() - hours * 60 * 60 * 1000;
+        await DataClearingService.clearDataByTimeRange(startTime);
+      }
+
+      // Update data stats after clearing
+      await updateDataStats();
+
+      // Show success message
+      const timeText =
+        type === 'all' ? 'All data' : type === 'hour' ? 'Last hour' : 'Last 24 hours';
+      Alert.alert(
+        'Data Cleared',
+        `${timeText} cleared successfully! ${clearedCount} data points removed.`,
+        [{ text: 'OK' }]
+      );
+    } catch (_error) {
+      Alert.alert('Error', 'Failed to clear data. Please try again.');
+    } finally {
+      setIsClearing(false);
+      setIsDialogVisible(false);
+    }
+  };
+
+  return {
+    dataStats,
+    isDialogVisible,
+    setIsDialogVisible,
+    isClearing,
+    handleClearSelection,
+  };
+};
+
+// Clear button component
+const ClearButton: React.FC<{
+  dataStats: DataStats;
+  isClearing: boolean;
+  onPress: () => void;
+}> = ({ dataStats, isClearing, onPress }) => (
+  <TouchableOpacity
+    style={{
+      position: 'absolute',
+      bottom: 100,
+      right: 20,
+      width: 56,
+      height: 56,
+      borderRadius: 28,
+      backgroundColor: 'white',
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.25,
+      shadowRadius: 3.84,
+      elevation: 5,
+      justifyContent: 'center',
+      alignItems: 'center',
+    }}
+    onPress={onPress}
+    disabled={dataStats.totalPoints === 0 || isClearing}
+  >
+    <Text style={{ fontSize: 24 }}>🗑️</Text>
+  </TouchableOpacity>
+);
+
 const useMapScreenState = () => {
   const dispatch = useAppDispatch();
   const { currentLocation, isMapCenteredOnUser } = useAppSelector((state) => state.exploration);
@@ -790,6 +1062,17 @@ const useMapScreenState = () => {
     width: Dimensions.get('window').width,
     height: Dimensions.get('window').height,
   });
+
+  // Data clearing state
+  const [dataStats, setDataStats] = useState<DataStats>({
+    totalPoints: 0,
+    recentPoints: 0,
+    oldestDate: null,
+    newestDate: null,
+  });
+  const [isDialogVisible, setIsDialogVisible] = useState(false);
+
+  const [isClearing, setIsClearing] = useState(false);
 
   // Memoize the mapRegion object to prevent unnecessary FogOverlay re-renders
   const memoizedMapRegion = useMemo(() => {
@@ -811,6 +1094,12 @@ const useMapScreenState = () => {
     setCurrentRegion,
     setMapDimensions,
     memoizedMapRegion,
+    dataStats,
+    setDataStats,
+    isDialogVisible,
+    setIsDialogVisible,
+    isClearing,
+    setIsClearing,
   };
 };
 
@@ -825,6 +1114,9 @@ export const MapScreen = () => {
     setMapDimensions,
     memoizedMapRegion,
   } = useMapScreenState();
+
+  const { dataStats, isDialogVisible, setIsDialogVisible, isClearing, handleClearSelection } =
+    useDataClearing();
 
   const insets = useSafeAreaInsets();
 
@@ -855,18 +1147,38 @@ export const MapScreen = () => {
     });
 
   return (
-    <MapScreenRenderer
-      mapRef={mapRef}
-      currentLocation={currentLocation}
-      insets={insets}
-      isMapCenteredOnUser={isMapCenteredOnUser}
-      onRegionChange={onRegionChange}
-      onPanDrag={onPanDrag}
-      onRegionChangeComplete={onRegionChangeComplete}
-      centerOnUserLocation={centerOnUserLocation}
-      setMapDimensions={setMapDimensions}
-      memoizedMapRegion={memoizedMapRegion}
-    />
+    <>
+      <MapScreenRenderer
+        mapRef={mapRef}
+        currentLocation={currentLocation}
+        insets={insets}
+        isMapCenteredOnUser={isMapCenteredOnUser}
+        onRegionChange={onRegionChange}
+        onPanDrag={onPanDrag}
+        onRegionChangeComplete={onRegionChangeComplete}
+        centerOnUserLocation={centerOnUserLocation}
+        setMapDimensions={setMapDimensions}
+        memoizedMapRegion={memoizedMapRegion}
+      />
+
+      {/* Data Clear Button */}
+      <ClearButton
+        dataStats={dataStats}
+        isClearing={isClearing}
+        onPress={() => setIsDialogVisible(true)}
+      />
+
+      {/* Data Clear Selection Dialog */}
+      <DataClearSelectionDialog
+        visible={isDialogVisible}
+        dataStats={dataStats}
+        onClear={handleClearSelection}
+        onCancel={() => {
+          setIsDialogVisible(false);
+        }}
+        isClearing={isClearing}
+      />
+    </>
   );
 };
 

@@ -10,6 +10,8 @@ export const NativeModulesProxy = {};
 
 export const requireNativeModule = jest.fn();
 
+export const requireOptionalNativeModule = jest.fn();
+
 export const Platform = {
   OS: 'ios',
 };

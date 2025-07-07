@@ -1,3 +1,5 @@
+/* eslint-env jest */
+/* global beforeEach, afterEach */
 /**
  * Jest Console Error Capture Setup
  * 

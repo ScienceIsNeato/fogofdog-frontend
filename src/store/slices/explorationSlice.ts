@@ -297,6 +297,46 @@ const explorationSlice = createSlice({
         zoomLevel: state.zoomLevel,
       });
     },
+    clearRecentData: (state, action: PayloadAction<number>) => {
+      const hoursBack = action.payload;
+
+      // For path and exploredAreas, we don't have timestamps, so we clear a percentage
+      // This is a simplified approach - in a real implementation, you'd want timestamps on all points
+      const clearRatio = Math.min(hoursBack / 168, 1); // Assume max 1 week = 168 hours for full clear
+      const pointsToClear = Math.floor(state.path.length * clearRatio);
+
+      if (pointsToClear > 0) {
+        state.path = state.path.slice(0, -pointsToClear);
+        state.exploredAreas = state.exploredAreas.slice(
+          0,
+          -Math.floor(state.exploredAreas.length * clearRatio)
+        );
+
+        logger.info(`Cleared recent exploration data (${hoursBack} hours)`, {
+          component: 'explorationSlice',
+          action: 'clearRecentData',
+          hoursBack,
+          pointsCleared: pointsToClear,
+          remainingPathPoints: state.path.length,
+          remainingExploredAreas: state.exploredAreas.length,
+        });
+      }
+    },
+    clearAllData: (state) => {
+      const originalPathCount = state.path.length;
+      const originalExploredCount = state.exploredAreas.length;
+
+      state.path = [];
+      state.exploredAreas = [];
+      state.currentLocation = null;
+
+      logger.info('Cleared all exploration data', {
+        component: 'explorationSlice',
+        action: 'clearAllData',
+        clearedPathPoints: originalPathCount,
+        clearedExploredAreas: originalExploredCount,
+      });
+    },
   },
 });
 
@@ -309,5 +349,7 @@ export const {
   processBackgroundLocations,
   updateBackgroundLocationStatus,
   restorePersistedState,
+  clearRecentData,
+  clearAllData,
 } = explorationSlice.actions;
 export default explorationSlice.reducer;

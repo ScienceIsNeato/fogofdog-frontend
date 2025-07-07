@@ -54,7 +54,7 @@ async function fetchAndDisplayIssues() {
                         const issues = JSON.parse(data);
                         displayIssues(issues.issues || []);
                         resolve();
-                    } catch (e) {
+                    } catch (_e) {
                         console.log('❌ Failed to parse issues response');
                         resolve();
                     }
