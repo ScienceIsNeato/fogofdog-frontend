@@ -90,7 +90,7 @@ function saveCurrentLocation(lat, lon) {
 /**
  * Set simulator location using xcrun simctl
  */
-async function setSimulatorLocation(lat, lon) {
+async function setSimulatorLocation(lat, lon, timeDeltaHours = 0) {
   try {
     // Get the current simulator device UDID
     const devices = execSync('xcrun simctl list devices booted --json', { encoding: 'utf8' });
@@ -122,19 +122,26 @@ async function setSimulatorLocation(lat, lon) {
     // Store coordinates in a file that React Native can read
     try {
       console.log(`💾 Storing GPS injection data for React Native...`);
+
+      // Calculate timestamp with optional delta
+      const now = new Date();
+      const timestamp = new Date(now.getTime() + timeDeltaHours * 60 * 60 * 1000);
+
+      console.log(`🕒 Injecting with timestamp: ${timestamp.toISOString()} (${timeDeltaHours} hours delta)`);
+
       const injectionData = {
-        coordinates: [{ 
-          latitude: lat, 
+        coordinates: [{
+          latitude: lat,
           longitude: lon,
-          timestamp: new Date().toISOString(),
+          timestamp: timestamp.toISOString(), // Use calculated timestamp
           accuracy: 5.0,
           altitude: 0,
           altitudeAccuracy: -1,
           heading: -1,
-          speed: -1
+          speed: -1,
         }],
         processed: false,
-        injectedAt: new Date().toISOString()
+        injectedAt: new Date().toISOString(),
       };
       
       // Write to project directory where React Native can easily read it
@@ -170,6 +177,7 @@ function parseArgs() {
       lon: process.env.LON,
       angle: process.env.ANGLE,
       distance: process.env.DISTANCE,
+      timeDeltaHours: process.env.TIME_DELTA_HOURS, // New: time delta from Maestro
     };
   } else {
     // Command line arguments
@@ -205,12 +213,16 @@ Usage:
   Relative mode:
     node tools/gps-injector-direct.js --mode relative --angle 45 --distance 100
 
+  With time delta:
+    node tools/gps-injector-direct.js --mode absolute --lat 37.7749 --lon -122.4194 --time-delta-hours -24
+
 Parameters:
-  --mode      Mode: 'absolute' or 'relative'
-  --lat       Latitude (absolute mode)
-  --lon       Longitude (absolute mode)
-  --angle     Angle in degrees (relative mode): 0=East, 90=North, 180=West, 270=South
-  --distance  Distance in meters (relative mode)
+  --mode              Mode: 'absolute' or 'relative'
+  --lat               Latitude (absolute mode)
+  --lon               Longitude (absolute mode)
+  --angle             Angle in degrees (relative mode): 0=East, 90=North, 180=West, 270=South
+  --distance          Distance in meters (relative mode)
+  --time-delta-hours  (Optional) Hour offset for timestamp (e.g., -1 for 1 hour ago)
 
 Examples:
   # Set specific coordinate
@@ -218,6 +230,9 @@ Examples:
 
   # Move 100m northeast from current position
   node tools/gps-injector-direct.js --mode relative --angle 45 --distance 100
+
+  # Inject a coordinate from 24 hours ago
+  node tools/gps-injector-direct.js --mode absolute --lat 37.7749 --lon -122.4194 --time-delta-hours -24
 
 Requirements:
   - iOS Simulator must be running
@@ -237,6 +252,7 @@ async function main() {
   }
   
   let targetLat, targetLon;
+  const timeDeltaHours = parseFloat(args.timeDeltaHours || '0');
   
   try {
     if (args.mode === 'absolute') {
@@ -275,11 +291,13 @@ async function main() {
       console.log(`🎯 New target coordinate: ${targetLat.toFixed(6)}, ${targetLon.toFixed(6)}`);
     }
     
-    // Save the new location as the current location for the next run
-    saveCurrentLocation(targetLat, targetLon);
-    
-    // Set the simulator's location
-    await setSimulatorLocation(targetLat, targetLon);
+    // Set location and save for next relative calculation
+    const success = await setSimulatorLocation(targetLat, targetLon, timeDeltaHours);
+    if (success) {
+      saveCurrentLocation(targetLat, targetLon);
+    } else {
+      process.exit(1);
+    }
     
   } catch (error) {
     console.error(`❌ An error occurred: ${error.message}`);

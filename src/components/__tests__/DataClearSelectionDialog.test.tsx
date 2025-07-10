@@ -12,7 +12,6 @@ jest.mock('expo-haptics', () => ({
   impactAsync: jest.fn(),
   ImpactFeedbackStyle: {
     Light: 'light',
-    Medium: 'medium',
     Heavy: 'heavy',
   },
 }));
@@ -40,8 +39,8 @@ describe('DataClearSelectionDialog', () => {
   const mockDataStats: DataStats = {
     totalPoints: 1000,
     recentPoints: 100,
-    oldestDate: new Date('2025-01-01'),
-    newestDate: new Date('2025-07-03'),
+    oldestDate: new Date('2023-01-01'),
+    newestDate: new Date('2023-12-31'),
   };
 
   const defaultProps = {
@@ -142,7 +141,7 @@ describe('DataClearSelectionDialog', () => {
         expect.stringContaining('permanently delete ALL your exploration data'),
         expect.arrayContaining([
           expect.objectContaining({ text: 'Cancel' }),
-          expect.objectContaining({ text: 'Clear All Data' }),
+          expect.objectContaining({ text: 'Clear Data' }),
         ])
       );
     });

@@ -1,11 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { logger } from '../utils/logger';
 import { DeviceEventEmitter } from 'react-native';
-
-interface SimpleCoordinate {
-  latitude: number;
-  longitude: number;
-}
+import { StoredLocationData } from './LocationStorageService';
 
 const GPS_INJECTION_KEY_ALT = '@fogofdog:gps_injection_data'; // External tools use this exact key
 const GPS_INJECTION_EVENT = 'GPS_COORDINATES_INJECTED';
@@ -14,7 +10,7 @@ export class GPSInjectionService {
   /**
    * Simplified GPS injection - check for new coordinates and emit directly
    */
-  static async checkAndProcessInjectedGPS(): Promise<SimpleCoordinate[]> {
+  static async checkAndProcessInjectedGPS(): Promise<StoredLocationData[]> {
     try {
       // Check for injected GPS data from command line tools
       const injectionDataString = await AsyncStorage.getItem(GPS_INJECTION_KEY_ALT);
@@ -29,7 +25,7 @@ export class GPSInjectionService {
       });
 
       // Parse the coordinates
-      const coordinates: SimpleCoordinate[] = JSON.parse(injectionDataString);
+      const coordinates: StoredLocationData[] = JSON.parse(injectionDataString);
 
       if (!Array.isArray(coordinates) || coordinates.length === 0) {
         logger.warn('Invalid GPS injection data format', {
@@ -49,6 +45,7 @@ export class GPSInjectionService {
             component: 'GPSInjectionService',
             action: 'checkAndProcessInjectedGPS',
             coordinate: `${coord.latitude}, ${coord.longitude}`,
+            timestamp: new Date(coord.timestamp).toISOString(),
           });
 
           DeviceEventEmitter.emit(GPS_INJECTION_EVENT, coord);

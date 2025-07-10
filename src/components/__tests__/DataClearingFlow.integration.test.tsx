@@ -214,14 +214,14 @@ describe('Data Clearing Integration Tests - User Stories', () => {
           expect.stringContaining('permanently delete ALL your exploration data'),
           expect.arrayContaining([
             expect.objectContaining({ text: 'Cancel' }),
-            expect.objectContaining({ text: 'Clear All Data' }),
+            expect.objectContaining({ text: 'Clear Data' }),
           ])
         );
       });
 
       // Confirm the destructive action
       const alertCall = (Alert.alert as jest.Mock).mock.calls[0];
-      const confirmButton = alertCall[2].find((button: any) => button.text === 'Clear All Data');
+      const confirmButton = alertCall[2].find((button: any) => button.text === 'Clear Data');
 
       await act(async () => {
         confirmButton.onPress();

@@ -951,7 +951,7 @@ const useDataClearing = () => {
     oldestDate: null,
     newestDate: null,
   });
-  const [isDialogVisible, setIsDialogVisible] = useState(false);
+  const [isDataClearDialogVisible, setIsDataClearDialogVisible] = useState(false);
   const [isClearing, setIsClearing] = useState(false);
 
   const updateDataStats = useCallback(async () => {
@@ -979,45 +979,31 @@ const useDataClearing = () => {
 
   const handleClearSelection = async (type: ClearType) => {
     setIsClearing(true);
-
     try {
-      // Get count before clearing
-      const beforeStats = await DataClearingService.getDataStats();
-      let clearedCount = 0;
-
       if (type === 'all') {
-        clearedCount = beforeStats.totalPoints;
         await DataClearingService.clearAllData();
       } else {
         const hours = type === 'hour' ? 1 : 24;
-        clearedCount = type === 'hour' ? beforeStats.recentPoints : beforeStats.totalPoints;
         const startTime = Date.now() - hours * 60 * 60 * 1000;
         await DataClearingService.clearDataByTimeRange(startTime);
       }
-
-      // Update data stats after clearing
-      await updateDataStats();
-
-      // Show success message
-      const timeText =
-        type === 'all' ? 'All data' : type === 'hour' ? 'Last hour' : 'Last 24 hours';
-      Alert.alert(
-        'Data Cleared',
-        `${timeText} cleared successfully! ${clearedCount} data points removed.`,
-        [{ text: 'OK' }]
-      );
-    } catch (_error) {
-      Alert.alert('Error', 'Failed to clear data. Please try again.');
+      Alert.alert('Success', 'Exploration data has been cleared.');
+      // After clearing, refetch stats
+      const newStats = await DataClearingService.getDataStats();
+      setDataStats(newStats);
+    } catch (error) {
+      logger.error('Failed to clear data', { error });
+      Alert.alert('Error', 'Failed to clear exploration data.');
     } finally {
-      setIsClearing(false);
-      setIsDialogVisible(false);
+      setIsClearing(false); // Ensure isClearing is always reset
+      setIsDataClearDialogVisible(false);
     }
   };
 
   return {
     dataStats,
-    isDialogVisible,
-    setIsDialogVisible,
+    isDataClearDialogVisible,
+    setIsDataClearDialogVisible,
     isClearing,
     handleClearSelection,
   };
@@ -1030,6 +1016,7 @@ const ClearButton: React.FC<{
   onPress: () => void;
 }> = ({ dataStats, isClearing, onPress }) => (
   <TouchableOpacity
+    testID="data-clear-button"
     style={{
       position: 'absolute',
       bottom: 100,
@@ -1070,7 +1057,7 @@ const useMapScreenState = () => {
     oldestDate: null,
     newestDate: null,
   });
-  const [isDialogVisible, setIsDialogVisible] = useState(false);
+  const [isDataClearDialogVisible, setIsDataClearDialogVisible] = useState(false);
 
   const [isClearing, setIsClearing] = useState(false);
 
@@ -1096,8 +1083,8 @@ const useMapScreenState = () => {
     memoizedMapRegion,
     dataStats,
     setDataStats,
-    isDialogVisible,
-    setIsDialogVisible,
+    isDataClearDialogVisible,
+    setIsDataClearDialogVisible,
     isClearing,
     setIsClearing,
   };
@@ -1115,8 +1102,13 @@ export const MapScreen = () => {
     memoizedMapRegion,
   } = useMapScreenState();
 
-  const { dataStats, isDialogVisible, setIsDialogVisible, isClearing, handleClearSelection } =
-    useDataClearing();
+  const {
+    dataStats,
+    isDataClearDialogVisible,
+    setIsDataClearDialogVisible,
+    isClearing,
+    handleClearSelection,
+  } = useDataClearing();
 
   const insets = useSafeAreaInsets();
 
@@ -1165,16 +1157,16 @@ export const MapScreen = () => {
       <ClearButton
         dataStats={dataStats}
         isClearing={isClearing}
-        onPress={() => setIsDialogVisible(true)}
+        onPress={() => setIsDataClearDialogVisible(true)}
       />
 
       {/* Data Clear Selection Dialog */}
       <DataClearSelectionDialog
-        visible={isDialogVisible}
+        visible={isDataClearDialogVisible}
         dataStats={dataStats}
         onClear={handleClearSelection}
         onCancel={() => {
-          setIsDialogVisible(false);
+          setIsDataClearDialogVisible(false);
         }}
         isClearing={isClearing}
       />

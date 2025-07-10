@@ -59,13 +59,6 @@ const getAlertTitle = (option: ClearOption): string => {
   }
 };
 
-const getConfirmButtonText = (option: ClearOption): string => {
-  if (option.type === 'all') {
-    return 'Clear All Data';
-  }
-  return 'Clear Data';
-};
-
 // Data statistics component
 const DataStatsComponent: React.FC<{
   dataStats: DataStats;
@@ -139,7 +132,7 @@ const DataClearSelectionDialog: React.FC<DataClearSelectionDialogProps> = ({
         style: 'cancel',
       },
       {
-        text: getConfirmButtonText(option),
+        text: 'Clear Data',
         style: 'destructive',
         onPress: () => {
           onClear(option.type);

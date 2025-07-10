@@ -39,8 +39,8 @@ describe('GPSInjectionService', () => {
 
     it('should process GPS injection data and emit coordinates', async () => {
       const coordinates = [
-        { latitude: 37.7749, longitude: -122.4194 },
-        { latitude: 37.7849, longitude: -122.4094 },
+        { latitude: 37.7749, longitude: -122.4194, timestamp: Date.now() },
+        { latitude: 37.7849, longitude: -122.4094, timestamp: Date.now() },
       ];
 
       mockAsyncStorage.getItem.mockResolvedValue(JSON.stringify(coordinates));

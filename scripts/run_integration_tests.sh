@@ -27,6 +27,7 @@ command_exists() {
 
 # Parse command line arguments
 CREATE_REFERENCE=false
+FORCE_REBUILD=false
 TEST_FILES=()
 
 while [[ $# -gt 0 ]]; do
@@ -37,12 +38,14 @@ while [[ $# -gt 0 ]]; do
             echo "Options:"
             echo "  --help, -h              Show this help message"
             echo "  --create-reference      Create reference screenshots for visual regression"
+            echo "  --force-rebuild         Force rebuild of the app (ignores existing build)"
             echo "  --all                   Run all available tests (default in CI)"
             echo ""
             echo "Examples:"
             echo "  $0                                          # Run all tests (default)"
             echo "  $0 .maestro/background-gps-test.yaml       # Run single test"
             echo "  $0 --create-reference .maestro/smoke-test.yaml  # Create reference screenshot"
+            echo "  $0 --force-rebuild .maestro/data-clearing-test.yaml  # Force rebuild and test"
             echo ""
             echo "Environment variables:"
             echo "  CI=true         Automatically detected in CI environments"
@@ -50,6 +53,10 @@ while [[ $# -gt 0 ]]; do
             ;;
         --create-reference)
             CREATE_REFERENCE=true
+            shift
+            ;;
+        --force-rebuild)
+            FORCE_REBUILD=true
             shift
             ;;
         --all)
@@ -85,6 +92,29 @@ done
 
 log "🎭 Integration Test Runner (CI: $IS_CI)"
 log "Test files: ${TEST_FILES[*]}"
+
+# --- E2E Build Setup ---
+log "🔧 Setting up E2E build..."
+if [ "$FORCE_REBUILD" = "true" ]; then
+    log "🔨 Force rebuild requested - removing existing build..."
+    rm -rf "/Users/pacey/Library/Developer/Xcode/DerivedData/Build/Products/Release-iphonesimulator/FogOfDog.app"
+fi
+
+if ! ./scripts/setup-e2e-tests.sh; then
+    log "❌ E2E setup failed"
+    exit 1
+fi
+
+# --- Inject Data for Specific Tests ---
+for TEST_FILE in "${TEST_FILES[@]}"; do
+    if [[ "$TEST_FILE" == *"/data-clearing-test.yaml" ]]; then
+        log "💉 Injecting historical data for data clearing test..."
+        node ./tools/gps-injector-direct.js --mode absolute --lat 37.7749 --lon -122.4194 --time-delta-hours -2
+        node ./tools/gps-injector-direct.js --mode absolute --lat 37.7759 --lon -122.4294 --time-delta-hours -25
+        node ./tools/gps-injector-direct.js --mode absolute --lat 37.7769 --lon -122.4394 --time-delta-hours -50
+        log "✅ Historical data injected."
+    fi
+done
 
 # --- Environment Setup ---
 if [ "$IS_CI" = "true" ]; then
@@ -158,97 +188,7 @@ else
 fi
 
 # --- App Installation ---
-if [ "$IS_CI" = "true" ]; then
-    log "🏗️ Building and installing app for CI..."
-    
-    # Build the app for simulator
-    log "📦 Running Expo export..."
-    npx expo export --platform ios
-    
-    # Setup EAS CLI for building
-    log "🔧 Setting up EAS CLI..."
-    if [ -z "$EXPO_TOKEN" ]; then
-        log "❌ EXPO_TOKEN not available - cannot build app for testing"
-        exit 1
-    fi
-    
-    # Verify EAS CLI is available and working
-    if ! command_exists eas; then
-        log "📦 Installing EAS CLI globally..."
-        npm install -g @expo/eas-cli
-        # Verify installation
-        if ! command_exists eas; then
-            log "❌ Failed to install EAS CLI"
-            exit 1
-        fi
-    fi
-    
-    # Verify EAS CLI can run
-    log "🔍 Verifying EAS CLI..."
-    if ! eas --version; then
-        log "❌ EAS CLI is not working properly"
-        exit 1
-    fi
-    
-    # Build for simulator using development profile (optimized for simulator)
-    log "🔨 Building app for simulator..."
-    if ! eas build --platform ios --profile development --local --output ./build.tar.gz --non-interactive; then
-        log "❌ EAS build failed"
-        log "🔍 Checking build logs..."
-        # Try to get more information about the failure
-        eas build:list --limit 1 || true
-        exit 1
-    fi
-    
-    # Extract and install
-    log "📦 Extracting and installing app..."
-    tar -xzf build.tar.gz
-    APP_PATH=$(find . -name "*.app" -type d | head -1)
-    
-    if [ -z "$APP_PATH" ]; then
-        log "❌ Could not find built .app file"
-        exit 1
-    fi
-    
-    log "📱 Installing app to simulator..."
-    xcrun simctl install "$SIMULATOR_UDID" "$APP_PATH"
-    
-    log "✅ App installed successfully"
-else
-    log "🏗️ Building and installing app locally..."
-    
-    # Check if Metro is running
-    if ! lsof -ti:8081 > /dev/null 2>&1; then
-        log "🚀 Starting Metro bundler..."
-        npx expo start --clear > metro.log 2>&1 &
-        METRO_PID=$!
-        
-        # Wait for Metro to be ready
-        log "⏳ Waiting for Metro to be ready..."
-        timeout=60
-        while [ $timeout -gt 0 ]; do
-            if lsof -ti:8081 > /dev/null 2>&1; then
-                log "✅ Metro bundler is running"
-                break
-            fi
-            sleep 2
-            timeout=$((timeout - 2))
-        done
-        
-        if [ $timeout -le 0 ]; then
-            log "❌ Metro failed to start within 60 seconds"
-            exit 1
-        fi
-    else
-        log "✅ Metro bundler is already running"
-    fi
-    
-    # Build for simulator
-    log "🔨 Building app for simulator..."
-    npx expo run:ios --device "$SIMULATOR_DEVICE"
-    
-    log "✅ App built and installed"
-fi
+log "✅ App build and installation handled by E2E setup script"
 
 # --- Setup Test Environment ---
 log "🧪 Setting up test environment..."
