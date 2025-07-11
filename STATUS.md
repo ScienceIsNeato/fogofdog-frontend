@@ -1,5 +1,51 @@
 # STATUS: `feature/clear-history`
 
+## 🚨 CRITICAL GPS REGRESSION FIX (January 2025)
+
+### Issue
+After deploying to TestFlight, the app completely lost GPS functionality - only showing the default California location instead of the user's actual location in Iowa. This was a core functionality regression that slipped through comprehensive testing.
+
+### Root Cause Analysis  
+The regression was introduced in PR #17 (Clear History feature) where critical useEffect dependency arrays were incorrectly changed from proper dependencies to empty arrays `[]`. Specifically:
+
+**In `src/screens/Map/index.tsx`:**
+1. **`useUnifiedLocationService`** (line 404): Dependency array changed from `[dispatch, mapRef, isMapCenteredOnUser, currentRegion]` to `[]`
+2. **`useAppStateChangeHandler`** (line 943): Dependency array changed from `[dispatch, isMapCenteredOnUser, currentRegion, mapRef]` to `[]`
+
+### Technical Impact
+- GPS location listeners captured stale closure values and stopped responding to state changes
+- When `isMapCenteredOnUser` or `currentRegion` changed, GPS handlers weren't updated with new values
+- Background location processing failed due to stale references
+- The entire location tracking system became disconnected from the app state
+
+### Fix Applied
+Restored proper dependency arrays:
+```javascript
+// useUnifiedLocationService
+}, [dispatch, mapRef, isMapCenteredOnUser, currentRegion]);
+
+// useAppStateChangeHandler  
+}, [dispatch, isMapCenteredOnUser, currentRegion, mapRef]);
+```
+
+### Critical Learning: Testing Gap Analysis
+Despite having **comprehensive testing** (223/223 unit tests, integration tests, E2E tests), this core functionality regression was not detected because:
+
+1. **Testing Environment vs Production**: Tests run in controlled simulator environments, not real device scenarios
+2. **Mock Dependencies**: Location services are heavily mocked in tests, missing real GPS interaction patterns
+3. **State Change Testing**: Tests don't validate GPS behavior across different app state transitions
+4. **Dependency Array Testing**: No specific tests verify useEffect dependency correctness for location services
+
+### Recommended Quality Gate Improvements
+1. **Add Real Device Testing**: Include actual device GPS testing in CI/CD pipeline
+2. **Dependency Array Linting**: Implement stricter ESLint rules for exhaustive-deps
+3. **Integration Test Enhancement**: Test GPS behavior across app state transitions
+4. **Production Smoke Tests**: Quick GPS functionality verification in TestFlight builds
+
+**Status**: ✅ **FIXED** - GPS functionality restored by correcting useEffect dependency arrays
+
+---
+
 ## Task
 Implement a time-based data clearing feature that allows users to clear their exploration history for the last hour, last day, or all time.
 

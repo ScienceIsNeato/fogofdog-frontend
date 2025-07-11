@@ -403,8 +403,7 @@ const useUnifiedLocationService = (
       });
       logger.info('Unified location service stopped with background tracking.');
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // Only run on mount/unmount - dependencies are stable references
+  }, [dispatch, mapRef, isMapCenteredOnUser, currentRegion]);
 };
 
 // Hook for zoom restriction logic
@@ -728,151 +727,6 @@ const useGPSInjectionService = () => {
   }, []);
 };
 
-// Custom hook for data clearing functionality - UNUSED (keeping for reference)
-/* const useDataClearing = (
-  dataStats: DataStats,
-  setDataStats: (stats: DataStats) => void,
-  setIsDialogVisible: (visible: boolean) => void,
-  setIsClearing: (clearing: boolean) => void
-) => {
-  // Update data stats periodically
-  useEffect(() => {
-    const updateDataStats = async () => {
-      try {
-        const stats = await DataClearingService.getDataStats();
-        setDataStats(stats);
-      } catch (error) {
-        logger.error('Failed to update data statistics', error, {
-          component: 'MapScreen',
-          action: 'updateDataStats',
-        });
-      }
-    };
-
-    updateDataStats();
-
-    // Update stats every 30 seconds
-    const interval = setInterval(updateDataStats, 30000);
-    return () => clearInterval(interval);
-  }, [setDataStats]);
-
-  const handleClearRequest = () => {
-    console.log('useDataClearing: handleClearRequest called, setting isDialogVisible to true');
-    setIsDialogVisible(true);
-  };
-
-  const handleClearSelection = async (type: ClearType) => {
-    console.log('handleClearSelection: Called with type', type);
-
-    try {
-      console.log('handleClearSelection: Setting isClearing=true, isDialogVisible=false');
-      setIsClearing(true);
-      setIsDialogVisible(false);
-
-      const now = Date.now();
-      let startTime: number;
-
-      switch (type) {
-        case 'hour':
-          startTime = now - 60 * 60 * 1000; // 1 hour ago
-          await DataClearingService.clearDataByTimeRange(startTime);
-          break;
-        case 'day':
-          startTime = now - 24 * 60 * 60 * 1000; // 24 hours ago
-          await DataClearingService.clearDataByTimeRange(startTime);
-          break;
-        case 'all':
-          await DataClearingService.clearAllData();
-          break;
-        default:
-          throw new Error(`Unknown clear type: ${type}`);
-      }
-
-      // Update stats after clearing
-      const updatedStats = await DataClearingService.getDataStats();
-      setDataStats(updatedStats);
-
-      logger.info('Successfully cleared data', {
-        component: 'MapScreen',
-        action: 'handleClearSelection',
-        type,
-      });
-    } catch (error) {
-      logger.error('Failed to clear data', error, {
-        component: 'MapScreen',
-        action: 'handleClearSelection',
-        type,
-      });
-    } finally {
-      setIsClearing(false);
-    }
-  };
-
-  const handleClearRecent = async () => {
-    try {
-      setIsClearing(true);
-      setIsDialogVisible(false);
-
-      const twentyFourHoursAgo = Date.now() - 24 * 60 * 60 * 1000;
-      await DataClearingService.clearDataByTimeRange(twentyFourHoursAgo);
-
-      // Update stats after clearing
-      const updatedStats = await DataClearingService.getDataStats();
-      setDataStats(updatedStats);
-
-      logger.info('Successfully cleared recent data', {
-        component: 'MapScreen',
-        action: 'handleClearRecent',
-      });
-    } catch (error) {
-      logger.error('Failed to clear recent data', error, {
-        component: 'MapScreen',
-        action: 'handleClearRecent',
-      });
-    } finally {
-      setIsClearing(false);
-    }
-  };
-
-  const handleClearAll = async () => {
-    try {
-      setIsClearing(true);
-      setIsDialogVisible(false);
-
-      await DataClearingService.clearAllData();
-
-      // Update stats after clearing
-      const updatedStats = await DataClearingService.getDataStats();
-      setDataStats(updatedStats);
-
-      logger.info('Successfully cleared all data', {
-        component: 'MapScreen',
-        action: 'handleClearAll',
-      });
-    } catch (error) {
-      logger.error('Failed to clear all data', error, {
-        component: 'MapScreen',
-        action: 'handleClearAll',
-      });
-    } finally {
-      setIsClearing(false);
-    }
-  };
-
-  const handleCancel = () => {
-    console.log('handleCancel: Dismissing dialog');
-    setIsDialogVisible(false);
-  };
-
-  return {
-    handleClearRequest,
-    handleClearSelection,
-    handleClearRecent,
-    handleClearAll,
-    handleCancel,
-  };
-}; */
-
 // Helper function to process stored locations
 const processStoredBackgroundLocations = async (
   storedLocations: any[],
@@ -938,8 +792,7 @@ const useAppStateChangeHandler = (
 
     const subscription = AppState.addEventListener('change', handleAppStateChange);
     return () => subscription?.remove();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // Only run on mount/unmount - dependencies are stable references
+  }, [dispatch, isMapCenteredOnUser, currentRegion, mapRef]);
 };
 
 // Hook for map screen state initialization
