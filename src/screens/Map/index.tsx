@@ -17,6 +17,7 @@ import * as TaskManager from 'expo-task-manager';
 import FogOverlay from '../../components/FogOverlay';
 import LocationButton from '../../components/LocationButton';
 import DataClearSelectionDialog from '../../components/DataClearSelectionDialog';
+import { PermissionAlert } from '../../components/PermissionAlert';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { logger } from '../../utils/logger';
 import { GPSInjectionService } from '../../services/GPSInjectionService';
@@ -28,11 +29,8 @@ import { DataStats, ClearType } from '../../types/dataClear';
 // Unified location task name
 const LOCATION_TASK = 'unified-location-task';
 
-// Default location (will be used as a fallback or before real location is fetched)
-const DEFAULT_LOCATION = {
-  latitude: 37.78825,
-  longitude: -122.4324,
-  // Adjust deltas for initial zoom (approx 400m diameter view)
+// Default deltas for zoom level (approx 400m diameter view)
+const DEFAULT_ZOOM_DELTAS = {
   latitudeDelta: 0.0922,
   longitudeDelta: 0.0421,
 };
@@ -75,8 +73,8 @@ const handleLocationUpdate = ({
     const newRegion = {
       latitude: location.latitude,
       longitude: location.longitude,
-      latitudeDelta: currentRegion?.latitudeDelta ?? DEFAULT_LOCATION.latitudeDelta,
-      longitudeDelta: currentRegion?.longitudeDelta ?? DEFAULT_LOCATION.longitudeDelta,
+      latitudeDelta: currentRegion?.latitudeDelta ?? DEFAULT_ZOOM_DELTAS.latitudeDelta,
+      longitudeDelta: currentRegion?.longitudeDelta ?? DEFAULT_ZOOM_DELTAS.longitudeDelta,
     };
     mapRef.current.animateToRegion(newRegion, 500);
   }
@@ -233,19 +231,19 @@ async function getInitialLocation({
       });
     }
   } catch (error) {
-    logger.warn('Could not get initial location, using default', {
+    logger.warn('Could not get initial location, will wait for location service', {
       component: 'MapScreen',
       action: 'getInitialLocation',
       error: error instanceof Error ? error.message : String(error),
     });
-    if (isActiveRef.current) {
-      dispatch(
-        updateLocation({
-          latitude: DEFAULT_LOCATION.latitude,
-          longitude: DEFAULT_LOCATION.longitude,
-        })
-      );
-    }
+    // Show user-friendly error message if initial location fails
+    PermissionAlert.show({
+      errorMessage:
+        'Unable to get your current location. Please ensure location services are enabled and try again.',
+      onDismiss: () => {
+        logger.info('Initial location error alert dismissed');
+      },
+    });
   }
 }
 
@@ -310,15 +308,14 @@ const setupUnifiedLocationService = async ({
   try {
     const { foregroundGranted, backgroundGranted } = await requestLocationPermissions();
     if (!foregroundGranted) {
-      logger.warn('Foreground location permission denied, using default location');
-      if (isActiveRef.current) {
-        dispatch(
-          updateLocation({
-            latitude: DEFAULT_LOCATION.latitude,
-            longitude: DEFAULT_LOCATION.longitude,
-          })
-        );
-      }
+      logger.warn('Foreground location permission denied, showing permission alert');
+      PermissionAlert.showCritical({
+        errorMessage:
+          'Location access is required to use FogOfDog. Please enable location permissions in your device settings and restart the app.',
+        onDismiss: () => {
+          logger.info('Permission alert dismissed');
+        },
+      });
       return;
     }
 
@@ -351,14 +348,13 @@ const setupUnifiedLocationService = async ({
     logger.info('Unified location service started with background integration');
   } catch (error) {
     logger.error('Failed to setup unified location service:', error);
-    if (isActiveRef.current) {
-      dispatch(
-        updateLocation({
-          latitude: DEFAULT_LOCATION.latitude,
-          longitude: DEFAULT_LOCATION.longitude,
-        })
-      );
-    }
+    PermissionAlert.show({
+      errorMessage:
+        'Failed to start location services. Please check your location settings and try again.',
+      onDismiss: () => {
+        logger.info('Location error alert dismissed');
+      },
+    });
   }
 };
 
@@ -456,8 +452,8 @@ const createCenterOnUserHandler =
       const userRegion = {
         latitude: currentLocation.latitude,
         longitude: currentLocation.longitude,
-        latitudeDelta: currentRegion?.latitudeDelta ?? DEFAULT_LOCATION.latitudeDelta,
-        longitudeDelta: currentRegion?.longitudeDelta ?? DEFAULT_LOCATION.longitudeDelta,
+        latitudeDelta: currentRegion?.latitudeDelta ?? DEFAULT_ZOOM_DELTAS.latitudeDelta,
+        longitudeDelta: currentRegion?.longitudeDelta ?? DEFAULT_ZOOM_DELTAS.longitudeDelta,
       };
       mapRef.current.animateToRegion(userRegion, 300);
       dispatch(setCenterOnUser(true));
@@ -618,44 +614,76 @@ const MapScreenRenderer = ({
   centerOnUserLocation,
   setMapDimensions,
   memoizedMapRegion,
-}: MapScreenRendererProps) => (
-  <View
-    style={styles.container}
-    testID="map-screen"
-    onLayout={(event) => {
-      const { width, height } = event.nativeEvent.layout;
-      setMapDimensions({ width, height });
-    }}
-  >
-    <MapView
-      ref={mapRef}
-      style={styles.map}
-      initialRegion={DEFAULT_LOCATION}
-      onRegionChange={onRegionChange}
-      onPanDrag={onPanDrag}
-      onRegionChangeComplete={onRegionChangeComplete}
-      showsUserLocation={false}
-      showsMyLocationButton={false}
-      rotateEnabled={false}
-      pitchEnabled={false}
+}: MapScreenRendererProps) => {
+  // Don't render map until we have a real location
+  if (!currentLocation) {
+    return (
+      <View
+        style={styles.container}
+        testID="map-screen"
+        onLayout={(event) => {
+          const { width, height } = event.nativeEvent.layout;
+          setMapDimensions({ width, height });
+        }}
+      >
+        <View style={styles.loadingContainer}>
+          <Text style={styles.loadingText}>Getting your location...</Text>
+        </View>
+        <LocationButton
+          onPress={centerOnUserLocation}
+          isLocationAvailable={false}
+          isCentered={isMapCenteredOnUser}
+          style={getLocationButtonStyle(insets)}
+        />
+      </View>
+    );
+  }
+
+  // Create initial region from current location
+  const initialRegion = {
+    latitude: currentLocation.latitude,
+    longitude: currentLocation.longitude,
+    latitudeDelta: DEFAULT_ZOOM_DELTAS.latitudeDelta,
+    longitudeDelta: DEFAULT_ZOOM_DELTAS.longitudeDelta,
+  };
+
+  return (
+    <View
+      style={styles.container}
+      testID="map-screen"
+      onLayout={(event) => {
+        const { width, height } = event.nativeEvent.layout;
+        setMapDimensions({ width, height });
+      }}
     >
-      {currentLocation && (
+      <MapView
+        ref={mapRef}
+        style={styles.map}
+        initialRegion={initialRegion}
+        onRegionChange={onRegionChange}
+        onPanDrag={onPanDrag}
+        onRegionChangeComplete={onRegionChangeComplete}
+        showsUserLocation={false}
+        showsMyLocationButton={false}
+        rotateEnabled={false}
+        pitchEnabled={false}
+      >
         <Marker coordinate={currentLocation} title="You are here" anchor={{ x: 0.5, y: 0.5 }}>
           <View style={USER_MARKER_STYLE} />
         </Marker>
-      )}
-    </MapView>
+      </MapView>
 
-    {memoizedMapRegion && <FogOverlay mapRegion={memoizedMapRegion} />}
+      {memoizedMapRegion && <FogOverlay mapRegion={memoizedMapRegion} />}
 
-    <LocationButton
-      onPress={centerOnUserLocation}
-      isLocationAvailable={currentLocation !== null}
-      isCentered={isMapCenteredOnUser}
-      style={getLocationButtonStyle(insets)}
-    />
-  </View>
-);
+      <LocationButton
+        onPress={centerOnUserLocation}
+        isLocationAvailable={currentLocation !== null}
+        isCentered={isMapCenteredOnUser}
+        style={getLocationButtonStyle(insets)}
+      />
+    </View>
+  );
+};
 
 // Custom hook for exploration state persistence
 const useExplorationStatePersistence = (explorationState: any) => {
@@ -758,8 +786,8 @@ const processStoredBackgroundLocations = async (
     const newRegion = {
       latitude: mostRecent.latitude,
       longitude: mostRecent.longitude,
-      latitudeDelta: currentRegion?.latitudeDelta ?? DEFAULT_LOCATION.latitudeDelta,
-      longitudeDelta: currentRegion?.longitudeDelta ?? DEFAULT_LOCATION.longitudeDelta,
+      latitudeDelta: currentRegion?.latitudeDelta ?? DEFAULT_ZOOM_DELTAS.latitudeDelta,
+      longitudeDelta: currentRegion?.longitudeDelta ?? DEFAULT_ZOOM_DELTAS.longitudeDelta,
     };
     mapRef.current.animateToRegion(newRegion, 500);
   }
@@ -795,9 +823,49 @@ const useAppStateChangeHandler = (
   }, [dispatch, isMapCenteredOnUser, currentRegion, mapRef]);
 };
 
-// Hook for map screen state initialization
+// Helper functions for data clearing
+const performDataClear = async (type: ClearType) => {
+  if (type === 'all') {
+    await DataClearingService.clearAllData();
+  } else {
+    const hours = type === 'hour' ? 1 : 24;
+    const startTime = Date.now() - hours * 60 * 60 * 1000;
+    await DataClearingService.clearDataByTimeRange(startTime);
+  }
+};
+
+const refetchLocationAfterClear = async (
+  type: ClearType,
+  options: {
+    dispatch: ReturnType<typeof useAppDispatch>;
+    mapRef: React.RefObject<MapView>;
+    isMapCenteredOnUser: boolean;
+    currentRegion: Region | undefined;
+  }
+) => {
+  logger.info('Re-fetching current location after data clear', {
+    component: 'MapScreen',
+    action: 'handleClearSelection',
+    clearType: type,
+  });
+
+  const isActiveRef = { current: true };
+  await getInitialLocation({
+    isActiveRef,
+    dispatch: options.dispatch,
+    mapRef: options.mapRef,
+    isMapCenteredOnUser: options.isMapCenteredOnUser,
+    currentRegion: options.currentRegion,
+  });
+};
+
 // Custom hook for data clearing functionality
-const useDataClearing = () => {
+const useDataClearing = (
+  dispatch: ReturnType<typeof useAppDispatch>,
+  mapRef: React.RefObject<MapView>,
+  isMapCenteredOnUser: boolean,
+  currentRegion: Region | undefined
+) => {
   const [dataStats, setDataStats] = useState<DataStats>({
     totalPoints: 0,
     recentPoints: 0,
@@ -831,24 +899,40 @@ const useDataClearing = () => {
   }, [updateDataStats]);
 
   const handleClearSelection = async (type: ClearType) => {
+    logger.info('handleClearSelection called', {
+      component: 'MapScreen',
+      action: 'handleClearSelection',
+      clearType: type,
+      isClearing: isClearing,
+    });
+
+    if (isClearing) {
+      logger.warn('handleClearSelection blocked - already clearing', {
+        component: 'MapScreen',
+        action: 'handleClearSelection',
+        clearType: type,
+      });
+      return;
+    }
+
     setIsClearing(true);
     try {
-      if (type === 'all') {
-        await DataClearingService.clearAllData();
-      } else {
-        const hours = type === 'hour' ? 1 : 24;
-        const startTime = Date.now() - hours * 60 * 60 * 1000;
-        await DataClearingService.clearDataByTimeRange(startTime);
-      }
+      await performDataClear(type);
+      await refetchLocationAfterClear(type, {
+        dispatch,
+        mapRef,
+        isMapCenteredOnUser,
+        currentRegion,
+      });
+
       Alert.alert('Success', 'Exploration data has been cleared.');
-      // After clearing, refetch stats
       const newStats = await DataClearingService.getDataStats();
       setDataStats(newStats);
     } catch (error) {
       logger.error('Failed to clear data', { error });
       Alert.alert('Error', 'Failed to clear exploration data.');
     } finally {
-      setIsClearing(false); // Ensure isClearing is always reset
+      setIsClearing(false);
       setIsDataClearDialogVisible(false);
     }
   };
@@ -897,7 +981,7 @@ const useMapScreenState = () => {
   const dispatch = useAppDispatch();
   const { currentLocation, isMapCenteredOnUser } = useAppSelector((state) => state.exploration);
   const mapRef = useRef<MapView>(null);
-  const [currentRegion, setCurrentRegion] = useState<Region | undefined>(DEFAULT_LOCATION);
+  const [currentRegion, setCurrentRegion] = useState<Region | undefined>(undefined);
   const [mapDimensions, setMapDimensions] = useState({
     width: Dimensions.get('window').width,
     height: Dimensions.get('window').height,
@@ -961,7 +1045,7 @@ export const MapScreen = () => {
     setIsDataClearDialogVisible,
     isClearing,
     handleClearSelection,
-  } = useDataClearing();
+  } = useDataClearing(dispatch, mapRef, isMapCenteredOnUser, currentRegion);
 
   const insets = useSafeAreaInsets();
 
@@ -1033,5 +1117,15 @@ const styles = StyleSheet.create({
   },
   map: {
     ...StyleSheet.absoluteFillObject, // Make map fill container
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#f0f0f0', // Light background for loading
+  },
+  loadingText: {
+    fontSize: 18,
+    color: '#333',
   },
 });

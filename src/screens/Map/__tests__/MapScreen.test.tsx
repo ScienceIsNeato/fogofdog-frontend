@@ -11,20 +11,16 @@ import * as Location from 'expo-location';
 import { Region } from 'react-native-maps';
 import type { TouchableOpacityProps } from 'react-native';
 
-// Default location from MapScreen (updated to match current implementation)
-const DEFAULT_LOCATION = {
-  latitude: 37.78825,
-  longitude: -122.4324,
-  latitudeDelta: 0.0922, // Updated to match current implementation
-  longitudeDelta: 0.0421, // Updated to match current implementation
+// Mock real location coordinates (Iowa location for testing)
+const mockRealLocation = {
+  latitude: 41.5868,
+  longitude: -93.625,
 };
 
-// Use DEFAULT_LOCATION for mockInitialCoords to match app behavior
-const mockInitialCoords = { ...DEFAULT_LOCATION };
 // Expected location in Redux store (only lat/lng, no deltas)
 const expectedStoredLocation = {
-  latitude: DEFAULT_LOCATION.latitude,
-  longitude: DEFAULT_LOCATION.longitude,
+  latitude: mockRealLocation.latitude,
+  longitude: mockRealLocation.longitude,
 };
 const mockUpdatedCoords = { latitude: 34.0522, longitude: -118.2437 };
 
@@ -75,12 +71,11 @@ const waitForInitialLocation = async (
   );
 };
 
-// Helper function for waiting for mock calls
-const waitForMockCalls = async () => {
+// Helper function for waiting for null location (error cases)
+const waitForNullLocation = async (store: Store<RootState>) => {
   await waitFor(
     () => {
-      expect(mockMapViewRender).toHaveBeenCalled();
-      expect(mockFogOverlayRender).toHaveBeenCalled();
+      expect(store.getState().exploration.currentLocation).toBeNull();
     },
     { timeout: 3000 }
   );
@@ -160,6 +155,7 @@ jest.mock('react-native-maps', () => {
 
   interface MockMapViewProps {
     onRegionChangeComplete?: (region: any) => void;
+    onRegionChange?: (region: any) => void;
     onPanDrag?: () => void;
     initialRegion?: any;
     children?: React.ReactNode;
@@ -311,8 +307,8 @@ const fullMockPermissionResponse: Location.LocationPermissionResponse = {
 
 const fullMockInitialLocationObject: Location.LocationObject = {
   coords: {
-    latitude: mockInitialCoords.latitude,
-    longitude: mockInitialCoords.longitude,
+    latitude: mockRealLocation.latitude,
+    longitude: mockRealLocation.longitude,
     altitude: null,
     accuracy: null,
     altitudeAccuracy: null,
@@ -394,8 +390,29 @@ describe('MapScreen', () => {
 
   it('renders the map and FogOverlay component when loaded', async () => {
     await renderMapScreen(store);
-    await waitForMockCalls();
     await waitForInitialLocation(store, expectedStoredLocation);
+
+    // Manually trigger onRegionChange to simulate map initialization
+    const mapViewProps = getLastCallArgs<{
+      onRegionChange?: (region: any) => void;
+      initialRegion?: any;
+    }>(mockMapViewRender);
+    if (mapViewProps.onRegionChange && mapViewProps.initialRegion) {
+      act(() => {
+        mapViewProps.onRegionChange!(mapViewProps.initialRegion);
+      });
+    }
+
+    await act(async () => {
+      jest.runAllTimers();
+      await Promise.resolve();
+    });
+
+    // Wait for map components to render after location is available
+    await waitFor(() => {
+      expect(mockMapViewRender).toHaveBeenCalled();
+      expect(mockFogOverlayRender).toHaveBeenCalled();
+    });
   });
 
   it('updates location state when GPS position changes', async () => {
@@ -498,19 +515,29 @@ describe('MapScreen', () => {
   });
 
   it('should not cause fog appearance to drift on vertical map pan when GPS location is stable', async () => {
-    render(
-      <Provider store={store}>
-        <MapScreen />
-      </Provider>
-    );
+    await renderMapScreen(store);
+    await waitForInitialLocation(store, expectedStoredLocation);
+
+    // Manually trigger onRegionChange to simulate map initialization
+    const mapViewProps = getLastCallArgs<{
+      onRegionChange?: (region: any) => void;
+      initialRegion?: any;
+    }>(mockMapViewRender);
+    if (mapViewProps.onRegionChange && mapViewProps.initialRegion) {
+      act(() => {
+        mapViewProps.onRegionChange!(mapViewProps.initialRegion);
+      });
+    }
 
     await act(async () => {
       jest.runAllTimers();
       await Promise.resolve();
     });
 
-    let initialFogOverlayArgs: any;
+    // Capture initial render arguments after location is available
     let initialMapViewArgs: any;
+
+    let initialFogOverlayArgs: any;
 
     await waitFor(
       () => {
@@ -528,8 +555,8 @@ describe('MapScreen', () => {
     const initialPath = store.getState().exploration.path;
 
     const pannedRegion: Region = {
-      latitude: DEFAULT_LOCATION.latitude + 0.01,
-      longitude: DEFAULT_LOCATION.longitude,
+      latitude: mockRealLocation.latitude + 0.01,
+      longitude: mockRealLocation.longitude,
       latitudeDelta: initialMapViewArgs.initialRegion.latitudeDelta,
       longitudeDelta: initialMapViewArgs.initialRegion.longitudeDelta,
     };
@@ -608,11 +635,11 @@ describe('MapScreen', () => {
     await renderMapScreen(store);
 
     // Wait for the location permission to be processed and state to update
-    await waitForInitialLocation(store, expectedStoredLocation);
+    await waitForNullLocation(store);
 
-    // Since we fall back to default location when permission is denied,
-    // the button should still be available but with default location
-    await waitForLocationButton({ isLocationAvailable: true });
+    // Since we no longer fall back to fake location when permission is denied,
+    // the button should be disabled
+    await waitForLocationButton({ isLocationAvailable: false });
   });
 
   it('centers map on user location when LocationButton is pressed', async () => {
@@ -656,8 +683,8 @@ describe('MapScreen', () => {
 
     // Now simulate panning the map
     const pannedRegion: Region = {
-      latitude: mockInitialCoords.latitude + 0.01, // Pan north
-      longitude: mockInitialCoords.longitude,
+      latitude: mockRealLocation.latitude + 0.01, // Pan north
+      longitude: mockRealLocation.longitude,
       latitudeDelta: 0.0036,
       longitudeDelta: 0.0048,
     };
@@ -691,7 +718,7 @@ describe('MapScreen', () => {
     await renderMapScreen(store);
 
     // Should fall back to default location on error
-    await waitForInitialLocation(store, expectedStoredLocation);
+    await waitForNullLocation(store);
   });
 
   it('handles non-Error objects in location error catch block', async () => {
@@ -699,7 +726,7 @@ describe('MapScreen', () => {
     await renderMapScreen(store);
 
     // Should still fall back to default location
-    await waitForInitialLocation(store, expectedStoredLocation);
+    await waitForNullLocation(store);
   });
 
   it('enforces maximum zoom out restrictions (latitude)', async () => {
@@ -708,8 +735,8 @@ describe('MapScreen', () => {
 
     // Simulate region change with latitude delta exceeding maximum (0.75)
     const overZoomedRegion: Region = {
-      latitude: mockInitialCoords.latitude,
-      longitude: mockInitialCoords.longitude,
+      latitude: mockRealLocation.latitude,
+      longitude: mockRealLocation.longitude,
       latitudeDelta: 1.0, // Exceeds MAX_LATITUDE_DELTA (0.75)
       longitudeDelta: 0.5, // Within limits
     };
@@ -725,8 +752,8 @@ describe('MapScreen', () => {
 
     // Simulate region change with longitude delta exceeding maximum (1.0)
     const overZoomedRegion: Region = {
-      latitude: mockInitialCoords.latitude,
-      longitude: mockInitialCoords.longitude,
+      latitude: mockRealLocation.latitude,
+      longitude: mockRealLocation.longitude,
       latitudeDelta: 0.5, // Within limits
       longitudeDelta: 1.5, // Exceeds MAX_LONGITUDE_DELTA (1.0)
     };
@@ -742,8 +769,8 @@ describe('MapScreen', () => {
 
     // Simulate region change with both deltas exceeding maximums
     const overZoomedRegion: Region = {
-      latitude: mockInitialCoords.latitude,
-      longitude: mockInitialCoords.longitude,
+      latitude: mockRealLocation.latitude,
+      longitude: mockRealLocation.longitude,
       latitudeDelta: 2.0, // Exceeds MAX_LATITUDE_DELTA (0.75)
       longitudeDelta: 2.0, // Exceeds MAX_LONGITUDE_DELTA (1.0)
     };
@@ -759,8 +786,8 @@ describe('MapScreen', () => {
 
     // Simulate region change within acceptable zoom limits
     const acceptableRegion: Region = {
-      latitude: mockInitialCoords.latitude,
-      longitude: mockInitialCoords.longitude,
+      latitude: mockRealLocation.latitude,
+      longitude: mockRealLocation.longitude,
       latitudeDelta: 0.5, // Within MAX_LATITUDE_DELTA (0.75)
       longitudeDelta: 0.8, // Within MAX_LONGITUDE_DELTA (1.0)
     };
@@ -807,12 +834,10 @@ describe('MapScreen', () => {
       await Promise.resolve();
     });
 
-    // Should have default location due to permission denied
-    expect(storeWithoutLocation.getState().exploration.currentLocation).toEqual(
-      expectedStoredLocation
-    );
+    // Should have null location due to permission denied (no fake coordinates)
+    expect(storeWithoutLocation.getState().exploration.currentLocation).toBeNull();
 
-    // Try to center on user when location is available (but was denied initially)
+    // Try to center on user when location is not available
     const locationButton = getByTestId('mock-location-button');
     act(() => {
       fireEvent.press(locationButton);
@@ -823,10 +848,8 @@ describe('MapScreen', () => {
       await Promise.resolve();
     });
 
-    // Should handle gracefully (no crashes) and still have default location
-    expect(storeWithoutLocation.getState().exploration.currentLocation).toEqual(
-      expectedStoredLocation
-    );
+    // Should handle gracefully (no crashes) and still have null location
+    expect(storeWithoutLocation.getState().exploration.currentLocation).toBeNull();
   });
 
   it('handles addTestPoint when current location is null', async () => {
@@ -866,13 +889,10 @@ describe('MapScreen', () => {
       await Promise.resolve();
     });
 
-    // Should have default location due to permission denied
-    expect(storeWithoutLocation.getState().exploration.currentLocation).toEqual(
-      expectedStoredLocation
-    );
+    // Should have null location due to permission denied (no fake coordinates)
+    expect(storeWithoutLocation.getState().exploration.currentLocation).toBeNull();
 
-    // Path should have been initialized with the default location
-    expect(storeWithoutLocation.getState().exploration.path).toHaveLength(1);
-    expect(storeWithoutLocation.getState().exploration.path[0]).toEqual(expectedStoredLocation);
+    // Path should remain empty when no real location is available
+    expect(storeWithoutLocation.getState().exploration.path).toHaveLength(0);
   });
 });
