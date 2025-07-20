@@ -18,6 +18,7 @@ import FogOverlay from '../../components/FogOverlay';
 import LocationButton from '../../components/LocationButton';
 import DataClearSelectionDialog from '../../components/DataClearSelectionDialog';
 import { PermissionAlert } from '../../components/PermissionAlert';
+import { TrackingControlButton } from '../../components/TrackingControlButton';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { logger } from '../../utils/logger';
 import { GPSInjectionService } from '../../services/GPSInjectionService';
@@ -25,6 +26,7 @@ import { BackgroundLocationService } from '../../services/BackgroundLocationServ
 import { AuthPersistenceService } from '../../services/AuthPersistenceService';
 import { DataClearingService } from '../../services/DataClearingService';
 import { DataStats, ClearType } from '../../types/dataClear';
+import { GeoPoint } from '../../types/user';
 
 // Unified location task name
 const LOCATION_TASK = 'unified-location-task';
@@ -54,7 +56,7 @@ interface SafeAreaInsets {
 
 // Refactor handleLocationUpdate to use an options object
 interface HandleLocationUpdateOptions {
-  location: { latitude: number; longitude: number };
+  location: GeoPoint;
   dispatch: ReturnType<typeof useAppDispatch>;
   mapRef: React.RefObject<MapView>;
   isMapCenteredOnUser: boolean;
@@ -161,8 +163,13 @@ function setupLocationListeners({
     'locationUpdate',
     (location: { latitude: number; longitude: number }) => {
       if (isActiveRef.current) {
+        const geoPoint: GeoPoint = {
+          latitude: location.latitude,
+          longitude: location.longitude,
+          timestamp: Date.now(),
+        };
         handleLocationUpdate({
-          location,
+          location: geoPoint,
           dispatch,
           mapRef,
           isMapCenteredOnUser,
@@ -177,8 +184,13 @@ function setupLocationListeners({
     (location: { latitude: number; longitude: number }) => {
       if (isActiveRef.current) {
         logger.info('GPS coordinates injected:', location);
+        const geoPoint: GeoPoint = {
+          latitude: location.latitude,
+          longitude: location.longitude,
+          timestamp: Date.now(),
+        };
         handleLocationUpdate({
-          location,
+          location: geoPoint,
           dispatch,
           mapRef,
           isMapCenteredOnUser,
@@ -219,11 +231,13 @@ async function getInitialLocation({
       accuracy: Location.Accuracy.High,
     });
     if (isActiveRef.current) {
+      const geoPoint: GeoPoint = {
+        latitude: initialLocation.coords.latitude,
+        longitude: initialLocation.coords.longitude,
+        timestamp: Date.now(),
+      };
       handleLocationUpdate({
-        location: {
-          latitude: initialLocation.coords.latitude,
-          longitude: initialLocation.coords.longitude,
-        },
+        location: geoPoint,
         dispatch,
         mapRef,
         isMapCenteredOnUser,
@@ -262,11 +276,13 @@ const processStoredLocationsOnStartup = async (options: {
   // Update Redux with the most recent stored location if available
   const mostRecent = storedLocations[storedLocations.length - 1];
   if (options.isActiveRef.current && mostRecent) {
+    const geoPoint: GeoPoint = {
+      latitude: mostRecent.latitude,
+      longitude: mostRecent.longitude,
+      timestamp: mostRecent.timestamp,
+    };
     handleLocationUpdate({
-      location: {
-        latitude: mostRecent.latitude,
-        longitude: mostRecent.longitude,
-      },
+      location: geoPoint,
       dispatch: options.dispatch,
       mapRef: options.mapRef,
       isMapCenteredOnUser: options.isMapCenteredOnUser,
@@ -358,14 +374,24 @@ const setupUnifiedLocationService = async ({
   }
 };
 
-// Refactor useUnifiedLocationService to use helpers and further reduce line count
+// Configuration interface for location service
+interface LocationServiceConfig {
+  mapRef: React.RefObject<MapView>;
+  isMapCenteredOnUser: boolean;
+  currentRegion: Region | undefined;
+  isTrackingPaused: boolean;
+}
+
+// Refactor useUnifiedLocationService to use helpers and support pause functionality
 const useUnifiedLocationService = (
   dispatch: ReturnType<typeof useAppDispatch>,
-  mapRef: React.RefObject<MapView>,
-  isMapCenteredOnUser: boolean,
-  currentRegion: Region | undefined
+  config: LocationServiceConfig
 ) => {
-  // Only initialize the unified location service on mount/unmount
+  const { mapRef, isMapCenteredOnUser, currentRegion, isTrackingPaused } = config;
+  // Track if location services are currently active
+  const [isLocationActive, setIsLocationActive] = useState(false);
+
+  // Initialize location service once on mount
   useEffect(() => {
     const isActiveRef = { current: true };
 
@@ -378,28 +404,78 @@ const useUnifiedLocationService = (
       currentRegion,
     });
 
-    // Initialize unified location service once
-    setupUnifiedLocationService({
-      isActiveRef,
-      dispatch,
-      mapRef,
-      isMapCenteredOnUser,
-      currentRegion,
-    });
-
     return () => {
       isActiveRef.current = false;
       cleanupLocationListeners(listeners);
+    };
+  }, [dispatch, mapRef, isMapCenteredOnUser, currentRegion]);
+
+  // Separate effect to handle start/stop based on pause state
+  useEffect(() => {
+    const startLocationServices = async () => {
+      if (isTrackingPaused || isLocationActive) {
+        return; // Don't start if paused or already active
+      }
+
+      try {
+        logger.info('Starting location services (tracking resumed)');
+        const isActiveRef = { current: true };
+
+        await setupUnifiedLocationService({
+          isActiveRef,
+          dispatch,
+          mapRef,
+          isMapCenteredOnUser,
+          currentRegion,
+        });
+
+        setIsLocationActive(true);
+      } catch (error) {
+        logger.error('Failed to start location services:', error);
+      }
+    };
+
+    const stopLocationServices = async () => {
+      if (!isTrackingPaused || !isLocationActive) {
+        return; // Don't stop if not paused or already inactive
+      }
+
+      try {
+        logger.info('Stopping location services (tracking paused)');
+
+        await Location.stopLocationUpdatesAsync(LOCATION_TASK).catch(() => {
+          /* ignore error if task is already stopped */
+        });
+
+        await BackgroundLocationService.stopBackgroundLocationTracking().catch(() => {
+          /* ignore error if already stopped */
+        });
+
+        setIsLocationActive(false);
+      } catch (error) {
+        logger.error('Failed to stop location services:', error);
+      }
+    };
+
+    if (isTrackingPaused) {
+      stopLocationServices();
+    } else {
+      startLocationServices();
+    }
+  }, [isTrackingPaused, dispatch, mapRef, isMapCenteredOnUser, currentRegion, isLocationActive]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
       Location.stopLocationUpdatesAsync(LOCATION_TASK)?.catch(() => {
         /* ignore error if task is already stopped */
       });
-      // Stop background location tracking
       BackgroundLocationService.stopBackgroundLocationTracking().catch(() => {
         /* ignore error if already stopped */
       });
-      logger.info('Unified location service stopped with background tracking.');
+      logger.info('Unified location service stopped on unmount.');
     };
-  }, [dispatch, mapRef, isMapCenteredOnUser, currentRegion]);
+  }, []);
 };
 
 // Hook for zoom restriction logic
@@ -702,6 +778,7 @@ const useExplorationStatePersistence = (explorationState: any) => {
           path: explorationState.path,
           exploredAreas: explorationState.exploredAreas,
           zoomLevel: explorationState.zoomLevel,
+          isTrackingPaused: explorationState.isTrackingPaused,
         });
 
         logger.info('✅ Exploration state persistence completed successfully', {
@@ -740,6 +817,7 @@ const useExplorationStatePersistence = (explorationState: any) => {
     explorationState.path,
     explorationState.exploredAreas,
     explorationState.zoomLevel,
+    explorationState.isTrackingPaused,
   ]);
 };
 
@@ -778,6 +856,7 @@ const processStoredBackgroundLocations = async (
     updateLocation({
       latitude: mostRecent.latitude,
       longitude: mostRecent.longitude,
+      timestamp: mostRecent.timestamp,
     })
   );
 
@@ -1027,6 +1106,49 @@ const useMapScreenState = () => {
   };
 };
 
+// Configuration for MapScreen services
+interface MapScreenServicesConfig {
+  mapRef: React.RefObject<MapView>;
+  isMapCenteredOnUser: boolean;
+  currentRegion: Region | undefined;
+  isTrackingPaused: boolean;
+  explorationState: any;
+}
+
+// Helper hook to set up all MapScreen services and effects
+const useMapScreenServices = (
+  dispatch: ReturnType<typeof useAppDispatch>,
+  config: MapScreenServicesConfig
+) => {
+  const { mapRef, isMapCenteredOnUser, currentRegion, isTrackingPaused, explorationState } = config;
+  // Use simplified unified location service
+  useUnifiedLocationService(dispatch, {
+    mapRef,
+    isMapCenteredOnUser,
+    currentRegion,
+    isTrackingPaused,
+  });
+  useZoomRestriction(currentRegion, mapRef);
+
+  // Persist exploration state whenever it changes
+  useExplorationStatePersistence(explorationState);
+
+  // Start GPS injection check only once on mount
+  useGPSInjectionService();
+
+  // Add AppState listener to process stored locations when app becomes active
+  useAppStateChangeHandler(dispatch, isMapCenteredOnUser, currentRegion, mapRef);
+};
+
+// Helper hook for MapScreen Redux state
+const useMapScreenReduxState = () => {
+  const explorationState = useAppSelector((state) => state.exploration);
+  const isTrackingPaused = useAppSelector((state) => state.exploration.isTrackingPaused);
+  const insets = useSafeAreaInsets();
+  
+  return { explorationState, isTrackingPaused, insets };
+};
+
 export const MapScreen = () => {
   const {
     dispatch,
@@ -1047,23 +1169,16 @@ export const MapScreen = () => {
     handleClearSelection,
   } = useDataClearing(dispatch, mapRef, isMapCenteredOnUser, currentRegion);
 
-  const insets = useSafeAreaInsets();
+  const { explorationState, isTrackingPaused, insets } = useMapScreenReduxState();
 
-  // Get exploration state for persistence
-  const explorationState = useAppSelector((state) => state.exploration);
-
-  // Use simplified unified location service
-  useUnifiedLocationService(dispatch, mapRef, isMapCenteredOnUser, currentRegion);
-  useZoomRestriction(currentRegion, mapRef);
-
-  // Persist exploration state whenever it changes
-  useExplorationStatePersistence(explorationState);
-
-  // Start GPS injection check only once on mount
-  useGPSInjectionService();
-
-  // Add AppState listener to process stored locations when app becomes active
-  useAppStateChangeHandler(dispatch, isMapCenteredOnUser, currentRegion, mapRef);
+  // Set up all services and effects
+  useMapScreenServices(dispatch, {
+    mapRef,
+    isMapCenteredOnUser,
+    currentRegion,
+    isTrackingPaused,
+    explorationState,
+  });
 
   const { centerOnUserLocation, onRegionChange, onPanDrag, onRegionChangeComplete } =
     useMapEventHandlers({
@@ -1088,6 +1203,16 @@ export const MapScreen = () => {
         centerOnUserLocation={centerOnUserLocation}
         setMapDimensions={setMapDimensions}
         memoizedMapRegion={memoizedMapRegion}
+      />
+
+      {/* Tracking Control Button */}
+      <TrackingControlButton
+        style={{
+          position: 'absolute',
+          bottom: 160, // Above the data clear button
+          left: 20,
+          right: 20,
+        }}
       />
 
       {/* Data Clear Button */}

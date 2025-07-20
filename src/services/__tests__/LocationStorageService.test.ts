@@ -282,10 +282,12 @@ describe('LocationStorageService', () => {
 
       const geoPoints = LocationStorageService.convertToGeoPoints(storedLocations);
 
-      expect(geoPoints).toEqual([
-        { latitude: 40.7128, longitude: -74.006 },
-        { latitude: 34.0522, longitude: -118.2437 },
-      ]);
+      expect(geoPoints).toHaveLength(2);
+      expect(geoPoints[0]).toMatchObject({ latitude: 40.7128, longitude: -74.006 });
+      expect(geoPoints[1]).toMatchObject({ latitude: 34.0522, longitude: -118.2437 });
+      // Ensure timestamps are included
+      expect(typeof geoPoints[0].timestamp).toBe('number');
+      expect(typeof geoPoints[1].timestamp).toBe('number');
     });
 
     it('should handle empty array', () => {

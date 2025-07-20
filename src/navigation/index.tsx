@@ -7,6 +7,7 @@ import { restorePersistedUser } from '../store/slices/userSlice';
 import { restorePersistedState } from '../store/slices/explorationSlice';
 import { AuthPersistenceService } from '../services/AuthPersistenceService';
 import { RootStackParamList, AuthStackParamList, MainStackParamList } from '../types/navigation';
+import { GeoPoint } from '../types/user';
 import { MapScreen } from '../screens/Map';
 import { SignInScreen, SignUpScreen } from '../screens/Auth';
 import { ProfileScreen } from '../screens/Profile';
@@ -38,6 +39,89 @@ const LoadingScreen = () => (
   </View>
 );
 
+// Helper function for legacy data validation
+const validateDataForTimestamps = (explorationData: any) => {
+  const hasLegacyData = (point: any) => {
+    return point && typeof point.timestamp !== 'number';
+  };
+
+  const hasLegacyPoints = (points: any[]) => {
+    return points?.some(hasLegacyData);
+  };
+
+  return (
+    hasLegacyData(explorationData.currentLocation) || // eslint-disable-line @typescript-eslint/prefer-nullish-coalescing
+    hasLegacyPoints(explorationData.path) || // eslint-disable-line @typescript-eslint/prefer-nullish-coalescing
+    hasLegacyPoints(explorationData.exploredAreas)
+  );
+};
+
+// Helper function for restoring exploration state
+const restoreExplorationState = async (dispatch: any) => {
+  const persistedExploration = await AuthPersistenceService.getExplorationState();
+
+  if (!persistedExploration) {
+    logger.info('⚠️ No persisted exploration state found', {
+      component: 'Navigation',
+      action: 'initializeApp',
+    });
+    return;
+  }
+
+  logger.info('✅ Found persisted exploration state, restoring', {
+    component: 'Navigation',
+    action: 'initializeApp',
+    pathPoints: persistedExploration.path.length,
+    hasCurrentLocation: !!persistedExploration.currentLocation,
+    exploredAreas: persistedExploration.exploredAreas.length,
+    zoomLevel: persistedExploration.zoomLevel,
+  });
+
+  // Check for legacy data without timestamps - require data clearing
+  if (validateDataForTimestamps(persistedExploration)) {
+    throw new Error(
+      'LEGACY_DATA_DETECTED: Your app contains old location data that is incompatible with the new GPS line filtering system. Please clear all app data using the Profile screen to continue.'
+    );
+  }
+
+  // Type assertions are safe here since we validated the data above
+  dispatch(
+    restorePersistedState({
+      currentLocation: persistedExploration.currentLocation as GeoPoint | null,
+      path: (persistedExploration.path ?? []) as GeoPoint[],
+      exploredAreas: (persistedExploration.exploredAreas ?? []) as GeoPoint[],
+      zoomLevel: persistedExploration.zoomLevel,
+    })
+  );
+};
+
+// Helper function for restoring authentication state
+const restoreAuthenticationState = async (dispatch: any) => {
+  const persistedAuth = await AuthPersistenceService.getAuthState();
+
+  if (!persistedAuth) {
+    logger.info('⚠️ No valid persisted authentication found', {
+      component: 'Navigation',
+      action: 'initializeApp',
+    });
+    return;
+  }
+
+  logger.info('✅ Found valid persisted authentication, restoring user', {
+    component: 'Navigation',
+    action: 'initializeApp',
+    userId: persistedAuth.user.id,
+    expiresAt: new Date(persistedAuth.expiresAt).toISOString(),
+    keepLoggedIn: persistedAuth.keepLoggedIn,
+  });
+
+  // Restore user to Redux
+  dispatch(restorePersistedUser(persistedAuth.user));
+
+  // Try to restore exploration state as well
+  await restoreExplorationState(dispatch);
+};
+
 // Custom hook for app initialization
 const useAppInitialization = () => {
   const dispatch = useAppDispatch();
@@ -51,54 +135,7 @@ const useAppInitialization = () => {
           action: 'initializeApp',
         });
 
-        // Check for persisted authentication state
-        const persistedAuth = await AuthPersistenceService.getAuthState();
-
-        if (persistedAuth) {
-          logger.info('✅ Found valid persisted authentication, restoring user', {
-            component: 'Navigation',
-            action: 'initializeApp',
-            userId: persistedAuth.user.id,
-            expiresAt: new Date(persistedAuth.expiresAt).toISOString(),
-            keepLoggedIn: persistedAuth.keepLoggedIn,
-          });
-
-          // Restore user to Redux
-          dispatch(restorePersistedUser(persistedAuth.user));
-
-          // Try to restore exploration state as well
-          const persistedExploration = await AuthPersistenceService.getExplorationState();
-
-          if (persistedExploration) {
-            logger.info('✅ Found persisted exploration state, restoring', {
-              component: 'Navigation',
-              action: 'initializeApp',
-              pathPoints: persistedExploration.path.length,
-              hasCurrentLocation: !!persistedExploration.currentLocation,
-              exploredAreas: persistedExploration.exploredAreas.length,
-              zoomLevel: persistedExploration.zoomLevel,
-            });
-
-            dispatch(
-              restorePersistedState({
-                currentLocation: persistedExploration.currentLocation,
-                path: persistedExploration.path,
-                exploredAreas: persistedExploration.exploredAreas,
-                zoomLevel: persistedExploration.zoomLevel,
-              })
-            );
-          } else {
-            logger.info('⚠️ No persisted exploration state found', {
-              component: 'Navigation',
-              action: 'initializeApp',
-            });
-          }
-        } else {
-          logger.info('⚠️ No valid persisted authentication found', {
-            component: 'Navigation',
-            action: 'initializeApp',
-          });
-        }
+        await restoreAuthenticationState(dispatch);
       } catch (error) {
         logger.error('❌ Error initializing app', error, {
           component: 'Navigation',

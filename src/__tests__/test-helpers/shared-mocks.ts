@@ -40,6 +40,7 @@ const defaultExplorationState = {
     hasPermission: false,
     storedLocationCount: 0,
   },
+  isTrackingPaused: false,
 };
 
 // Shared mock store creators

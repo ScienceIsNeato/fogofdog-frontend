@@ -5,6 +5,8 @@ import explorationReducer, {
   reset,
   setCenterOnUser,
   addPathPoint,
+  toggleTracking,
+  setTrackingPaused,
   processBackgroundLocations,
   updateBackgroundLocationStatus,
 } from '../explorationSlice';
@@ -39,6 +41,7 @@ describe('exploration slice', () => {
       path: [],
       exploredAreas: [],
       isMapCenteredOnUser: false,
+      isTrackingPaused: false,
       backgroundLocationStatus: {
         isRunning: false,
         hasPermission: false,
@@ -51,6 +54,7 @@ describe('exploration slice', () => {
     const location = {
       latitude: 41.6867,
       longitude: -91.5802,
+      timestamp: Date.now(),
     };
 
     store.dispatch(updateLocation(location));
@@ -68,13 +72,13 @@ describe('exploration slice', () => {
 
   it('should accumulate path points when far enough apart', () => {
     const locations = [
-      { latitude: 41.6867, longitude: -91.5802 },
+      { latitude: 41.6867, longitude: -91.5802, timestamp: Date.now() },
       // This point is far enough away to be added
-      { latitude: 41.6877, longitude: -91.5812 },
+      { latitude: 41.6877, longitude: -91.5812, timestamp: Date.now() + 1000 },
       // This point is too close to the previous one and should be skipped
-      { latitude: 41.6878, longitude: -91.5813 },
+      { latitude: 41.6878, longitude: -91.5813, timestamp: Date.now() + 2000 },
       // This point is far enough from the last added point
-      { latitude: 41.689, longitude: -91.5825 },
+      { latitude: 41.689, longitude: -91.5825, timestamp: Date.now() + 3000 },
     ];
 
     locations.forEach((location) => {
@@ -105,7 +109,9 @@ describe('exploration slice', () => {
   it('should reset isMapCenteredOnUser when reset is called', () => {
     // Set some state
     store.dispatch(setCenterOnUser(true));
-    store.dispatch(updateLocation({ latitude: 41.6867, longitude: -91.5802 }));
+    store.dispatch(
+      updateLocation({ latitude: 41.6867, longitude: -91.5802, timestamp: Date.now() })
+    );
 
     // Reset
     store.dispatch(reset());
@@ -125,6 +131,7 @@ describe('exploration slice', () => {
       const invalidLocation = {
         latitude: 91, // Invalid: exceeds 90
         longitude: -91.5802,
+        timestamp: Date.now(),
       };
 
       store.dispatch(updateLocation(invalidLocation));
@@ -148,6 +155,7 @@ describe('exploration slice', () => {
       const invalidLocation = {
         latitude: 41.6867,
         longitude: -181, // Invalid: less than -180
+        timestamp: Date.now(),
       };
 
       store.dispatch(updateLocation(invalidLocation));
@@ -168,6 +176,7 @@ describe('exploration slice', () => {
       const invalidLocation = {
         latitude: NaN,
         longitude: -91.5802,
+        timestamp: Date.now(),
       };
 
       store.dispatch(updateLocation(invalidLocation));
@@ -181,7 +190,7 @@ describe('exploration slice', () => {
 
   describe('addPathPoint', () => {
     it('should add valid path point', () => {
-      const point = { latitude: 41.6867, longitude: -91.5802 };
+      const point = { latitude: 41.6867, longitude: -91.5802, timestamp: Date.now() };
 
       store.dispatch(addPathPoint(point));
       const state = store.getState().exploration;
@@ -194,7 +203,7 @@ describe('exploration slice', () => {
       // eslint-disable-next-line @typescript-eslint/no-require-imports
       const { logger } = require('../../../utils/logger');
 
-      const invalidPoint = { latitude: 91, longitude: -91.5802 };
+      const invalidPoint = { latitude: 91, longitude: -91.5802, timestamp: Date.now() };
 
       store.dispatch(addPathPoint(invalidPoint));
       const state = store.getState().exploration;
@@ -245,6 +254,7 @@ describe('exploration slice', () => {
       expect(state.currentLocation).toEqual({
         latitude: 41.6877,
         longitude: -91.5812,
+        timestamp: 1640995260000,
       });
       expect(state.path).toHaveLength(2);
       expect(logger.info).toHaveBeenCalledWith(
@@ -285,6 +295,7 @@ describe('exploration slice', () => {
       expect(state.currentLocation).toEqual({
         latitude: 41.6877,
         longitude: -91.5822,
+        timestamp: 1640995320000,
       });
       expect(state.path).toHaveLength(2); // Only valid locations added
       expect(logger.warn).toHaveBeenCalledWith(
@@ -376,7 +387,9 @@ describe('exploration slice', () => {
       const { logger } = require('../../../utils/logger');
 
       // Add first point
-      store.dispatch(updateLocation({ latitude: 41.6867, longitude: -91.5802 }));
+      store.dispatch(
+        updateLocation({ latitude: 41.6867, longitude: -91.5802, timestamp: Date.now() })
+      );
 
       // Mock Math.sqrt to throw an error for the second point
       const originalMath = Math.sqrt;
@@ -385,7 +398,9 @@ describe('exploration slice', () => {
       });
 
       // Try to add second point
-      store.dispatch(updateLocation({ latitude: 41.6877, longitude: -91.5812 }));
+      store.dispatch(
+        updateLocation({ latitude: 41.6877, longitude: -91.5812, timestamp: Date.now() + 1000 })
+      );
 
       const state = store.getState().exploration;
       expect(state.path).toHaveLength(1); // Second point not added due to error
@@ -400,6 +415,69 @@ describe('exploration slice', () => {
 
       // Restore Math.sqrt
       Math.sqrt = originalMath;
+    });
+  });
+
+  describe('tracking control', () => {
+    it('should handle toggleTracking', () => {
+      // Initially not paused
+      expect(store.getState().exploration.isTrackingPaused).toBe(false);
+
+      // Toggle to paused
+      store.dispatch(toggleTracking());
+      expect(store.getState().exploration.isTrackingPaused).toBe(true);
+
+      // Toggle back to active
+      store.dispatch(toggleTracking());
+      expect(store.getState().exploration.isTrackingPaused).toBe(false);
+    });
+
+    it('should handle setTrackingPaused', () => {
+      // Initially not paused
+      expect(store.getState().exploration.isTrackingPaused).toBe(false);
+
+      // Set to paused
+      store.dispatch(setTrackingPaused(true));
+      expect(store.getState().exploration.isTrackingPaused).toBe(true);
+
+      // Set to active
+      store.dispatch(setTrackingPaused(false));
+      expect(store.getState().exploration.isTrackingPaused).toBe(false);
+    });
+
+    it('should log tracking state changes', () => {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const { logger } = require('../../../utils/logger');
+
+      store.dispatch(toggleTracking());
+      expect(logger.info).toHaveBeenCalledWith(
+        'Tracking paused',
+        expect.objectContaining({
+          component: 'explorationSlice',
+          action: 'toggleTracking',
+          isTrackingPaused: true,
+        })
+      );
+
+      store.dispatch(setTrackingPaused(false));
+      expect(logger.info).toHaveBeenCalledWith(
+        'Tracking set to active',
+        expect.objectContaining({
+          component: 'explorationSlice',
+          action: 'setTrackingPaused',
+          isTrackingPaused: false,
+        })
+      );
+    });
+
+    it('should reset tracking pause state on reset', () => {
+      // Set to paused
+      store.dispatch(setTrackingPaused(true));
+      expect(store.getState().exploration.isTrackingPaused).toBe(true);
+
+      // Reset
+      store.dispatch(reset());
+      expect(store.getState().exploration.isTrackingPaused).toBe(false);
     });
   });
 });

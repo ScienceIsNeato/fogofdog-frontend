@@ -13,6 +13,7 @@ export interface PersistedExplorationState {
   path: { latitude: number; longitude: number }[];
   exploredAreas: { latitude: number; longitude: number }[];
   zoomLevel: number;
+  isTrackingPaused?: boolean;
 }
 
 const AUTH_STORAGE_KEY = '@fogofdog_auth_state';

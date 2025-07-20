@@ -12,7 +12,7 @@ describe('mapUtils', () => {
         height: 300,
       };
 
-      const point = { latitude: 0, longitude: 0 };
+      const point = { latitude: 0, longitude: 0, timestamp: Date.now() };
       const result = geoPointToPixel(point, region);
 
       expect(result.x).toBeCloseTo(150, 0);
@@ -30,25 +30,25 @@ describe('mapUtils', () => {
       };
 
       // North edge
-      const northPoint = { latitude: 40.05, longitude: -74 };
+      const northPoint = { latitude: 40.05, longitude: -74, timestamp: Date.now() };
       const northResult = geoPointToPixel(northPoint, region);
       expect(northResult.x).toBeCloseTo(200, 0);
       expect(northResult.y).toBeCloseTo(0, 0);
 
       // South edge
-      const southPoint = { latitude: 39.95, longitude: -74 };
+      const southPoint = { latitude: 39.95, longitude: -74, timestamp: Date.now() };
       const southResult = geoPointToPixel(southPoint, region);
       expect(southResult.x).toBeCloseTo(200, 0);
       expect(southResult.y).toBeCloseTo(500, 0);
 
       // East edge
-      const eastPoint = { latitude: 40, longitude: -73.95 };
+      const eastPoint = { latitude: 40, longitude: -73.95, timestamp: Date.now() };
       const eastResult = geoPointToPixel(eastPoint, region);
       expect(eastResult.x).toBeCloseTo(400, 0);
       expect(eastResult.y).toBeCloseTo(250, 0);
 
       // West edge
-      const westPoint = { latitude: 40, longitude: -74.05 };
+      const westPoint = { latitude: 40, longitude: -74.05, timestamp: Date.now() };
       const westResult = geoPointToPixel(westPoint, region);
       expect(westResult.x).toBeCloseTo(0, 0);
       expect(westResult.y).toBeCloseTo(250, 0);
@@ -65,12 +65,12 @@ describe('mapUtils', () => {
       };
 
       // Testing a point west of center
-      const westPoint = { latitude: 51.5, longitude: -0.125 };
+      const westPoint = { latitude: 51.5, longitude: -0.125, timestamp: Date.now() };
       const westResult = geoPointToPixel(westPoint, region);
       expect(westResult.x).toBeCloseTo(100, 0); // Based on current implementation
 
       // Testing a point south of center
-      const southPoint = { latitude: 51.495, longitude: -0.12 };
+      const southPoint = { latitude: 51.495, longitude: -0.12, timestamp: Date.now() };
       const southResult = geoPointToPixel(southPoint, region);
       expect(southResult.y).toBeCloseTo(300, 0); // Based on current implementation
     });
@@ -190,7 +190,7 @@ describe('mapUtils', () => {
           width: 300,
           height: 300,
         };
-        const point = { latitude: NaN, longitude: -Infinity };
+        const point = { latitude: NaN, longitude: -Infinity, timestamp: Date.now() };
         const result = geoPointToPixel(point, region);
         expect(result).toEqual({ x: 150, y: 150 }); // Fallback to center
       });

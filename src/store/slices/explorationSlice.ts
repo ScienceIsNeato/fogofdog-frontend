@@ -9,6 +9,7 @@ interface ExplorationState {
   path: GeoPoint[];
   exploredAreas: GeoPoint[];
   isMapCenteredOnUser: boolean;
+  isTrackingPaused: boolean;
   backgroundLocationStatus: {
     isRunning: boolean;
     hasPermission: boolean;
@@ -39,7 +40,9 @@ const isValidGeoPoint = (point: GeoPoint): boolean => {
     point.latitude >= -90 &&
     point.latitude <= 90 &&
     point.longitude >= -180 &&
-    point.longitude <= 180
+    point.longitude <= 180 &&
+    Number.isFinite(point.timestamp) &&
+    point.timestamp > 0
   );
 };
 
@@ -77,6 +80,7 @@ const convertStoredLocation = (storedLocation: StoredLocationData): GeoPoint | n
   const geoPoint: GeoPoint = {
     latitude: storedLocation.latitude,
     longitude: storedLocation.longitude,
+    timestamp: storedLocation.timestamp,
   };
 
   if (!isValidGeoPoint(geoPoint)) {
@@ -96,6 +100,7 @@ const initialState: ExplorationState = {
   path: [],
   exploredAreas: [],
   isMapCenteredOnUser: false,
+  isTrackingPaused: false,
   backgroundLocationStatus: {
     isRunning: false,
     hasPermission: false,
@@ -203,6 +208,22 @@ const explorationSlice = createSlice({
     setCenterOnUser: (state, action: PayloadAction<boolean>) => {
       state.isMapCenteredOnUser = action.payload;
     },
+    toggleTracking: (state) => {
+      state.isTrackingPaused = !state.isTrackingPaused;
+      logger.info(`Tracking ${state.isTrackingPaused ? 'paused' : 'resumed'}`, {
+        component: 'explorationSlice',
+        action: 'toggleTracking',
+        isTrackingPaused: state.isTrackingPaused,
+      });
+    },
+    setTrackingPaused: (state, action: PayloadAction<boolean>) => {
+      state.isTrackingPaused = action.payload;
+      logger.info(`Tracking set to ${action.payload ? 'paused' : 'active'}`, {
+        component: 'explorationSlice',
+        action: 'setTrackingPaused',
+        isTrackingPaused: action.payload,
+      });
+    },
     processBackgroundLocations: (state, action: PayloadAction<StoredLocationData[]>) => {
       const backgroundLocations = action.payload;
 
@@ -268,9 +289,10 @@ const explorationSlice = createSlice({
         path: GeoPoint[];
         exploredAreas: GeoPoint[];
         zoomLevel: number;
+        isTrackingPaused?: boolean;
       }>
     ) => {
-      const { currentLocation, path, exploredAreas, zoomLevel } = action.payload;
+      const { currentLocation, path, exploredAreas, zoomLevel, isTrackingPaused } = action.payload;
 
       // Validate and restore the persisted state
       if (currentLocation && isValidGeoPoint(currentLocation)) {
@@ -288,6 +310,11 @@ const explorationSlice = createSlice({
         state.zoomLevel = zoomLevel;
       }
 
+      // Restore tracking pause state
+      if (typeof isTrackingPaused === 'boolean') {
+        state.isTrackingPaused = isTrackingPaused;
+      }
+
       logger.info('Exploration state restored from persistence', {
         component: 'explorationSlice',
         action: 'restorePersistedState',
@@ -295,6 +322,7 @@ const explorationSlice = createSlice({
         exploredAreas: state.exploredAreas.length,
         hasCurrentLocation: state.currentLocation !== null,
         zoomLevel: state.zoomLevel,
+        isTrackingPaused: state.isTrackingPaused,
       });
     },
     clearRecentData: (state, action: PayloadAction<number>) => {
@@ -346,6 +374,8 @@ export const {
   reset,
   addPathPoint,
   setCenterOnUser,
+  toggleTracking,
+  setTrackingPaused,
   processBackgroundLocations,
   updateBackgroundLocationStatus,
   restorePersistedState,

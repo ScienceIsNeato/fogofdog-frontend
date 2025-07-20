@@ -19,4 +19,5 @@ export interface AuthCredentials {
 export interface GeoPoint {
   latitude: number;
   longitude: number;
+  timestamp: number; // Unix timestamp in milliseconds
 }
