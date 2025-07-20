@@ -52,9 +52,12 @@ describe('Navigation', () => {
     );
 
     // Wait for async initialization to complete
-    await waitFor(() => {
-      expect(renderResult).toBeDefined();
-    }, { timeout: 1000 });
+    await waitFor(
+      () => {
+        expect(renderResult).toBeDefined();
+      },
+      { timeout: 1000 }
+    );
   });
 
   it('should render loading screen initially', async () => {
@@ -69,8 +72,11 @@ describe('Navigation', () => {
     expect(getByText('Loading...')).toBeTruthy();
 
     // Wait a moment for async operations to settle
-    await waitFor(() => {
-      expect(getByText).toBeDefined();
-    }, { timeout: 1000 });
+    await waitFor(
+      () => {
+        expect(getByText).toBeDefined();
+      },
+      { timeout: 1000 }
+    );
   });
 });

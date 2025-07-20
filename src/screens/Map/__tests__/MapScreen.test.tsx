@@ -421,7 +421,9 @@ describe('MapScreen', () => {
     await renderMapScreen(store);
 
     expect(store.getState().exploration.path).toHaveLength(1);
-    expect(store.getState().exploration.path[0]).toEqual(expect.objectContaining(expectedStoredLocation));
+    expect(store.getState().exploration.path[0]).toEqual(
+      expect.objectContaining(expectedStoredLocation)
+    );
 
     act(() => {
       store.dispatch(updateLocation(mockUpdatedCoords));
@@ -548,7 +550,9 @@ describe('MapScreen', () => {
         const { mapViewArgs, fogOverlayArgs } = getMockArgs();
         initialMapViewArgs = mapViewArgs;
         initialFogOverlayArgs = fogOverlayArgs;
-        expect(store.getState().exploration.currentLocation).toEqual(expect.objectContaining(expectedStoredLocation));
+        expect(store.getState().exploration.currentLocation).toEqual(
+          expect.objectContaining(expectedStoredLocation)
+        );
       },
       { timeout: 3000 }
     );
@@ -619,7 +623,9 @@ describe('MapScreen', () => {
     const finalPath = store.getState().exploration.path;
     expect(finalPath).toEqual(initialPath);
 
-    expect(store.getState().exploration.currentLocation).toEqual(expect.objectContaining(expectedStoredLocation));
+    expect(store.getState().exploration.currentLocation).toEqual(
+      expect.objectContaining(expectedStoredLocation)
+    );
   });
 
   it('renders LocationButton with correct props', async () => {

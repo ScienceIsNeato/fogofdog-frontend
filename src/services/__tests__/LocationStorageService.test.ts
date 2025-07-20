@@ -286,8 +286,10 @@ describe('LocationStorageService', () => {
       expect(geoPoints[0]).toMatchObject({ latitude: 40.7128, longitude: -74.006 });
       expect(geoPoints[1]).toMatchObject({ latitude: 34.0522, longitude: -118.2437 });
       // Ensure timestamps are included
-      expect(typeof geoPoints[0].timestamp).toBe('number');
-      expect(typeof geoPoints[1].timestamp).toBe('number');
+      expect(geoPoints[0]).toBeDefined();
+      expect(geoPoints[1]).toBeDefined();
+      expect(typeof geoPoints[0]?.timestamp).toBe('number');
+      expect(typeof geoPoints[1]?.timestamp).toBe('number');
     });
 
     it('should handle empty array', () => {

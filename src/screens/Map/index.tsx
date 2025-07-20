@@ -1145,7 +1145,7 @@ const useMapScreenReduxState = () => {
   const explorationState = useAppSelector((state) => state.exploration);
   const isTrackingPaused = useAppSelector((state) => state.exploration.isTrackingPaused);
   const insets = useSafeAreaInsets();
-  
+
   return { explorationState, isTrackingPaused, insets };
 };
 
