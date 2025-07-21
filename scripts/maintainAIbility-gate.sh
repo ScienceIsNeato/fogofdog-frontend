@@ -31,6 +31,7 @@ RUN_LINT=false
 RUN_TYPES=false
 RUN_TESTS=false
 RUN_DUPLICATION=false
+RUN_SECURITY=false
 RUN_SONAR=false
 RUN_ALL=false
 
@@ -48,6 +49,7 @@ else
       --types) RUN_TYPES=true ;;
       --tests) RUN_TESTS=true ;;
       --duplication) RUN_DUPLICATION=true ;;
+      --security) RUN_SECURITY=true ;;
       --sonar) RUN_SONAR=true ;;
       --help)
         echo "maintainAIbility-gate - AI-Enhanced Code Quality Framework"
@@ -60,6 +62,7 @@ else
         echo "  ./scripts/maintainAIbility-gate.sh --types   # Check types only"
         echo "  ./scripts/maintainAIbility-gate.sh --tests   # Run tests with coverage"
         echo "  ./scripts/maintainAIbility-gate.sh --duplication # Check code duplication"
+        echo "  ./scripts/maintainAIbility-gate.sh --security # Check/fix security vulnerabilities"
         echo "  ./scripts/maintainAIbility-gate.sh --sonar   # Run SonarQube analysis"
         echo "  ./scripts/maintainAIbility-gate.sh --help    # Show this help"
         echo ""
@@ -80,6 +83,7 @@ if [[ "$RUN_ALL" == "true" ]]; then
   RUN_TYPES=true
   RUN_TESTS=true
   RUN_DUPLICATION=true
+  RUN_SECURITY=true
 fi
 
 # Track failures with detailed information
@@ -224,6 +228,33 @@ if [[ "$RUN_DUPLICATION" == "true" ]]; then
 fi
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# SECURITY AUDIT & AUTO-FIX
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+if [[ "$RUN_SECURITY" == "true" ]]; then
+  echo "🔒 Security Audit & Auto-Fix"
+  
+  # First, try to auto-fix security vulnerabilities
+  echo "🔧 Auto-fixing security vulnerabilities..."
+  npm audit fix || true  # Don't fail if some vulnerabilities can't be auto-fixed
+  
+  # Then check for remaining high-severity vulnerabilities
+  AUDIT_OUTPUT=$(npm run audit:security 2>&1) || AUDIT_FAILED=true
+  
+  if [[ "$AUDIT_FAILED" != "true" ]]; then
+    echo "✅ Security Audit: PASSED (no high-severity vulnerabilities)"
+    add_success "Security Audit" "No high-severity vulnerabilities found with auto-fix"
+  else
+    echo "❌ Security Audit: FAILED (high-severity vulnerabilities remain)"
+    echo "💡 Some vulnerabilities may require manual intervention"
+    
+    # Extract vulnerability count from output
+    VULN_COUNT=$(echo "$AUDIT_OUTPUT" | grep -o '[0-9]\+ vulnerabilities' | head -1 | grep -o '[0-9]\+' || echo "unknown")
+    add_failure "Security Audit" "$VULN_COUNT high-severity vulnerabilities found" "Run 'npm audit' for details and update dependencies manually if needed"
+  fi
+  echo ""
+fi
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # SONARQUBE ANALYSIS
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 if [[ "$RUN_SONAR" == "true" ]]; then
@@ -281,6 +312,7 @@ if [ $FAILED_CHECKS -eq 0 ]; then
   echo "   • Types: ✅ Strict compilation"
   echo "   • Tests: ✅ Above threshold"
   echo "   • Duplication: ✅ Below threshold"
+  echo "   • Security: ✅ No high-severity vulnerabilities"
   if [[ "$RUN_SONAR" == "true" ]]; then
     echo "   • SonarQube: ✅ Quality gate passed"
   fi

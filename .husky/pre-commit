@@ -18,11 +18,6 @@ elif [ -f .env ]; then
   set +a
 fi
 
-# Fallback: check if SONAR_TOKEN is already set in environment
-if [ -z "$SONAR_TOKEN" ]; then
-  echo "⚠️  SONAR_TOKEN not found in environment. Please set it in .envrc or .env file."
-  echo "💡 Create .envrc with: export SONAR_TOKEN=your_token_here"
-  exit 1
-fi
-
-npm run pre-commit:strict
+# Use the comprehensive maintainability gate with auto-fix
+# This includes all quality checks with auto-fix capabilities
+./scripts/maintainAIbility-gate.sh --full
