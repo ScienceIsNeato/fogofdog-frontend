@@ -252,7 +252,11 @@ async function main() {
   }
   
   let targetLat, targetLon;
-  const timeDeltaHours = parseFloat(args.timeDeltaHours || '0');
+  let timeDeltaHours = parseFloat(args.timeDeltaHours || '0');
+  if (Number.isNaN(timeDeltaHours)) {
+    console.error('❌ Invalid value for timeDeltaHours. It must be a valid number.');
+    process.exit(1);
+  }
   
   try {
     if (args.mode === 'absolute') {

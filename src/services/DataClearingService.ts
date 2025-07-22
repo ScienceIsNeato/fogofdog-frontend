@@ -5,6 +5,8 @@ import { AuthPersistenceService } from './AuthPersistenceService';
 import { logger } from '../utils/logger';
 import { DataStats, TimeRange } from '../types/dataClear';
 
+const DEFAULT_TIME_RANGE_HOURS = 24;
+
 export class DataClearingService {
   /**
    * Clear exploration data by time range
@@ -26,7 +28,7 @@ export class DataClearingService {
       await this.clearStoredLocations(timeRange);
 
       // Update Redux state
-      const hoursBack = endTime ? Math.round((endTime - startTime) / (1000 * 60 * 60)) : 24;
+      const hoursBack = endTime ? Math.round((endTime - startTime) / (1000 * 60 * 60)) : DEFAULT_TIME_RANGE_HOURS;
       store.dispatch(clearRecentData(hoursBack));
 
       // Update persisted exploration state

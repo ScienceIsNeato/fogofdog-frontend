@@ -12,6 +12,8 @@ import { MaterialIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { DataClearSelectionDialogProps, ClearOption, DataStats } from '../types/dataClear';
 
+const LOADING_INDICATOR_COLOR = 'white';
+
 const CLEAR_OPTIONS: ClearOption[] = [
   {
     type: 'hour',
@@ -94,7 +96,7 @@ const ClearOptionsComponent: React.FC<{
         disabled={isClearing}
       >
         {isClearing ? (
-          <ActivityIndicator size="small" color="white" testID="loading-indicator" />
+          <ActivityIndicator size="small" color={LOADING_INDICATOR_COLOR} testID="loading-indicator" />
         ) : (
           <Text style={[styles.optionButtonText, option.type === 'all' && styles.destructiveText]}>
             {option.label}

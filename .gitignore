@@ -54,6 +54,12 @@ initial-login*.png
 foreground_baseline*.png
 background_test*.png
 
+# Maestro test screenshots (numbered format like 01-initial-map-screen.png)
+[0-9][0-9]-*.png
+*-after-*.png
+*-dialog-*.png
+*-final-*.png
+
 # Coverage reports
 coverage/
 **/coverage/

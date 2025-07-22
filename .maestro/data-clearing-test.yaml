@@ -1,7 +1,8 @@
 appId: com.fogofdog.app
 ---
-# Test: Full Data Clearing Functionality
+# Test: Full Data Clearing Functionality  
 # Purpose: Verify all data clearing options (Last Hour, Last Day, All Time) work correctly
+# Note: Button is now always enabled, even with no data points
 
 # Set initial location
 - setLocation:
@@ -11,8 +12,7 @@ appId: com.fogofdog.app
 # Launch app WITHOUT clearing state to preserve injected historical data
 - launchApp:
     appId: com.fogofdog.app
-- waitForAnimationToEnd:
-    timeout: 1000
+- waitForAnimationToEnd
 
 # Handle login flow if needed (optional - app might already be authenticated)
 - runFlow:
@@ -23,8 +23,7 @@ appId: com.fogofdog.app
           id: "signInButton"
       - tapOn:
           id: "signInButton"
-      - waitForAnimationToEnd:
-          timeout: 3000
+      - waitForAnimationToEnd
 
 # Handle location permission if needed
 - runFlow:
@@ -32,88 +31,53 @@ appId: com.fogofdog.app
       visible: "Allow"
     commands:
       - tapOn: "Allow While Using App"
-      - waitForAnimationToEnd:
-          timeout: 3000
+      - waitForAnimationToEnd
 
-# Wait for app to fully load and check if we're on map screen or still need to handle authentication
-- waitForAnimationToEnd:
-    timeout: 5000
+# Wait for map screen to load - using multiple approaches for reliability
+- waitForAnimationToEnd
+- waitForAnimationToEnd
+- assertVisible:
+    id: "map-screen"
 
-# Wait until we can see either the map screen or we need to handle more auth steps
-- extendedWaitUntil:
-    visible:
-      id: "map-screen"
-    timeout: 15000
-
-# Wait for data clear button to appear (it might be disabled initially)
-- extendedWaitUntil:
-    visible:
-      id: "data-clear-button"
-    timeout: 10000
+# Data clear button should always be visible now (never disabled due to no data)
+- assertVisible:
+    id: "data-clear-button"
 - takeScreenshot: "01-initial-map-screen"
 
-# Generate exploration data by moving through multiple locations with pauses
-# This should create exploration points that enable the clear button
+# Generate some exploration data by moving through locations
+# This creates realistic data for testing the clearing functionality
 - setLocation:
     latitude: 37.7883
     longitude: -122.4325
-- waitForAnimationToEnd:
-    timeout: 3000
+- waitForAnimationToEnd
 
 - setLocation:
     latitude: 37.7890
     longitude: -122.4340
-- waitForAnimationToEnd:
-    timeout: 3000
+- waitForAnimationToEnd
 
 - setLocation:
     latitude: 37.7895
     longitude: -122.4355
-- waitForAnimationToEnd:
-    timeout: 3000
+- waitForAnimationToEnd
 
-- setLocation:
-    latitude: 37.7900
-    longitude: -122.4370
-- waitForAnimationToEnd:
-    timeout: 3000
-
-# Take a screenshot to check the button state
+# Take screenshot after generating data
 - takeScreenshot: "02-after-location-changes"
 
-# Wait longer for the app to process the location changes
-- waitForAnimationToEnd:
-    timeout: 10000
-
-# Debug: Check if button is visible and enabled
-- assertVisible:
-    id: "data-clear-button"
-- takeScreenshot: "03-before-tapping-clear-button"
-
 # --- Test "Last Hour" ---
-# First verify we can see the button is actually enabled by checking if we can interact with it
+# Button should always be tappable now
 - tapOn: 
     id: "data-clear-button"
-- waitForAnimationToEnd:
-    timeout: 2000
-
-# If the dialog doesn't appear, try tapping again
-- runFlow:
-    when:
-      notVisible: "Clear Exploration Data"
-    commands:
-      - tapOn: 
-          id: "data-clear-button"
-      - waitForAnimationToEnd:
-          timeout: 2000
+- waitForAnimationToEnd
 
 - assertVisible: "Clear Exploration Data"
-- takeScreenshot: "02-clear-dialog-visible"
+- takeScreenshot: "03-clear-dialog-visible"
 - tapOn: "Last Hour"
 - waitForAnimationToEnd
 - tapOn: "Clear Data"
 - waitForAnimationToEnd
 - tapOn: "OK"
+- waitForAnimationToEnd
 
 # --- Test "Last Day" ---
 - tapOn: 
@@ -125,6 +89,7 @@ appId: com.fogofdog.app
 - tapOn: "Clear Data"
 - waitForAnimationToEnd
 - tapOn: "OK"
+- waitForAnimationToEnd
 
 # --- Test "All Time" ---
 - tapOn: 
@@ -136,6 +101,7 @@ appId: com.fogofdog.app
 - tapOn: "Clear Data"
 - waitForAnimationToEnd
 - tapOn: "OK"
+- waitForAnimationToEnd
 
 # Final verification - ensure app is still functional after clearing
 - assertVisible:

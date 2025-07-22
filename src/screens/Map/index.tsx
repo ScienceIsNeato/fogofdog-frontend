@@ -938,6 +938,57 @@ const refetchLocationAfterClear = async (
   });
 };
 
+// Helper function for handling data clear selection
+const createDataClearHandler = (
+  state: {
+    isClearing: boolean;
+    setIsClearing: React.Dispatch<React.SetStateAction<boolean>>;
+    setDataStats: React.Dispatch<React.SetStateAction<DataStats>>;
+    setIsDataClearDialogVisible: React.Dispatch<React.SetStateAction<boolean>>;
+  },
+  config: {
+    dispatch: ReturnType<typeof useAppDispatch>;
+    mapRef: React.RefObject<MapView>;
+    isMapCenteredOnUser: boolean;
+    currentRegion: Region | undefined;
+  }
+) => {
+  const { isClearing, setIsClearing, setDataStats, setIsDataClearDialogVisible } = state;
+  return async (type: ClearType) => {
+    logger.info('handleClearSelection called', {
+      component: 'MapScreen',
+      action: 'handleClearSelection',
+      clearType: type,
+      isClearing: isClearing,
+    });
+
+    if (isClearing) {
+      logger.warn('handleClearSelection blocked - already clearing', {
+        component: 'MapScreen',
+        action: 'handleClearSelection',
+        clearType: type,
+      });
+      return;
+    }
+
+    setIsClearing(true);
+    try {
+      await performDataClear(type);
+      await refetchLocationAfterClear(type, config);
+
+      Alert.alert('Success', 'Exploration data has been cleared.');
+      const newStats = await DataClearingService.getDataStats();
+      setDataStats(newStats);
+    } catch (error) {
+      logger.error('Failed to clear data', { error });
+      Alert.alert('Error', 'Failed to clear exploration data.');
+    } finally {
+      setIsClearing(false);
+      setIsDataClearDialogVisible(false);
+    }
+  };
+};
+
 // Custom hook for data clearing functionality
 const useDataClearing = (
   dispatch: ReturnType<typeof useAppDispatch>,
@@ -958,8 +1009,13 @@ const useDataClearing = (
     try {
       const stats = await DataClearingService.getDataStats();
       setDataStats(stats);
-    } catch (_error) {
+    } catch (error) {
       // Silent fail - stats will be updated next cycle
+      logger.debug('Failed to update data stats, will retry on next cycle', {
+        component: 'MapScreen',
+        action: 'updateDataStats',
+        error: error instanceof Error ? error.message : 'Unknown error',
+      });
     }
   }, [setDataStats]);
 
@@ -977,44 +1033,10 @@ const useDataClearing = (
     return () => {};
   }, [updateDataStats]);
 
-  const handleClearSelection = async (type: ClearType) => {
-    logger.info('handleClearSelection called', {
-      component: 'MapScreen',
-      action: 'handleClearSelection',
-      clearType: type,
-      isClearing: isClearing,
-    });
-
-    if (isClearing) {
-      logger.warn('handleClearSelection blocked - already clearing', {
-        component: 'MapScreen',
-        action: 'handleClearSelection',
-        clearType: type,
-      });
-      return;
-    }
-
-    setIsClearing(true);
-    try {
-      await performDataClear(type);
-      await refetchLocationAfterClear(type, {
-        dispatch,
-        mapRef,
-        isMapCenteredOnUser,
-        currentRegion,
-      });
-
-      Alert.alert('Success', 'Exploration data has been cleared.');
-      const newStats = await DataClearingService.getDataStats();
-      setDataStats(newStats);
-    } catch (error) {
-      logger.error('Failed to clear data', { error });
-      Alert.alert('Error', 'Failed to clear exploration data.');
-    } finally {
-      setIsClearing(false);
-      setIsDataClearDialogVisible(false);
-    }
-  };
+  const handleClearSelection = createDataClearHandler(
+    { isClearing, setIsClearing, setDataStats, setIsDataClearDialogVisible },
+    { dispatch, mapRef, isMapCenteredOnUser, currentRegion }
+  );
 
   return {
     dataStats,
@@ -1027,10 +1049,9 @@ const useDataClearing = (
 
 // Clear button component
 const ClearButton: React.FC<{
-  dataStats: DataStats;
   isClearing: boolean;
   onPress: () => void;
-}> = ({ dataStats, isClearing, onPress }) => (
+}> = ({ isClearing, onPress }) => (
   <TouchableOpacity
     testID="data-clear-button"
     style={{
@@ -1050,7 +1071,7 @@ const ClearButton: React.FC<{
       alignItems: 'center',
     }}
     onPress={onPress}
-    disabled={dataStats.totalPoints === 0 || isClearing}
+    disabled={isClearing}
   >
     <Text style={{ fontSize: 24 }}>🗑️</Text>
   </TouchableOpacity>
@@ -1217,7 +1238,6 @@ export const MapScreen = () => {
 
       {/* Data Clear Button */}
       <ClearButton
-        dataStats={dataStats}
         isClearing={isClearing}
         onPress={() => setIsDataClearDialogVisible(true)}
       />

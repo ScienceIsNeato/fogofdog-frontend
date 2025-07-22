@@ -3,6 +3,8 @@ import { GeoPoint } from '../../types/user';
 import { logger } from '../../utils/logger';
 import { StoredLocationData } from '../../services/LocationStorageService';
 
+const HOURS_PER_WEEK = 168;
+
 interface ExplorationState {
   currentLocation: GeoPoint | null;
   zoomLevel: number;
@@ -330,7 +332,7 @@ const explorationSlice = createSlice({
 
       // For path and exploredAreas, we don't have timestamps, so we clear a percentage
       // This is a simplified approach - in a real implementation, you'd want timestamps on all points
-      const clearRatio = Math.min(hoursBack / 168, 1); // Assume max 1 week = 168 hours for full clear
+      const clearRatio = Math.min(hoursBack / HOURS_PER_WEEK, 1); // Assume max 1 week for full clear
       const pointsToClear = Math.floor(state.path.length * clearRatio);
 
       if (pointsToClear > 0) {
