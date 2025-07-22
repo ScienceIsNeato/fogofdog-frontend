@@ -96,7 +96,11 @@ const ClearOptionsComponent: React.FC<{
         disabled={isClearing}
       >
         {isClearing ? (
-          <ActivityIndicator size="small" color={LOADING_INDICATOR_COLOR} testID="loading-indicator" />
+          <ActivityIndicator
+            size="small"
+            color={LOADING_INDICATOR_COLOR}
+            testID="loading-indicator"
+          />
         ) : (
           <Text style={[styles.optionButtonText, option.type === 'all' && styles.destructiveText]}>
             {option.label}

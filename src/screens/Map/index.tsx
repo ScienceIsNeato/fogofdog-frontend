@@ -1237,10 +1237,7 @@ export const MapScreen = () => {
       />
 
       {/* Data Clear Button */}
-      <ClearButton
-        isClearing={isClearing}
-        onPress={() => setIsDataClearDialogVisible(true)}
-      />
+      <ClearButton isClearing={isClearing} onPress={() => setIsDataClearDialogVisible(true)} />
 
       {/* Data Clear Selection Dialog */}
       <DataClearSelectionDialog

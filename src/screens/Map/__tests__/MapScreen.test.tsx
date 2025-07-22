@@ -905,4 +905,38 @@ describe('MapScreen', () => {
     // Path should remain empty when no real location is available
     expect(storeWithoutLocation.getState().exploration.path).toHaveLength(0);
   });
+
+  it('data clear button is never disabled due to zero data points', async () => {
+    // Create store with no data points to test button behavior
+    const storeWithNoData = configureStore({
+      reducer: {
+        exploration: explorationReducer,
+        user: userReducer,
+      },
+      preloadedState: {
+        exploration: {
+          currentLocation: { ...mockRealLocation, timestamp: Date.now() },
+          path: [], // No path data
+          exploredAreas: [], // No explored areas
+          zoomLevel: 14,
+          isMapCenteredOnUser: true,
+          backgroundLocationStatus: {
+            isRunning: true,
+            hasPermission: true,
+            storedLocationCount: 0, // No stored locations
+          },
+          isTrackingPaused: false,
+        },
+        user: { user: null, isLoading: false, error: null },
+      },
+    });
+
+    const { getByTestId } = await renderMapScreen(storeWithNoData);
+
+    // The data clear button should not be disabled even with zero data points
+    const clearButton = getByTestId('data-clear-button');
+    expect(clearButton.props.accessibilityState?.disabled).toBe(false);
+  });
+
+
 });

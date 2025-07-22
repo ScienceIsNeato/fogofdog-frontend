@@ -191,4 +191,18 @@ describe('DataClearSelectionDialog', () => {
     const loadingIndicators = getAllByTestId('loading-indicator');
     expect(loadingIndicators).toHaveLength(3); // One for each option
   });
+
+  it('loading indicator uses correct color from LOADING_INDICATOR_COLOR constant', () => {
+    const { getAllByTestId } = render(
+      <DataClearSelectionDialog {...defaultProps} isClearing={true} />
+    );
+
+    const loadingIndicators = getAllByTestId('loading-indicator');
+    expect(loadingIndicators).toHaveLength(3);
+    
+    // Verify that loading indicators have the correct color prop
+    loadingIndicators.forEach((indicator) => {
+      expect(indicator.props.color).toBe('white');
+    });
+  });
 });

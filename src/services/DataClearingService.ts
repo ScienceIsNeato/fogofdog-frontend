@@ -28,7 +28,9 @@ export class DataClearingService {
       await this.clearStoredLocations(timeRange);
 
       // Update Redux state
-      const hoursBack = endTime ? Math.round((endTime - startTime) / (1000 * 60 * 60)) : DEFAULT_TIME_RANGE_HOURS;
+      const hoursBack = endTime
+        ? Math.round((endTime - startTime) / (1000 * 60 * 60))
+        : DEFAULT_TIME_RANGE_HOURS;
       store.dispatch(clearRecentData(hoursBack));
 
       // Update persisted exploration state

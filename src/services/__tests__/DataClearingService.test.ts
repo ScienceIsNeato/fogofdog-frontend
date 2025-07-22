@@ -159,6 +159,26 @@ describe('DataClearingService', () => {
 
       consoleSpy.mockRestore();
     });
+
+    it('should use DEFAULT_TIME_RANGE_HOURS when endTime is undefined', async () => {
+      const startTime = Date.now() - 25 * 60 * 60 * 1000; // 25 hours ago
+      const mockStoredLocations = [
+        { latitude: 40.7128, longitude: -74.006, timestamp: Date.now() - 12 * 60 * 60 * 1000 }, // 12 hours ago
+      ];
+
+      mockLocationStorageService.getStoredBackgroundLocations.mockResolvedValue(
+        mockStoredLocations
+      );
+      mockLocationStorageService.clearStoredBackgroundLocations.mockResolvedValue();
+      mockLocationStorageService.storeBackgroundLocation.mockResolvedValue();
+      mockAuthPersistenceService.saveExplorationState.mockResolvedValue();
+
+      // Call without endTime to trigger the DEFAULT_TIME_RANGE_HOURS path
+      await DataClearingService.clearDataByTimeRange(startTime);
+
+      // Verify that clearRecentData is called with 24 (DEFAULT_TIME_RANGE_HOURS)
+      expect(mockStore.dispatch).toHaveBeenCalledWith(clearRecentData(24));
+    });
   });
 
   describe('clearStoredLocations', () => {
