@@ -21,7 +21,7 @@
       "ios": {
         "image": "latest"
       },
-      "autoIncrement": true
+      "autoIncrement": "buildNumber"
     },
     "preview": {
       "distribution": "internal"
@@ -31,7 +31,7 @@
       "ios": {
         "image": "latest"
       },
-      "autoIncrement": true
+      "autoIncrement": "buildNumber"
     },
     "e2e": {
       "distribution": "internal",
