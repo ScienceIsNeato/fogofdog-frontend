@@ -199,7 +199,7 @@ describe('DataClearSelectionDialog', () => {
 
     const loadingIndicators = getAllByTestId('loading-indicator');
     expect(loadingIndicators).toHaveLength(3);
-    
+
     // Verify that loading indicators have the correct color prop
     loadingIndicators.forEach((indicator) => {
       expect(indicator.props.color).toBe('white');

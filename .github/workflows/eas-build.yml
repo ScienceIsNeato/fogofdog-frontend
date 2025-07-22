@@ -69,6 +69,26 @@ jobs:
       if: github.event_name != 'workflow_dispatch' || github.event.inputs.skip_tests != 'true'
       run: npm run test:ci
       
+    - name: 🔢 Increment Build Number
+      run: |
+        echo "🔢 Incrementing build number for unique builds..."
+        node -e "
+          const fs = require('fs');
+          const appJson = JSON.parse(fs.readFileSync('app.json', 'utf8'));
+          const currentBuild = parseInt(appJson.expo.ios.buildNumber || '1');
+          const newBuild = (currentBuild + 1).toString();
+          appJson.expo.ios.buildNumber = newBuild;
+          
+          // Also increment Android version code for consistency
+          if (!appJson.expo.android) appJson.expo.android = {};
+          const currentVersionCode = parseInt(appJson.expo.android.versionCode || '1');
+          appJson.expo.android.versionCode = currentVersionCode + 1;
+          
+          fs.writeFileSync('app.json', JSON.stringify(appJson, null, 2));
+          console.log(\`📱 iOS build number: \${currentBuild} → \${newBuild}\`);
+          console.log(\`🤖 Android version code: \${currentVersionCode} → \${currentVersionCode + 1}\`);
+        "
+      
     - name: 📋 Build Info
       run: |
         echo "🏗️ Build Information:"

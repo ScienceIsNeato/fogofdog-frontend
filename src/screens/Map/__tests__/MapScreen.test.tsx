@@ -937,6 +937,4 @@ describe('MapScreen', () => {
     const clearButton = getByTestId('data-clear-button');
     expect(clearButton.props.accessibilityState?.disabled).toBe(false);
   });
-
-
 });
