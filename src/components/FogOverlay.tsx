@@ -8,11 +8,8 @@ import { calculateMetersPerPixel, geoPointToPixel } from '../utils/mapUtils';
 import { logger } from '../utils/logger';
 import type { Region as MapRegion } from 'react-native-maps';
 import { FOG_CONFIG } from '../config/fogConfig';
-
-interface GeoPoint {
-  latitude: number;
-  longitude: number;
-}
+import { PathConnectionFilter } from '../utils/pathConnectionFilter';
+import { GeoPoint } from '../types/user';
 
 interface FogOverlayProps {
   mapRegion: MapRegion & { width: number; height: number };
@@ -22,7 +19,7 @@ interface FogOverlayProps {
 const useFogCalculations = (mapRegion: MapRegion & { width: number; height: number }) => {
   const pathPoints = useSelector((state: RootState) => state.exploration.path);
 
-  // Compute the Skia path from geo points
+  // Compute the Skia path from geo points using filtered connections
   const skiaPath = useMemo(() => {
     const path = Skia.Path.Make();
 
@@ -30,19 +27,25 @@ const useFogCalculations = (mapRegion: MapRegion & { width: number; height: numb
       return path;
     }
 
-    // Create the path by connecting all the points
-    const firstPoint = pathPoints[0];
-    if (!firstPoint) return path; // Type guard for strict null checks
+    // Use PathConnectionFilter to determine which points should be connected
+    const pathSegments = PathConnectionFilter.filterPathConnections(pathPoints);
 
-    const firstPixel = geoPointToPixel(firstPoint, mapRegion);
-    path.moveTo(firstPixel.x, firstPixel.y);
+    // Build the Skia path from the filtered segments
+    // Each segment represents a valid connection between start and end points
+    let lastPoint: { x: number; y: number } | null = null;
 
-    for (let i = 1; i < pathPoints.length; i++) {
-      const point = pathPoints[i];
-      if (!point) continue; // Type guard for strict null checks
+    for (const segment of pathSegments) {
+      const startPixel = geoPointToPixel(segment.start, mapRegion);
+      const endPixel = geoPointToPixel(segment.end, mapRegion);
 
-      const { x, y } = geoPointToPixel(point, mapRegion);
-      path.lineTo(x, y);
+      // If this segment doesn't connect to our last drawn point, move to the start
+      if (!lastPoint || lastPoint.x !== startPixel.x || lastPoint.y !== startPixel.y) {
+        path.moveTo(startPixel.x, startPixel.y);
+      }
+
+      // Draw line to the end point
+      path.lineTo(endPixel.x, endPixel.y);
+      lastPoint = endPixel;
     }
 
     return path;

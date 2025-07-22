@@ -1,1 +1,23 @@
-npm run pre-commit:strict
+#!/usr/bin/env sh
+# Load environment variables for git hooks
+# Try to source environment from common locations
+if [ -f .envrc ]; then
+  # Use direnv if available
+  if command -v direnv >/dev/null 2>&1; then
+    eval "$(direnv export sh)"
+  else
+    # Source .envrc manually if direnv not available
+    set -a
+    . ./.envrc
+    set +a
+  fi
+elif [ -f .env ]; then
+  # Load from .env file if it exists
+  set -a
+  . ./.env
+  set +a
+fi
+
+# Use the comprehensive maintainability gate with auto-fix
+# This includes all quality checks with auto-fix capabilities
+./scripts/maintainAIbility-gate.sh --full

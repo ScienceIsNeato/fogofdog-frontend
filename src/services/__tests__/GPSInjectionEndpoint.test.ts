@@ -109,13 +109,10 @@ describe('GPSInjectionEndpoint', () => {
 
       expect(AsyncStorage.setItem).toHaveBeenCalledWith(
         '@fogofdog:gps_injection_data',
-        JSON.stringify([
-          { latitude: 40.7128, longitude: -74.006 },
-          { latitude: 34.0522, longitude: -118.2437 },
-        ])
+        JSON.stringify(coordinates)
       );
 
-      expect(logger.info).toHaveBeenCalledWith('Injected 2 GPS coordinates', {
+      expect(logger.info).toHaveBeenCalledWith('Injected 2 GPS coordinates with full data', {
         component: 'GPSInjectionEndpoint',
         action: 'injectCoordinates',
         count: 2,
@@ -132,7 +129,7 @@ describe('GPSInjectionEndpoint', () => {
         JSON.stringify([])
       );
 
-      expect(logger.info).toHaveBeenCalledWith('Injected 0 GPS coordinates', {
+      expect(logger.info).toHaveBeenCalledWith('Injected 0 GPS coordinates with full data', {
         component: 'GPSInjectionEndpoint',
         action: 'injectCoordinates',
         count: 0,
@@ -153,7 +150,7 @@ describe('GPSInjectionEndpoint', () => {
       });
     });
 
-    it('should convert coordinates to simple format correctly', async () => {
+    it('should store coordinates with full data including timestamp and accuracy', async () => {
       const coordinates = [
         {
           latitude: 40.7128,
@@ -169,7 +166,7 @@ describe('GPSInjectionEndpoint', () => {
 
       expect(AsyncStorage.setItem).toHaveBeenCalledWith(
         '@fogofdog:gps_injection_data',
-        JSON.stringify([{ latitude: 40.7128, longitude: -74.006 }])
+        JSON.stringify(coordinates)
       );
     });
   });

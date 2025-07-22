@@ -1,5 +1,14 @@
-import React, { useEffect, useState, useRef, useMemo } from 'react';
-import { View, StyleSheet, Dimensions, DeviceEventEmitter, AppState } from 'react-native';
+import React, { useEffect, useState, useRef, useMemo, useCallback } from 'react';
+import {
+  View,
+  StyleSheet,
+  Dimensions,
+  DeviceEventEmitter,
+  AppState,
+  TouchableOpacity,
+  Text,
+  Alert,
+} from 'react-native';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import { updateLocation, updateZoom, setCenterOnUser } from '../../store/slices/explorationSlice';
 import MapView, { Marker, Region } from 'react-native-maps';
@@ -7,20 +16,23 @@ import * as Location from 'expo-location';
 import * as TaskManager from 'expo-task-manager';
 import FogOverlay from '../../components/FogOverlay';
 import LocationButton from '../../components/LocationButton';
+import DataClearSelectionDialog from '../../components/DataClearSelectionDialog';
+import { PermissionAlert } from '../../components/PermissionAlert';
+import { TrackingControlButton } from '../../components/TrackingControlButton';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { logger } from '../../utils/logger';
 import { GPSInjectionService } from '../../services/GPSInjectionService';
 import { BackgroundLocationService } from '../../services/BackgroundLocationService';
 import { AuthPersistenceService } from '../../services/AuthPersistenceService';
+import { DataClearingService } from '../../services/DataClearingService';
+import { DataStats, ClearType } from '../../types/dataClear';
+import { GeoPoint } from '../../types/user';
 
 // Unified location task name
 const LOCATION_TASK = 'unified-location-task';
 
-// Default location (will be used as a fallback or before real location is fetched)
-const DEFAULT_LOCATION = {
-  latitude: 37.78825,
-  longitude: -122.4324,
-  // Adjust deltas for initial zoom (approx 400m diameter view)
+// Default deltas for zoom level (approx 400m diameter view)
+const DEFAULT_ZOOM_DELTAS = {
   latitudeDelta: 0.0922,
   longitudeDelta: 0.0421,
 };
@@ -44,7 +56,7 @@ interface SafeAreaInsets {
 
 // Refactor handleLocationUpdate to use an options object
 interface HandleLocationUpdateOptions {
-  location: { latitude: number; longitude: number };
+  location: GeoPoint;
   dispatch: ReturnType<typeof useAppDispatch>;
   mapRef: React.RefObject<MapView>;
   isMapCenteredOnUser: boolean;
@@ -63,8 +75,8 @@ const handleLocationUpdate = ({
     const newRegion = {
       latitude: location.latitude,
       longitude: location.longitude,
-      latitudeDelta: currentRegion?.latitudeDelta ?? DEFAULT_LOCATION.latitudeDelta,
-      longitudeDelta: currentRegion?.longitudeDelta ?? DEFAULT_LOCATION.longitudeDelta,
+      latitudeDelta: currentRegion?.latitudeDelta ?? DEFAULT_ZOOM_DELTAS.latitudeDelta,
+      longitudeDelta: currentRegion?.longitudeDelta ?? DEFAULT_ZOOM_DELTAS.longitudeDelta,
     };
     mapRef.current.animateToRegion(newRegion, 500);
   }
@@ -151,8 +163,13 @@ function setupLocationListeners({
     'locationUpdate',
     (location: { latitude: number; longitude: number }) => {
       if (isActiveRef.current) {
+        const geoPoint: GeoPoint = {
+          latitude: location.latitude,
+          longitude: location.longitude,
+          timestamp: Date.now(),
+        };
         handleLocationUpdate({
-          location,
+          location: geoPoint,
           dispatch,
           mapRef,
           isMapCenteredOnUser,
@@ -167,8 +184,13 @@ function setupLocationListeners({
     (location: { latitude: number; longitude: number }) => {
       if (isActiveRef.current) {
         logger.info('GPS coordinates injected:', location);
+        const geoPoint: GeoPoint = {
+          latitude: location.latitude,
+          longitude: location.longitude,
+          timestamp: Date.now(),
+        };
         handleLocationUpdate({
-          location,
+          location: geoPoint,
           dispatch,
           mapRef,
           isMapCenteredOnUser,
@@ -209,11 +231,13 @@ async function getInitialLocation({
       accuracy: Location.Accuracy.High,
     });
     if (isActiveRef.current) {
+      const geoPoint: GeoPoint = {
+        latitude: initialLocation.coords.latitude,
+        longitude: initialLocation.coords.longitude,
+        timestamp: Date.now(),
+      };
       handleLocationUpdate({
-        location: {
-          latitude: initialLocation.coords.latitude,
-          longitude: initialLocation.coords.longitude,
-        },
+        location: geoPoint,
         dispatch,
         mapRef,
         isMapCenteredOnUser,
@@ -221,19 +245,19 @@ async function getInitialLocation({
       });
     }
   } catch (error) {
-    logger.warn('Could not get initial location, using default', {
+    logger.warn('Could not get initial location, will wait for location service', {
       component: 'MapScreen',
       action: 'getInitialLocation',
       error: error instanceof Error ? error.message : String(error),
     });
-    if (isActiveRef.current) {
-      dispatch(
-        updateLocation({
-          latitude: DEFAULT_LOCATION.latitude,
-          longitude: DEFAULT_LOCATION.longitude,
-        })
-      );
-    }
+    // Show user-friendly error message if initial location fails
+    PermissionAlert.show({
+      errorMessage:
+        'Unable to get your current location. Please ensure location services are enabled and try again.',
+      onDismiss: () => {
+        logger.info('Initial location error alert dismissed');
+      },
+    });
   }
 }
 
@@ -252,11 +276,13 @@ const processStoredLocationsOnStartup = async (options: {
   // Update Redux with the most recent stored location if available
   const mostRecent = storedLocations[storedLocations.length - 1];
   if (options.isActiveRef.current && mostRecent) {
+    const geoPoint: GeoPoint = {
+      latitude: mostRecent.latitude,
+      longitude: mostRecent.longitude,
+      timestamp: mostRecent.timestamp,
+    };
     handleLocationUpdate({
-      location: {
-        latitude: mostRecent.latitude,
-        longitude: mostRecent.longitude,
-      },
+      location: geoPoint,
       dispatch: options.dispatch,
       mapRef: options.mapRef,
       isMapCenteredOnUser: options.isMapCenteredOnUser,
@@ -298,15 +324,14 @@ const setupUnifiedLocationService = async ({
   try {
     const { foregroundGranted, backgroundGranted } = await requestLocationPermissions();
     if (!foregroundGranted) {
-      logger.warn('Foreground location permission denied, using default location');
-      if (isActiveRef.current) {
-        dispatch(
-          updateLocation({
-            latitude: DEFAULT_LOCATION.latitude,
-            longitude: DEFAULT_LOCATION.longitude,
-          })
-        );
-      }
+      logger.warn('Foreground location permission denied, showing permission alert');
+      PermissionAlert.showCritical({
+        errorMessage:
+          'Location access is required to use FogOfDog. Please enable location permissions in your device settings and restart the app.',
+        onDismiss: () => {
+          logger.info('Permission alert dismissed');
+        },
+      });
       return;
     }
 
@@ -339,36 +364,39 @@ const setupUnifiedLocationService = async ({
     logger.info('Unified location service started with background integration');
   } catch (error) {
     logger.error('Failed to setup unified location service:', error);
-    if (isActiveRef.current) {
-      dispatch(
-        updateLocation({
-          latitude: DEFAULT_LOCATION.latitude,
-          longitude: DEFAULT_LOCATION.longitude,
-        })
-      );
-    }
+    PermissionAlert.show({
+      errorMessage:
+        'Failed to start location services. Please check your location settings and try again.',
+      onDismiss: () => {
+        logger.info('Location error alert dismissed');
+      },
+    });
   }
 };
 
-// Refactor useUnifiedLocationService to use helpers and further reduce line count
+// Configuration interface for location service
+interface LocationServiceConfig {
+  mapRef: React.RefObject<MapView>;
+  isMapCenteredOnUser: boolean;
+  currentRegion: Region | undefined;
+  isTrackingPaused: boolean;
+}
+
+// Refactor useUnifiedLocationService to use helpers and support pause functionality
 const useUnifiedLocationService = (
   dispatch: ReturnType<typeof useAppDispatch>,
-  mapRef: React.RefObject<MapView>,
-  isMapCenteredOnUser: boolean,
-  currentRegion: Region | undefined
+  config: LocationServiceConfig
 ) => {
+  const { mapRef, isMapCenteredOnUser, currentRegion, isTrackingPaused } = config;
+  // Track if location services are currently active
+  const [isLocationActive, setIsLocationActive] = useState(false);
+
+  // Initialize location service once on mount
   useEffect(() => {
     const isActiveRef = { current: true };
 
+    // Set up listeners for location and GPS injection events
     const listeners = setupLocationListeners({
-      isActiveRef,
-      dispatch,
-      mapRef,
-      isMapCenteredOnUser,
-      currentRegion,
-    });
-
-    setupUnifiedLocationService({
       isActiveRef,
       dispatch,
       mapRef,
@@ -379,16 +407,75 @@ const useUnifiedLocationService = (
     return () => {
       isActiveRef.current = false;
       cleanupLocationListeners(listeners);
+    };
+  }, [dispatch, mapRef, isMapCenteredOnUser, currentRegion]);
+
+  // Separate effect to handle start/stop based on pause state
+  useEffect(() => {
+    const startLocationServices = async () => {
+      if (isTrackingPaused || isLocationActive) {
+        return; // Don't start if paused or already active
+      }
+
+      try {
+        logger.info('Starting location services (tracking resumed)');
+        const isActiveRef = { current: true };
+
+        await setupUnifiedLocationService({
+          isActiveRef,
+          dispatch,
+          mapRef,
+          isMapCenteredOnUser,
+          currentRegion,
+        });
+
+        setIsLocationActive(true);
+      } catch (error) {
+        logger.error('Failed to start location services:', error);
+      }
+    };
+
+    const stopLocationServices = async () => {
+      if (!isTrackingPaused || !isLocationActive) {
+        return; // Don't stop if not paused or already inactive
+      }
+
+      try {
+        logger.info('Stopping location services (tracking paused)');
+
+        await Location.stopLocationUpdatesAsync(LOCATION_TASK).catch(() => {
+          /* ignore error if task is already stopped */
+        });
+
+        await BackgroundLocationService.stopBackgroundLocationTracking().catch(() => {
+          /* ignore error if already stopped */
+        });
+
+        setIsLocationActive(false);
+      } catch (error) {
+        logger.error('Failed to stop location services:', error);
+      }
+    };
+
+    if (isTrackingPaused) {
+      stopLocationServices();
+    } else {
+      startLocationServices();
+    }
+  }, [isTrackingPaused, dispatch, mapRef, isMapCenteredOnUser, currentRegion, isLocationActive]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
       Location.stopLocationUpdatesAsync(LOCATION_TASK)?.catch(() => {
         /* ignore error if task is already stopped */
       });
-      // Stop background location tracking
       BackgroundLocationService.stopBackgroundLocationTracking().catch(() => {
         /* ignore error if already stopped */
       });
-      logger.info('Unified location service stopped with background tracking.');
+      logger.info('Unified location service stopped on unmount.');
     };
-  }, [dispatch, mapRef, isMapCenteredOnUser, currentRegion]);
+  }, []);
 };
 
 // Hook for zoom restriction logic
@@ -441,8 +528,8 @@ const createCenterOnUserHandler =
       const userRegion = {
         latitude: currentLocation.latitude,
         longitude: currentLocation.longitude,
-        latitudeDelta: currentRegion?.latitudeDelta ?? DEFAULT_LOCATION.latitudeDelta,
-        longitudeDelta: currentRegion?.longitudeDelta ?? DEFAULT_LOCATION.longitudeDelta,
+        latitudeDelta: currentRegion?.latitudeDelta ?? DEFAULT_ZOOM_DELTAS.latitudeDelta,
+        longitudeDelta: currentRegion?.longitudeDelta ?? DEFAULT_ZOOM_DELTAS.longitudeDelta,
       };
       mapRef.current.animateToRegion(userRegion, 300);
       dispatch(setCenterOnUser(true));
@@ -603,44 +690,76 @@ const MapScreenRenderer = ({
   centerOnUserLocation,
   setMapDimensions,
   memoizedMapRegion,
-}: MapScreenRendererProps) => (
-  <View
-    style={styles.container}
-    testID="map-screen"
-    onLayout={(event) => {
-      const { width, height } = event.nativeEvent.layout;
-      setMapDimensions({ width, height });
-    }}
-  >
-    <MapView
-      ref={mapRef}
-      style={styles.map}
-      initialRegion={DEFAULT_LOCATION}
-      onRegionChange={onRegionChange}
-      onPanDrag={onPanDrag}
-      onRegionChangeComplete={onRegionChangeComplete}
-      showsUserLocation={false}
-      showsMyLocationButton={false}
-      rotateEnabled={false}
-      pitchEnabled={false}
+}: MapScreenRendererProps) => {
+  // Don't render map until we have a real location
+  if (!currentLocation) {
+    return (
+      <View
+        style={styles.container}
+        testID="map-screen"
+        onLayout={(event) => {
+          const { width, height } = event.nativeEvent.layout;
+          setMapDimensions({ width, height });
+        }}
+      >
+        <View style={styles.loadingContainer}>
+          <Text style={styles.loadingText}>Getting your location...</Text>
+        </View>
+        <LocationButton
+          onPress={centerOnUserLocation}
+          isLocationAvailable={false}
+          isCentered={isMapCenteredOnUser}
+          style={getLocationButtonStyle(insets)}
+        />
+      </View>
+    );
+  }
+
+  // Create initial region from current location
+  const initialRegion = {
+    latitude: currentLocation.latitude,
+    longitude: currentLocation.longitude,
+    latitudeDelta: DEFAULT_ZOOM_DELTAS.latitudeDelta,
+    longitudeDelta: DEFAULT_ZOOM_DELTAS.longitudeDelta,
+  };
+
+  return (
+    <View
+      style={styles.container}
+      testID="map-screen"
+      onLayout={(event) => {
+        const { width, height } = event.nativeEvent.layout;
+        setMapDimensions({ width, height });
+      }}
     >
-      {currentLocation && (
+      <MapView
+        ref={mapRef}
+        style={styles.map}
+        initialRegion={initialRegion}
+        onRegionChange={onRegionChange}
+        onPanDrag={onPanDrag}
+        onRegionChangeComplete={onRegionChangeComplete}
+        showsUserLocation={false}
+        showsMyLocationButton={false}
+        rotateEnabled={false}
+        pitchEnabled={false}
+      >
         <Marker coordinate={currentLocation} title="You are here" anchor={{ x: 0.5, y: 0.5 }}>
           <View style={USER_MARKER_STYLE} />
         </Marker>
-      )}
-    </MapView>
+      </MapView>
 
-    {memoizedMapRegion && <FogOverlay mapRegion={memoizedMapRegion} />}
+      {memoizedMapRegion && <FogOverlay mapRegion={memoizedMapRegion} />}
 
-    <LocationButton
-      onPress={centerOnUserLocation}
-      isLocationAvailable={currentLocation !== null}
-      isCentered={isMapCenteredOnUser}
-      style={getLocationButtonStyle(insets)}
-    />
-  </View>
-);
+      <LocationButton
+        onPress={centerOnUserLocation}
+        isLocationAvailable={currentLocation !== null}
+        isCentered={isMapCenteredOnUser}
+        style={getLocationButtonStyle(insets)}
+      />
+    </View>
+  );
+};
 
 // Custom hook for exploration state persistence
 const useExplorationStatePersistence = (explorationState: any) => {
@@ -659,6 +778,7 @@ const useExplorationStatePersistence = (explorationState: any) => {
           path: explorationState.path,
           exploredAreas: explorationState.exploredAreas,
           zoomLevel: explorationState.zoomLevel,
+          isTrackingPaused: explorationState.isTrackingPaused,
         });
 
         logger.info('✅ Exploration state persistence completed successfully', {
@@ -697,6 +817,7 @@ const useExplorationStatePersistence = (explorationState: any) => {
     explorationState.path,
     explorationState.exploredAreas,
     explorationState.zoomLevel,
+    explorationState.isTrackingPaused,
   ]);
 };
 
@@ -735,6 +856,7 @@ const processStoredBackgroundLocations = async (
     updateLocation({
       latitude: mostRecent.latitude,
       longitude: mostRecent.longitude,
+      timestamp: mostRecent.timestamp,
     })
   );
 
@@ -743,8 +865,8 @@ const processStoredBackgroundLocations = async (
     const newRegion = {
       latitude: mostRecent.latitude,
       longitude: mostRecent.longitude,
-      latitudeDelta: currentRegion?.latitudeDelta ?? DEFAULT_LOCATION.latitudeDelta,
-      longitudeDelta: currentRegion?.longitudeDelta ?? DEFAULT_LOCATION.longitudeDelta,
+      latitudeDelta: currentRegion?.latitudeDelta ?? DEFAULT_ZOOM_DELTAS.latitudeDelta,
+      longitudeDelta: currentRegion?.longitudeDelta ?? DEFAULT_ZOOM_DELTAS.longitudeDelta,
     };
     mapRef.current.animateToRegion(newRegion, 500);
   }
@@ -780,16 +902,201 @@ const useAppStateChangeHandler = (
   }, [dispatch, isMapCenteredOnUser, currentRegion, mapRef]);
 };
 
-// Hook for map screen state initialization
+// Helper functions for data clearing
+const performDataClear = async (type: ClearType) => {
+  if (type === 'all') {
+    await DataClearingService.clearAllData();
+  } else {
+    const hours = type === 'hour' ? 1 : 24;
+    const startTime = Date.now() - hours * 60 * 60 * 1000;
+    await DataClearingService.clearDataByTimeRange(startTime);
+  }
+};
+
+const refetchLocationAfterClear = async (
+  type: ClearType,
+  options: {
+    dispatch: ReturnType<typeof useAppDispatch>;
+    mapRef: React.RefObject<MapView>;
+    isMapCenteredOnUser: boolean;
+    currentRegion: Region | undefined;
+  }
+) => {
+  logger.info('Re-fetching current location after data clear', {
+    component: 'MapScreen',
+    action: 'handleClearSelection',
+    clearType: type,
+  });
+
+  const isActiveRef = { current: true };
+  await getInitialLocation({
+    isActiveRef,
+    dispatch: options.dispatch,
+    mapRef: options.mapRef,
+    isMapCenteredOnUser: options.isMapCenteredOnUser,
+    currentRegion: options.currentRegion,
+  });
+};
+
+// Helper function for handling data clear selection
+const createDataClearHandler = (
+  state: {
+    isClearing: boolean;
+    setIsClearing: React.Dispatch<React.SetStateAction<boolean>>;
+    setDataStats: React.Dispatch<React.SetStateAction<DataStats>>;
+    setIsDataClearDialogVisible: React.Dispatch<React.SetStateAction<boolean>>;
+  },
+  config: {
+    dispatch: ReturnType<typeof useAppDispatch>;
+    mapRef: React.RefObject<MapView>;
+    isMapCenteredOnUser: boolean;
+    currentRegion: Region | undefined;
+  }
+) => {
+  const { isClearing, setIsClearing, setDataStats, setIsDataClearDialogVisible } = state;
+  return async (type: ClearType) => {
+    logger.info('handleClearSelection called', {
+      component: 'MapScreen',
+      action: 'handleClearSelection',
+      clearType: type,
+      isClearing: isClearing,
+    });
+
+    if (isClearing) {
+      logger.warn('handleClearSelection blocked - already clearing', {
+        component: 'MapScreen',
+        action: 'handleClearSelection',
+        clearType: type,
+      });
+      return;
+    }
+
+    setIsClearing(true);
+    try {
+      await performDataClear(type);
+      await refetchLocationAfterClear(type, config);
+
+      Alert.alert('Success', 'Exploration data has been cleared.');
+      const newStats = await DataClearingService.getDataStats();
+      setDataStats(newStats);
+    } catch (error) {
+      logger.error('Failed to clear data', { error });
+      Alert.alert('Error', 'Failed to clear exploration data.');
+    } finally {
+      setIsClearing(false);
+      setIsDataClearDialogVisible(false);
+    }
+  };
+};
+
+// Custom hook for data clearing functionality
+const useDataClearing = (
+  dispatch: ReturnType<typeof useAppDispatch>,
+  mapRef: React.RefObject<MapView>,
+  isMapCenteredOnUser: boolean,
+  currentRegion: Region | undefined
+) => {
+  const [dataStats, setDataStats] = useState<DataStats>({
+    totalPoints: 0,
+    recentPoints: 0,
+    oldestDate: null,
+    newestDate: null,
+  });
+  const [isDataClearDialogVisible, setIsDataClearDialogVisible] = useState(false);
+  const [isClearing, setIsClearing] = useState(false);
+
+  const updateDataStats = useCallback(async () => {
+    try {
+      const stats = await DataClearingService.getDataStats();
+      setDataStats(stats);
+    } catch (error) {
+      // Silent fail - stats will be updated next cycle
+      logger.debug('Failed to update data stats, will retry on next cycle', {
+        component: 'MapScreen',
+        action: 'updateDataStats',
+        error: error instanceof Error ? error.message : 'Unknown error',
+      });
+    }
+  }, [setDataStats]);
+
+  // Update data stats periodically (skip in test environment)
+  useEffect(() => {
+    updateDataStats();
+
+    // Only set up interval in non-test environments
+    if (process.env.NODE_ENV !== 'test') {
+      const interval = setInterval(updateDataStats, 30000); // Every 30 seconds
+      return () => clearInterval(interval);
+    }
+
+    // Return empty cleanup function for test environment
+    return () => {};
+  }, [updateDataStats]);
+
+  const handleClearSelection = createDataClearHandler(
+    { isClearing, setIsClearing, setDataStats, setIsDataClearDialogVisible },
+    { dispatch, mapRef, isMapCenteredOnUser, currentRegion }
+  );
+
+  return {
+    dataStats,
+    isDataClearDialogVisible,
+    setIsDataClearDialogVisible,
+    isClearing,
+    handleClearSelection,
+  };
+};
+
+// Clear button component
+const ClearButton: React.FC<{
+  isClearing: boolean;
+  onPress: () => void;
+}> = ({ isClearing, onPress }) => (
+  <TouchableOpacity
+    testID="data-clear-button"
+    style={{
+      position: 'absolute',
+      bottom: 100,
+      right: 20,
+      width: 56,
+      height: 56,
+      borderRadius: 28,
+      backgroundColor: 'white',
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.25,
+      shadowRadius: 3.84,
+      elevation: 5,
+      justifyContent: 'center',
+      alignItems: 'center',
+    }}
+    onPress={onPress}
+    disabled={isClearing}
+  >
+    <Text style={{ fontSize: 24 }}>🗑️</Text>
+  </TouchableOpacity>
+);
+
 const useMapScreenState = () => {
   const dispatch = useAppDispatch();
   const { currentLocation, isMapCenteredOnUser } = useAppSelector((state) => state.exploration);
   const mapRef = useRef<MapView>(null);
-  const [currentRegion, setCurrentRegion] = useState<Region | undefined>(DEFAULT_LOCATION);
+  const [currentRegion, setCurrentRegion] = useState<Region | undefined>(undefined);
   const [mapDimensions, setMapDimensions] = useState({
     width: Dimensions.get('window').width,
     height: Dimensions.get('window').height,
   });
+
+  // Data clearing state
+  const [dataStats, setDataStats] = useState<DataStats>({
+    totalPoints: 0,
+    recentPoints: 0,
+    oldestDate: null,
+    newestDate: null,
+  });
+  const [isDataClearDialogVisible, setIsDataClearDialogVisible] = useState(false);
+
+  const [isClearing, setIsClearing] = useState(false);
 
   // Memoize the mapRegion object to prevent unnecessary FogOverlay re-renders
   const memoizedMapRegion = useMemo(() => {
@@ -811,7 +1118,56 @@ const useMapScreenState = () => {
     setCurrentRegion,
     setMapDimensions,
     memoizedMapRegion,
+    dataStats,
+    setDataStats,
+    isDataClearDialogVisible,
+    setIsDataClearDialogVisible,
+    isClearing,
+    setIsClearing,
   };
+};
+
+// Configuration for MapScreen services
+interface MapScreenServicesConfig {
+  mapRef: React.RefObject<MapView>;
+  isMapCenteredOnUser: boolean;
+  currentRegion: Region | undefined;
+  isTrackingPaused: boolean;
+  explorationState: any;
+}
+
+// Helper hook to set up all MapScreen services and effects
+const useMapScreenServices = (
+  dispatch: ReturnType<typeof useAppDispatch>,
+  config: MapScreenServicesConfig
+) => {
+  const { mapRef, isMapCenteredOnUser, currentRegion, isTrackingPaused, explorationState } = config;
+  // Use simplified unified location service
+  useUnifiedLocationService(dispatch, {
+    mapRef,
+    isMapCenteredOnUser,
+    currentRegion,
+    isTrackingPaused,
+  });
+  useZoomRestriction(currentRegion, mapRef);
+
+  // Persist exploration state whenever it changes
+  useExplorationStatePersistence(explorationState);
+
+  // Start GPS injection check only once on mount
+  useGPSInjectionService();
+
+  // Add AppState listener to process stored locations when app becomes active
+  useAppStateChangeHandler(dispatch, isMapCenteredOnUser, currentRegion, mapRef);
+};
+
+// Helper hook for MapScreen Redux state
+const useMapScreenReduxState = () => {
+  const explorationState = useAppSelector((state) => state.exploration);
+  const isTrackingPaused = useAppSelector((state) => state.exploration.isTrackingPaused);
+  const insets = useSafeAreaInsets();
+
+  return { explorationState, isTrackingPaused, insets };
 };
 
 export const MapScreen = () => {
@@ -826,23 +1182,24 @@ export const MapScreen = () => {
     memoizedMapRegion,
   } = useMapScreenState();
 
-  const insets = useSafeAreaInsets();
+  const {
+    dataStats,
+    isDataClearDialogVisible,
+    setIsDataClearDialogVisible,
+    isClearing,
+    handleClearSelection,
+  } = useDataClearing(dispatch, mapRef, isMapCenteredOnUser, currentRegion);
 
-  // Get exploration state for persistence
-  const explorationState = useAppSelector((state) => state.exploration);
+  const { explorationState, isTrackingPaused, insets } = useMapScreenReduxState();
 
-  // Use simplified unified location service
-  useUnifiedLocationService(dispatch, mapRef, isMapCenteredOnUser, currentRegion);
-  useZoomRestriction(currentRegion, mapRef);
-
-  // Persist exploration state whenever it changes
-  useExplorationStatePersistence(explorationState);
-
-  // Start GPS injection check only once on mount
-  useGPSInjectionService();
-
-  // Add AppState listener to process stored locations when app becomes active
-  useAppStateChangeHandler(dispatch, isMapCenteredOnUser, currentRegion, mapRef);
+  // Set up all services and effects
+  useMapScreenServices(dispatch, {
+    mapRef,
+    isMapCenteredOnUser,
+    currentRegion,
+    isTrackingPaused,
+    explorationState,
+  });
 
   const { centerOnUserLocation, onRegionChange, onPanDrag, onRegionChangeComplete } =
     useMapEventHandlers({
@@ -855,18 +1212,44 @@ export const MapScreen = () => {
     });
 
   return (
-    <MapScreenRenderer
-      mapRef={mapRef}
-      currentLocation={currentLocation}
-      insets={insets}
-      isMapCenteredOnUser={isMapCenteredOnUser}
-      onRegionChange={onRegionChange}
-      onPanDrag={onPanDrag}
-      onRegionChangeComplete={onRegionChangeComplete}
-      centerOnUserLocation={centerOnUserLocation}
-      setMapDimensions={setMapDimensions}
-      memoizedMapRegion={memoizedMapRegion}
-    />
+    <>
+      <MapScreenRenderer
+        mapRef={mapRef}
+        currentLocation={currentLocation}
+        insets={insets}
+        isMapCenteredOnUser={isMapCenteredOnUser}
+        onRegionChange={onRegionChange}
+        onPanDrag={onPanDrag}
+        onRegionChangeComplete={onRegionChangeComplete}
+        centerOnUserLocation={centerOnUserLocation}
+        setMapDimensions={setMapDimensions}
+        memoizedMapRegion={memoizedMapRegion}
+      />
+
+      {/* Tracking Control Button */}
+      <TrackingControlButton
+        style={{
+          position: 'absolute',
+          bottom: 160, // Above the data clear button
+          left: 20,
+          right: 20,
+        }}
+      />
+
+      {/* Data Clear Button */}
+      <ClearButton isClearing={isClearing} onPress={() => setIsDataClearDialogVisible(true)} />
+
+      {/* Data Clear Selection Dialog */}
+      <DataClearSelectionDialog
+        visible={isDataClearDialogVisible}
+        dataStats={dataStats}
+        onClear={handleClearSelection}
+        onCancel={() => {
+          setIsDataClearDialogVisible(false);
+        }}
+        isClearing={isClearing}
+      />
+    </>
   );
 };
 
@@ -876,5 +1259,15 @@ const styles = StyleSheet.create({
   },
   map: {
     ...StyleSheet.absoluteFillObject, // Make map fill container
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#f0f0f0', // Light background for loading
+  },
+  loadingText: {
+    fontSize: 18,
+    color: '#333',
   },
 });

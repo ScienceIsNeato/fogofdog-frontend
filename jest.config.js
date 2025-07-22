@@ -1,4 +1,4 @@
-module.exports = {
+ module.exports = {
   preset: 'react-native',
   roots: ['<rootDir>/src'],
   testMatch: [
@@ -49,6 +49,11 @@ module.exports = {
     '^expo-location$': '<rootDir>/__mocks__/expo-location.ts',
     '^expo-modules-core$': '<rootDir>/__mocks__/expo-modules-core.ts',
     '^expo-task-manager$': '<rootDir>/__mocks__/expo-task-manager.ts',
+    '^expo-constants$': '<rootDir>/__mocks__/expo-constants.ts',
+    '^expo-asset$': '<rootDir>/__mocks__/expo-asset.ts',
+    '^expo-font$': '<rootDir>/__mocks__/expo-font.ts',
+    '^@expo/vector-icons$': '<rootDir>/__mocks__/@expo/vector-icons.ts',
+    '^expo-haptics$': '<rootDir>/__mocks__/expo-haptics.ts',
     '^@shopify/react-native-skia$': '<rootDir>/__mocks__/@shopify/react-native-skia.ts',
   },
   testTimeout: 30000,

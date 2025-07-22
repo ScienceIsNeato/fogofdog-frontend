@@ -2,6 +2,22 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with this React Native/Expo frontend project.
 
+## Quick Start Commands
+
+```bash
+# Essential commands for immediate productivity
+cd /Users/pacey/Documents/SourceCode/fogofdog-frontend
+
+# Start development
+npm start                    # Start Expo dev server
+npm test                     # Run unit tests  
+npm run quality:check       # Run all quality checks
+npm run lint:strict         # Zero-warnings linting
+
+# Before committing
+./scripts/maintainAIbility-gate.sh  # Full quality gate check
+```
+
 ## Important Notes
 
 ### Cursor Rules Integration
@@ -25,94 +41,57 @@ If cursor-rules are present, they take precedence and should be followed alongsi
 ✅ **Background GPS**: Implemented and tested with location tracking
 ✅ **Integration Testing**: E2E tests with Detox and visual validation  
 
-## Common Commands
+## Development Commands
 
-### Frontend (React Native/Expo)
+### Core Development
 
 ```bash
-# Navigate to project directory
-cd /Users/pacey/Documents/SourceCode/fogofdog-frontend
+# Start development
+npm start                           # Start Expo development server
+npm start -- --clear               # Start with cache clearing
+npm run ios                        # Run on iOS simulator  
+npx expo-doctor                    # Check project health
+```
 
-# Install dependencies
-npm install
+### Testing
 
-# Start Expo development server
-npx expo start
+```bash
+# Unit tests
+npm test                           # Run all tests (watch mode)
+npm run test:ci                    # Run tests in CI mode (non-interactive)
+npm run test:coverage             # Run with coverage report
 
-# Start with cache clearing
-npx expo start --clear
+# E2E tests (Maestro)
+./scripts/run-integration-tests.sh .maestro/        # All integration tests
+./scripts/run-integration-tests.sh .maestro/smoke-test.yaml  # Specific test
 
-# Run on iOS simulator
-npx expo run:ios
+# Specific test patterns
+npm test -- src/components/FogOverlay.test.tsx     # Run specific file
+npm test -- --testNamePattern="should render"      # Run by pattern
+npm run test:update-snapshots                      # Update snapshots
+```
 
-# Run tests
-npm test
+### Quality & Linting
 
-# Run tests in CI mode (non-interactive)
-npm run test:ci
+```bash
+# Quality gate (recommended before commits)
+./scripts/maintainAIbility-gate.sh                 # Full quality check
+npm run quality:check                              # Core quality checks
 
-# Run E2E tests
-npm run test:e2e
+# Individual checks  
+npm run lint:strict                                # Zero-warnings linting
+npm run lint:fix                                   # Auto-fix lint issues
+npm run type-check                                 # TypeScript validation
+npm run format:fix                                 # Format code with Prettier
+```
 
-# Run Background GPS integration tests
-npm run test:e2e:background
+### Build & Deployment
 
-# Run Fog correlation tests  
-npm run test:e2e:fog
-
-# Run full E2E CI suite
-npm run test:e2e:ci
-
-# Run integration tests with full automation
-./scripts/run-integration-tests.sh
-
-# Demo the testing framework capabilities
-./scripts/test-framework-demo.sh
-
-# Verify framework setup
-./scripts/verify-integration-tests.sh
-
-# Run tests with coverage
-npm run test:coverage
-
-# Run specific test file
-npm test -- components/FogOverlay.test.tsx
-
-# Run specific test pattern
-npm test -- --testNamePattern="should render"
-
-# Update test snapshots
-npm run test:update-snapshots
-
-# Lint code
-npm run lint
-
-# Fix lint errors automatically
-npm run lint:fix
-
-# Strict linting (zero warnings)
-npm run lint:strict
-
-# Type checking
-npm run type-check
-
-# Quality gate (comprehensive checks)
-npm run quality:check
-
-# Fix code formatting
-npm run format:fix
-
-# Build for TestFlight
-npx eas build --platform ios --profile testflight
-
-# Submit to TestFlight
-npx eas submit --platform ios --latest
-
-# Build for internal testing
-npx eas build --platform ios --profile device
-
-# Check project health
-npx expo-doctor
+```bash
+# EAS builds
+npx eas build --platform ios --profile testflight  # TestFlight build
+npx eas build --platform ios --profile device      # Internal testing
+npx eas submit --platform ios --latest             # Submit to TestFlight
 ```
 
 ## Architecture Overview
@@ -277,13 +256,15 @@ fogofdog-frontend/
 
 1. **Unit/Integration Tests**:
    - Use Jest and React Testing Library
-   - Tests are co-located with components or in `__tests__` directories
-   - Mock location services and map components appropriately
+   - Tests in `__tests__` directories alongside components
+   - 80% coverage threshold enforced (statements, functions, lines)
+   - Mock all Expo modules using files in `__mocks__/`
 
 2. **E2E Tests**:
-   - Use Detox for end-to-end testing
-   - Run tests against both debug and release builds
-   - Visual validation uses PNG analysis to verify fog holes
+   - Use Maestro for end-to-end testing (`.maestro/` directory)
+   - Always use `./scripts/run-integration-tests.sh` wrapper (never run maestro directly)
+   - Tests include: login flow, GPS tracking, fog rendering validation
+   - Visual validation through screenshot analysis
 
 ## Build Configuration
 
@@ -295,11 +276,12 @@ fogofdog-frontend/
 - **development**: Development client with simulator support
 - **preview**: Internal distribution for preview builds
 
-### Dependencies
+### Dependencies & Package Management
 
 - **Exact Versions**: All dependencies use exact versions (no wildcards)
-- **expo-doctor**: All 15 checks must pass before builds
-- **Legacy Peer Deps**: Use `--legacy-peer-deps` for React version conflicts
+- **expo-doctor**: All checks must pass before builds
+- **Legacy Peer Deps**: Use `--legacy-peer-deps` for React version conflicts  
+- **Critical Dependencies**: React Native 0.76.9, Expo SDK 52, React Native Skia 1.5.0
 
 ### Quality Assurance
 
@@ -324,13 +306,20 @@ fogofdog-frontend/
 ## Important Reminders
 
 ### Before Making Changes
-1. **Read STATUS.md** - Always check current project status
-2. **Run Tests First** - Verify current state before modifications
-3. **Use Absolute Paths** - All commands must use full paths from project root
-4. **Check Quality Gate** - Run `npm run quality:check` before commits
+1. **Read STATUS.md** - Always check current project status first
+2. **Run baseline tests** - `npm test` to verify current state
+3. **Use absolute paths** - Always use `/Users/pacey/Documents/SourceCode/fogofdog-frontend`
+4. **Check current quality** - Run `npm run quality:check`
 
 ### After Making Changes  
-1. **Verify Tests Pass** - Run relevant test suite after each change
-2. **Check Type Safety** - Run `npm run type-check` for TypeScript validation
-3. **Validate Linting** - Ensure `npm run lint:strict` passes with zero warnings
-4. **Update STATUS.md** - Document significant changes and current state
+1. **Run affected tests** - Test components/areas you modified
+2. **Type check** - `npm run type-check` for TypeScript validation
+3. **Lint validation** - `npm run lint:strict` must pass with zero warnings
+4. **Quality gate** - `./scripts/maintainAIbility-gate.sh` before commits
+5. **Update STATUS.md** - Document significant changes
+
+### Working with Tests
+- **Never skip tests** - Always run tests for modified code
+- **Fix test failures immediately** - Don't ignore failing tests
+- **Update snapshots carefully** - Only when UI changes are intentional
+- **Maintain 80% coverage** - Required for all new code

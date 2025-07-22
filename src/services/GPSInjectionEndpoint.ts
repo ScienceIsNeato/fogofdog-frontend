@@ -58,15 +58,9 @@ export class GPSInjectionEndpoint {
    */
   static async injectCoordinates(coordinates: StoredLocationData[]): Promise<void> {
     try {
-      // Convert to simple coordinates format for the simplified service
-      const simpleCoords = coordinates.map((coord) => ({
-        latitude: coord.latitude,
-        longitude: coord.longitude,
-      }));
-
-      // Store in AsyncStorage for the simplified GPS injection service to pick up
-      await AsyncStorage.setItem('@fogofdog:gps_injection_data', JSON.stringify(simpleCoords));
-      logger.info(`Injected ${coordinates.length} GPS coordinates`, {
+      // Store the full StoredLocationData array in AsyncStorage
+      await AsyncStorage.setItem('@fogofdog:gps_injection_data', JSON.stringify(coordinates));
+      logger.info(`Injected ${coordinates.length} GPS coordinates with full data`, {
         component: 'GPSInjectionEndpoint',
         action: 'injectCoordinates',
         count: coordinates.length,

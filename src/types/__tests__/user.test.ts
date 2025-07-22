@@ -88,6 +88,7 @@ describe('User Types', () => {
       const location: GeoPoint = {
         latitude: 37.7749,
         longitude: -122.4194,
+        timestamp: Date.now(),
       };
 
       expect(location.latitude).toBe(37.7749);
@@ -98,11 +99,13 @@ describe('User Types', () => {
       const northPole: GeoPoint = {
         latitude: 90,
         longitude: 0,
+        timestamp: Date.now(),
       };
 
       const southPole: GeoPoint = {
         latitude: -90,
         longitude: 180,
+        timestamp: Date.now(),
       };
 
       expect(northPole.latitude).toBe(90);
@@ -115,6 +118,7 @@ describe('User Types', () => {
       const preciseLocation: GeoPoint = {
         latitude: 40.712775,
         longitude: -74.005973,
+        timestamp: Date.now(),
       };
 
       expect(preciseLocation.latitude).toBe(40.712775);
@@ -127,6 +131,7 @@ describe('User Types', () => {
       const userLocation: GeoPoint = {
         latitude: 51.5074,
         longitude: -0.1278,
+        timestamp: Date.now(),
       };
 
       const userWithLocation = {

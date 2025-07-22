@@ -97,6 +97,7 @@ export class LocationStorageService {
     return locations.map((location) => ({
       latitude: location.latitude,
       longitude: location.longitude,
+      timestamp: location.timestamp,
     }));
   }
 }

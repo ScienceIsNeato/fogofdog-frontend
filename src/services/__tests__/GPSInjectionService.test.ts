@@ -38,9 +38,10 @@ describe('GPSInjectionService', () => {
     });
 
     it('should process GPS injection data and emit coordinates', async () => {
+      const fixedTimestamp = 1625097600000; // July 1, 2021 00:00:00 UTC
       const coordinates = [
-        { latitude: 37.7749, longitude: -122.4194 },
-        { latitude: 37.7849, longitude: -122.4094 },
+        { latitude: 37.7749, longitude: -122.4194, timestamp: fixedTimestamp },
+        { latitude: 37.7849, longitude: -122.4094, timestamp: fixedTimestamp + 1000 },
       ];
 
       mockAsyncStorage.getItem.mockResolvedValue(JSON.stringify(coordinates));
