@@ -10,7 +10,13 @@ import {
   Alert,
 } from 'react-native';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
-import { updateLocation, updateZoom, setCenterOnUser } from '../../store/slices/explorationSlice';
+import {
+  updateLocation,
+  updateZoom,
+  setCenterOnUser,
+  toggleFollowMode,
+  setFollowMode,
+} from '../../store/slices/explorationSlice';
 import MapView, { Marker, Region } from 'react-native-maps';
 import * as Location from 'expo-location';
 import * as TaskManager from 'expo-task-manager';
@@ -60,6 +66,7 @@ interface HandleLocationUpdateOptions {
   dispatch: ReturnType<typeof useAppDispatch>;
   mapRef: React.RefObject<MapView>;
   isMapCenteredOnUser: boolean;
+  isFollowModeActive: boolean;
   currentRegion: Region | undefined;
 }
 
@@ -68,10 +75,15 @@ const handleLocationUpdate = ({
   dispatch,
   mapRef,
   isMapCenteredOnUser,
+  isFollowModeActive,
   currentRegion,
 }: HandleLocationUpdateOptions) => {
   dispatch(updateLocation(location));
-  if (isMapCenteredOnUser && mapRef.current) {
+
+  // Auto-center map if follow mode is active OR if user clicked center once
+  const shouldCenterMap = isFollowModeActive || isMapCenteredOnUser;
+
+  if (shouldCenterMap && mapRef.current) {
     const newRegion = {
       latitude: location.latitude,
       longitude: location.longitude,
@@ -151,12 +163,14 @@ function setupLocationListeners({
   dispatch,
   mapRef,
   isMapCenteredOnUser,
+  isFollowModeActive,
   currentRegion,
 }: {
   isActiveRef: { current: boolean };
   dispatch: ReturnType<typeof useAppDispatch>;
   mapRef: React.RefObject<MapView>;
   isMapCenteredOnUser: boolean;
+  isFollowModeActive: boolean;
   currentRegion: Region | undefined;
 }) {
   const locationUpdateListener = DeviceEventEmitter.addListener(
@@ -173,6 +187,7 @@ function setupLocationListeners({
           dispatch,
           mapRef,
           isMapCenteredOnUser,
+          isFollowModeActive,
           currentRegion,
         });
       }
@@ -194,6 +209,7 @@ function setupLocationListeners({
           dispatch,
           mapRef,
           isMapCenteredOnUser,
+          isFollowModeActive,
           currentRegion,
         });
       }
@@ -218,12 +234,14 @@ async function getInitialLocation({
   dispatch,
   mapRef,
   isMapCenteredOnUser,
+  isFollowModeActive,
   currentRegion,
 }: {
   isActiveRef: { current: boolean };
   dispatch: ReturnType<typeof useAppDispatch>;
   mapRef: React.RefObject<MapView>;
   isMapCenteredOnUser: boolean;
+  isFollowModeActive: boolean;
   currentRegion: Region | undefined;
 }) {
   try {
@@ -241,6 +259,7 @@ async function getInitialLocation({
         dispatch,
         mapRef,
         isMapCenteredOnUser,
+        isFollowModeActive,
         currentRegion,
       });
     }
@@ -267,6 +286,7 @@ const processStoredLocationsOnStartup = async (options: {
   dispatch: ReturnType<typeof useAppDispatch>;
   mapRef: React.RefObject<MapView>;
   isMapCenteredOnUser: boolean;
+  isFollowModeActive: boolean;
   currentRegion: Region | undefined;
 }) => {
   const storedLocations = await BackgroundLocationService.processStoredLocations();
@@ -286,6 +306,7 @@ const processStoredLocationsOnStartup = async (options: {
       dispatch: options.dispatch,
       mapRef: options.mapRef,
       isMapCenteredOnUser: options.isMapCenteredOnUser,
+      isFollowModeActive: options.isFollowModeActive,
       currentRegion: options.currentRegion,
     });
   }
@@ -313,12 +334,14 @@ const setupUnifiedLocationService = async ({
   dispatch,
   mapRef,
   isMapCenteredOnUser,
+  isFollowModeActive,
   currentRegion,
 }: {
   isActiveRef: { current: boolean };
   dispatch: ReturnType<typeof useAppDispatch>;
   mapRef: React.RefObject<MapView>;
   isMapCenteredOnUser: boolean;
+  isFollowModeActive: boolean;
   currentRegion: Region | undefined;
 }) => {
   try {
@@ -351,6 +374,7 @@ const setupUnifiedLocationService = async ({
       dispatch,
       mapRef,
       isMapCenteredOnUser,
+      isFollowModeActive,
       currentRegion,
     });
 
@@ -359,6 +383,7 @@ const setupUnifiedLocationService = async ({
       dispatch,
       mapRef,
       isMapCenteredOnUser,
+      isFollowModeActive,
       currentRegion,
     });
     logger.info('Unified location service started with background integration');
@@ -378,16 +403,65 @@ const setupUnifiedLocationService = async ({
 interface LocationServiceConfig {
   mapRef: React.RefObject<MapView>;
   isMapCenteredOnUser: boolean;
+  isFollowModeActive: boolean;
   currentRegion: Region | undefined;
   isTrackingPaused: boolean;
 }
+
+// Helper functions for location service management
+const createStartLocationServices =
+  (
+    dispatch: ReturnType<typeof useAppDispatch>,
+    config: LocationServiceConfig,
+    setIsLocationActive: (active: boolean) => void
+  ) =>
+  async () => {
+    const { mapRef, isMapCenteredOnUser, isFollowModeActive, currentRegion } = config;
+
+    try {
+      logger.info('Starting location services (tracking resumed)');
+      const isActiveRef = { current: true };
+
+      await setupUnifiedLocationService({
+        isActiveRef,
+        dispatch,
+        mapRef,
+        isMapCenteredOnUser,
+        isFollowModeActive,
+        currentRegion,
+      });
+
+      setIsLocationActive(true);
+    } catch (error) {
+      logger.error('Failed to start location services:', error);
+    }
+  };
+
+const createStopLocationServices = (setIsLocationActive: (active: boolean) => void) => async () => {
+  try {
+    logger.info('Stopping location services (tracking paused)');
+
+    await Location.stopLocationUpdatesAsync(LOCATION_TASK).catch(() => {
+      /* ignore error if task is already stopped */
+    });
+
+    await BackgroundLocationService.stopBackgroundLocationTracking().catch(() => {
+      /* ignore error if already stopped */
+    });
+
+    setIsLocationActive(false);
+  } catch (error) {
+    logger.error('Failed to stop location services:', error);
+  }
+};
 
 // Refactor useUnifiedLocationService to use helpers and support pause functionality
 const useUnifiedLocationService = (
   dispatch: ReturnType<typeof useAppDispatch>,
   config: LocationServiceConfig
 ) => {
-  const { mapRef, isMapCenteredOnUser, currentRegion, isTrackingPaused } = config;
+  const { mapRef, isMapCenteredOnUser, isFollowModeActive, currentRegion, isTrackingPaused } =
+    config;
   // Track if location services are currently active
   const [isLocationActive, setIsLocationActive] = useState(false);
 
@@ -401,6 +475,7 @@ const useUnifiedLocationService = (
       dispatch,
       mapRef,
       isMapCenteredOnUser,
+      isFollowModeActive,
       currentRegion,
     });
 
@@ -408,61 +483,27 @@ const useUnifiedLocationService = (
       isActiveRef.current = false;
       cleanupLocationListeners(listeners);
     };
-  }, [dispatch, mapRef, isMapCenteredOnUser, currentRegion]);
+  }, [dispatch, mapRef, isMapCenteredOnUser, isFollowModeActive, currentRegion]);
 
   // Separate effect to handle start/stop based on pause state
   useEffect(() => {
-    const startLocationServices = async () => {
-      if (isTrackingPaused || isLocationActive) {
-        return; // Don't start if paused or already active
-      }
+    const startLocationServices = createStartLocationServices(
+      dispatch,
+      config,
+      setIsLocationActive
+    );
+    const stopLocationServices = createStopLocationServices(setIsLocationActive);
 
-      try {
-        logger.info('Starting location services (tracking resumed)');
-        const isActiveRef = { current: true };
-
-        await setupUnifiedLocationService({
-          isActiveRef,
-          dispatch,
-          mapRef,
-          isMapCenteredOnUser,
-          currentRegion,
-        });
-
-        setIsLocationActive(true);
-      } catch (error) {
-        logger.error('Failed to start location services:', error);
+    const handleLocationServiceToggle = async () => {
+      if (isTrackingPaused && isLocationActive) {
+        await stopLocationServices();
+      } else if (!isTrackingPaused && !isLocationActive) {
+        await startLocationServices();
       }
     };
 
-    const stopLocationServices = async () => {
-      if (!isTrackingPaused || !isLocationActive) {
-        return; // Don't stop if not paused or already inactive
-      }
-
-      try {
-        logger.info('Stopping location services (tracking paused)');
-
-        await Location.stopLocationUpdatesAsync(LOCATION_TASK).catch(() => {
-          /* ignore error if task is already stopped */
-        });
-
-        await BackgroundLocationService.stopBackgroundLocationTracking().catch(() => {
-          /* ignore error if already stopped */
-        });
-
-        setIsLocationActive(false);
-      } catch (error) {
-        logger.error('Failed to stop location services:', error);
-      }
-    };
-
-    if (isTrackingPaused) {
-      stopLocationServices();
-    } else {
-      startLocationServices();
-    }
-  }, [isTrackingPaused, dispatch, mapRef, isMapCenteredOnUser, currentRegion, isLocationActive]);
+    handleLocationServiceToggle();
+  }, [isTrackingPaused, dispatch, config, isLocationActive]);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -517,14 +558,20 @@ const createZoomHandler = (dispatch: ReturnType<typeof useAppDispatch>) => (newZ
 };
 
 const createCenterOnUserHandler =
-  (
-    currentLocation: LocationCoordinate | null,
-    currentRegion: Region | undefined,
-    mapRef: React.RefObject<MapView>,
-    dispatch: ReturnType<typeof useAppDispatch>
-  ) =>
+  (options: {
+    currentLocation: LocationCoordinate | null;
+    currentRegion: Region | undefined;
+    mapRef: React.RefObject<MapView>;
+    dispatch: ReturnType<typeof useAppDispatch>;
+    isFollowModeActive: boolean;
+  }) =>
   () => {
-    if (currentLocation && mapRef.current) {
+    const { currentLocation, currentRegion, mapRef, dispatch, isFollowModeActive } = options;
+    // Toggle follow mode
+    dispatch(toggleFollowMode());
+
+    // If follow mode was OFF and is now ON, center the map immediately
+    if (!isFollowModeActive && currentLocation && mapRef.current) {
       const userRegion = {
         latitude: currentLocation.latitude,
         longitude: currentLocation.longitude,
@@ -540,28 +587,26 @@ const createCenterOnUserHandler =
 function handleRegionChange({
   region,
   setCurrentRegion,
-  isMapCenteredOnUser,
-  currentLocation,
-  dispatch,
 }: {
   region: Region;
   setCurrentRegion: (region: Region) => void;
-  isMapCenteredOnUser: boolean;
-  currentLocation: LocationCoordinate | null;
-  dispatch: ReturnType<typeof useAppDispatch>;
 }) {
+  // Only update region state - don't detect user interaction here
+  // User interaction is properly detected in handlePanDrag
   setCurrentRegion(region);
-  if (isMapCenteredOnUser && currentLocation) {
-    const latDiff = Math.abs(region.latitude - currentLocation.latitude);
-    const lonDiff = Math.abs(region.longitude - currentLocation.longitude);
-    const threshold = Math.min(region.latitudeDelta, region.longitudeDelta) * 0.1;
-    if (latDiff > threshold || lonDiff > threshold) {
-      dispatch(setCenterOnUser(false));
-    }
-  }
 }
 
-function handlePanDrag({ mapRef }: { mapRef: React.RefObject<MapView> }) {
+function handlePanDrag({
+  mapRef,
+  dispatch,
+}: {
+  mapRef: React.RefObject<MapView>;
+  dispatch: ReturnType<typeof useAppDispatch>;
+}) {
+  // User is panning/dragging - disable both centered state and follow mode
+  dispatch(setCenterOnUser(false));
+  dispatch(setFollowMode(false));
+
   // Handle camera position update asynchronously
   mapRef.current
     ?.getCamera()
@@ -605,36 +650,29 @@ const useMapEventHandlers = (options: {
   currentLocation: LocationCoordinate | null;
   currentRegion: Region | undefined;
   isMapCenteredOnUser: boolean;
+  isFollowModeActive: boolean;
   mapRef: React.RefObject<MapView>;
   setCurrentRegion: (region: Region) => void;
 }) => {
-  const {
-    dispatch,
-    currentLocation,
-    currentRegion,
-    isMapCenteredOnUser,
-    mapRef,
-    setCurrentRegion,
-  } = options;
+  const { dispatch, currentLocation, currentRegion, isFollowModeActive, mapRef, setCurrentRegion } =
+    options;
 
   const handleZoomChange = createZoomHandler(dispatch);
-  const centerOnUserLocation = createCenterOnUserHandler(
+  const centerOnUserLocation = createCenterOnUserHandler({
     currentLocation,
     currentRegion,
     mapRef,
-    dispatch
-  );
+    dispatch,
+    isFollowModeActive,
+  });
 
   const onRegionChange = (region: Region) =>
     handleRegionChange({
       region,
       setCurrentRegion,
-      isMapCenteredOnUser,
-      currentLocation,
-      dispatch,
     });
 
-  const onPanDrag = () => handlePanDrag({ mapRef });
+  const onPanDrag = () => handlePanDrag({ mapRef, dispatch });
 
   const onRegionChangeComplete = (region: Region) =>
     handleRegionChangeComplete({ region, setCurrentRegion, handleZoomChange });
@@ -670,6 +708,7 @@ interface MapScreenRendererProps {
   currentLocation: LocationCoordinate | null;
   insets: SafeAreaInsets;
   isMapCenteredOnUser: boolean;
+  isFollowModeActive: boolean;
   onRegionChange: (region: Region) => void;
   onPanDrag: () => void;
   onRegionChangeComplete: (region: Region) => void;
@@ -684,6 +723,7 @@ const MapScreenRenderer = ({
   currentLocation,
   insets,
   isMapCenteredOnUser,
+  isFollowModeActive,
   onRegionChange,
   onPanDrag,
   onRegionChangeComplete,
@@ -707,8 +747,8 @@ const MapScreenRenderer = ({
         </View>
         <LocationButton
           onPress={centerOnUserLocation}
-          isLocationAvailable={false}
           isCentered={isMapCenteredOnUser}
+          isFollowModeActive={isFollowModeActive}
           style={getLocationButtonStyle(insets)}
         />
       </View>
@@ -753,8 +793,8 @@ const MapScreenRenderer = ({
 
       <LocationButton
         onPress={centerOnUserLocation}
-        isLocationAvailable={currentLocation !== null}
         isCentered={isMapCenteredOnUser}
+        isFollowModeActive={isFollowModeActive}
         style={getLocationButtonStyle(insets)}
       />
     </View>
@@ -934,6 +974,7 @@ const refetchLocationAfterClear = async (
     dispatch: options.dispatch,
     mapRef: options.mapRef,
     isMapCenteredOnUser: options.isMapCenteredOnUser,
+    isFollowModeActive: false, // Don't trigger follow mode after data clear
     currentRegion: options.currentRegion,
   });
 };
@@ -1079,7 +1120,9 @@ const ClearButton: React.FC<{
 
 const useMapScreenState = () => {
   const dispatch = useAppDispatch();
-  const { currentLocation, isMapCenteredOnUser } = useAppSelector((state) => state.exploration);
+  const { currentLocation, isMapCenteredOnUser, isFollowModeActive } = useAppSelector(
+    (state) => state.exploration
+  );
   const mapRef = useRef<MapView>(null);
   const [currentRegion, setCurrentRegion] = useState<Region | undefined>(undefined);
   const [mapDimensions, setMapDimensions] = useState({
@@ -1113,6 +1156,7 @@ const useMapScreenState = () => {
     dispatch,
     currentLocation,
     isMapCenteredOnUser,
+    isFollowModeActive,
     mapRef,
     currentRegion,
     setCurrentRegion,
@@ -1131,6 +1175,7 @@ const useMapScreenState = () => {
 interface MapScreenServicesConfig {
   mapRef: React.RefObject<MapView>;
   isMapCenteredOnUser: boolean;
+  isFollowModeActive: boolean;
   currentRegion: Region | undefined;
   isTrackingPaused: boolean;
   explorationState: any;
@@ -1141,11 +1186,19 @@ const useMapScreenServices = (
   dispatch: ReturnType<typeof useAppDispatch>,
   config: MapScreenServicesConfig
 ) => {
-  const { mapRef, isMapCenteredOnUser, currentRegion, isTrackingPaused, explorationState } = config;
+  const {
+    mapRef,
+    isMapCenteredOnUser,
+    isFollowModeActive,
+    currentRegion,
+    isTrackingPaused,
+    explorationState,
+  } = config;
   // Use simplified unified location service
   useUnifiedLocationService(dispatch, {
     mapRef,
     isMapCenteredOnUser,
+    isFollowModeActive,
     currentRegion,
     isTrackingPaused,
   });
@@ -1175,6 +1228,7 @@ export const MapScreen = () => {
     dispatch,
     currentLocation,
     isMapCenteredOnUser,
+    isFollowModeActive,
     mapRef,
     currentRegion,
     setCurrentRegion,
@@ -1196,6 +1250,7 @@ export const MapScreen = () => {
   useMapScreenServices(dispatch, {
     mapRef,
     isMapCenteredOnUser,
+    isFollowModeActive,
     currentRegion,
     isTrackingPaused,
     explorationState,
@@ -1207,6 +1262,7 @@ export const MapScreen = () => {
       currentLocation,
       currentRegion,
       isMapCenteredOnUser,
+      isFollowModeActive,
       mapRef,
       setCurrentRegion,
     });
@@ -1218,6 +1274,7 @@ export const MapScreen = () => {
         currentLocation={currentLocation}
         insets={insets}
         isMapCenteredOnUser={isMapCenteredOnUser}
+        isFollowModeActive={isFollowModeActive}
         onRegionChange={onRegionChange}
         onPanDrag={onPanDrag}
         onRegionChangeComplete={onRegionChangeComplete}

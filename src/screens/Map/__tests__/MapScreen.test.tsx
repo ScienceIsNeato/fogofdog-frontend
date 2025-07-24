@@ -91,19 +91,14 @@ const getMockArgs = () => {
 };
 
 // Helper function for location button testing
-const waitForLocationButton = async (expectedState: {
-  isLocationAvailable: boolean;
-  isCentered?: boolean;
-}) => {
+const waitForLocationButton = async (expectedState: { isCentered?: boolean }) => {
   await waitFor(
     () => {
       expect(mockLocationButtonRender).toHaveBeenCalled();
       const args = getLastCallArgs<{
-        isLocationAvailable: boolean;
         isCentered: boolean;
         onPress: () => void;
       }>(mockLocationButtonRender);
-      expect(args.isLocationAvailable).toBe(expectedState.isLocationAvailable);
       if (expectedState.isCentered !== undefined) {
         expect(args.isCentered).toBe(expectedState.isCentered);
       }
@@ -276,14 +271,17 @@ jest.mock('../../../components/LocationButton', () => {
   const { TouchableOpacity, Text } =
     jest.requireActual<typeof import('react-native')>('react-native');
 
-  const MockLocationButton = (props: { onPress?: () => void; isLocationAvailable?: boolean }) => {
+  const MockLocationButton = (props: {
+    onPress?: () => void;
+    isCentered?: boolean;
+    isFollowModeActive?: boolean;
+  }) => {
     mockLocationButtonRender?.(props);
     return React.createElement(
       TouchableOpacity,
       {
         testID: 'mock-location-button',
         onPress: () => props.onPress && props.onPress(),
-        disabled: !props.isLocationAvailable,
       } as TouchableOpacityProps,
       React.createElement(Text, {}, 'Location Button')
     );
@@ -631,23 +629,7 @@ describe('MapScreen', () => {
   it('renders LocationButton with correct props', async () => {
     await renderMapScreen(store);
     // With auto-centering feature, map automatically centers on first location
-    await waitForLocationButton({ isLocationAvailable: true, isCentered: true });
-  });
-
-  it('LocationButton is disabled when location is not available', async () => {
-    // Mock location permission denied
-    (Location.requestForegroundPermissionsAsync as jest.Mock).mockImplementation(() =>
-      Promise.resolve({ status: 'denied', granted: false, expires: 'never', canAskAgain: true })
-    );
-
-    await renderMapScreen(store);
-
-    // Wait for the location permission to be processed and state to update
-    await waitForNullLocation(store);
-
-    // Since we no longer fall back to fake location when permission is denied,
-    // the button should be disabled
-    await waitForLocationButton({ isLocationAvailable: false });
+    await waitForLocationButton({ isCentered: true });
   });
 
   it('centers map on user location when LocationButton is pressed', async () => {
@@ -669,7 +651,7 @@ describe('MapScreen', () => {
     expect(store.getState().exploration.isMapCenteredOnUser).toBe(true);
 
     // Check that LocationButton shows centered state
-    await waitForLocationButton({ isLocationAvailable: true, isCentered: true });
+    await waitForLocationButton({ isCentered: true });
   });
 
   it('exits centered mode when user pans the map', async () => {
@@ -697,14 +679,19 @@ describe('MapScreen', () => {
       longitudeDelta: 0.0048,
     };
 
-    // Get the onRegionChange callback from the last render
-    const onRegionChange = getLastCallArgs<{ onRegionChange: (region: Region) => void }>(
-      mockMapViewRender
-    ).onRegionChange;
+    // Get the onRegionChange and onPanDrag callbacks from the last render
+    const lastCallArgs = getLastCallArgs<{
+      onRegionChange: (region: Region) => void;
+      onPanDrag: () => void;
+    }>(mockMapViewRender);
 
     act(() => {
-      if (onRegionChange) {
-        onRegionChange(pannedRegion);
+      // Simulate both region change and pan drag (both happen during real user pan)
+      if (lastCallArgs.onRegionChange) {
+        lastCallArgs.onRegionChange(pannedRegion);
+      }
+      if (lastCallArgs.onPanDrag) {
+        lastCallArgs.onPanDrag();
       }
     });
 
@@ -717,7 +704,7 @@ describe('MapScreen', () => {
     expect(store.getState().exploration.isMapCenteredOnUser).toBe(false);
 
     // Check that LocationButton reflects the change
-    await waitForLocationButton({ isLocationAvailable: true, isCentered: false });
+    await waitForLocationButton({ isCentered: false });
   });
 
   // Additional tests for missing branches
@@ -820,6 +807,7 @@ describe('MapScreen', () => {
           currentLocation: null, // No location
           zoomLevel: 10,
           isMapCenteredOnUser: false,
+          isFollowModeActive: false,
           exploredAreas: [], // Add missing property
           backgroundLocationStatus: {
             isRunning: false,
@@ -876,6 +864,7 @@ describe('MapScreen', () => {
           currentLocation: null, // No location
           zoomLevel: 10,
           isMapCenteredOnUser: false,
+          isFollowModeActive: false,
           exploredAreas: [], // Add missing property
           backgroundLocationStatus: {
             isRunning: false,
@@ -920,6 +909,7 @@ describe('MapScreen', () => {
           exploredAreas: [], // No explored areas
           zoomLevel: 14,
           isMapCenteredOnUser: true,
+          isFollowModeActive: false,
           backgroundLocationStatus: {
             isRunning: true,
             hasPermission: true,

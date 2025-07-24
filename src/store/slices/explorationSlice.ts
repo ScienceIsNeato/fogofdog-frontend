@@ -11,6 +11,7 @@ interface ExplorationState {
   path: GeoPoint[];
   exploredAreas: GeoPoint[];
   isMapCenteredOnUser: boolean;
+  isFollowModeActive: boolean;
   isTrackingPaused: boolean;
   backgroundLocationStatus: {
     isRunning: boolean;
@@ -102,6 +103,7 @@ const initialState: ExplorationState = {
   path: [],
   exploredAreas: [],
   isMapCenteredOnUser: false,
+  isFollowModeActive: false,
   isTrackingPaused: false,
   backgroundLocationStatus: {
     isRunning: false,
@@ -367,6 +369,12 @@ const explorationSlice = createSlice({
         clearedExploredAreas: originalExploredCount,
       });
     },
+    toggleFollowMode: (state) => {
+      state.isFollowModeActive = !state.isFollowModeActive;
+    },
+    setFollowMode: (state, action: PayloadAction<boolean>) => {
+      state.isFollowModeActive = action.payload;
+    },
   },
 });
 
@@ -383,5 +391,7 @@ export const {
   restorePersistedState,
   clearRecentData,
   clearAllData,
+  toggleFollowMode,
+  setFollowMode,
 } = explorationSlice.actions;
 export default explorationSlice.reducer;

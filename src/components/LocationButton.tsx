@@ -4,31 +4,22 @@ import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 
 interface LocationButtonProps {
   onPress: () => void;
-  isLocationAvailable: boolean;
   isCentered: boolean;
+  isFollowModeActive: boolean;
   style?: ViewStyle;
 }
 
 const LocationButton: React.FC<LocationButtonProps> = ({
   onPress,
-  isLocationAvailable,
   isCentered,
+  isFollowModeActive,
   style,
 }) => {
-  const handlePress = () => {
-    if (isLocationAvailable) {
-      onPress();
-    }
-  };
-
   const getContainerStyle = () => {
     const styles: ViewStyle[] = [baseStyles.container];
 
-    if (!isLocationAvailable) {
-      styles.push({ opacity: 0.5 });
-    }
-
-    if (isCentered && isLocationAvailable) {
+    // Show blue background if centered OR if follow mode is active
+    if (isCentered || isFollowModeActive) {
       styles.push({ backgroundColor: '#007AFF' });
     } else {
       styles.push({ backgroundColor: 'rgba(0, 0, 0, 0.6)' });
@@ -42,10 +33,7 @@ const LocationButton: React.FC<LocationButtonProps> = ({
   };
 
   const getAccessibilityState = () => {
-    if (!isLocationAvailable) {
-      return { disabled: true };
-    }
-    if (isCentered) {
+    if (isCentered || isFollowModeActive) {
       return { selected: true };
     }
     return {};
@@ -54,20 +42,20 @@ const LocationButton: React.FC<LocationButtonProps> = ({
   return (
     <Pressable
       testID="location-button"
-      onPress={handlePress}
+      onPress={onPress}
       accessibilityRole="button"
       accessibilityLabel="Center on current location"
       accessibilityHint="Double tap to center the map on your current location"
       accessibilityState={getAccessibilityState()}
       style={({ pressed }) => {
         const baseStyle = getContainerStyle();
-        if (pressed && isLocationAvailable) {
+        if (pressed) {
           return [...baseStyle, baseStyles.pressed];
         }
         return baseStyle;
       }}
     >
-      <View testID="location-button-container" style={getContainerStyle()}>
+      <View testID="location-button-container">
         <MaterialIcons name="my-location" size={24} color="white" />
       </View>
     </Pressable>
