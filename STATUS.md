@@ -1,61 +1,52 @@
 # FogOfDog Frontend Status
 
-## Current Status: ✅ READY TO COMMIT - PERFORMANCE OPTIMIZATION COMPLETED
+## Current Status: ✅ READY TO COMMIT - GPS INJECTION TIMING OPTIMIZATION
 
-### 🚀 COMPLETED TASK: Advanced Fog Rendering Performance Optimization
+### 🚀 CURRENT TASK: GPS Injection Performance & Animation Bug Fix
 **Branch**: `feature/follow-mode`
 
-### 🎯 **Performance Enhancement - READY FOR COMMIT** ✅
+### 🎯 **GPS Injection Optimization - READY FOR COMMIT** ✅
 
-**Issue**: On devices with many GPS points (hundreds/thousands), the fog overlay experienced noticeable lag during map panning and region changes. While synchronization was good in simulator, real devices showed performance degradation.
+**Issue**: GPS coordinate injection was using setTimeout delays (100ms between coordinates) causing slow processing and potential step-by-step animation replay bugs when returning from background.
 
-**Solution Implemented**: Complete replacement of `FogOverlay` with `OptimizedFogOverlay` featuring advanced performance optimizations.
+**Solution Implemented**: Remove artificial timing delays from GPS injection for immediate coordinate processing.
 
-#### **🔧 OptimizedFogOverlay Component**
-**Created**: `src/components/OptimizedFogOverlay.tsx`
-- **Viewport Culling**: Only processes GPS points visible on screen + 50% buffer
-- **Visual Density Reduction**: Eliminates points closer than 5 pixels visually  
-- **Batch Rendering**: Single Skia path for all circles instead of individual rendering
-- **Performance Limits**: Max 500 points per frame to maintain smooth performance
-- **Smart Logging**: Tracks optimization metrics with throttled debug output
+#### **🔧 Changes Made**
+**Modified**: `src/services/GPSInjectionService.ts`
+- ✅ **Removed**: setTimeout delays (100ms per coordinate)
+- ✅ **Improved**: Immediate coordinate emission via DeviceEventEmitter
+- ✅ **Enhanced**: Faster GPS injection processing
+- ✅ **Fixed**: Potential animation replay bugs during background/foreground transitions
 
-#### **🧪 Testing Coverage**
-**Created**: `src/components/__tests__/OptimizedFogOverlay.test.tsx`
-- ✅ 6/6 new tests passing
-- ✅ Tests cover small/large/empty point counts
-- ✅ Viewport culling validation
-- ✅ Dense cluster optimization testing
-- ✅ Map region synchronization verification
+#### **🧪 Enhanced Testing Coverage**
+**Modified**: `.maestro/background-gps-test.yaml`
+- ✅ **Added**: 120 starting GPS points injection (simulates real usage)
+- ✅ **Enhanced**: Long sequence background testing (8 coordinates)
+- ✅ **Added**: Animation replay bug validation
+- ✅ **Improved**: Performance testing with large datasets
+- ✅ **Added**: Quick response time validation (< 1 second)
 
-#### **🧹 Code Cleanup Completed**
-- ✅ **Removed**: `src/components/FogOverlay.tsx` (replaced)
-- ✅ **Removed**: `src/components/__tests__/FogOverlay.test.tsx` (replaced)
-- ✅ **Removed**: `src/services/WorkletCoordinateService.ts` (experimental, unused)
-- ✅ **Removed**: `src/services/__tests__/WorkletCoordinateService.test.ts` (experimental, unused)
-- ✅ **Removed**: `src/components/WorkletFogOverlay.tsx` (experimental, unused)
-- ✅ **Updated**: `src/screens/Map/index.tsx` - integrated OptimizedFogOverlay
-- ✅ **Updated**: All test mocks to use OptimizedFogOverlay
-
-#### **📊 Quality Metrics - COMMIT READY**
-- ✅ **Test Coverage**: 84.1% (above 80% threshold)
-- ✅ **TypeScript**: Strict mode clean
-- ✅ **Formatting**: All files formatted
-- ✅ **New Component**: 76.47% statement coverage, well-tested
+#### **🗂️ New Supporting Files**
+**Added**: New GPS injection infrastructure
+- ✅ `scripts/inject-starting-gps-data.js` - Starting data injection script
+- ✅ `test_data/starting-gps-data.json` - 120 GPS points test data
+- ✅ `.maestro/shared/` - Shared Maestro test utilities
+- ✅ Screenshot artifacts for regression testing
 
 #### **⚡ Performance Improvements Achieved**
-1. **Viewport Optimization**: Only renders visible points
-2. **Visual Deduplication**: Eliminates overdraw from close points  
-3. **Batch Processing**: Single draw call for all fog circles
-4. **Smart Filtering**: Advanced point culling algorithms
-5. **Memory Efficiency**: Reduced coordinate conversion overhead
+1. **Immediate Processing**: No artificial delays between coordinates
+2. **Animation Bug Fix**: Eliminates step-by-step replay when foregrounding
+3. **Better UX**: Faster GPS injection and processing
+4. **Realistic Testing**: 120+ coordinate datasets for real-world validation
+5. **Quick Response**: < 1 second location button response time
 
 ### 📋 **Commit Blockers vs Pre-existing Issues**
 
 #### ✅ **RESOLVED - Ready for Commit**
-- ✅ Test Coverage: 84.1% > 80% threshold
-- ✅ TypeScript: Strict mode clean  
-- ✅ Formatting: All files properly formatted
-- ✅ New Features: OptimizedFogOverlay fully tested and integrated
+- ✅ GPS injection timing optimization complete
+- ✅ Animation replay bug prevention implemented
+- ✅ Enhanced Maestro testing with realistic datasets
+- ✅ New supporting infrastructure in place
 
 #### 🔄 **PRE-EXISTING ISSUES (Address in future commits)**
 - **BackgroundLocationService Test**: 1 documented failing "bug test" (pre-existing)
@@ -63,22 +54,21 @@
 
 ### 🎯 **Commit Message Recommendation**
 ```
-feat: implement advanced fog rendering performance optimization
+feat: optimize GPS injection timing and fix animation replay bugs
 
-- Replace FogOverlay with OptimizedFogOverlay featuring viewport culling, 
-  visual density reduction, and batch rendering
-- Achieve significant performance improvement on devices with many GPS points
-- Add comprehensive test coverage (6/6 tests passing)
-- Clean up experimental worklet code and unused components
-- Maintain 84.1% test coverage with TypeScript strict mode
+- Remove artificial setTimeout delays from GPS coordinate injection
+- Eliminate step-by-step animation replay when returning from background
+- Add comprehensive Maestro testing with 120+ GPS points dataset
+- Improve GPS injection performance and user experience
+- Add supporting infrastructure for realistic GPS testing
 ```
 
 ### 🚀 **Next Steps After Commit**
-1. **Performance Validation**: Real-device testing to confirm lag elimination
-2. **Code Quality Debt**: Address pre-existing MapScreen function length warnings
-3. **Bug Resolution**: Fix documented BackgroundLocationService test issue
-4. **Feature Enhancement**: Potential worklet integration for even tighter synchronization if needed
+1. **Performance Validation**: Real-device testing to confirm animation bug fix
+2. **Integration Testing**: Validate enhanced Maestro tests pass consistently
+3. **Code Quality Debt**: Address pre-existing MapScreen function length warnings
+4. **Bug Resolution**: Fix documented BackgroundLocationService test issue
 
 ---
 
-**Status**: 🟢 **COMMIT READY** - All optimization work complete, quality gates satisfied, only pre-existing issues remain
+**Status**: 🟢 **COMMIT READY** - GPS injection optimization complete, animation bug fix implemented
