@@ -31,7 +31,20 @@ jest.mock('react-native', () => {
 });
 
 // Mock react-native-reanimated
-jest.mock('react-native-reanimated', () => require('../src/__mocks__/react-native-reanimated'));
+jest.mock('react-native-reanimated', () => {
+  return {
+    useSharedValue: jest.fn((value) => ({ value })),
+    useDerivedValue: jest.fn((getter) => ({ value: getter() })),
+    useAnimatedStyle: jest.fn(() => ({})),
+    withTiming: jest.fn((value) => value),
+    withSpring: jest.fn((value) => value),
+    runOnUI: jest.fn((fn) => fn),
+    runOnJS: jest.fn((fn) => fn),
+    createAnimatedComponent: jest.fn((component) => component),
+    interpolate: jest.fn(() => 0),
+    Extrapolate: { CLAMP: 'clamp' },
+  };
+});
 
 // Mock navigation
 jest.mock('@react-navigation/native', () => ({

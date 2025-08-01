@@ -3,7 +3,7 @@ import * as Location from 'expo-location';
 import { LocationStorageService, StoredLocationData } from './LocationStorageService';
 import { CoordinateDeduplicationService } from './CoordinateDeduplicationService';
 import { logger } from '../utils/logger';
-import { AppState, DeviceEventEmitter } from 'react-native';
+import { AppState } from 'react-native';
 
 const BACKGROUND_LOCATION_TASK = 'background-location-task';
 
@@ -413,16 +413,8 @@ export class BackgroundLocationService {
           count: storedLocations.length,
         });
 
-        // Emit location events for each stored location to trigger UI updates
-        storedLocations.forEach((location, index) => {
-          // Add a small delay between events to ensure proper processing
-          setTimeout(() => {
-            DeviceEventEmitter.emit('locationUpdate', {
-              latitude: location.latitude,
-              longitude: location.longitude,
-            });
-          }, index * 100); // 100ms delay between each location
-        });
+        // Return stored locations for direct Redux update without emitting events
+        // This prevents triggering individual UI animations for batch background locations
 
         // Clear the stored locations after retrieving them
         await LocationStorageService.clearStoredBackgroundLocations();

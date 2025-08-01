@@ -20,7 +20,7 @@ import {
 import MapView, { Marker, Region } from 'react-native-maps';
 import * as Location from 'expo-location';
 import * as TaskManager from 'expo-task-manager';
-import FogOverlay from '../../components/FogOverlay';
+import OptimizedFogOverlay from '../../components/OptimizedFogOverlay';
 import LocationButton from '../../components/LocationButton';
 import DataClearSelectionDialog from '../../components/DataClearSelectionDialog';
 import { PermissionAlert } from '../../components/PermissionAlert';
@@ -33,6 +33,7 @@ import { AuthPersistenceService } from '../../services/AuthPersistenceService';
 import { DataClearingService } from '../../services/DataClearingService';
 import { DataStats, ClearType } from '../../types/dataClear';
 import { GeoPoint } from '../../types/user';
+// Performance optimizations available via OptimizedFogOverlay component
 
 // Unified location task name
 const LOCATION_TASK = 'unified-location-task';
@@ -289,25 +290,20 @@ const processStoredLocationsOnStartup = async (options: {
   isFollowModeActive: boolean;
   currentRegion: Region | undefined;
 }) => {
-  const storedLocations = await BackgroundLocationService.processStoredLocations();
-  if (storedLocations.length === 0) return;
+  if (!options.isActiveRef.current) return;
 
-  logger.info(`Processed ${storedLocations.length} stored background locations on startup`);
-  // Update Redux with the most recent stored location if available
-  const mostRecent = storedLocations[storedLocations.length - 1];
-  if (options.isActiveRef.current && mostRecent) {
-    const geoPoint: GeoPoint = {
-      latitude: mostRecent.latitude,
-      longitude: mostRecent.longitude,
-      timestamp: mostRecent.timestamp,
-    };
-    handleLocationUpdate({
-      location: geoPoint,
+  try {
+    const storedLocations = await BackgroundLocationService.processStoredLocations();
+    await processStoredBackgroundLocations(storedLocations, {
       dispatch: options.dispatch,
-      mapRef: options.mapRef,
       isMapCenteredOnUser: options.isMapCenteredOnUser,
-      isFollowModeActive: options.isFollowModeActive,
       currentRegion: options.currentRegion,
+      mapRef: options.mapRef,
+    });
+  } catch (error) {
+    logger.error('Failed to process stored locations on startup', error, {
+      component: 'MapScreen',
+      action: 'processStoredLocationsOnStartup',
     });
   }
 };
@@ -587,13 +583,30 @@ const createCenterOnUserHandler =
 function handleRegionChange({
   region,
   setCurrentRegion,
+  setCurrentFogRegion,
+  mapDimensions,
+  workletUpdateRegion,
 }: {
   region: Region;
   setCurrentRegion: (region: Region) => void;
+  setCurrentFogRegion: (region: (Region & { width: number; height: number }) | undefined) => void;
+  mapDimensions: { width: number; height: number };
+  workletUpdateRegion: (region: Region & { width: number; height: number }) => void;
 }) {
-  // Only update region state - don't detect user interaction here
-  // User interaction is properly detected in handlePanDrag
+  const regionWithDimensions = {
+    ...region,
+    width: mapDimensions.width,
+    height: mapDimensions.height,
+  };
+
+  // Update fog region immediately for synchronization with OptimizedFogOverlay
+  workletUpdateRegion(regionWithDimensions);
+
+  // Update region state for other components (async)
   setCurrentRegion(region);
+
+  // Legacy fog region update for backward compatibility
+  setCurrentFogRegion(regionWithDimensions);
 }
 
 function handlePanDrag({
@@ -653,9 +666,33 @@ const useMapEventHandlers = (options: {
   isFollowModeActive: boolean;
   mapRef: React.RefObject<MapView>;
   setCurrentRegion: (region: Region) => void;
+  setCurrentFogRegion: (region: (Region & { width: number; height: number }) | undefined) => void;
+  mapDimensions: { width: number; height: number };
+  workletUpdateRegion: (region: Region & { width: number; height: number }) => void;
 }) => {
-  const { dispatch, currentLocation, currentRegion, isFollowModeActive, mapRef, setCurrentRegion } =
-    options;
+  const {
+    dispatch,
+    currentLocation,
+    currentRegion,
+    isFollowModeActive,
+    mapRef,
+    setCurrentRegion,
+    setCurrentFogRegion,
+    mapDimensions,
+    workletUpdateRegion,
+  } = options;
+
+  // Simple throttle function to limit update frequency
+  const throttle = (fn: Function, ms: number) => {
+    let lastCall = 0;
+    return (...args: any[]) => {
+      const now = Date.now();
+      if (now - lastCall >= ms) {
+        lastCall = now;
+        fn(...args);
+      }
+    };
+  };
 
   const handleZoomChange = createZoomHandler(dispatch);
   const centerOnUserLocation = createCenterOnUserHandler({
@@ -666,11 +703,17 @@ const useMapEventHandlers = (options: {
     isFollowModeActive,
   });
 
-  const onRegionChange = (region: Region) =>
-    handleRegionChange({
-      region,
-      setCurrentRegion,
-    });
+  const onRegionChange = throttle(
+    (region: Region) =>
+      handleRegionChange({
+        region,
+        setCurrentRegion,
+        setCurrentFogRegion,
+        mapDimensions,
+        workletUpdateRegion,
+      }),
+    16
+  ); // ~60fps
 
   const onPanDrag = () => handlePanDrag({ mapRef, dispatch });
 
@@ -714,7 +757,8 @@ interface MapScreenRendererProps {
   onRegionChangeComplete: (region: Region) => void;
   centerOnUserLocation: () => void;
   setMapDimensions: (dimensions: { width: number; height: number }) => void;
-  memoizedMapRegion: (Region & { width: number; height: number }) | undefined;
+  currentFogRegion: (Region & { width: number; height: number }) | undefined;
+  // workletMapRegion?: ReturnType<typeof useWorkletMapRegion>; // Available for future worklet integration
 }
 
 // Render component for the map view and overlays
@@ -729,7 +773,8 @@ const MapScreenRenderer = ({
   onRegionChangeComplete,
   centerOnUserLocation,
   setMapDimensions,
-  memoizedMapRegion,
+  currentFogRegion,
+  // workletMapRegion, // Available for future worklet integration
 }: MapScreenRendererProps) => {
   // Don't render map until we have a real location
   if (!currentLocation) {
@@ -789,7 +834,8 @@ const MapScreenRenderer = ({
         </Marker>
       </MapView>
 
-      {memoizedMapRegion && <FogOverlay mapRegion={memoizedMapRegion} />}
+      {/* Use OptimizedFogOverlay for better performance with many GPS points */}
+      {currentFogRegion && <OptimizedFogOverlay mapRegion={currentFogRegion} />}
 
       <LocationButton
         onPress={centerOnUserLocation}
@@ -1118,6 +1164,93 @@ const ClearButton: React.FC<{
   </TouchableOpacity>
 );
 
+// Custom hook for fog region initialization and management
+const useFogRegionState = (
+  currentLocation: GeoPoint | null,
+  mapDimensions: { width: number; height: number },
+  currentRegion: Region | undefined
+) => {
+  // Initialize worklet-based map region for immediate synchronization
+  const initialWorkletRegion = useMemo(() => {
+    if (currentLocation) {
+      return {
+        latitude: currentLocation.latitude,
+        longitude: currentLocation.longitude,
+        latitudeDelta: DEFAULT_ZOOM_DELTAS.latitudeDelta,
+        longitudeDelta: DEFAULT_ZOOM_DELTAS.longitudeDelta,
+        width: mapDimensions.width,
+        height: mapDimensions.height,
+      };
+    }
+    return undefined;
+  }, [currentLocation, mapDimensions]);
+
+  // Fog region state for OptimizedFogOverlay
+  const [currentFogRegion, setCurrentFogRegion] = useState<
+    (Region & { width: number; height: number }) | undefined
+  >(undefined);
+
+  // Memoized map region with worklet support
+  const memoizedMapRegion = useMemo(() => {
+    if (!currentRegion) return undefined;
+
+    return {
+      ...currentRegion,
+      width: mapDimensions.width,
+      height: mapDimensions.height,
+    };
+  }, [currentRegion, mapDimensions]);
+
+  // Initialize currentFogRegion when memoizedMapRegion is first available
+  useEffect(() => {
+    if (memoizedMapRegion && !currentFogRegion) {
+      setCurrentFogRegion(memoizedMapRegion);
+    }
+  }, [memoizedMapRegion, currentFogRegion]);
+
+  // Also initialize currentFogRegion from initialWorkletRegion if available
+  useEffect(() => {
+    if (initialWorkletRegion && !currentFogRegion && !memoizedMapRegion) {
+      setCurrentFogRegion(initialWorkletRegion);
+    }
+  }, [initialWorkletRegion, currentFogRegion, memoizedMapRegion]);
+
+  // Simple region update for OptimizedFogOverlay synchronization
+  const updateFogRegion = useCallback((region: Region & { width: number; height: number }) => {
+    // Update fog region immediately for synchronization
+    setCurrentFogRegion(region);
+  }, []);
+
+  return {
+    currentFogRegion,
+    setCurrentFogRegion,
+    memoizedMapRegion,
+    updateFogRegion,
+  };
+};
+
+// Custom hook for data clearing state
+const useDataClearingState = () => {
+  // Data clearing state
+  const [dataStats, setDataStats] = useState<DataStats>({
+    totalPoints: 0,
+    recentPoints: 0,
+    oldestDate: null,
+    newestDate: null,
+  });
+  const [isDataClearDialogVisible, setIsDataClearDialogVisible] = useState(false);
+  const [isClearing, setIsClearing] = useState(false);
+
+  return {
+    dataStats,
+    setDataStats,
+    isDataClearDialogVisible,
+    setIsDataClearDialogVisible,
+    isClearing,
+    setIsClearing,
+  };
+};
+
 const useMapScreenState = () => {
   const dispatch = useAppDispatch();
   const { currentLocation, isMapCenteredOnUser, isFollowModeActive } = useAppSelector(
@@ -1130,27 +1263,8 @@ const useMapScreenState = () => {
     height: Dimensions.get('window').height,
   });
 
-  // Data clearing state
-  const [dataStats, setDataStats] = useState<DataStats>({
-    totalPoints: 0,
-    recentPoints: 0,
-    oldestDate: null,
-    newestDate: null,
-  });
-  const [isDataClearDialogVisible, setIsDataClearDialogVisible] = useState(false);
-
-  const [isClearing, setIsClearing] = useState(false);
-
-  // Memoize the mapRegion object to prevent unnecessary FogOverlay re-renders
-  const memoizedMapRegion = useMemo(() => {
-    if (!currentRegion) return undefined;
-
-    return {
-      ...currentRegion,
-      width: mapDimensions.width,
-      height: mapDimensions.height,
-    };
-  }, [currentRegion, mapDimensions]);
+  const fogRegionState = useFogRegionState(currentLocation, mapDimensions, currentRegion);
+  const dataClearingState = useDataClearingState();
 
   return {
     dispatch,
@@ -1161,13 +1275,9 @@ const useMapScreenState = () => {
     currentRegion,
     setCurrentRegion,
     setMapDimensions,
-    memoizedMapRegion,
-    dataStats,
-    setDataStats,
-    isDataClearDialogVisible,
-    setIsDataClearDialogVisible,
-    isClearing,
-    setIsClearing,
+    mapDimensions,
+    ...fogRegionState,
+    ...dataClearingState,
   };
 };
 
@@ -1223,6 +1333,86 @@ const useMapScreenReduxState = () => {
   return { explorationState, isTrackingPaused, insets };
 };
 
+// Component for rendering MapScreen UI elements
+const MapScreenUI: React.FC<{
+  mapRef: React.RefObject<MapView>;
+  currentLocation: GeoPoint | null;
+  insets: any;
+  isMapCenteredOnUser: boolean;
+  isFollowModeActive: boolean;
+  onRegionChange: (region: Region) => void;
+  onPanDrag: () => void;
+  onRegionChangeComplete: (region: Region) => void;
+  centerOnUserLocation: () => void;
+  setMapDimensions: (dimensions: { width: number; height: number }) => void;
+  currentFogRegion: (Region & { width: number; height: number }) | undefined;
+  isClearing: boolean;
+  setIsDataClearDialogVisible: (visible: boolean) => void;
+  isDataClearDialogVisible: boolean;
+  dataStats: DataStats;
+  handleClearSelection: (type: ClearType) => Promise<void>;
+}> = ({
+  mapRef,
+  currentLocation,
+  insets,
+  isMapCenteredOnUser,
+  isFollowModeActive,
+  onRegionChange,
+  onPanDrag,
+  onRegionChangeComplete,
+  centerOnUserLocation,
+  setMapDimensions,
+  currentFogRegion,
+  isClearing,
+  setIsDataClearDialogVisible,
+  isDataClearDialogVisible,
+  dataStats,
+  handleClearSelection,
+}) => {
+  return (
+    <>
+      <MapScreenRenderer
+        mapRef={mapRef}
+        currentLocation={currentLocation}
+        insets={insets}
+        isMapCenteredOnUser={isMapCenteredOnUser}
+        isFollowModeActive={isFollowModeActive}
+        onRegionChange={onRegionChange}
+        onPanDrag={onPanDrag}
+        onRegionChangeComplete={onRegionChangeComplete}
+        centerOnUserLocation={centerOnUserLocation}
+        setMapDimensions={setMapDimensions}
+        currentFogRegion={currentFogRegion}
+        // workletMapRegion={workletMapRegion} // Available for future worklet integration
+      />
+
+      {/* Tracking Control Button */}
+      <TrackingControlButton
+        style={{
+          position: 'absolute',
+          bottom: 160, // Above the data clear button
+          left: 20,
+          right: 20,
+        }}
+      />
+
+      {/* Data Clear Button */}
+      <ClearButton isClearing={isClearing} onPress={() => setIsDataClearDialogVisible(true)} />
+
+      {/* Data Clear Selection Dialog */}
+      <DataClearSelectionDialog
+        visible={isDataClearDialogVisible}
+        dataStats={dataStats}
+        onClear={handleClearSelection}
+        onCancel={() => {
+          setIsDataClearDialogVisible(false);
+        }}
+        isClearing={isClearing}
+      />
+    </>
+  );
+};
+
 export const MapScreen = () => {
   const {
     dispatch,
@@ -1233,7 +1423,11 @@ export const MapScreen = () => {
     currentRegion,
     setCurrentRegion,
     setMapDimensions,
-    memoizedMapRegion,
+    currentFogRegion,
+    setCurrentFogRegion,
+    mapDimensions,
+    // Performance optimization with OptimizedFogOverlay
+    updateFogRegion,
   } = useMapScreenState();
 
   const {
@@ -1265,48 +1459,30 @@ export const MapScreen = () => {
       isFollowModeActive,
       mapRef,
       setCurrentRegion,
+      setCurrentFogRegion,
+      mapDimensions,
+      workletUpdateRegion: updateFogRegion,
     });
 
   return (
-    <>
-      <MapScreenRenderer
-        mapRef={mapRef}
-        currentLocation={currentLocation}
-        insets={insets}
-        isMapCenteredOnUser={isMapCenteredOnUser}
-        isFollowModeActive={isFollowModeActive}
-        onRegionChange={onRegionChange}
-        onPanDrag={onPanDrag}
-        onRegionChangeComplete={onRegionChangeComplete}
-        centerOnUserLocation={centerOnUserLocation}
-        setMapDimensions={setMapDimensions}
-        memoizedMapRegion={memoizedMapRegion}
-      />
-
-      {/* Tracking Control Button */}
-      <TrackingControlButton
-        style={{
-          position: 'absolute',
-          bottom: 160, // Above the data clear button
-          left: 20,
-          right: 20,
-        }}
-      />
-
-      {/* Data Clear Button */}
-      <ClearButton isClearing={isClearing} onPress={() => setIsDataClearDialogVisible(true)} />
-
-      {/* Data Clear Selection Dialog */}
-      <DataClearSelectionDialog
-        visible={isDataClearDialogVisible}
-        dataStats={dataStats}
-        onClear={handleClearSelection}
-        onCancel={() => {
-          setIsDataClearDialogVisible(false);
-        }}
-        isClearing={isClearing}
-      />
-    </>
+    <MapScreenUI
+      mapRef={mapRef}
+      currentLocation={currentLocation}
+      insets={insets}
+      isMapCenteredOnUser={isMapCenteredOnUser}
+      isFollowModeActive={isFollowModeActive}
+      onRegionChange={onRegionChange}
+      onPanDrag={onPanDrag}
+      onRegionChangeComplete={onRegionChangeComplete}
+      centerOnUserLocation={centerOnUserLocation}
+      setMapDimensions={setMapDimensions}
+      currentFogRegion={currentFogRegion}
+      isClearing={isClearing}
+      setIsDataClearDialogVisible={setIsDataClearDialogVisible}
+      isDataClearDialogVisible={isDataClearDialogVisible}
+      dataStats={dataStats}
+      handleClearSelection={handleClearSelection}
+    />
   );
 };
 
