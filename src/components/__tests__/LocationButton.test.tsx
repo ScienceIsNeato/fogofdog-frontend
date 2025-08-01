@@ -12,7 +12,7 @@ describe('LocationButton', () => {
   describe('Rendering', () => {
     it('should render correctly with default props', () => {
       const { getByTestId } = render(
-        <LocationButton onPress={mockOnPress} isLocationAvailable={true} isCentered={false} />
+        <LocationButton onPress={mockOnPress} isCentered={false} isFollowModeActive={false} />
       );
 
       const button = getByTestId('location-button');
@@ -24,8 +24,8 @@ describe('LocationButton', () => {
       const { getByTestId } = render(
         <LocationButton
           onPress={mockOnPress}
-          isLocationAvailable={true}
           isCentered={false}
+          isFollowModeActive={false}
           style={customStyle}
         />
       );
@@ -38,9 +38,9 @@ describe('LocationButton', () => {
   });
 
   describe('Interaction', () => {
-    it('should call onPress when tapped and location is available', () => {
+    it('should call onPress when tapped', () => {
       const { getByTestId } = render(
-        <LocationButton onPress={mockOnPress} isLocationAvailable={true} isCentered={false} />
+        <LocationButton onPress={mockOnPress} isCentered={false} isFollowModeActive={false} />
       );
 
       const button = getByTestId('location-button');
@@ -48,64 +48,83 @@ describe('LocationButton', () => {
 
       expect(mockOnPress).toHaveBeenCalledTimes(1);
     });
-
-    it('should not call onPress when location is not available', () => {
-      const { getByTestId } = render(
-        <LocationButton onPress={mockOnPress} isLocationAvailable={false} isCentered={false} />
-      );
-
-      const button = getByTestId('location-button');
-      fireEvent.press(button);
-
-      expect(mockOnPress).not.toHaveBeenCalled();
-    });
   });
 
   describe('Visual States', () => {
-    it('should show disabled state when location is not available', () => {
-      const { getByTestId } = render(
-        <LocationButton onPress={mockOnPress} isLocationAvailable={false} isCentered={false} />
-      );
-
-      const buttonContainer = getByTestId('location-button-container');
-
-      // Check opacity for disabled state
-      expect(buttonContainer.props.style).toEqual(
-        expect.arrayContaining([expect.objectContaining({ opacity: 0.5 })])
-      );
-    });
-
     it('should show active state when map is centered', () => {
       const { getByTestId } = render(
-        <LocationButton onPress={mockOnPress} isLocationAvailable={true} isCentered={true} />
+        <LocationButton onPress={mockOnPress} isCentered={true} isFollowModeActive={false} />
       );
 
-      const buttonContainer = getByTestId('location-button-container');
+      const button = getByTestId('location-button');
 
-      // Check background color for active state
-      expect(buttonContainer.props.style).toEqual(
+      // Check background color for active state - now on the button itself
+      expect(button.props.style).toEqual(
         expect.arrayContaining([expect.objectContaining({ backgroundColor: '#007AFF' })])
       );
     });
 
-    it('should show normal state when location available but not centered', () => {
+    it('should show normal state when not centered', () => {
       const { getByTestId } = render(
-        <LocationButton onPress={mockOnPress} isLocationAvailable={true} isCentered={false} />
+        <LocationButton onPress={mockOnPress} isCentered={false} isFollowModeActive={false} />
       );
 
-      const buttonContainer = getByTestId('location-button-container');
+      const button = getByTestId('location-button');
 
-      // Check background color for normal state
-      expect(buttonContainer.props.style).toEqual(
+      // Check background color for normal state - now on the button itself
+      expect(button.props.style).toEqual(
         expect.arrayContaining([expect.objectContaining({ backgroundColor: 'rgba(0, 0, 0, 0.6)' })])
       );
+    });
+
+    it('should show follow mode active state (blue background)', () => {
+      const { getByTestId } = render(
+        <LocationButton onPress={mockOnPress} isCentered={false} isFollowModeActive={true} />
+      );
+
+      const button = getByTestId('location-button');
+
+      // Follow mode active should show blue background even when not centered
+      expect(button.props.style).toEqual(
+        expect.arrayContaining([expect.objectContaining({ backgroundColor: '#007AFF' })])
+      );
+    });
+
+    it('should show follow mode inactive state (dark background when not centered)', () => {
+      const { getByTestId } = render(
+        <LocationButton onPress={mockOnPress} isCentered={false} isFollowModeActive={false} />
+      );
+
+      const button = getByTestId('location-button');
+
+      // Follow mode inactive should show dark background when not centered
+      expect(button.props.style).toEqual(
+        expect.arrayContaining([expect.objectContaining({ backgroundColor: 'rgba(0, 0, 0, 0.6)' })])
+      );
+    });
+
+    it('should render only one blue background when centered (no duplicates)', () => {
+      const { getByTestId } = render(
+        <LocationButton onPress={mockOnPress} isCentered={true} isFollowModeActive={false} />
+      );
+
+      const button = getByTestId('location-button');
+      const buttonContainer = getByTestId('location-button-container');
+
+      // The button should have blue background
+      expect(button.props.style).toEqual(
+        expect.arrayContaining([expect.objectContaining({ backgroundColor: '#007AFF' })])
+      );
+
+      // The inner container should NOT have any background color
+      expect(buttonContainer.props.style).toBeUndefined();
     });
   });
 
   describe('Accessibility', () => {
     it('should have correct accessibility properties', () => {
       const { getByTestId } = render(
-        <LocationButton onPress={mockOnPress} isLocationAvailable={true} isCentered={false} />
+        <LocationButton onPress={mockOnPress} isCentered={false} isFollowModeActive={false} />
       );
 
       const button = getByTestId('location-button');
@@ -117,24 +136,24 @@ describe('LocationButton', () => {
       );
     });
 
-    it('should indicate disabled state in accessibility', () => {
-      const { getByTestId } = render(
-        <LocationButton onPress={mockOnPress} isLocationAvailable={false} isCentered={false} />
-      );
-
-      const button = getByTestId('location-button');
-
-      expect(button.props.accessibilityState).toEqual({ disabled: true });
-    });
-
     it('should indicate selected state when centered', () => {
       const { getByTestId } = render(
-        <LocationButton onPress={mockOnPress} isLocationAvailable={true} isCentered={true} />
+        <LocationButton onPress={mockOnPress} isCentered={true} isFollowModeActive={false} />
       );
 
       const button = getByTestId('location-button');
 
       expect(button.props.accessibilityState).toEqual({ selected: true });
+    });
+
+    it('should have no accessibility state when not centered', () => {
+      const { getByTestId } = render(
+        <LocationButton onPress={mockOnPress} isCentered={false} isFollowModeActive={false} />
+      );
+
+      const button = getByTestId('location-button');
+
+      expect(button.props.accessibilityState).toEqual({});
     });
   });
 });

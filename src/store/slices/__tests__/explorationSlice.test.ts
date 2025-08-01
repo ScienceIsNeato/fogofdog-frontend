@@ -9,6 +9,8 @@ import explorationReducer, {
   setTrackingPaused,
   processBackgroundLocations,
   updateBackgroundLocationStatus,
+  toggleFollowMode,
+  setFollowMode,
 } from '../explorationSlice';
 import type { StoredLocationData } from '../../../services/LocationStorageService';
 
@@ -41,6 +43,7 @@ describe('exploration slice', () => {
       path: [],
       exploredAreas: [],
       isMapCenteredOnUser: false,
+      isFollowModeActive: false,
       isTrackingPaused: false,
       backgroundLocationStatus: {
         isRunning: false,
@@ -478,6 +481,52 @@ describe('exploration slice', () => {
       // Reset
       store.dispatch(reset());
       expect(store.getState().exploration.isTrackingPaused).toBe(false);
+    });
+  });
+
+  describe('Follow Mode Actions', () => {
+    it('should initialize with follow mode inactive', () => {
+      expect(store.getState().exploration.isFollowModeActive).toBe(false);
+    });
+
+    it('should toggle follow mode from false to true', () => {
+      store.dispatch(toggleFollowMode());
+      expect(store.getState().exploration.isFollowModeActive).toBe(true);
+    });
+
+    it('should toggle follow mode from true to false', () => {
+      // Set to true first
+      store.dispatch(setFollowMode(true));
+      expect(store.getState().exploration.isFollowModeActive).toBe(true);
+
+      // Toggle should set to false
+      store.dispatch(toggleFollowMode());
+      expect(store.getState().exploration.isFollowModeActive).toBe(false);
+    });
+
+    it('should set follow mode to true with setFollowMode', () => {
+      store.dispatch(setFollowMode(true));
+      expect(store.getState().exploration.isFollowModeActive).toBe(true);
+    });
+
+    it('should set follow mode to false with setFollowMode', () => {
+      // Set to true first
+      store.dispatch(setFollowMode(true));
+      expect(store.getState().exploration.isFollowModeActive).toBe(true);
+
+      // Set to false
+      store.dispatch(setFollowMode(false));
+      expect(store.getState().exploration.isFollowModeActive).toBe(false);
+    });
+
+    it('should reset follow mode state on reset', () => {
+      // Set to active
+      store.dispatch(setFollowMode(true));
+      expect(store.getState().exploration.isFollowModeActive).toBe(true);
+
+      // Reset
+      store.dispatch(reset());
+      expect(store.getState().exploration.isFollowModeActive).toBe(false);
     });
   });
 });

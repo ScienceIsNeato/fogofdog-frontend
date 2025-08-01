@@ -34,6 +34,7 @@ const defaultExplorationState = {
   currentLocation: null,
   zoomLevel: 10,
   isMapCenteredOnUser: false,
+  isFollowModeActive: false,
   exploredAreas: [],
   backgroundLocationStatus: {
     isRunning: false,

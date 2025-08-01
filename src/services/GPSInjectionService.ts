@@ -40,16 +40,14 @@ export class GPSInjectionService {
 
       // Emit each coordinate directly to the unified location system
       coordinates.forEach((coord, index) => {
-        setTimeout(() => {
-          logger.info(`Injecting GPS coordinate ${index + 1}/${coordinates.length}`, {
-            component: 'GPSInjectionService',
-            action: 'checkAndProcessInjectedGPS',
-            coordinate: `${coord.latitude}, ${coord.longitude}`,
-            timestamp: new Date(coord.timestamp).toISOString(),
-          });
+        logger.info(`Injecting GPS coordinate ${index + 1}/${coordinates.length}`, {
+          component: 'GPSInjectionService',
+          action: 'checkAndProcessInjectedGPS',
+          coordinate: `${coord.latitude}, ${coord.longitude}`,
+          timestamp: new Date(coord.timestamp).toISOString(),
+        });
 
-          DeviceEventEmitter.emit(GPS_INJECTION_EVENT, coord);
-        }, index * 100); // Small delay between coordinates
+        DeviceEventEmitter.emit(GPS_INJECTION_EVENT, coord);
       });
 
       return coordinates;

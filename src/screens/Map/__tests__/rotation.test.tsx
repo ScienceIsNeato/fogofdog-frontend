@@ -62,7 +62,10 @@ jest.mock('../../../services/DataClearingService', () => ({
 jest.mock('react-native-safe-area-context', () => ({
   useSafeAreaInsets: () => ({ top: 20, bottom: 0, left: 0, right: 0 }),
 }));
-jest.mock('../../../components/FogOverlay', () => ({ __esModule: true, default: () => null }));
+jest.mock('../../../components/OptimizedFogOverlay', () => ({
+  __esModule: true,
+  default: () => null,
+}));
 jest.mock('../../../components/LocationButton', () => ({ __esModule: true, default: () => null }));
 jest.mock('../../../components/DataClearSelectionDialog', () => ({
   __esModule: true,
@@ -184,7 +187,7 @@ describe('Map Rotation Disabled Tests', () => {
     expect(mapView.props['data-pitchEnabled']).toBe(false);
   });
 
-  it.skip('renders FogOverlay without rotation props', async () => {
+  it.skip('renders OptimizedFogOverlay without rotation props', async () => {
     const { getByTestId } = render(
       <Provider store={store}>
         <MapScreen />
@@ -211,14 +214,14 @@ describe('Map Rotation Disabled Tests', () => {
       });
     }
 
-    // Wait for FogOverlay to render
+    // Wait for OptimizedFogOverlay to render
     await act(async () => {
       jest.runAllTimers();
       await Promise.resolve();
     });
 
-    // Get the FogOverlay component and verify no rotation props
-    const fogOverlay = getByTestId('mock-fog-overlay');
+    // Get the OptimizedFogOverlay component and verify no rotation props
+    const fogOverlay = getByTestId('mock-optimized-fog-overlay');
 
     // Verify rotation prop does NOT exist (since we removed rotation entirely)
     expect(fogOverlay.props['data-rotation']).toBeUndefined();
