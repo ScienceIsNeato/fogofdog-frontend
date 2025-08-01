@@ -1,0 +1,74 @@
+name: 🚀 Feature Branch Quality Checks
+
+on:
+  push:
+    branches-ignore: [main, develop]  # Run on all branches except main/develop (handled by maintainAIbility-gate)
+    # This triggers on direct pushes to feature branches, NOT on PR creation/updates
+
+env:
+  EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+
+jobs:
+  # Single job that runs all maintainability checks in sequence
+  # This is simpler than the full PR workflow but ensures quality on feature branches
+  feature-branch-quality-gate:
+    name: 🎯 Feature Branch Quality Gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+        
+      - name: 📦 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          
+      - name: ⚡ Install dependencies
+        run: npm ci --legacy-peer-deps
+        
+      - name: 🎯 Run Full maintainAIbility Gate
+        run: ./scripts/maintainAIbility-gate.sh
+        
+      - name: 📊 Upload Quality Reports
+        if: always()  # Upload even if checks fail
+        uses: actions/upload-artifact@v4
+        with:
+          name: quality-reports-${{ github.sha }}
+          path: |
+            quality-reports/
+            reports/
+            coverage/
+          retention-days: 30
+
+  # Optional: Quick feedback for common issues
+  quick-validation:
+    name: ⚡ Quick Validation
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+        
+      - name: 🔍 Check for common issues
+        run: |
+          echo "🔍 Checking for common issues..."
+          
+          # Check for debugging code that shouldn't be committed
+          if grep -r "console.log\|debugger\|TODO:\|FIXME:" src/ --exclude-dir=__tests__ --exclude="*.test.*" || true; then
+            echo "⚠️  Found debugging code or TODOs in source files"
+          fi
+          
+          # Check for large files
+          find . -type f -size +1M -not -path "./.git/*" -not -path "./node_modules/*" -not -path "./coverage/*" | head -10 || true
+          
+          # Verify package.json syntax
+          if ! node -e "JSON.parse(require('fs').readFileSync('package.json', 'utf8'))"; then
+            echo "❌ package.json has syntax errors"
+            exit 1
+          fi
+          
+          echo "✅ Quick validation completed" 
