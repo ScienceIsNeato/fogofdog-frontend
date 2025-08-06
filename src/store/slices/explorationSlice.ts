@@ -134,9 +134,23 @@ const explorationSlice = createSlice({
         state.currentLocation.latitude === newPoint.latitude &&
         state.currentLocation.longitude === newPoint.longitude
       ) {
-        // Same location, no need to process or log anything
+        logger.debug('🔄 Skipping identical location update', {
+          component: 'explorationSlice',
+          action: 'updateLocation',
+          currentLocation: `${state.currentLocation.latitude}, ${state.currentLocation.longitude}`,
+          newPoint: `${newPoint.latitude}, ${newPoint.longitude}`,
+          areIdentical: true,
+        });
         return;
       }
+      
+      logger.info('📍 Processing location update', {
+        component: 'explorationSlice',
+        action: 'updateLocation',
+        currentLocation: state.currentLocation ? `${state.currentLocation.latitude}, ${state.currentLocation.longitude}` : 'null',
+        newPoint: `${newPoint.latitude}, ${newPoint.longitude}`,
+        areIdentical: false,
+      });
 
       // Auto-center on user location when first valid location is received
       if (!state.currentLocation && !state.isMapCenteredOnUser) {

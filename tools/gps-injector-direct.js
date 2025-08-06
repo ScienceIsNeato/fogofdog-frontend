@@ -119,7 +119,7 @@ async function setSimulatorLocation(lat, lon, timeDeltaHours = 0) {
     console.log(`✅ Successfully set simulator location to: ${lat}, ${lon}`);
     console.log(`🎯 The app should now receive this new location through its location services`);
     
-    // Store coordinates in a file that React Native can read
+    // Store coordinates directly in AsyncStorage format that the service expects
     try {
       console.log(`💾 Storing GPS injection data for React Native...`);
 
@@ -129,28 +129,38 @@ async function setSimulatorLocation(lat, lon, timeDeltaHours = 0) {
 
       console.log(`🕒 Injecting with timestamp: ${timestamp.toISOString()} (${timeDeltaHours} hours delta)`);
 
-      const injectionData = {
-        coordinates: [{
-          latitude: lat,
-          longitude: lon,
-          timestamp: timestamp.toISOString(), // Use calculated timestamp
-          accuracy: 5.0,
-          altitude: 0,
-          altitudeAccuracy: -1,
-          heading: -1,
-          speed: -1,
-        }],
+      // Add tiny random offset to ensure coordinates are never exactly the same
+      // This prevents Redux from skipping the update due to same-coordinate optimization
+      const randomOffset = (Math.random() - 0.5) * 0.0000001; // ~0.01mm variation
+      
+      // Create data in the format GPSInjectionService expects (direct array, not wrapped)
+      const coordinatesArray = [{
+        latitude: lat + randomOffset,
+        longitude: lon + randomOffset,
+        timestamp: timestamp.getTime(), // Use timestamp in milliseconds
+        accuracy: 5.0,
+        altitude: 0,
+        altitudeAccuracy: -1,
+        heading: -1,
+        speed: -1,
+      }];
+      
+      // Write both file (for debugging) and AsyncStorage command
+      const gpsInjectionFile = path.join(__dirname, '..', 'gps-injection.json');
+      const fileData = {
+        coordinates: coordinatesArray,
         processed: false,
         injectedAt: new Date().toISOString(),
       };
       
-      // Write to project directory where React Native can easily read it
-      const gpsInjectionFile = path.join(__dirname, '..', 'gps-injection.json');
+      fs.writeFileSync(gpsInjectionFile, JSON.stringify(fileData, null, 2));
       
-      fs.writeFileSync(gpsInjectionFile, JSON.stringify(injectionData, null, 2));
+      // Generate AsyncStorage command for React Native debugger
+      const asyncStorageData = JSON.stringify(coordinatesArray);
       
       console.log(`✅ Stored GPS injection data in file: ${gpsInjectionFile}`);
-      console.log(`🎯 App polling will detect this file immediately`);
+      console.log(`🎯 To inject via AsyncStorage, run this in React Native debugger:`);
+      console.log(`AsyncStorage.setItem('@fogofdog:gps_injection_data', '${asyncStorageData.replace(/'/g, "\\'")}');`);
     } catch (storageError) {
       console.log(`⚠️ Could not store injection data: ${storageError.message}`);
     }

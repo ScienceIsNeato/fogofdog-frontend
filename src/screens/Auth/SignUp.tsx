@@ -1,9 +1,22 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { useAppDispatch } from '../../store/hooks';
 import { setUser } from '../../store/slices/userSlice';
-import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import type { AuthStackParamList } from '../../types/navigation';
+import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { AuthStackParamList } from '../../types/navigation';
+
+// FUTURE: Reactivate for user accounts - SignUp Screen
+// This screen is preserved for future user account functionality
+// When user accounts are needed, this screen provides:
+// - Basic sign up flow structure
+// - Navigation back to sign in
+// - Ready for integration with user registration API
+//
+// To reactivate:
+// 1. Add user registration form fields (email, password, etc.)
+// 2. Connect to user registration service/API
+// 3. Add form validation and error handling
+// 4. Integrate with AuthPersistenceService for auto-login
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'SignUp'>;
 

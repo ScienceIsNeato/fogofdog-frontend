@@ -491,12 +491,12 @@ describe('BackgroundLocationService', () => {
         // Wait for any setTimeout calls to complete
         jest.runAllTimers();
 
-        // BUG: Currently this will fail because processStoredLocations DOES emit locationUpdate events
-        // The fix should make stored locations update Redux directly without emitting events
+        // FIXED: processStoredLocations correctly returns stored locations for direct Redux update
+        // without emitting locationUpdate events, preventing unwanted step-by-step animations
         expect(mockEmit).not.toHaveBeenCalledWith('locationUpdate', expect.any(Object));
 
-        // After fix, stored locations should be returned for direct Redux update
-        // instead of being emitted as individual events that trigger animations
+        // Implementation works as intended: stored locations are returned for batch processing
+        // in Redux without triggering individual UI animations
       } finally {
         DeviceEventEmitter.emit = originalEmit;
       }

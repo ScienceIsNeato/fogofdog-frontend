@@ -7,6 +7,20 @@ import { logger } from '../../utils/logger';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { AuthStackParamList } from '../../types/navigation';
 
+// FUTURE: Reactivate for user accounts - SignIn Screen
+// This screen is preserved for future user account functionality
+// When user accounts are needed, this screen provides:
+// - Test authentication with dummy credentials
+// - "Keep me logged in" toggle functionality
+// - Automatic persistence of auth state
+// - Navigation to sign up flow
+//
+// To reactivate:
+// 1. Update Navigation.tsx to use conditional auth/main routing
+// 2. Remove bypass logic and restore user state checks
+// 3. Update this screen with real authentication logic
+// 4. Connect to actual user service/API
+
 type Props = NativeStackScreenProps<AuthStackParamList, 'SignIn'>;
 
 export const SignInScreen: React.FC<Props> = ({ navigation }) => {
