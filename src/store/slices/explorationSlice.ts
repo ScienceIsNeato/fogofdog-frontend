@@ -143,11 +143,13 @@ const explorationSlice = createSlice({
         });
         return;
       }
-      
+
       logger.info('📍 Processing location update', {
         component: 'explorationSlice',
         action: 'updateLocation',
-        currentLocation: state.currentLocation ? `${state.currentLocation.latitude}, ${state.currentLocation.longitude}` : 'null',
+        currentLocation: state.currentLocation
+          ? `${state.currentLocation.latitude}, ${state.currentLocation.longitude}`
+          : 'null',
         newPoint: `${newPoint.latitude}, ${newPoint.longitude}`,
         areIdentical: false,
       });

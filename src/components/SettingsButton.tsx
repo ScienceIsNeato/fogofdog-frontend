@@ -1,10 +1,5 @@
 import React from 'react';
-import {
-  TouchableOpacity,
-  StyleSheet,
-  ViewStyle,
-  StyleProp,
-} from 'react-native';
+import { TouchableOpacity, StyleSheet, ViewStyle, StyleProp } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 
 interface SettingsButtonProps {
@@ -20,11 +15,7 @@ export const SettingsButton: React.FC<SettingsButtonProps> = ({
 }) => {
   return (
     <TouchableOpacity
-      style={[
-        styles.button,
-        disabled && styles.disabled,
-        style,
-      ]}
+      style={[styles.button, disabled && styles.disabled, style]}
       onPress={onPress}
       disabled={disabled}
       accessibilityLabel="Open settings menu"
@@ -62,4 +53,4 @@ const styles = StyleSheet.create({
   disabled: {
     opacity: 0.5,
   },
-}); 
+});

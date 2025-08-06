@@ -28,7 +28,7 @@ import { PermissionAlert } from '../../components/PermissionAlert';
 import { TrackingControlButton } from '../../components/TrackingControlButton';
 import { OnboardingOverlay } from '../../components/OnboardingOverlay';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useRoute, RouteProp } from '@react-navigation/native';
+// import { useRoute, RouteProp } from '@react-navigation/native'; // FUTURE: For navigation params
 import { logger } from '../../utils/logger';
 import { GPSInjectionService } from '../../services/GPSInjectionService';
 import { BackgroundLocationService } from '../../services/BackgroundLocationService';
@@ -36,7 +36,7 @@ import { AuthPersistenceService } from '../../services/AuthPersistenceService';
 import { DataClearingService } from '../../services/DataClearingService';
 import { DataStats, ClearType } from '../../types/dataClear';
 import { GeoPoint } from '../../types/user';
-import { MainStackParamList } from '../../types/navigation';
+// import { MainStackParamList } from '../../types/navigation'; // FUTURE: For navigation params
 import { useOnboardingContext } from '../../navigation';
 // Performance optimizations available via OptimizedFogOverlay component
 
@@ -107,17 +107,17 @@ async function requestLocationPermissions(allowRequests: boolean = true) {
     logger.info('Location permissions blocked - onboarding not completed', {
       component: 'MapScreen',
       action: 'requestLocationPermissions',
-      reason: 'onboarding_not_completed'
+      reason: 'onboarding_not_completed',
     });
     return { foregroundGranted: false, backgroundGranted: false };
   }
-  
+
   logger.info('Requesting location permissions', {
     component: 'MapScreen',
     action: 'requestLocationPermissions',
-    step: 'starting'
+    step: 'starting',
   });
-  
+
   const { status: foregroundStatus } = await Location.requestForegroundPermissionsAsync();
   const foregroundGranted = foregroundStatus === 'granted';
 
@@ -125,7 +125,7 @@ async function requestLocationPermissions(allowRequests: boolean = true) {
     logger.warn('Foreground location permission denied', {
       component: 'MapScreen',
       action: 'requestLocationPermissions',
-      foregroundStatus
+      foregroundStatus,
     });
     return { foregroundGranted: false, backgroundGranted: false };
   }
@@ -199,7 +199,7 @@ async function startLocationUpdates(backgroundGranted: boolean = false) {
     }
 
     await Location.startLocationUpdatesAsync(LOCATION_TASK, locationOptions);
-    
+
     logger.info('Location updates started successfully', {
       component: 'MapScreen',
       action: 'startLocationUpdates',
@@ -212,15 +212,16 @@ async function startLocationUpdates(backgroundGranted: boolean = false) {
       backgroundGranted,
       errorMessage: error instanceof Error ? error.message : String(error),
     });
-    
+
     // Show user-friendly error
     PermissionAlert.show({
-      errorMessage: 'Unable to start location tracking. Please check your location permissions and try again.',
+      errorMessage:
+        'Unable to start location tracking. Please check your location permissions and try again.',
       onDismiss: () => {
         logger.info('Location update error alert dismissed');
       },
     });
-    
+
     throw error;
   }
 }
@@ -271,20 +272,20 @@ function setupLocationListeners({
         location: `${location.latitude}, ${location.longitude}`,
         isActive: isActiveRef.current,
       });
-      
+
       if (isActiveRef.current) {
         logger.info('📍 Processing GPS injection - calling handleLocationUpdate', {
           component: 'MapScreen',
           action: 'gpsInjectionListener',
           location: `${location.latitude}, ${location.longitude}`,
         });
-        
+
         const geoPoint: GeoPoint = {
           latitude: location.latitude,
           longitude: location.longitude,
           timestamp: Date.now(),
         };
-        
+
         handleLocationUpdate({
           location: geoPoint,
           dispatch,
@@ -293,7 +294,7 @@ function setupLocationListeners({
           isFollowModeActive,
           currentRegion,
         });
-        
+
         logger.info('✅ GPS injection handleLocationUpdate called', {
           component: 'MapScreen',
           action: 'gpsInjectionListener',
@@ -404,6 +405,63 @@ const setupBackgroundLocationTracking = async (backgroundGranted: boolean) => {
   }
 };
 
+// Helper function for handling location permissions
+const handleLocationPermissions = async (
+  allowLocationRequests: boolean,
+  onPermissionsGranted?: (granted: boolean) => void
+) => {
+  const { foregroundGranted, backgroundGranted } =
+    await requestLocationPermissions(allowLocationRequests);
+
+  // Update permission state via callback
+  if (onPermissionsGranted) {
+    onPermissionsGranted(foregroundGranted && backgroundGranted);
+  }
+
+  if (!foregroundGranted) {
+    logger.warn('Foreground location permission denied, showing permission alert');
+    PermissionAlert.showCritical({
+      errorMessage:
+        'Location access is required to use FogOfDog. Please enable location permissions in your device settings and restart the app.',
+      onDismiss: () => {
+        logger.info('Permission alert dismissed');
+      },
+    });
+    return null;
+  }
+
+  return { foregroundGranted, backgroundGranted };
+};
+
+// Helper function for initializing location services
+const initializeLocationServices = async (
+  backgroundGranted: boolean,
+  locationParams: {
+    isActiveRef: { current: boolean };
+    dispatch: ReturnType<typeof useAppDispatch>;
+    mapRef: React.RefObject<MapView>;
+    isMapCenteredOnUser: boolean;
+    isFollowModeActive: boolean;
+    currentRegion: Region | undefined;
+  }
+) => {
+  // Initialize BackgroundLocationService
+  await BackgroundLocationService.initialize();
+
+  // Setup background location tracking
+  await setupBackgroundLocationTracking(backgroundGranted);
+
+  // Start foreground location tracking
+  defineUnifiedLocationTask();
+  await startLocationUpdates(backgroundGranted);
+
+  // Process any stored background locations
+  await processStoredLocationsOnStartup(locationParams.dispatch);
+
+  // Get initial location
+  await getInitialLocation(locationParams);
+};
+
 // Helper function for setting up unified location service
 const setupUnifiedLocationService = async ({
   isActiveRef,
@@ -436,48 +494,27 @@ const setupUnifiedLocationService = async ({
       });
       return;
     }
-    
+
     logger.info('Proceeding with location service initialization', {
-      component: 'MapScreen', 
+      component: 'MapScreen',
       action: 'setupUnifiedLocationService',
       allowLocationRequests,
       skipped: false,
     });
-    
-    const { foregroundGranted, backgroundGranted } = await requestLocationPermissions(allowLocationRequests);
-    
-    // Update permission state via callback
-    if (onPermissionsGranted) {
-      onPermissionsGranted(foregroundGranted && backgroundGranted);
-    }
-    
-    if (!foregroundGranted) {
-      logger.warn('Foreground location permission denied, showing permission alert');
-      PermissionAlert.showCritical({
-        errorMessage:
-          'Location access is required to use FogOfDog. Please enable location permissions in your device settings and restart the app.',
-        onDismiss: () => {
-          logger.info('Permission alert dismissed');
-        },
-      });
-      return;
+
+    // Handle permissions
+    const permissionResult = await handleLocationPermissions(
+      allowLocationRequests,
+      onPermissionsGranted
+    );
+    if (!permissionResult) {
+      return; // Permission denied, early return
     }
 
-    // Initialize BackgroundLocationService
-    await BackgroundLocationService.initialize();
+    const { backgroundGranted } = permissionResult;
 
-    // Setup background location tracking
-    await setupBackgroundLocationTracking(backgroundGranted);
-
-    // Start foreground location tracking
-    defineUnifiedLocationTask();
-    await startLocationUpdates(backgroundGranted);
-
-    // Process any stored background locations
-    await processStoredLocationsOnStartup(dispatch);
-
-    // Get initial location
-    await getInitialLocation({
+    // Initialize all location services
+    await initializeLocationServices(backgroundGranted, {
       isActiveRef,
       dispatch,
       mapRef,
@@ -492,12 +529,12 @@ const setupUnifiedLocationService = async ({
       component: 'MapScreen',
       action: 'setupUnifiedLocationService',
     });
-    
+
     // Update permission state to false on error
     if (onPermissionsGranted) {
       onPermissionsGranted(false);
     }
-    
+
     throw error;
   }
 };
@@ -600,7 +637,7 @@ const useUnifiedLocationService = (
     if (!allowLocationRequests) {
       return;
     }
-    
+
     const startLocationServices = createStartLocationServices(
       dispatch,
       config,
@@ -627,7 +664,14 @@ const useUnifiedLocationService = (
     };
 
     handleLocationServiceToggle();
-  }, [isTrackingPaused, dispatch, config, isLocationActive, allowLocationRequests, onPermissionsGranted]);
+  }, [
+    isTrackingPaused,
+    dispatch,
+    config,
+    isLocationActive,
+    allowLocationRequests,
+    onPermissionsGranted,
+  ]);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -889,6 +933,40 @@ interface MapScreenRendererProps {
   // workletMapRegion?: ReturnType<typeof useWorkletMapRegion>; // Available for future worklet integration
 }
 
+// Loading state component
+const MapLoadingState = ({
+  setMapDimensions,
+  centerOnUserLocation,
+  isMapCenteredOnUser,
+  isFollowModeActive,
+  insets,
+}: {
+  setMapDimensions: (dimensions: { width: number; height: number }) => void;
+  centerOnUserLocation: () => void;
+  isMapCenteredOnUser: boolean;
+  isFollowModeActive: boolean;
+  insets: SafeAreaInsets;
+}) => (
+  <View
+    style={styles.container}
+    testID="map-screen"
+    onLayout={(event) => {
+      const { width, height } = event.nativeEvent.layout;
+      setMapDimensions({ width, height });
+    }}
+  >
+    <View style={styles.loadingContainer}>
+      <Text style={styles.loadingText}>Getting your location...</Text>
+    </View>
+    <LocationButton
+      onPress={centerOnUserLocation}
+      isCentered={isMapCenteredOnUser}
+      isFollowModeActive={isFollowModeActive}
+      style={getLocationButtonStyle(insets)}
+    />
+  </View>
+);
+
 // Render component for the map view and overlays
 const MapScreenRenderer = ({
   mapRef,
@@ -907,24 +985,13 @@ const MapScreenRenderer = ({
   // Don't render map until we have a real location
   if (!currentLocation) {
     return (
-      <View
-        style={styles.container}
-        testID="map-screen"
-        onLayout={(event) => {
-          const { width, height } = event.nativeEvent.layout;
-          setMapDimensions({ width, height });
-        }}
-      >
-        <View style={styles.loadingContainer}>
-          <Text style={styles.loadingText}>Getting your location...</Text>
-        </View>
-        <LocationButton
-          onPress={centerOnUserLocation}
-          isCentered={isMapCenteredOnUser}
-          isFollowModeActive={isFollowModeActive}
-          style={getLocationButtonStyle(insets)}
-        />
-      </View>
+      <MapLoadingState
+        setMapDimensions={setMapDimensions}
+        centerOnUserLocation={centerOnUserLocation}
+        isMapCenteredOnUser={isMapCenteredOnUser}
+        isFollowModeActive={isFollowModeActive}
+        insets={insets}
+      />
     );
   }
 
@@ -958,13 +1025,13 @@ const MapScreenRenderer = ({
         pitchEnabled={false}
       >
         {currentLocation && (
-          <Marker 
+          <Marker
             key={`marker-${currentLocation.latitude}-${currentLocation.longitude}-${Date.now()}`}
             coordinate={{
               latitude: currentLocation.latitude,
               longitude: currentLocation.longitude,
-            }} 
-            title="You are here" 
+            }}
+            title="You are here"
             anchor={{ x: 0.5, y: 0.5 }}
           >
             <View style={USER_MARKER_STYLE} />
@@ -1217,9 +1284,11 @@ const createDataClearHandler = (
 // Custom hook for data clearing functionality
 const useDataClearing = (
   dispatch: ReturnType<typeof useAppDispatch>,
-  mapRef: React.RefObject<MapView>,
-  isMapCenteredOnUser: boolean,
-  currentRegion: Region | undefined,
+  mapConfig: {
+    mapRef: React.RefObject<MapView>;
+    isMapCenteredOnUser: boolean;
+    currentRegion: Region | undefined;
+  },
   explorationState: any
 ) => {
   const [dataStats, setDataStats] = useState<DataStats>({
@@ -1247,7 +1316,7 @@ const useDataClearing = (
   // Update data stats once on mount - no polling!
   useEffect(() => {
     updateDataStats();
-  }, []); // Empty dependency array - only run once on mount
+  }, [updateDataStats]); // Include updateDataStats in dependency array
 
   // Update data stats when path changes (event-driven)
   useEffect(() => {
@@ -1258,7 +1327,7 @@ const useDataClearing = (
 
   const handleClearSelection = createDataClearHandler(
     { isClearing, setIsClearing, setDataStats, setIsDataClearDialogVisible },
-    { dispatch, mapRef, isMapCenteredOnUser, currentRegion }
+    { dispatch, ...mapConfig }
   );
 
   return {
@@ -1392,13 +1461,15 @@ const useMapScreenState = () => {
   const { currentLocation, isMapCenteredOnUser, isFollowModeActive } = useAppSelector(
     (state) => state.exploration
   );
-  
+
   // Debug log to see if currentLocation is actually changing
   React.useEffect(() => {
     logger.info('🗺️ MapScreen currentLocation changed', {
       component: 'MapScreen',
       action: 'currentLocationChange',
-      location: currentLocation ? `${currentLocation.latitude}, ${currentLocation.longitude}` : 'null',
+      location: currentLocation
+        ? `${currentLocation.latitude}, ${currentLocation.longitude}`
+        : 'null',
       timestamp: Date.now(),
     });
   }, [currentLocation]);
@@ -1452,7 +1523,7 @@ const useMapScreenServices = (
     isTrackingPaused,
     explorationState,
   } = config;
-  
+
   // Debug logging for location service initialization
   logger.info('MapScreen services initialization', {
     component: 'MapScreen',
@@ -1460,16 +1531,21 @@ const useMapScreenServices = (
     allowLocationRequests,
     isTrackingPaused,
   });
-  
+
   // Use simplified unified location service
-  useUnifiedLocationService(dispatch, {
-    mapRef,
-    isMapCenteredOnUser,
-    isFollowModeActive,
-    currentRegion,
-    isTrackingPaused,
-  }, allowLocationRequests, setPermissionsGranted);
-  
+  useUnifiedLocationService(
+    dispatch,
+    {
+      mapRef,
+      isMapCenteredOnUser,
+      isFollowModeActive,
+      currentRegion,
+      isTrackingPaused,
+    },
+    allowLocationRequests,
+    setPermissionsGranted
+  );
+
   useZoomRestriction(currentRegion, mapRef);
 
   // Persist exploration state whenever it changes
@@ -1571,91 +1647,37 @@ const MapScreenUI: React.FC<{
   );
 };
 
-export const MapScreen = () => {
+// Custom hook for onboarding state management
+const useMapScreenOnboarding = () => {
   const { isFirstTimeUser } = useOnboardingContext();
 
   // Onboarding and permission state management
   const [showOnboarding, setShowOnboarding] = useState(isFirstTimeUser);
   const [hasCompletedOnboarding, setHasCompletedOnboarding] = useState(!isFirstTimeUser);
-  const [permissionsGranted, setPermissionsGranted] = useState(false);
-  
+
   // Location services should only start when both conditions are met
   const canStartLocationServices = hasCompletedOnboarding && !showOnboarding;
 
   // Sanity check logging - using both console.log and logger
-  const renderID = Math.random().toString(36).substr(2, 9);
-  console.log(`🔍 SANITY CHECK - MapScreen render ${renderID}:`, { 
-    isFirstTimeUser, 
+  const renderID = Math.random().toString(36).substring(2, 11);
+  logger.debug(`🔍 SANITY CHECK - MapScreen render ${renderID}:`, {
+    isFirstTimeUser,
     showOnboarding,
     hasCompletedOnboarding,
     canStartLocationServices,
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
   });
 
   // Debug logging for onboarding state
   logger.info('MapScreen initialization', {
     component: 'MapScreen',
-    action: 'initialization',
+    action: 'useMapScreenOnboarding',
     isFirstTimeUser,
     showOnboarding,
     hasCompletedOnboarding,
     canStartLocationServices,
-    allowLocationRequests: canStartLocationServices,
-    renderID,
   });
 
-  const {
-    dispatch,
-    currentLocation,
-    isMapCenteredOnUser,
-    isFollowModeActive,
-    mapRef,
-    currentRegion,
-    setCurrentRegion,
-    setMapDimensions,
-    currentFogRegion,
-    setCurrentFogRegion,
-    mapDimensions,
-    // Performance optimization with OptimizedFogOverlay
-    updateFogRegion,
-  } = useMapScreenState();
-
-  const { explorationState, isTrackingPaused, insets } = useMapScreenReduxState();
-
-  const {
-    dataStats,
-    isDataClearDialogVisible,
-    setIsDataClearDialogVisible,
-    isClearing,
-    handleClearSelection,
-  } = useDataClearing(dispatch, mapRef, isMapCenteredOnUser, currentRegion, explorationState);
-
-  // Set up all services and effects
-  // Delay location services until onboarding is complete to prevent permission dialogs from blocking tutorial
-  useMapScreenServices(dispatch, {
-    mapRef,
-    isMapCenteredOnUser,
-    isFollowModeActive,
-    currentRegion,
-    isTrackingPaused,
-    explorationState,
-  }, canStartLocationServices, setPermissionsGranted);
-
-  const { centerOnUserLocation, onRegionChange, onPanDrag, onRegionChangeComplete } =
-    useMapEventHandlers({
-      dispatch,
-      currentLocation,
-      currentRegion,
-      isMapCenteredOnUser,
-      isFollowModeActive,
-      mapRef,
-      setCurrentRegion,
-      setCurrentFogRegion,
-      mapDimensions,
-      workletUpdateRegion: updateFogRegion,
-    });
-
-  // Onboarding handlers
   const handleOnboardingComplete = useCallback(() => {
     logger.info('Onboarding completed from MapScreen', {
       component: 'MapScreen',
@@ -1674,28 +1696,110 @@ export const MapScreen = () => {
     setHasCompletedOnboarding(true); // Mark onboarding as completed (skipped)
   }, []);
 
+  return {
+    showOnboarding,
+    hasCompletedOnboarding,
+    canStartLocationServices,
+    handleOnboardingComplete,
+    handleOnboardingSkip,
+  };
+};
+
+// Custom hook that combines all map screen logic
+const useMapScreenLogic = () => {
+  const {
+    showOnboarding,
+    canStartLocationServices,
+    handleOnboardingComplete,
+    handleOnboardingSkip,
+  } = useMapScreenOnboarding();
+
+  logger.info('MapScreen render', { showOnboarding, canStartLocationServices });
+
+  const {
+    dispatch,
+    currentLocation,
+    isMapCenteredOnUser,
+    isFollowModeActive,
+    mapRef,
+    currentRegion,
+    setCurrentRegion,
+    setMapDimensions,
+    currentFogRegion,
+    setCurrentFogRegion,
+    mapDimensions,
+    updateFogRegion,
+  } = useMapScreenState();
+  const { explorationState, isTrackingPaused, insets } = useMapScreenReduxState();
+
+  const {
+    dataStats,
+    isDataClearDialogVisible,
+    setIsDataClearDialogVisible,
+    isClearing,
+    handleClearSelection,
+  } = useDataClearing(dispatch, { mapRef, isMapCenteredOnUser, currentRegion }, explorationState);
+
+  useMapScreenServices(
+    dispatch,
+    {
+      mapRef,
+      isMapCenteredOnUser,
+      isFollowModeActive,
+      currentRegion,
+      isTrackingPaused,
+      explorationState,
+    },
+    canStartLocationServices
+  );
+
+  const { centerOnUserLocation, onRegionChange, onPanDrag, onRegionChangeComplete } =
+    useMapEventHandlers({
+      dispatch,
+      currentLocation,
+      currentRegion,
+      isMapCenteredOnUser,
+      isFollowModeActive,
+      mapRef,
+      setCurrentRegion,
+      setCurrentFogRegion,
+      mapDimensions,
+      workletUpdateRegion: updateFogRegion,
+    });
+
+  return {
+    showOnboarding,
+    handleOnboardingComplete,
+    handleOnboardingSkip,
+    uiProps: {
+      mapRef,
+      currentLocation,
+      insets,
+      isMapCenteredOnUser,
+      isFollowModeActive,
+      onRegionChange,
+      onPanDrag,
+      onRegionChangeComplete,
+      centerOnUserLocation,
+      setMapDimensions,
+      currentFogRegion,
+      isClearing,
+      setIsDataClearDialogVisible,
+      isDataClearDialogVisible,
+      dataStats,
+      handleClearSelection,
+    },
+  };
+};
+
+// Main component - now uses the logic hook and renders UI
+export const MapScreen = () => {
+  const { showOnboarding, handleOnboardingComplete, handleOnboardingSkip, uiProps } =
+    useMapScreenLogic();
+
   return (
     <>
-      <MapScreenUI
-        mapRef={mapRef}
-        currentLocation={currentLocation}
-        insets={insets}
-        isMapCenteredOnUser={isMapCenteredOnUser}
-        isFollowModeActive={isFollowModeActive}
-        onRegionChange={onRegionChange}
-        onPanDrag={onPanDrag}
-        onRegionChangeComplete={onRegionChangeComplete}
-        centerOnUserLocation={centerOnUserLocation}
-        setMapDimensions={setMapDimensions}
-        currentFogRegion={currentFogRegion}
-        isClearing={isClearing}
-        setIsDataClearDialogVisible={setIsDataClearDialogVisible}
-        isDataClearDialogVisible={isDataClearDialogVisible}
-        dataStats={dataStats}
-        handleClearSelection={handleClearSelection}
-      />
-      
-      {/* Onboarding Overlay - shown above everything else for first-time users */}
+      <MapScreenUI {...uiProps} />
       <OnboardingOverlay
         visible={showOnboarding}
         onComplete={handleOnboardingComplete}

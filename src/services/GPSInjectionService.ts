@@ -21,7 +21,7 @@ export class GPSInjectionService {
         action: 'checkGPSInjectionFile',
         filePath: GPS_INJECTION_FILE_PATH,
       });
-      
+
       const fileInfo = await FileSystem.getInfoAsync(GPS_INJECTION_FILE_PATH);
       logger.debug(`📁 File info result:`, {
         component: 'GPSInjectionService',
@@ -29,14 +29,14 @@ export class GPSInjectionService {
         exists: fileInfo.exists,
         fileInfo,
       });
-      
+
       if (!fileInfo.exists) {
         return null;
       }
 
       const fileContent = await FileSystem.readAsStringAsync(GPS_INJECTION_FILE_PATH);
       const fileData = JSON.parse(fileContent);
-      
+
       // GPS injector tool wraps coordinates in a structure, extract the coordinates array
       if (!fileData.coordinates || !Array.isArray(fileData.coordinates)) {
         return null;
@@ -44,7 +44,7 @@ export class GPSInjectionService {
 
       // Delete the file after reading to prevent reprocessing
       await FileSystem.deleteAsync(GPS_INJECTION_FILE_PATH);
-      
+
       logger.info('Found GPS injection file, processing coordinates', {
         component: 'GPSInjectionService',
         action: 'checkGPSInjectionFile',
@@ -115,7 +115,7 @@ export class GPSInjectionService {
         });
 
         DeviceEventEmitter.emit(GPS_INJECTION_EVENT, coord);
-        
+
         logger.info(`✅ GPS injection event emitted for coordinate ${index + 1}`, {
           component: 'GPSInjectionService',
           action: 'checkAndProcessInjectedGPS',

@@ -17,10 +17,10 @@ describe('Navigation Types', () => {
 
     it('should define Main route with undefined params', () => {
       const mainRoute: keyof RootStackParamList = 'Main';
-      const mainParams: RootStackParamList['Main'] = undefined;
+      const mainParams: RootStackParamList['Main'] = {};
 
       expect(mainRoute).toBe('Main');
-      expect(mainParams).toBeUndefined();
+      expect(mainParams).toEqual({});
     });
 
     it('should have exactly two routes', () => {
@@ -59,10 +59,10 @@ describe('Navigation Types', () => {
   describe('MainStackParamList', () => {
     it('should define Map route with undefined params', () => {
       const mapRoute: keyof MainStackParamList = 'Map';
-      const mapParams: MainStackParamList['Map'] = undefined;
+      const mapParams: MainStackParamList['Map'] = {};
 
       expect(mapRoute).toBe('Map');
-      expect(mapParams).toBeUndefined();
+      expect(mapParams).toEqual({});
     });
 
     it('should define Profile route with undefined params', () => {
@@ -148,14 +148,14 @@ describe('Navigation Types', () => {
           SignUp: undefined as AuthStackParamList['SignUp'],
         },
         main: {
-          Map: undefined as MainStackParamList['Map'],
+          Map: {} as MainStackParamList['Map'],
           Profile: undefined as MainStackParamList['Profile'],
         },
       };
 
       expect(navigationRoutes.auth.SignIn).toBeUndefined();
       expect(navigationRoutes.auth.SignUp).toBeUndefined();
-      expect(navigationRoutes.main.Map).toBeUndefined();
+      expect(navigationRoutes.main.Map).toEqual({});
       expect(navigationRoutes.main.Profile).toBeUndefined();
     });
 

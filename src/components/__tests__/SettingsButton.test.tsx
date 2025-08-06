@@ -15,7 +15,7 @@ describe('SettingsButton', () => {
 
       const button = screen.getByTestId('settings-button');
       expect(button).toBeTruthy();
-      
+
       // Should have settings icon
       expect(screen.getByTestId('settings-icon')).toBeTruthy();
     });
@@ -46,7 +46,7 @@ describe('SettingsButton', () => {
     });
 
     it('should handle positioning styles correctly', () => {
-      const positionStyle = { 
+      const positionStyle = {
         position: 'absolute' as const,
         bottom: 20,
         right: 20,
@@ -88,13 +88,15 @@ describe('SettingsButton', () => {
 
       const button = screen.getByTestId('settings-button');
       const buttonStyle = button.props.style;
-      
+
       // Check for circular design properties
-      expect(buttonStyle).toEqual(expect.objectContaining({
-        borderRadius: expect.any(Number),
-        width: expect.any(Number),
-        height: expect.any(Number),
-      }));
+      expect(buttonStyle).toEqual(
+        expect.objectContaining({
+          borderRadius: expect.any(Number),
+          width: expect.any(Number),
+          height: expect.any(Number),
+        })
+      );
     });
 
     it('should have proper shadow and elevation', () => {
@@ -102,15 +104,17 @@ describe('SettingsButton', () => {
 
       const button = screen.getByTestId('settings-button');
       const buttonStyle = button.props.style;
-      
+
       // Check for shadow properties
-      expect(buttonStyle).toEqual(expect.objectContaining({
-        shadowColor: expect.any(String),
-        shadowOffset: expect.any(Object),
-        shadowOpacity: expect.any(Number),
-        shadowRadius: expect.any(Number),
-        elevation: expect.any(Number),
-      }));
+      expect(buttonStyle).toEqual(
+        expect.objectContaining({
+          shadowColor: expect.any(String),
+          shadowOffset: expect.any(Object),
+          shadowOpacity: expect.any(Number),
+          shadowRadius: expect.any(Number),
+          elevation: expect.any(Number),
+        })
+      );
     });
   });
 
@@ -118,9 +122,9 @@ describe('SettingsButton', () => {
     it('should work as a drop-in replacement for existing clear button', () => {
       // This test ensures it can replace the existing data clear button functionality
       const handleSettingsPress = jest.fn();
-      
+
       render(
-        <SettingsButton 
+        <SettingsButton
           onPress={handleSettingsPress}
           style={{ position: 'absolute' as const, bottom: 100, right: 20 }}
         />
@@ -128,9 +132,9 @@ describe('SettingsButton', () => {
 
       const button = screen.getByTestId('settings-button');
       expect(button).toBeTruthy();
-      
+
       fireEvent.press(button);
       expect(handleSettingsPress).toHaveBeenCalled();
     });
   });
-}); 
+});

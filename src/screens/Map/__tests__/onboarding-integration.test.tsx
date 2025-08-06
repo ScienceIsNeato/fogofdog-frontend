@@ -32,9 +32,19 @@ jest.mock('expo-location', () => ({
 
 // Mock react-native-maps
 jest.mock('react-native-maps', () => {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const React = require('react');
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { View } = require('react-native');
-  const MockMapView = (props: any) => <View testID="mock-map-view" {...props} />;
-  MockMapView.Marker = (props: any) => <View testID="mock-marker" {...props} />;
+  const MockMapView = React.forwardRef((props: any, ref: any) => (
+    <View ref={ref} testID="mock-map-view" {...props} />
+  ));
+  MockMapView.displayName = 'MockMapView';
+
+  const MockMarker = (props: any) => <View testID="mock-marker" {...props} />;
+  MockMarker.displayName = 'MockMarker';
+
+  MockMapView.Marker = MockMarker;
   return {
     __esModule: true,
     default: MockMapView,
@@ -44,8 +54,13 @@ jest.mock('react-native-maps', () => {
 
 // Mock OptimizedFogOverlay
 jest.mock('../../../components/OptimizedFogOverlay', () => {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const React = require('react');
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { View } = require('react-native');
-  return (props: any) => <View testID="mock-fog-overlay" {...props} />;
+  const MockFogOverlay = (props: any) => <View testID="mock-fog-overlay" {...props} />;
+  MockFogOverlay.displayName = 'MockFogOverlay';
+  return MockFogOverlay;
 });
 
 const mockedOnboardingService = OnboardingService as jest.Mocked<typeof OnboardingService>;
@@ -79,20 +94,16 @@ const createTestStore = () => {
 };
 
 // Helper component to render MapScreen with navigation
-const MapScreenWithNavigation: React.FC<{ isFirstTimeUser?: boolean }> = ({ 
-  isFirstTimeUser = false 
+const MapScreenWithNavigation: React.FC<{ isFirstTimeUser?: boolean }> = ({
+  isFirstTimeUser = false,
 }) => {
   const store = createTestStore();
-  
+
   return (
     <Provider store={store}>
       <NavigationContainer>
         <Stack.Navigator screenOptions={{ headerShown: false }}>
-          <Stack.Screen 
-            name="Map" 
-            component={MapScreen}
-            initialParams={{ isFirstTimeUser }}
-          />
+          <Stack.Screen name="Map" component={MapScreen} initialParams={{ isFirstTimeUser }} />
         </Stack.Navigator>
       </NavigationContainer>
     </Provider>
@@ -179,4 +190,4 @@ describe('MapScreen Onboarding Integration', () => {
 
     consoleSpy.mockRestore();
   });
-}); 
+});

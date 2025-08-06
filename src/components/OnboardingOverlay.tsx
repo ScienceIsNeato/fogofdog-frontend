@@ -12,7 +12,7 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { OnboardingService } from '../services/OnboardingService';
 import { logger } from '../utils/logger';
 
-const { width, height } = Dimensions.get('window');
+const { width } = Dimensions.get('window');
 
 interface OnboardingOverlayProps {
   visible: boolean;
@@ -37,40 +37,167 @@ const ONBOARDING_STEPS: OnboardingStep[] = [
   {
     id: 2,
     title: 'Understanding the Fog',
-    description: 'Gray areas are unexplored, clear areas show where you\'ve been. Move around to reveal the map!',
+    description:
+      "Gray areas are unexplored, clear areas show where you've been. Move around to reveal the map!",
     icon: 'visibility',
   },
   {
     id: 3,
     title: 'Location Button',
-    description: 'Tap the location button to center the map on your current position. It turns blue when active.',
+    description:
+      'Tap the location button to center the map on your current position. It turns blue when active.',
     icon: 'my-location',
   },
   {
     id: 4,
     title: 'Tracking Control',
-    description: 'Use the pause button to stop or resume tracking your exploration. Perfect for breaks!',
+    description:
+      'Use the pause button to stop or resume tracking your exploration. Perfect for breaks!',
     icon: 'play-circle-outline',
   },
   {
     id: 5,
     title: 'Settings & History',
-    description: 'Access app settings and manage your exploration history through the settings menu.',
+    description:
+      'Access app settings and manage your exploration history through the settings menu.',
     icon: 'settings',
   },
   {
     id: 6,
     title: 'Start Exploring!',
-    description: 'You\'re ready to go! Start moving around to clear the fog and discover new areas.',
+    description: "You're ready to go! Start moving around to clear the fog and discover new areas.",
     icon: 'flag',
   },
 ];
 
-export const OnboardingOverlay: React.FC<OnboardingOverlayProps> = ({
-  visible,
+// Helper component for the onboarding header
+const OnboardingHeader: React.FC<{
+  onSkip: () => void;
+  isCompleting: boolean;
+}> = ({ onSkip, isCompleting }) => (
+  <View style={styles.header}>
+    <TouchableOpacity
+      style={styles.skipButton}
+      onPress={onSkip}
+      disabled={isCompleting}
+      accessibilityLabel="Skip onboarding tutorial"
+      accessibilityRole="button"
+    >
+      <Text style={styles.skipText}>Skip Tutorial</Text>
+    </TouchableOpacity>
+  </View>
+);
+
+// Helper component for the step content
+const OnboardingStepContent: React.FC<{
+  currentStep: number;
+  currentStepData?: OnboardingStep | undefined;
+}> = ({ currentStep, currentStepData }) => (
+  <View style={styles.content}>
+    {/* Step indicator */}
+    <Text style={styles.stepIndicator}>
+      Step {currentStep} of {ONBOARDING_STEPS.length}
+    </Text>
+
+    {/* Icon */}
+    <View style={styles.iconContainer}>
+      <MaterialIcons name={currentStepData?.icon ?? 'help'} size={80} color="#007AFF" />
+    </View>
+
+    {/* Title and description */}
+    <Text style={styles.title}>{currentStepData?.title ?? 'Welcome'}</Text>
+    <Text style={styles.description}>{currentStepData?.description ?? 'Welcome to FogOfDog'}</Text>
+  </View>
+);
+
+// Helper component for navigation buttons
+const OnboardingNavigation: React.FC<{
+  currentStep: number;
+  totalSteps: number;
+  isFirstStep: boolean;
+  isLastStep: boolean;
+  isCompleting: boolean;
+  onBack: () => void;
+  onNext: () => void;
+  onComplete: () => void;
+}> = ({
+  currentStep,
+  totalSteps,
+  isFirstStep,
+  isLastStep,
+  isCompleting,
+  onBack,
+  onNext,
   onComplete,
-  onSkip,
-}) => {
+}) => (
+  <View style={styles.footer}>
+    {/* Progress dots */}
+    <View style={styles.progressContainer}>
+      {Array.from({ length: totalSteps }, (_, index) => (
+        <View
+          key={`progress-dot-${index}`}
+          style={[styles.progressDot, index + 1 <= currentStep && styles.progressDotActive]}
+        />
+      ))}
+    </View>
+
+    <View style={styles.buttonRow}>
+      {!isFirstStep && (
+        <TouchableOpacity
+          style={[styles.button, styles.backButton]}
+          onPress={onBack}
+          disabled={isCompleting}
+          accessibilityLabel="Go back to previous step"
+          accessibilityRole="button"
+        >
+          <Text style={styles.backButtonText}>Back</Text>
+        </TouchableOpacity>
+      )}
+
+      <View style={styles.buttonSpacer} />
+
+      {isLastStep ? (
+        <TouchableOpacity
+          style={[styles.button, styles.finishButton]}
+          onPress={onComplete}
+          disabled={isCompleting}
+          accessibilityLabel="Complete onboarding tutorial"
+          accessibilityRole="button"
+        >
+          <Text style={styles.finishButtonText}>
+            {isCompleting ? 'Starting...' : 'Get Started!'}
+          </Text>
+        </TouchableOpacity>
+      ) : (
+        <TouchableOpacity
+          style={[styles.button, styles.continueButton]}
+          onPress={onNext}
+          disabled={isCompleting}
+          accessibilityLabel="Continue to next step"
+          accessibilityRole="button"
+        >
+          <Text style={styles.continueButtonText}>Continue</Text>
+        </TouchableOpacity>
+      )}
+    </View>
+
+    {/* Progress indicator dots */}
+    <View style={styles.progressContainer}>
+      {ONBOARDING_STEPS.map((step, index) => (
+        <View
+          key={step.id}
+          style={[
+            styles.progressDot,
+            index + 1 <= currentStep ? styles.progressDotActive : styles.progressDotInactive,
+          ]}
+        />
+      ))}
+    </View>
+  </View>
+);
+
+// Custom hook for onboarding logic
+const useOnboardingLogic = (onComplete: () => void, onSkip: () => void) => {
   const [currentStep, setCurrentStep] = useState(1);
   const [isCompleting, setIsCompleting] = useState(false);
 
@@ -88,7 +215,7 @@ export const OnboardingOverlay: React.FC<OnboardingOverlayProps> = ({
 
   const handleComplete = async () => {
     if (isCompleting) return;
-    
+
     setIsCompleting(true);
     try {
       await OnboardingService.markOnboardingCompleted();
@@ -112,7 +239,7 @@ export const OnboardingOverlay: React.FC<OnboardingOverlayProps> = ({
 
   const handleSkip = async () => {
     if (isCompleting) return;
-    
+
     setIsCompleting(true);
     try {
       await OnboardingService.markOnboardingCompleted();
@@ -134,6 +261,24 @@ export const OnboardingOverlay: React.FC<OnboardingOverlayProps> = ({
     }
   };
 
+  return {
+    currentStep,
+    isCompleting,
+    handleNext,
+    handleBack,
+    handleComplete,
+    handleSkip,
+  };
+};
+
+export const OnboardingOverlay: React.FC<OnboardingOverlayProps> = ({
+  visible,
+  onComplete,
+  onSkip,
+}) => {
+  const { currentStep, isCompleting, handleNext, handleBack, handleComplete, handleSkip } =
+    useOnboardingLogic(onComplete, onSkip);
+
   if (!visible) {
     return null;
   }
@@ -143,90 +288,21 @@ export const OnboardingOverlay: React.FC<OnboardingOverlayProps> = ({
   const isLastStep = currentStep === ONBOARDING_STEPS.length;
 
   return (
-    <Modal
-      visible={visible}
-      transparent
-      animationType="fade"
-      statusBarTranslucent
-    >
+    <Modal visible={visible} transparent animationType="fade" statusBarTranslucent>
       <View style={styles.overlay} testID="onboarding-overlay">
         <SafeAreaView style={styles.container}>
-          {/* Header with progress and skip */}
-          <View style={styles.header}>
-            <TouchableOpacity
-              style={styles.skipButton}
-              onPress={handleSkip}
-              disabled={isCompleting}
-              accessibilityLabel="Skip onboarding tutorial"
-              accessibilityRole="button"
-            >
-              <Text style={styles.skipText}>Skip Tutorial</Text>
-            </TouchableOpacity>
-          </View>
-
-          {/* Main content */}
-          <View style={styles.content}>
-            {/* Step indicator */}
-            <Text style={styles.stepIndicator}>
-              Step {currentStep} of {ONBOARDING_STEPS.length}
-            </Text>
-
-            {/* Icon */}
-            <View style={styles.iconContainer}>
-              <MaterialIcons
-                name={currentStepData.icon}
-                size={80}
-                color="#007AFF"
-              />
-            </View>
-
-            {/* Title and description */}
-            <Text style={styles.title}>{currentStepData.title}</Text>
-            <Text style={styles.description}>{currentStepData.description}</Text>
-          </View>
-
-          {/* Navigation buttons */}
-          <View style={styles.footer}>
-            <View style={styles.buttonRow}>
-              {!isFirstStep && (
-                <TouchableOpacity
-                  style={[styles.button, styles.backButton]}
-                  onPress={handleBack}
-                  disabled={isCompleting}
-                  accessibilityLabel="Go back to previous step"
-                  accessibilityRole="button"
-                >
-                  <Text style={styles.backButtonText}>Back</Text>
-                </TouchableOpacity>
-              )}
-
-              <View style={styles.buttonSpacer} />
-
-              {isLastStep ? (
-                <TouchableOpacity
-                  style={[styles.button, styles.finishButton]}
-                  onPress={handleComplete}
-                  disabled={isCompleting}
-                  accessibilityLabel="Complete onboarding tutorial"
-                  accessibilityRole="button"
-                >
-                  <Text style={styles.finishButtonText}>
-                    {isCompleting ? 'Starting...' : 'Get Started!'}
-                  </Text>
-                </TouchableOpacity>
-              ) : (
-                <TouchableOpacity
-                  style={[styles.button, styles.continueButton]}
-                  onPress={handleNext}
-                  disabled={isCompleting}
-                  accessibilityLabel="Continue to next step"
-                  accessibilityRole="button"
-                >
-                  <Text style={styles.continueButtonText}>Continue</Text>
-                </TouchableOpacity>
-              )}
-            </View>
-          </View>
+          <OnboardingHeader onSkip={handleSkip} isCompleting={isCompleting} />
+          <OnboardingStepContent currentStep={currentStep} currentStepData={currentStepData} />
+          <OnboardingNavigation
+            currentStep={currentStep}
+            totalSteps={ONBOARDING_STEPS.length}
+            isFirstStep={isFirstStep}
+            isLastStep={isLastStep}
+            isCompleting={isCompleting}
+            onBack={handleBack}
+            onNext={handleNext}
+            onComplete={handleComplete}
+          />
         </SafeAreaView>
       </View>
     </Modal>
@@ -299,6 +375,24 @@ const styles = StyleSheet.create({
   buttonSpacer: {
     flex: 1,
   },
+  progressContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    marginBottom: 20,
+    gap: 8,
+  },
+  progressDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#E0E0E0',
+  },
+  progressDotActive: {
+    backgroundColor: '#007AFF',
+  },
+  progressDotInactive: {
+    backgroundColor: '#E0E0E0',
+  },
   button: {
     paddingVertical: 16,
     paddingHorizontal: 24,
@@ -332,4 +426,4 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
-}); 
+});

@@ -18,25 +18,13 @@ describe('OnboardingOverlay', () => {
 
   describe('visibility and initial state', () => {
     it('should not render when visible is false', () => {
-      render(
-        <OnboardingOverlay 
-          visible={false} 
-          onComplete={mockOnComplete} 
-          onSkip={mockOnSkip} 
-        />
-      );
+      render(<OnboardingOverlay visible={false} onComplete={mockOnComplete} onSkip={mockOnSkip} />);
 
       expect(screen.queryByTestId('onboarding-overlay')).toBeNull();
     });
 
     it('should render welcome step when visible is true', () => {
-      render(
-        <OnboardingOverlay 
-          visible={true} 
-          onComplete={mockOnComplete} 
-          onSkip={mockOnSkip} 
-        />
-      );
+      render(<OnboardingOverlay visible={true} onComplete={mockOnComplete} onSkip={mockOnSkip} />);
 
       expect(screen.getByTestId('onboarding-overlay')).toBeTruthy();
       expect(screen.getByText('Welcome to FogOfDog!')).toBeTruthy();
@@ -45,13 +33,7 @@ describe('OnboardingOverlay', () => {
     });
 
     it('should show skip and continue buttons', () => {
-      render(
-        <OnboardingOverlay 
-          visible={true} 
-          onComplete={mockOnComplete} 
-          onSkip={mockOnSkip} 
-        />
-      );
+      render(<OnboardingOverlay visible={true} onComplete={mockOnComplete} onSkip={mockOnSkip} />);
 
       expect(screen.getByText('Skip Tutorial')).toBeTruthy();
       expect(screen.getByText('Continue')).toBeTruthy();
@@ -60,13 +42,7 @@ describe('OnboardingOverlay', () => {
 
   describe('step navigation', () => {
     it('should advance to next step when continue is pressed', () => {
-      render(
-        <OnboardingOverlay 
-          visible={true} 
-          onComplete={mockOnComplete} 
-          onSkip={mockOnSkip} 
-        />
-      );
+      render(<OnboardingOverlay visible={true} onComplete={mockOnComplete} onSkip={mockOnSkip} />);
 
       // Start at step 1
       expect(screen.getByText('Step 1 of 6')).toBeTruthy();
@@ -80,13 +56,7 @@ describe('OnboardingOverlay', () => {
     });
 
     it('should go back to previous step when back is pressed', () => {
-      render(
-        <OnboardingOverlay 
-          visible={true} 
-          onComplete={mockOnComplete} 
-          onSkip={mockOnSkip} 
-        />
-      );
+      render(<OnboardingOverlay visible={true} onComplete={mockOnComplete} onSkip={mockOnSkip} />);
 
       // Advance to step 2
       fireEvent.press(screen.getByText('Continue'));
@@ -101,25 +71,13 @@ describe('OnboardingOverlay', () => {
     });
 
     it('should not show back button on first step', () => {
-      render(
-        <OnboardingOverlay 
-          visible={true} 
-          onComplete={mockOnComplete} 
-          onSkip={mockOnSkip} 
-        />
-      );
+      render(<OnboardingOverlay visible={true} onComplete={mockOnComplete} onSkip={mockOnSkip} />);
 
       expect(screen.queryByText('Back')).toBeNull();
     });
 
     it('should show back button on steps after first', () => {
-      render(
-        <OnboardingOverlay 
-          visible={true} 
-          onComplete={mockOnComplete} 
-          onSkip={mockOnSkip} 
-        />
-      );
+      render(<OnboardingOverlay visible={true} onComplete={mockOnComplete} onSkip={mockOnSkip} />);
 
       // Advance to step 2
       fireEvent.press(screen.getByText('Continue'));
@@ -130,13 +88,7 @@ describe('OnboardingOverlay', () => {
 
   describe('tutorial steps content', () => {
     it('should show all tutorial steps in correct order', () => {
-      render(
-        <OnboardingOverlay 
-          visible={true} 
-          onComplete={mockOnComplete} 
-          onSkip={mockOnSkip} 
-        />
-      );
+      render(<OnboardingOverlay visible={true} onComplete={mockOnComplete} onSkip={mockOnSkip} />);
 
       // Step 1: Welcome
       expect(screen.getByText('Welcome to FogOfDog!')).toBeTruthy();
@@ -163,13 +115,7 @@ describe('OnboardingOverlay', () => {
     });
 
     it('should show finish button on last step', () => {
-      render(
-        <OnboardingOverlay 
-          visible={true} 
-          onComplete={mockOnComplete} 
-          onSkip={mockOnSkip} 
-        />
-      );
+      render(<OnboardingOverlay visible={true} onComplete={mockOnComplete} onSkip={mockOnSkip} />);
 
       // Navigate to last step
       for (let i = 0; i < 5; i++) {
@@ -183,13 +129,7 @@ describe('OnboardingOverlay', () => {
 
   describe('completion and skip handling', () => {
     it('should call onComplete and mark onboarding completed when finish is pressed', async () => {
-      render(
-        <OnboardingOverlay 
-          visible={true} 
-          onComplete={mockOnComplete} 
-          onSkip={mockOnSkip} 
-        />
-      );
+      render(<OnboardingOverlay visible={true} onComplete={mockOnComplete} onSkip={mockOnSkip} />);
 
       // Navigate to last step
       for (let i = 0; i < 5; i++) {
@@ -206,13 +146,7 @@ describe('OnboardingOverlay', () => {
     });
 
     it('should call onSkip and mark onboarding completed when skip is pressed', async () => {
-      render(
-        <OnboardingOverlay 
-          visible={true} 
-          onComplete={mockOnComplete} 
-          onSkip={mockOnSkip} 
-        />
-      );
+      render(<OnboardingOverlay visible={true} onComplete={mockOnComplete} onSkip={mockOnSkip} />);
 
       fireEvent.press(screen.getByText('Skip Tutorial'));
 
@@ -226,13 +160,7 @@ describe('OnboardingOverlay', () => {
       const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
       mockedOnboardingService.markOnboardingCompleted.mockRejectedValue(new Error('Storage error'));
 
-      render(
-        <OnboardingOverlay 
-          visible={true} 
-          onComplete={mockOnComplete} 
-          onSkip={mockOnSkip} 
-        />
-      );
+      render(<OnboardingOverlay visible={true} onComplete={mockOnComplete} onSkip={mockOnSkip} />);
 
       fireEvent.press(screen.getByText('Skip Tutorial'));
 
@@ -246,26 +174,14 @@ describe('OnboardingOverlay', () => {
 
   describe('accessibility', () => {
     it('should have proper accessibility labels', () => {
-      render(
-        <OnboardingOverlay 
-          visible={true} 
-          onComplete={mockOnComplete} 
-          onSkip={mockOnSkip} 
-        />
-      );
+      render(<OnboardingOverlay visible={true} onComplete={mockOnComplete} onSkip={mockOnSkip} />);
 
       expect(screen.getByLabelText('Skip onboarding tutorial')).toBeTruthy();
       expect(screen.getByLabelText('Continue to next step')).toBeTruthy();
     });
 
     it('should have proper accessibility labels for back and finish buttons', () => {
-      render(
-        <OnboardingOverlay 
-          visible={true} 
-          onComplete={mockOnComplete} 
-          onSkip={mockOnSkip} 
-        />
-      );
+      render(<OnboardingOverlay visible={true} onComplete={mockOnComplete} onSkip={mockOnSkip} />);
 
       // Navigate to step 2 to show back button
       fireEvent.press(screen.getByText('Continue'));
@@ -278,4 +194,4 @@ describe('OnboardingOverlay', () => {
       expect(screen.getByLabelText('Complete onboarding tutorial')).toBeTruthy();
     });
   });
-}); 
+});

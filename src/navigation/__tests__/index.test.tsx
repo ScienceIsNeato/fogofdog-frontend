@@ -27,7 +27,9 @@ jest.mock('../../screens/Auth', () => ({
 }));
 
 const mockedOnboardingService = OnboardingService as jest.Mocked<typeof OnboardingService>;
-const mockedAuthPersistenceService = AuthPersistenceService as jest.Mocked<typeof AuthPersistenceService>;
+const mockedAuthPersistenceService = AuthPersistenceService as jest.Mocked<
+  typeof AuthPersistenceService
+>;
 
 // Helper function to create test store
 const createTestStore = () => {
@@ -40,10 +42,10 @@ const createTestStore = () => {
 };
 
 // Helper component to render Navigation with Redux store
-const NavigationWithProvider = () => {
-  const store = createTestStore();
+const NavigationWithProvider = ({ store }: { store?: any }) => {
+  const testStore = store ?? createTestStore();
   return (
-    <Provider store={store}>
+    <Provider store={testStore}>
       <Navigation />
     </Provider>
   );
@@ -52,21 +54,20 @@ const NavigationWithProvider = () => {
 describe('Navigation', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    // Default mocks
+    // Default mocks - ensure all async operations resolve quickly
+    mockedOnboardingService.isFirstTimeUser.mockResolvedValue(false);
     mockedAuthPersistenceService.getExplorationState.mockResolvedValue(null);
   });
 
   it('should show loading screen initially', async () => {
-    // Add delay to ensure loading screen is visible
-    mockedOnboardingService.isFirstTimeUser.mockImplementation(
-      () => new Promise(resolve => setTimeout(() => resolve(true), 100))
-    );
+    mockedOnboardingService.isFirstTimeUser.mockResolvedValue(true);
+    const store = createTestStore();
 
-    render(<NavigationWithProvider />);
+    render(<NavigationWithProvider store={store} />);
 
     // Should show loading screen initially
     expect(screen.getByTestId('loading-screen')).toBeTruthy();
-    expect(screen.getByText('Loading FogOfDog...')).toBeTruthy();
+    expect(screen.getByText('Loading...')).toBeTruthy();
 
     // Wait for initialization to complete
     await waitFor(() => {
@@ -76,8 +77,9 @@ describe('Navigation', () => {
 
   it('should bypass auth and show main navigator for first-time users', async () => {
     mockedOnboardingService.isFirstTimeUser.mockResolvedValue(true);
+    const store = createTestStore();
 
-    render(<NavigationWithProvider />);
+    render(<NavigationWithProvider store={store} />);
 
     // Wait for initialization to complete
     await waitFor(() => {
@@ -91,7 +93,8 @@ describe('Navigation', () => {
   it('should bypass auth and show main navigator for returning users', async () => {
     mockedOnboardingService.isFirstTimeUser.mockResolvedValue(false);
 
-    render(<NavigationWithProvider />);
+    const store = createTestStore();
+    render(<NavigationWithProvider store={store} />);
 
     // Wait for initialization to complete
     await waitFor(() => {
@@ -113,7 +116,8 @@ describe('Navigation', () => {
     mockedOnboardingService.isFirstTimeUser.mockResolvedValue(false);
     mockedAuthPersistenceService.getExplorationState.mockResolvedValue(mockExplorationState);
 
-    render(<NavigationWithProvider />);
+    const store = createTestStore();
+    render(<NavigationWithProvider store={store} />);
 
     // Wait for initialization to complete
     await waitFor(() => {
@@ -127,7 +131,8 @@ describe('Navigation', () => {
     const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
     mockedOnboardingService.isFirstTimeUser.mockRejectedValue(new Error('Storage error'));
 
-    render(<NavigationWithProvider />);
+    const store = createTestStore();
+    render(<NavigationWithProvider store={store} />);
 
     // Wait for initialization to complete
     await waitFor(() => {
@@ -136,7 +141,7 @@ describe('Navigation', () => {
 
     // Should default to first-time user on error
     expect(mockedOnboardingService.isFirstTimeUser).toHaveBeenCalled();
-    
+
     consoleSpy.mockRestore();
   });
 
@@ -145,7 +150,8 @@ describe('Navigation', () => {
     mockedOnboardingService.isFirstTimeUser.mockResolvedValue(true);
     mockedAuthPersistenceService.getExplorationState.mockRejectedValue(new Error('Storage error'));
 
-    render(<NavigationWithProvider />);
+    const store = createTestStore();
+    render(<NavigationWithProvider store={store} />);
 
     // Wait for initialization to complete
     await waitFor(() => {
@@ -154,7 +160,7 @@ describe('Navigation', () => {
 
     // Should still complete initialization
     expect(mockedOnboardingService.isFirstTimeUser).toHaveBeenCalled();
-    
+
     consoleSpy.mockRestore();
   });
 });

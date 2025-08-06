@@ -11,25 +11,25 @@ export class OnboardingService {
   static async isFirstTimeUser(): Promise<boolean> {
     try {
       const completionStatus = await AsyncStorage.getItem(ONBOARDING_STORAGE_KEY);
-      
+
       // Return true (first time) if no completion status or invalid value
       const isCompleted = completionStatus === 'true';
       const isFirstTime = !isCompleted;
-      
+
       logger.debug('Onboarding first-time check', {
         component: 'OnboardingService',
         action: 'isFirstTimeUser',
         isFirstTime,
         storedValue: completionStatus,
       });
-      
+
       return isFirstTime;
     } catch (error) {
       logger.error('Failed to check first-time user status, defaulting to first-time', error, {
         component: 'OnboardingService',
         action: 'isFirstTimeUser',
       });
-      
+
       // Default to first-time user on error (safer for UX)
       return true;
     }
@@ -42,7 +42,7 @@ export class OnboardingService {
   static async markOnboardingCompleted(): Promise<void> {
     try {
       await AsyncStorage.setItem(ONBOARDING_STORAGE_KEY, 'true');
-      
+
       logger.info('Onboarding marked as completed', {
         component: 'OnboardingService',
         action: 'markOnboardingCompleted',
@@ -52,7 +52,7 @@ export class OnboardingService {
         component: 'OnboardingService',
         action: 'markOnboardingCompleted',
       });
-      
+
       // Don't throw - onboarding completion failure shouldn't crash app
     }
   }
@@ -64,7 +64,7 @@ export class OnboardingService {
   static async resetOnboarding(): Promise<void> {
     try {
       await AsyncStorage.removeItem(ONBOARDING_STORAGE_KEY);
-      
+
       logger.info('Onboarding state reset', {
         component: 'OnboardingService',
         action: 'resetOnboarding',
@@ -74,8 +74,8 @@ export class OnboardingService {
         component: 'OnboardingService',
         action: 'resetOnboarding',
       });
-      
+
       // Don't throw - reset failure shouldn't crash app
     }
   }
-} 
+}

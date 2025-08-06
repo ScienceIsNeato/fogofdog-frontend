@@ -1160,4 +1160,26 @@ describe('MapScreen', () => {
     const clearButton = getByTestId('data-clear-button');
     expect(clearButton.props.accessibilityState?.disabled).toBe(false);
   });
+
+  it('should render with new hook-based architecture', async () => {
+    // Test that the refactored component with useMapScreenLogic hook renders correctly
+    const { getByTestId, rerender } = await renderMapScreen(store);
+    await waitForInitialLocation(store, expectedStoredLocation);
+
+    // Verify the component still renders all expected elements
+    expect(getByTestId('map-screen')).toBeTruthy();
+    expect(mockMapViewRender).toHaveBeenCalled();
+    expect(mockFogOverlayRender).toHaveBeenCalled();
+    expect(mockLocationButtonRender).toHaveBeenCalled();
+
+    // Test re-render to ensure hook stability
+    rerender(
+      <Provider store={store}>
+        <MapScreen />
+      </Provider>
+    );
+
+    // Should still render correctly after re-render
+    expect(getByTestId('map-screen')).toBeTruthy();
+  });
 });
