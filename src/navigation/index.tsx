@@ -88,14 +88,16 @@ const useAppInitialization = (): InitializationHookResult => {
 
         // Check if this is a first-time user
         const firstTime = await OnboardingService.isFirstTimeUser();
-        setIsFirstTimeUser(firstTime);
+        if (isMounted) {
+          setIsFirstTimeUser(firstTime);
+        }
 
         // Small delay to ensure location services are ready (especially in simulator)
         await new Promise((resolve) => setTimeout(resolve, 100));
 
         // Restore exploration state from persistence
         const explorationData = await AuthPersistenceService.getExplorationState();
-        if (explorationData) {
+        if (explorationData && isMounted) {
           // Convert persisted coordinates to GeoPoints with timestamps
           const currentTimestamp = Date.now();
           const convertedData = {
@@ -134,7 +136,7 @@ const useAppInitialization = (): InitializationHookResult => {
     return () => {
       isMounted = false;
     };
-  }, [dispatch]);
+  }, [dispatch]); // Keep dispatch dependency as required by React hooks rules
 
   return { isInitializing, user, isFirstTimeUser };
 };
