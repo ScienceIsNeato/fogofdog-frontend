@@ -185,7 +185,7 @@ echo -e "${YELLOW}💡 Tips:${NC}"
   * Example: SIMULATOR_NAME=\"iPhone 14\" ./scripts/deploy_to_simulator.sh
 
 ### 📋 Log Monitoring
-  * Monitor live logs: ./scripts/tail_simulator_logs.sh
+  * Monitor live logs: ./scripts/monitor-metro-logs.sh
   * Direct log access: tail -f $LIVE_LOG_FILE
   * Logs persist across deployments and terminals
 

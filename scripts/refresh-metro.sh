@@ -37,8 +37,7 @@ METRO_PID=$!
 echo "$METRO_PID" > /tmp/METRO_PID.txt
 
 echo "✅ Metro server started (PID: $METRO_PID)"
-echo "📋 To monitor logs: tail -f $METRO_LOG_FILE"
-echo "📋 Or use current log tracker: tail -f \$(cat /tmp/METRO_CURRENT_LOG_FILENAME.txt)"
+echo "📋 To monitor logs: ./scripts/monitor-metro-logs.sh"
 
 # Wait a moment for Metro to fully start
 echo "⏳ Waiting for Metro to initialize..."
