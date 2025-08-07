@@ -67,7 +67,7 @@ jest.mock('../../../components/OptimizedFogOverlay', () => ({
   default: () => null,
 }));
 jest.mock('../../../components/LocationButton', () => ({ __esModule: true, default: () => null }));
-jest.mock('../../../components/DataClearSelectionDialog', () => ({
+jest.mock('../../../components/UnifiedSettingsModal', () => ({
   __esModule: true,
   default: () => null,
 }));

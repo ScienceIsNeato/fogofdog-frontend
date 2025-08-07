@@ -182,24 +182,41 @@ if [[ "$RUN_TYPES" == "true" ]]; then
 fi
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# TEST COVERAGE (STRICT THRESHOLDS)
+# TEST SUITE & COVERAGE
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 if [[ "$RUN_TESTS" == "true" ]]; then
-  echo "🧪 Test Coverage (STRICT THRESHOLDS)"
-  TEST_OUTPUT=$(npm run test:coverage 2>&1) || TEST_FAILED=true
+  echo "🧪 Test Suite & Coverage"
   
-  if [[ "$TEST_FAILED" != "true" ]]; then
-    echo "✅ Test Coverage: PASSED (strict coverage thresholds)"
-    
-    # Extract coverage percentage
-    COVERAGE=$(echo "$TEST_OUTPUT" | grep -o '[0-9]\+\.[0-9]\+%' | head -1 || echo "unknown")
-    add_success "Test Coverage" "Coverage at $COVERAGE (above 80% threshold)"
+  # First run tests without coverage to check for failures
+  echo "  🔍 Running test suite..."
+  TEST_ONLY_OUTPUT=$(npm test 2>&1) || TEST_ONLY_FAILED=true
+  
+  if [[ "$TEST_ONLY_FAILED" == "true" ]]; then
+    echo "❌ Tests: FAILED"
+    FAILED_TESTS=$(echo "$TEST_ONLY_OUTPUT" | grep -o '[0-9]\+ failed' | head -1 || echo "unknown")
+    add_failure "Tests" "Test failures: $FAILED_TESTS" "Fix failing tests with 'npm test' then check coverage"
   else
-    echo "❌ Test Coverage: FAILED (strict coverage thresholds)"
+    echo "✅ Tests: PASSED"
     
-    # Extract coverage info
-    COVERAGE=$(echo "$TEST_OUTPUT" | grep -o '[0-9]\+\.[0-9]\+%' | head -1 || echo "unknown")
-    add_failure "Test Coverage" "Coverage at $COVERAGE (below 80% threshold)" "Add tests to increase coverage or run 'npm run test:coverage' for details"
+    # Now run coverage analysis
+    echo "  📊 Running coverage analysis..."
+    COVERAGE_OUTPUT=$(npm run test:coverage 2>&1) || COVERAGE_FAILED=true
+    
+    if [[ "$COVERAGE_FAILED" != "true" ]]; then
+      COVERAGE=$(echo "$COVERAGE_OUTPUT" | grep -o '[0-9]\+\.[0-9]\+%' | head -1 || echo "unknown")
+      echo "✅ Coverage: PASSED ($COVERAGE)"
+      add_success "Test Coverage" "Coverage at $COVERAGE (above 80% threshold)"
+    else
+      COVERAGE=$(echo "$COVERAGE_OUTPUT" | grep -o '[0-9]\+\.[0-9]\+%' | head -1 || echo "unknown")
+      echo "❌ Coverage: Analysis failed ($COVERAGE)"
+      
+      # Check if this might be a SonarQube new code coverage issue
+      if [[ "$COVERAGE" != "unknown" && $(echo "$COVERAGE" | grep -o '[0-9]\+' | head -1) -gt 80 ]]; then
+        add_failure "Test Coverage" "SonarQube analysis failed despite $COVERAGE overall coverage" "Likely new code lacks test coverage - add tests for recently added/modified functions and run again"
+      else
+        add_failure "Test Coverage" "Coverage analysis failed at $COVERAGE" "May indicate new code lacking coverage - add tests for recent changes"
+      fi
+    fi
   fi
   echo ""
 fi

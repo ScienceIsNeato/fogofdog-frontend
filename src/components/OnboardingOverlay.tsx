@@ -11,6 +11,7 @@ import {
 import { MaterialIcons } from '@expo/vector-icons';
 import { OnboardingService } from '../services/OnboardingService';
 import { logger } from '../utils/logger';
+import { ONBOARDING_STEPS, TOTAL_ONBOARDING_STEPS, OnboardingStep } from '../constants/onboarding';
 
 const { width } = Dimensions.get('window');
 
@@ -19,56 +20,6 @@ interface OnboardingOverlayProps {
   onComplete: () => void;
   onSkip: () => void;
 }
-
-interface OnboardingStep {
-  id: number;
-  title: string;
-  description: string;
-  icon: keyof typeof MaterialIcons.glyphMap;
-}
-
-const ONBOARDING_STEPS: OnboardingStep[] = [
-  {
-    id: 1,
-    title: 'Welcome to FogOfDog!',
-    description: 'Explore & Track Your Adventures',
-    icon: 'explore',
-  },
-  {
-    id: 2,
-    title: 'Understanding the Fog',
-    description:
-      "Gray areas are unexplored, clear areas show where you've been. Move around to reveal the map!",
-    icon: 'visibility',
-  },
-  {
-    id: 3,
-    title: 'Location Button',
-    description:
-      'Tap the location button to center the map on your current position. It turns blue when active.',
-    icon: 'my-location',
-  },
-  {
-    id: 4,
-    title: 'Tracking Control',
-    description:
-      'Use the pause button to stop or resume tracking your exploration. Perfect for breaks!',
-    icon: 'play-circle-outline',
-  },
-  {
-    id: 5,
-    title: 'Settings & History',
-    description:
-      'Access app settings and manage your exploration history through the settings menu.',
-    icon: 'settings',
-  },
-  {
-    id: 6,
-    title: 'Start Exploring!',
-    description: "You're ready to go! Start moving around to clear the fog and discover new areas.",
-    icon: 'flag',
-  },
-];
 
 // Helper component for the onboarding header
 const OnboardingHeader: React.FC<{
@@ -91,12 +42,12 @@ const OnboardingHeader: React.FC<{
 // Helper component for the step content
 const OnboardingStepContent: React.FC<{
   currentStep: number;
-  currentStepData?: OnboardingStep | undefined;
+  currentStepData: OnboardingStep | undefined;
 }> = ({ currentStep, currentStepData }) => (
   <View style={styles.content}>
     {/* Step indicator */}
     <Text style={styles.stepIndicator}>
-      Step {currentStep} of {ONBOARDING_STEPS.length}
+      Step {currentStep} of {TOTAL_ONBOARDING_STEPS}
     </Text>
 
     {/* Icon */}
@@ -122,7 +73,7 @@ const OnboardingNavigation: React.FC<{
   onComplete: () => void;
 }> = ({
   currentStep,
-  totalSteps,
+  totalSteps: _totalSteps,
   isFirstStep,
   isLastStep,
   isCompleting,
@@ -131,16 +82,6 @@ const OnboardingNavigation: React.FC<{
   onComplete,
 }) => (
   <View style={styles.footer}>
-    {/* Progress dots */}
-    <View style={styles.progressContainer}>
-      {Array.from({ length: totalSteps }, (_, index) => (
-        <View
-          key={`progress-dot-${index}`}
-          style={[styles.progressDot, index + 1 <= currentStep && styles.progressDotActive]}
-        />
-      ))}
-    </View>
-
     <View style={styles.buttonRow}>
       {!isFirstStep && (
         <TouchableOpacity
@@ -202,7 +143,7 @@ const useOnboardingLogic = (onComplete: () => void, onSkip: () => void) => {
   const [isCompleting, setIsCompleting] = useState(false);
 
   const handleNext = () => {
-    if (currentStep < ONBOARDING_STEPS.length) {
+    if (currentStep < TOTAL_ONBOARDING_STEPS) {
       setCurrentStep(currentStep + 1);
     }
   };
@@ -285,7 +226,7 @@ export const OnboardingOverlay: React.FC<OnboardingOverlayProps> = ({
 
   const currentStepData = ONBOARDING_STEPS[currentStep - 1];
   const isFirstStep = currentStep === 1;
-  const isLastStep = currentStep === ONBOARDING_STEPS.length;
+  const isLastStep = currentStep === TOTAL_ONBOARDING_STEPS;
 
   return (
     <Modal visible={visible} transparent animationType="fade" statusBarTranslucent>
@@ -295,7 +236,7 @@ export const OnboardingOverlay: React.FC<OnboardingOverlayProps> = ({
           <OnboardingStepContent currentStep={currentStep} currentStepData={currentStepData} />
           <OnboardingNavigation
             currentStep={currentStep}
-            totalSteps={ONBOARDING_STEPS.length}
+            totalSteps={TOTAL_ONBOARDING_STEPS}
             isFirstStep={isFirstStep}
             isLastStep={isLastStep}
             isCompleting={isCompleting}

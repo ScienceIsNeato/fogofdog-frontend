@@ -5,7 +5,6 @@ import {
   Dimensions,
   DeviceEventEmitter,
   AppState,
-  TouchableOpacity,
   Text,
   Alert,
 } from 'react-native';
@@ -23,20 +22,21 @@ import * as Location from 'expo-location';
 import * as TaskManager from 'expo-task-manager';
 import OptimizedFogOverlay from '../../components/OptimizedFogOverlay';
 import LocationButton from '../../components/LocationButton';
-import DataClearSelectionDialog from '../../components/DataClearSelectionDialog';
+
 import { PermissionAlert } from '../../components/PermissionAlert';
 import { TrackingControlButton } from '../../components/TrackingControlButton';
 import { OnboardingOverlay } from '../../components/OnboardingOverlay';
+import { SettingsButton } from '../../components/SettingsButton';
+import UnifiedSettingsModal from '../../components/UnifiedSettingsModal';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-// import { useRoute, RouteProp } from '@react-navigation/native'; // FUTURE: For navigation params
 import { logger } from '../../utils/logger';
+
 import { GPSInjectionService } from '../../services/GPSInjectionService';
 import { BackgroundLocationService } from '../../services/BackgroundLocationService';
 import { AuthPersistenceService } from '../../services/AuthPersistenceService';
 import { DataClearingService } from '../../services/DataClearingService';
 import { DataStats, ClearType } from '../../types/dataClear';
 import { GeoPoint } from '../../types/user';
-// import { MainStackParamList } from '../../types/navigation'; // FUTURE: For navigation params
 import { useOnboardingContext } from '../../navigation';
 // Performance optimizations available via OptimizedFogOverlay component
 
@@ -917,6 +917,13 @@ const getLocationButtonStyle = (insets: SafeAreaInsets) => ({
   right: 10,
 });
 
+// SettingsButton positioning style
+const getSettingsButtonStyle = (insets: SafeAreaInsets) => ({
+  position: 'absolute' as const,
+  top: insets.top + 10,
+  left: 10,
+});
+
 // Type definition for MapScreenRenderer props
 interface MapScreenRendererProps {
   mapRef: React.RefObject<MapView>;
@@ -930,6 +937,7 @@ interface MapScreenRendererProps {
   centerOnUserLocation: () => void;
   setMapDimensions: (dimensions: { width: number; height: number }) => void;
   currentFogRegion: (Region & { width: number; height: number }) | undefined;
+  handleSettingsPress: () => void;
   // workletMapRegion?: ReturnType<typeof useWorkletMapRegion>; // Available for future worklet integration
 }
 
@@ -964,6 +972,12 @@ const MapLoadingState = ({
       isFollowModeActive={isFollowModeActive}
       style={getLocationButtonStyle(insets)}
     />
+    <SettingsButton
+      onPress={() => {
+        logger.info('Settings button pressed during loading state');
+      }}
+      style={getSettingsButtonStyle(insets)}
+    />
   </View>
 );
 
@@ -980,7 +994,7 @@ const MapScreenRenderer = ({
   centerOnUserLocation,
   setMapDimensions,
   currentFogRegion,
-  // workletMapRegion, // Available for future worklet integration
+  handleSettingsPress,
 }: MapScreenRendererProps) => {
   // Don't render map until we have a real location
   if (!currentLocation) {
@@ -1048,6 +1062,7 @@ const MapScreenRenderer = ({
         isFollowModeActive={isFollowModeActive}
         style={getLocationButtonStyle(insets)}
       />
+      <SettingsButton onPress={handleSettingsPress} style={getSettingsButtonStyle(insets)} />
     </View>
   );
 };
@@ -1297,8 +1312,8 @@ const useDataClearing = (
     oldestDate: null,
     newestDate: null,
   });
-  const [isDataClearDialogVisible, setIsDataClearDialogVisible] = useState(false);
   const [isClearing, setIsClearing] = useState(false);
+  const [isSettingsModalVisible, setIsSettingsModalVisible] = useState(false);
 
   const updateDataStats = useCallback(async () => {
     try {
@@ -1326,48 +1341,18 @@ const useDataClearing = (
   }, [explorationState.path.length, updateDataStats]);
 
   const handleClearSelection = createDataClearHandler(
-    { isClearing, setIsClearing, setDataStats, setIsDataClearDialogVisible },
+    { isClearing, setIsClearing, setDataStats, setIsDataClearDialogVisible: () => {} },
     { dispatch, ...mapConfig }
   );
 
   return {
     dataStats,
-    isDataClearDialogVisible,
-    setIsDataClearDialogVisible,
     isClearing,
     handleClearSelection,
+    isSettingsModalVisible,
+    setIsSettingsModalVisible,
   };
 };
-
-// Clear button component
-const ClearButton: React.FC<{
-  isClearing: boolean;
-  onPress: () => void;
-}> = ({ isClearing, onPress }) => (
-  <TouchableOpacity
-    testID="data-clear-button"
-    style={{
-      position: 'absolute',
-      bottom: 100,
-      right: 20,
-      width: 56,
-      height: 56,
-      borderRadius: 28,
-      backgroundColor: 'white',
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.25,
-      shadowRadius: 3.84,
-      elevation: 5,
-      justifyContent: 'center',
-      alignItems: 'center',
-    }}
-    onPress={onPress}
-    disabled={isClearing}
-  >
-    <Text style={{ fontSize: 24 }}>🗑️</Text>
-  </TouchableOpacity>
-);
 
 // Custom hook for fog region initialization and management
 const useFogRegionState = (
@@ -1445,6 +1430,7 @@ const useDataClearingState = () => {
   });
   const [isDataClearDialogVisible, setIsDataClearDialogVisible] = useState(false);
   const [isClearing, setIsClearing] = useState(false);
+  const [isSettingsMenuVisible, setIsSettingsMenuVisible] = useState(false);
 
   return {
     dataStats,
@@ -1453,6 +1439,8 @@ const useDataClearingState = () => {
     setIsDataClearDialogVisible,
     isClearing,
     setIsClearing,
+    isSettingsMenuVisible,
+    setIsSettingsMenuVisible,
   };
 };
 
@@ -1581,10 +1569,11 @@ const MapScreenUI: React.FC<{
   setMapDimensions: (dimensions: { width: number; height: number }) => void;
   currentFogRegion: (Region & { width: number; height: number }) | undefined;
   isClearing: boolean;
-  setIsDataClearDialogVisible: (visible: boolean) => void;
-  isDataClearDialogVisible: boolean;
   dataStats: DataStats;
   handleClearSelection: (type: ClearType) => Promise<void>;
+  handleSettingsPress: () => void;
+  isSettingsModalVisible: boolean;
+  setIsSettingsModalVisible: (visible: boolean) => void;
 }> = ({
   mapRef,
   currentLocation,
@@ -1598,10 +1587,11 @@ const MapScreenUI: React.FC<{
   setMapDimensions,
   currentFogRegion,
   isClearing,
-  setIsDataClearDialogVisible,
-  isDataClearDialogVisible,
   dataStats,
   handleClearSelection,
+  handleSettingsPress,
+  isSettingsModalVisible,
+  setIsSettingsModalVisible,
 }) => {
   return (
     <>
@@ -1617,6 +1607,7 @@ const MapScreenUI: React.FC<{
         centerOnUserLocation={centerOnUserLocation}
         setMapDimensions={setMapDimensions}
         currentFogRegion={currentFogRegion}
+        handleSettingsPress={handleSettingsPress}
         // workletMapRegion={workletMapRegion} // Available for future worklet integration
       />
 
@@ -1630,17 +1621,12 @@ const MapScreenUI: React.FC<{
         }}
       />
 
-      {/* Data Clear Button */}
-      <ClearButton isClearing={isClearing} onPress={() => setIsDataClearDialogVisible(true)} />
-
-      {/* Data Clear Selection Dialog */}
-      <DataClearSelectionDialog
-        visible={isDataClearDialogVisible}
+      {/* Unified Settings Modal */}
+      <UnifiedSettingsModal
+        visible={isSettingsModalVisible}
+        onClose={() => setIsSettingsModalVisible(false)}
         dataStats={dataStats}
-        onClear={handleClearSelection}
-        onCancel={() => {
-          setIsDataClearDialogVisible(false);
-        }}
+        onClearData={handleClearSelection}
         isClearing={isClearing}
       />
     </>
@@ -1705,89 +1691,108 @@ const useMapScreenOnboarding = () => {
   };
 };
 
-// Custom hook that combines all map screen logic
-const useMapScreenLogic = () => {
-  const {
-    showOnboarding,
-    canStartLocationServices,
-    handleOnboardingComplete,
-    handleOnboardingSkip,
-  } = useMapScreenOnboarding();
-
-  logger.info('MapScreen render', { showOnboarding, canStartLocationServices });
-
-  const {
-    dispatch,
-    currentLocation,
-    isMapCenteredOnUser,
-    isFollowModeActive,
-    mapRef,
-    currentRegion,
-    setCurrentRegion,
-    setMapDimensions,
-    currentFogRegion,
-    setCurrentFogRegion,
-    mapDimensions,
-    updateFogRegion,
-  } = useMapScreenState();
-  const { explorationState, isTrackingPaused, insets } = useMapScreenReduxState();
-
-  const {
-    dataStats,
-    isDataClearDialogVisible,
-    setIsDataClearDialogVisible,
-    isClearing,
-    handleClearSelection,
-  } = useDataClearing(dispatch, { mapRef, isMapCenteredOnUser, currentRegion }, explorationState);
-
-  useMapScreenServices(
-    dispatch,
-    {
-      mapRef,
-      isMapCenteredOnUser,
-      isFollowModeActive,
-      currentRegion,
-      isTrackingPaused,
-      explorationState,
-    },
-    canStartLocationServices
-  );
-
-  const { centerOnUserLocation, onRegionChange, onPanDrag, onRegionChangeComplete } =
-    useMapEventHandlers({
-      dispatch,
-      currentLocation,
-      currentRegion,
-      isMapCenteredOnUser,
-      isFollowModeActive,
-      mapRef,
-      setCurrentRegion,
-      setCurrentFogRegion,
-      mapDimensions,
-      workletUpdateRegion: updateFogRegion,
+// Custom hook for navigation
+const useMapScreenNavigation = (setIsSettingsModalVisible: (visible: boolean) => void) => {
+  const handleSettingsPress = useCallback(() => {
+    logger.info('Settings button pressed - showing unified settings modal', {
+      component: 'MapScreen',
+      action: 'handleSettingsPress',
     });
+    setIsSettingsModalVisible(true);
+  }, [setIsSettingsModalVisible]);
 
   return {
-    showOnboarding,
-    handleOnboardingComplete,
-    handleOnboardingSkip,
+    handleSettingsPress,
+  };
+};
+
+// Helper function to gather all hook states
+const useMapScreenHookStates = () => {
+  const onboarding = useMapScreenOnboarding();
+  const mapState = useMapScreenState();
+  const reduxState = useMapScreenReduxState();
+
+  return { onboarding, mapState, reduxState };
+};
+
+// Helper function to initialize services and handlers
+const useMapScreenServicesAndHandlers = (onboarding: any, mapState: any, reduxState: any) => {
+  const dataClearing = useDataClearing(
+    mapState.dispatch,
+    {
+      mapRef: mapState.mapRef,
+      isMapCenteredOnUser: mapState.isMapCenteredOnUser,
+      currentRegion: mapState.currentRegion,
+    },
+    reduxState.explorationState
+  );
+  const navigation = useMapScreenNavigation(dataClearing.setIsSettingsModalVisible);
+
+  useMapScreenServices(
+    mapState.dispatch,
+    {
+      mapRef: mapState.mapRef,
+      isMapCenteredOnUser: mapState.isMapCenteredOnUser,
+      isFollowModeActive: mapState.isFollowModeActive,
+      currentRegion: mapState.currentRegion,
+      isTrackingPaused: reduxState.isTrackingPaused,
+      explorationState: reduxState.explorationState,
+    },
+    onboarding.canStartLocationServices
+  );
+
+  const eventHandlers = useMapEventHandlers({
+    dispatch: mapState.dispatch,
+    currentLocation: mapState.currentLocation,
+    currentRegion: mapState.currentRegion,
+    isMapCenteredOnUser: mapState.isMapCenteredOnUser,
+    isFollowModeActive: mapState.isFollowModeActive,
+    mapRef: mapState.mapRef,
+    setCurrentRegion: mapState.setCurrentRegion,
+    setCurrentFogRegion: mapState.setCurrentFogRegion,
+    mapDimensions: mapState.mapDimensions,
+    workletUpdateRegion: mapState.updateFogRegion,
+  });
+
+  return { dataClearing, navigation, eventHandlers };
+};
+
+// Custom hook that combines all map screen logic
+const useMapScreenLogic = () => {
+  const { onboarding, mapState, reduxState } = useMapScreenHookStates();
+  logger.info('MapScreen render', {
+    showOnboarding: onboarding.showOnboarding,
+    canStartLocationServices: onboarding.canStartLocationServices,
+  });
+
+  const { dataClearing, navigation, eventHandlers } = useMapScreenServicesAndHandlers(
+    onboarding,
+    mapState,
+    reduxState
+  );
+
+  return {
+    showOnboarding: onboarding.showOnboarding,
+    handleOnboardingComplete: onboarding.handleOnboardingComplete,
+    handleOnboardingSkip: onboarding.handleOnboardingSkip,
     uiProps: {
-      mapRef,
-      currentLocation,
-      insets,
-      isMapCenteredOnUser,
-      isFollowModeActive,
-      onRegionChange,
-      onPanDrag,
-      onRegionChangeComplete,
-      centerOnUserLocation,
-      setMapDimensions,
-      currentFogRegion,
-      isClearing,
-      setIsDataClearDialogVisible,
-      isDataClearDialogVisible,
-      dataStats,
-      handleClearSelection,
+      mapRef: mapState.mapRef,
+      currentLocation: mapState.currentLocation,
+      insets: reduxState.insets,
+      isMapCenteredOnUser: mapState.isMapCenteredOnUser,
+      isFollowModeActive: mapState.isFollowModeActive,
+      onRegionChange: eventHandlers.onRegionChange,
+      onPanDrag: eventHandlers.onPanDrag,
+      onRegionChangeComplete: eventHandlers.onRegionChangeComplete,
+      centerOnUserLocation: eventHandlers.centerOnUserLocation,
+      setMapDimensions: mapState.setMapDimensions,
+      currentFogRegion: mapState.currentFogRegion,
+      isClearing: dataClearing.isClearing,
+      dataStats: dataClearing.dataStats,
+      handleClearSelection: dataClearing.handleClearSelection,
+      handleSettingsPress: navigation.handleSettingsPress,
+      isSettingsModalVisible: dataClearing.isSettingsModalVisible,
+      setIsSettingsModalVisible: dataClearing.setIsSettingsModalVisible,
     },
   };
 };

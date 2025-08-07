@@ -1,6 +1,7 @@
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react-native';
 import { OnboardingOverlay } from '../OnboardingOverlay';
+import { ONBOARDING_STEPS, TOTAL_ONBOARDING_STEPS } from '../../constants/onboarding';
 import { OnboardingService } from '../../services/OnboardingService';
 
 // Mock the OnboardingService
@@ -34,9 +35,9 @@ describe('OnboardingOverlay', () => {
       renderOnboardingOverlay();
 
       expect(screen.getByTestId('onboarding-overlay')).toBeTruthy();
-      expect(screen.getByText('Welcome to FogOfDog!')).toBeTruthy();
-      expect(screen.getByText('Explore & Track Your Adventures')).toBeTruthy();
-      expect(screen.getByText('Step 1 of 6')).toBeTruthy();
+      expect(screen.getByText(ONBOARDING_STEPS[0]!.title)).toBeTruthy();
+      expect(screen.getByText(ONBOARDING_STEPS[0]!.description)).toBeTruthy();
+      expect(screen.getByText(`Step 1 of ${TOTAL_ONBOARDING_STEPS}`)).toBeTruthy();
     });
 
     it('should show skip and continue buttons', () => {
@@ -52,14 +53,14 @@ describe('OnboardingOverlay', () => {
       renderOnboardingOverlay();
 
       // Start at step 1
-      expect(screen.getByText('Step 1 of 6')).toBeTruthy();
+      expect(screen.getByText(`Step 1 of ${TOTAL_ONBOARDING_STEPS}`)).toBeTruthy();
 
       // Press continue
       fireEvent.press(screen.getByText('Continue'));
 
       // Should advance to step 2
-      expect(screen.getByText('Step 2 of 6')).toBeTruthy();
-      expect(screen.getByText('Understanding the Fog')).toBeTruthy();
+      expect(screen.getByText(`Step 2 of ${TOTAL_ONBOARDING_STEPS}`)).toBeTruthy();
+      expect(screen.getByText(ONBOARDING_STEPS[1]!.title)).toBeTruthy();
     });
 
     it('should go back to previous step when back is pressed', () => {
@@ -67,14 +68,14 @@ describe('OnboardingOverlay', () => {
 
       // Advance to step 2
       fireEvent.press(screen.getByText('Continue'));
-      expect(screen.getByText('Step 2 of 6')).toBeTruthy();
+      expect(screen.getByText(`Step 2 of ${TOTAL_ONBOARDING_STEPS}`)).toBeTruthy();
 
       // Press back
       fireEvent.press(screen.getByText('Back'));
 
       // Should return to step 1
-      expect(screen.getByText('Step 1 of 6')).toBeTruthy();
-      expect(screen.getByText('Welcome to FogOfDog!')).toBeTruthy();
+      expect(screen.getByText(`Step 1 of ${TOTAL_ONBOARDING_STEPS}`)).toBeTruthy();
+      expect(screen.getByText(ONBOARDING_STEPS[0]!.title)).toBeTruthy();
     });
 
     it('should not show back button on first step', () => {
@@ -98,27 +99,27 @@ describe('OnboardingOverlay', () => {
       renderOnboardingOverlay();
 
       // Step 1: Welcome
-      expect(screen.getByText('Welcome to FogOfDog!')).toBeTruthy();
+      expect(screen.getByText(ONBOARDING_STEPS[0]!.title)).toBeTruthy();
 
       // Step 2: Fog explanation
       fireEvent.press(screen.getByText('Continue'));
-      expect(screen.getByText('Understanding the Fog')).toBeTruthy();
+      expect(screen.getByText(ONBOARDING_STEPS[1]!.title)).toBeTruthy();
 
       // Step 3: Location button
       fireEvent.press(screen.getByText('Continue'));
-      expect(screen.getByText('Location Button')).toBeTruthy();
+      expect(screen.getByText(ONBOARDING_STEPS[2]!.title)).toBeTruthy();
 
       // Step 4: Tracking control
       fireEvent.press(screen.getByText('Continue'));
-      expect(screen.getByText('Tracking Control')).toBeTruthy();
+      expect(screen.getByText(ONBOARDING_STEPS[3]!.title)).toBeTruthy();
 
       // Step 5: Settings access
       fireEvent.press(screen.getByText('Continue'));
-      expect(screen.getByText('Settings & History')).toBeTruthy();
+      expect(screen.getByText(ONBOARDING_STEPS[4]!.title)).toBeTruthy();
 
       // Step 6: Get started
       fireEvent.press(screen.getByText('Continue'));
-      expect(screen.getByText('Start Exploring!')).toBeTruthy();
+      expect(screen.getByText(ONBOARDING_STEPS[5]!.title)).toBeTruthy();
     });
 
     it('should show finish button on last step', () => {

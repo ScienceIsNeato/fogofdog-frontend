@@ -1156,9 +1156,9 @@ describe('MapScreen', () => {
 
     const { getByTestId } = await renderMapScreen(storeWithNoData);
 
-    // The data clear button should not be disabled even with zero data points
-    const clearButton = getByTestId('data-clear-button');
-    expect(clearButton.props.accessibilityState?.disabled).toBe(false);
+    // The settings button should be available (data clearing is now in settings)
+    const settingsButton = getByTestId('settings-button');
+    expect(settingsButton).toBeTruthy();
   });
 
   it('should render with new hook-based architecture', async () => {
