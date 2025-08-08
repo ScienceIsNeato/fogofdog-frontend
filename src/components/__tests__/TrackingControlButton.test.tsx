@@ -26,7 +26,7 @@ describe('TrackingControlButton', () => {
     );
 
     expect(getByTestId('pause-tracking-button')).toBeTruthy();
-    expect(getByText('⏸️ Pause Exploration')).toBeTruthy();
+    expect(getByText('😴 Nap')).toBeTruthy();
   });
 
   it('renders resume button when tracking is paused', () => {
@@ -40,7 +40,7 @@ describe('TrackingControlButton', () => {
     );
 
     expect(getByTestId('resume-tracking-button')).toBeTruthy();
-    expect(getByText('▶️ Resume Exploration')).toBeTruthy();
+    expect(getByText('🐕 Adventure!')).toBeTruthy();
   });
 
   it('toggles tracking state when pressed', () => {
@@ -80,9 +80,9 @@ describe('TrackingControlButton', () => {
       </Provider>
     );
 
-    // Check pause button color (red)
+    // Check pause button color (subtle gray)
     let button = getByTestId('pause-tracking-button');
-    expect(button.props.style).toEqual(expect.objectContaining({ backgroundColor: '#FF6B6B' }));
+    expect(button.props.style).toEqual(expect.objectContaining({ backgroundColor: '#F8F9FA' }));
 
     // Set to paused state
     act(() => {
@@ -95,8 +95,8 @@ describe('TrackingControlButton', () => {
       </Provider>
     );
 
-    // Check resume button color (teal)
+    // Check resume button color (subtle green)
     button = getByTestId('resume-tracking-button');
-    expect(button.props.style).toEqual(expect.objectContaining({ backgroundColor: '#4ECDC4' }));
+    expect(button.props.style).toEqual(expect.objectContaining({ backgroundColor: '#E8F5E8' }));
   });
 });

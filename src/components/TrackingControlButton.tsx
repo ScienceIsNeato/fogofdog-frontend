@@ -22,7 +22,7 @@ export const TrackingControlButton: React.FC<TrackingControlButtonProps> = ({ st
       testID={isTrackingPaused ? 'resume-tracking-button' : 'pause-tracking-button'}
     >
       <Text style={[styles.buttonText, isTrackingPaused ? styles.resumeText : styles.pauseText]}>
-        {isTrackingPaused ? '▶️ Resume Exploration' : '⏸️ Pause Exploration'}
+        {isTrackingPaused ? '🐕 Adventure!' : '😴 Nap'}
       </Text>
     </TouchableOpacity>
   );
@@ -30,35 +30,39 @@ export const TrackingControlButton: React.FC<TrackingControlButtonProps> = ({ st
 
 const styles = StyleSheet.create({
   button: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
-    minWidth: 160,
+    minWidth: 100,
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
-      height: 2,
+      height: 1,
     },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    elevation: 5,
+    shadowOpacity: 0.15,
+    shadowRadius: 2,
+    elevation: 2,
   },
   pauseButton: {
-    backgroundColor: '#FF6B6B',
+    backgroundColor: '#F8F9FA',
+    borderWidth: 1,
+    borderColor: '#E9ECEF',
   },
   resumeButton: {
-    backgroundColor: '#4ECDC4',
+    backgroundColor: '#E8F5E8',
+    borderWidth: 1,
+    borderColor: '#C3E6CB',
   },
   buttonText: {
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: 14,
+    fontWeight: '500',
   },
   pauseText: {
-    color: '#FFFFFF',
+    color: '#6C757D',
   },
   resumeText: {
-    color: '#FFFFFF',
+    color: '#28A745',
   },
 });
