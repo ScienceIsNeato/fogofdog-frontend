@@ -62,6 +62,64 @@ const OnboardingStepContent: React.FC<{
   </View>
 );
 
+// Spotlight component that creates a transparent hole around UI elements
+const OnboardingSpotlight: React.FC<{
+  pointTo: 'location-button' | 'settings-button' | 'tracking-button';
+  visible: boolean;
+}> = ({ pointTo, visible }) => {
+  if (!visible) return null;
+
+  const getSpotlightStyle = () => {
+    const { width: screenWidth } = Dimensions.get('window');
+    
+    switch (pointTo) {
+      case 'location-button':
+        return {
+          position: 'absolute' as const,
+          top: 60,
+          right: 20,
+          width: 80,
+          height: 80,
+          borderRadius: 40,
+          backgroundColor: 'transparent',
+          borderWidth: 2,
+          borderColor: '#007AFF',
+          opacity: 0.8,
+        };
+      case 'settings-button':
+        return {
+          position: 'absolute' as const,
+          top: 60,
+          left: 20,
+          width: 80,
+          height: 80,
+          borderRadius: 40,
+          backgroundColor: 'transparent',
+          borderWidth: 2,
+          borderColor: '#007AFF',
+          opacity: 0.8,
+        };
+      case 'tracking-button':
+        return {
+          position: 'absolute' as const,
+          bottom: 140,
+          left: screenWidth / 2 - 40,
+          width: 80,
+          height: 80,
+          borderRadius: 40,
+          backgroundColor: 'transparent',
+          borderWidth: 2,
+          borderColor: '#007AFF',
+          opacity: 0.8,
+        };
+      default:
+        return {};
+    }
+  };
+
+  return <View style={getSpotlightStyle()} />;
+};
+
 // Arrow component that points to specific UI elements
 const OnboardingArrow: React.FC<{
   pointTo: 'location-button' | 'settings-button' | 'tracking-button';
@@ -95,20 +153,20 @@ const OnboardingArrow: React.FC<{
 
   const getArrowStyle = () => {
     const { width: screenWidth } = Dimensions.get('window');
-    
+
     switch (pointTo) {
       case 'location-button':
         return {
           position: 'absolute' as const,
-          top: 120, // Adjusted position - slightly lower
-          right: 90,
+          top: 140, // Move down and right to point at actual button
+          right: 70,
           transform: [{ rotate: '-45deg' }],
         };
       case 'settings-button':
         return {
           position: 'absolute' as const,
-          top: 120, // Settings is in top left, not bottom right
-          left: 90,
+          top: 140, // Adjust to point at actual settings button
+          left: 70,
           transform: [{ rotate: '-135deg' }], // Point to top left
         };
       case 'tracking-button':
@@ -128,10 +186,7 @@ const OnboardingArrow: React.FC<{
       style={[
         getArrowStyle(),
         {
-          transform: [
-            ...((getArrowStyle().transform as any) ?? []),
-            { scale: pulseAnim },
-          ],
+          transform: [...((getArrowStyle().transform as any) ?? []), { scale: pulseAnim }],
         },
       ]}
     >
@@ -324,6 +379,11 @@ export const OnboardingOverlay: React.FC<OnboardingOverlayProps> = ({
             onComplete={handleComplete}
           />
         </SafeAreaView>
+
+        {/* Spotlight highlighting UI elements */}
+        {currentStepData?.pointTo && (
+          <OnboardingSpotlight pointTo={currentStepData.pointTo} visible={visible} />
+        )}
         
         {/* Arrows pointing to UI elements */}
         {currentStepData?.pointTo && (
