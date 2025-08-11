@@ -7,6 +7,7 @@ import {
   StyleSheet,
   SafeAreaView,
   Dimensions,
+  Animated,
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { OnboardingService } from '../services/OnboardingService';
@@ -60,6 +61,84 @@ const OnboardingStepContent: React.FC<{
     <Text style={styles.description}>{currentStepData?.description ?? 'Welcome to FogOfDog'}</Text>
   </View>
 );
+
+// Arrow component that points to specific UI elements
+const OnboardingArrow: React.FC<{
+  pointTo: 'location-button' | 'settings-button' | 'tracking-button';
+  visible: boolean;
+}> = ({ pointTo, visible }) => {
+  const [pulseAnim] = useState(new Animated.Value(1));
+
+  React.useEffect(() => {
+    if (visible) {
+      const pulse = Animated.loop(
+        Animated.sequence([
+          Animated.timing(pulseAnim, {
+            toValue: 1.2,
+            duration: 1000,
+            useNativeDriver: true,
+          }),
+          Animated.timing(pulseAnim, {
+            toValue: 1,
+            duration: 1000,
+            useNativeDriver: true,
+          }),
+        ])
+      );
+      pulse.start();
+      return () => pulse.stop();
+    }
+    return undefined;
+  }, [visible, pulseAnim]);
+
+  if (!visible) return null;
+
+  const getArrowStyle = () => {
+    const { width: screenWidth } = Dimensions.get('window');
+    
+    switch (pointTo) {
+      case 'location-button':
+        return {
+          position: 'absolute' as const,
+          top: 120, // Adjusted position - slightly lower
+          right: 90,
+          transform: [{ rotate: '-45deg' }],
+        };
+      case 'settings-button':
+        return {
+          position: 'absolute' as const,
+          top: 120, // Settings is in top left, not bottom right
+          left: 90,
+          transform: [{ rotate: '-135deg' }], // Point to top left
+        };
+      case 'tracking-button':
+        return {
+          position: 'absolute' as const,
+          bottom: 200, // Tracking button position
+          left: screenWidth / 2 - 20,
+          transform: [{ rotate: '90deg' }],
+        };
+      default:
+        return {};
+    }
+  };
+
+  return (
+    <Animated.View
+      style={[
+        getArrowStyle(),
+        {
+          transform: [
+            ...((getArrowStyle().transform as any) ?? []),
+            { scale: pulseAnim },
+          ],
+        },
+      ]}
+    >
+      <MaterialIcons name="arrow-forward" size={32} color="#007AFF" />
+    </Animated.View>
+  );
+};
 
 // Helper component for navigation buttons
 const OnboardingNavigation: React.FC<{
@@ -245,6 +324,11 @@ export const OnboardingOverlay: React.FC<OnboardingOverlayProps> = ({
             onComplete={handleComplete}
           />
         </SafeAreaView>
+        
+        {/* Arrows pointing to UI elements */}
+        {currentStepData?.pointTo && (
+          <OnboardingArrow pointTo={currentStepData.pointTo} visible={visible} />
+        )}
       </View>
     </Modal>
   );
@@ -262,7 +346,8 @@ const styles = StyleSheet.create({
   header: {
     paddingHorizontal: 20,
     paddingTop: 20,
-    alignItems: 'flex-end',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   skipButton: {
     padding: 10,

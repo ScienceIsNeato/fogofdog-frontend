@@ -5,50 +5,54 @@ export interface OnboardingStep {
   title: string;
   description: string;
   icon: keyof typeof MaterialIcons.glyphMap;
+  pointTo?: 'location-button' | 'settings-button' | 'tracking-button';
 }
 
 export const ONBOARDING_STEPS: OnboardingStep[] = [
   {
     id: 1,
-    title: "You're a dog in a new neighborhood.",
+    title: 'Welcome!',
     description:
-      'Everything is unknown. Explore & track your adventures as you discover this new world!',
+      "You're a dog in a new neighborhood. Everything is unknown. Explore & track your adventures as you discover this new world! This tutorial will show you the three main buttons you need.",
     icon: 'pets',
   },
   {
     id: 2,
     title: 'The world around you is shrouded in fog.',
     description:
-      "You can only see your immediate surroundings. Gray areas are unexplored, clear areas show where you've been. Move around to reveal the map!",
+      "Dark areas are unexplored, revealed areas show where you've been. As you move around in real life, the fog lifts to reveal your discoveries!",
     icon: 'visibility',
   },
   {
     id: 3,
-    title: 'As you walk around in real life,',
+    title: '📍 Location Button (Top Right)',
     description:
-      'the fog lifts to reveal what you discover. Tap the location button to center the map on your current position. It turns blue when active.',
-    icon: 'directions-walk',
+      'Tap this button to center the map on your current position. TAP AGAIN to enter "follow mode" - it turns blue and keeps you centered as you move.',
+    icon: 'my-location',
+    pointTo: 'location-button',
   },
   {
     id: 4,
-    title: 'Every step you take unveils more',
+    title: '⚙️ Settings Button (Top Left)',
     description:
-      'of your new territory. Use the pause button to stop or resume tracking your exploration. Perfect for breaks!',
-    icon: 'explore',
+      'Access app settings, manage your exploration history, clear data, and configure developer options through this menu.',
+    icon: 'settings',
+    pointTo: 'settings-button',
   },
   {
     id: 5,
-    title: "Places you've been before stay revealed.",
+    title: '⏸️ Tracking Control (Bottom Center)',
     description:
-      'You build a memory of your world. Access app settings and manage your exploration history through the settings menu.',
-    icon: 'my-location',
+      'Pause tracking when not actively exploring! Like exiting a route in Google Maps, this saves battery and stops GPS usage.',
+    icon: 'pause-circle-outline',
+    pointTo: 'tracking-button',
   },
   {
     id: 6,
-    title: 'Ready to explore your neighborhood?',
+    title: "Let's Explore!",
     description:
-      'Time to start sniffing around! Start moving around to clear the fog and discover new areas.',
-    icon: 'flag',
+      "You'll see some permission screens next - we need location access to track your adventures. Don't worry, your data stays private on your device!",
+    icon: 'meeting-room',
   },
 ];
 
