@@ -1616,8 +1616,7 @@ const MapScreenUI: React.FC<{
         style={{
           position: 'absolute',
           bottom: 160, // Above the data clear button
-          left: 20,
-          right: 20,
+          alignSelf: 'center',
         }}
       />
 

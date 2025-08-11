@@ -1,5 +1,6 @@
 import React from 'react';
-import { TouchableOpacity, Text, StyleSheet, ViewStyle } from 'react-native';
+import { TouchableOpacity, StyleSheet, ViewStyle } from 'react-native';
+import { MaterialIcons } from '@expo/vector-icons';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import { toggleTracking } from '../store/slices/explorationSlice';
 
@@ -21,21 +22,22 @@ export const TrackingControlButton: React.FC<TrackingControlButtonProps> = ({ st
       onPress={handleToggleTracking}
       testID={isTrackingPaused ? 'resume-tracking-button' : 'pause-tracking-button'}
     >
-      <Text style={[styles.buttonText, isTrackingPaused ? styles.resumeText : styles.pauseText]}>
-        {isTrackingPaused ? '🐕 Adventure!' : '😴 Nap'}
-      </Text>
+      <MaterialIcons
+        name={isTrackingPaused ? 'play-arrow' : 'pause'}
+        size={24}
+        color={isTrackingPaused ? '#2E7D32' : '#5F6368'}
+      />
     </TouchableOpacity>
   );
 };
 
 const styles = StyleSheet.create({
   button: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 20,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
     alignItems: 'center',
     justifyContent: 'center',
-    minWidth: 100,
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
@@ -54,15 +56,5 @@ const styles = StyleSheet.create({
     backgroundColor: '#E8F5E8',
     borderWidth: 1,
     borderColor: '#C3E6CB',
-  },
-  buttonText: {
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  pauseText: {
-    color: '#6C757D',
-  },
-  resumeText: {
-    color: '#28A745',
   },
 });

@@ -31,8 +31,8 @@ export const SettingsMainView: React.FC<SettingsMainViewProps> = ({
         <MaterialIcons name="person" size={20} color="#999" />
         <View style={styles.menuItemContent}>
           <Text style={[styles.menuItemText, styles.disabledMenuItemText]}>User Profile</Text>
-          <Text style={styles.comingSoonText}>Coming Soon</Text>
         </View>
+        <Text style={styles.comingSoonText}>Coming Soon</Text>
       </TouchableOpacity>
 
       <TouchableOpacity style={styles.menuItem} onPress={onHistoryManagement}>

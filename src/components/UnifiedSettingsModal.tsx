@@ -4,9 +4,10 @@ import { Modal, View, StyleSheet, Alert } from 'react-native';
 import { ClearType, DataStats } from '../types/dataClear';
 import { SettingsMainView } from './UnifiedSettingsModal/SettingsMainView';
 import { SettingsHistoryView } from './UnifiedSettingsModal/SettingsHistoryView';
+import { SettingsDeveloperView } from './UnifiedSettingsModal/SettingsDeveloperView';
 import { useSettingsHandlers } from './UnifiedSettingsModal/useSettingsHandlers';
 
-type SettingsView = 'main' | 'history';
+type SettingsView = 'main' | 'history' | 'developer';
 
 interface UnifiedSettingsModalProps {
   visible: boolean;
@@ -59,7 +60,7 @@ const UnifiedSettingsModal: React.FC<UnifiedSettingsModalProps> = ({
               onDeveloperSettings={handleDeveloperSettings}
               styles={styles}
             />
-          ) : (
+          ) : currentView === 'history' ? (
             <SettingsHistoryView
               dataStats={dataStats}
               onClearData={onClearData}
@@ -67,6 +68,8 @@ const UnifiedSettingsModal: React.FC<UnifiedSettingsModalProps> = ({
               onBackToMain={handleBackToMain}
               styles={styles}
             />
+          ) : (
+            <SettingsDeveloperView onBack={handleBackToMain} styles={styles} />
           )}
         </View>
       </View>
@@ -223,6 +226,55 @@ const styles = StyleSheet.create({
     color: '#666',
     fontSize: 16,
     fontWeight: '500',
+  },
+  headerSpacer: {
+    width: 32, // Same width as close button for centering
+  },
+  sectionHeader: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#666',
+    marginBottom: 12,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  settingItem: {
+    marginBottom: 16,
+  },
+  settingContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  settingTextContainer: {
+    flex: 1,
+    marginRight: 16,
+  },
+  settingTitle: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#333',
+    marginBottom: 4,
+  },
+  settingDescription: {
+    fontSize: 14,
+    color: '#666',
+    lineHeight: 20,
+  },
+  warningContainer: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    backgroundColor: '#FFF8E1',
+    borderRadius: 8,
+    padding: 12,
+    marginTop: 20,
+  },
+  warningText: {
+    fontSize: 12,
+    color: '#E65100',
+    marginLeft: 8,
+    flex: 1,
+    lineHeight: 16,
   },
 });
 

@@ -2,7 +2,7 @@ import React from 'react';
 import { render, fireEvent, act } from '@testing-library/react-native';
 import { Alert } from 'react-native';
 import UnifiedSettingsModal from '../UnifiedSettingsModal';
-import { OnboardingService } from '../../services/OnboardingService';
+
 import { DataStats } from '../../types/dataClear';
 
 // Mock dependencies
@@ -12,7 +12,6 @@ jest.mock('expo-haptics');
 
 // Mock Alert
 const mockAlert = jest.spyOn(Alert, 'alert');
-const mockOnboardingService = OnboardingService as jest.Mocked<typeof OnboardingService>;
 
 describe('UnifiedSettingsModal - Core Functionality', () => {
   const mockDataStats: DataStats = {
@@ -93,8 +92,8 @@ describe('UnifiedSettingsModal - Core Functionality', () => {
       );
     });
 
-    it('shows developer settings alert when Developer Settings is pressed', async () => {
-      const { getByText } = render(<UnifiedSettingsModal {...defaultProps} />);
+    it('navigates to developer settings view when Developer Settings is pressed', async () => {
+      const { getByText, queryByText } = render(<UnifiedSettingsModal {...defaultProps} />);
 
       const developerButton = getByText('Developer Settings');
 
@@ -102,14 +101,10 @@ describe('UnifiedSettingsModal - Core Functionality', () => {
         fireEvent.press(developerButton);
       });
 
-      expect(mockAlert).toHaveBeenCalledWith(
-        'Reset Onboarding',
-        expect.stringContaining('reset the onboarding sequence'),
-        expect.arrayContaining([
-          expect.objectContaining({ text: 'Cancel' }),
-          expect.objectContaining({ text: 'Reset' }),
-        ])
-      );
+      // Should navigate to developer view
+      expect(queryByText('Testing & Debugging')).toBeTruthy();
+      expect(queryByText('Show Onboarding')).toBeTruthy();
+      expect(queryByText('Fresh Install Mode')).toBeTruthy();
     });
   });
 
@@ -272,26 +267,30 @@ describe('UnifiedSettingsModal - Core Functionality', () => {
     });
   });
 
-  describe('Developer Settings Integration', () => {
-    it('resets onboarding when developer settings reset is confirmed', async () => {
-      const { getByText } = render(<UnifiedSettingsModal {...defaultProps} />);
+  describe('Developer Settings View', () => {
+    it('navigates back to main view when back button is pressed', async () => {
+      const { getByText, queryByText, getByTestId } = render(
+        <UnifiedSettingsModal {...defaultProps} />
+      );
 
+      // Navigate to developer settings
       const developerButton = getByText('Developer Settings');
       await act(async () => {
         fireEvent.press(developerButton);
       });
 
-      // Simulate pressing the Reset button in the alert
-      const alertCall = mockAlert.mock.calls[0];
-      const resetButton = alertCall?.[2]?.[1]; // Second button (Reset)
+      // Should be in developer view
+      expect(queryByText('Testing & Debugging')).toBeTruthy();
 
+      // Press back button
+      const backButton = getByTestId('back-button');
       await act(async () => {
-        if (resetButton?.onPress) {
-          await resetButton.onPress();
-        }
+        fireEvent.press(backButton);
       });
 
-      expect(mockOnboardingService.resetOnboarding).toHaveBeenCalled();
+      // Should be back in main view
+      expect(queryByText('Settings')).toBeTruthy();
+      expect(queryByText('User Profile')).toBeTruthy();
     });
   });
 
