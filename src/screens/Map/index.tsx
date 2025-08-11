@@ -118,8 +118,10 @@ async function requestLocationPermissions(allowRequests: boolean = true) {
     step: 'starting',
   });
 
-  const { status: foregroundStatus } = await Location.requestForegroundPermissionsAsync();
-  const foregroundGranted = foregroundStatus === 'granted';
+  const { status: foregroundStatus, granted } = await Location.requestForegroundPermissionsAsync();
+  // Use the 'granted' boolean which handles both 'granted' and 'whenInUse' cases
+  // This is more reliable than checking status strings
+  const foregroundGranted = granted;
 
   if (!foregroundGranted) {
     logger.warn('Foreground location permission denied', {
@@ -213,14 +215,24 @@ async function startLocationUpdates(backgroundGranted: boolean = false) {
       errorMessage: error instanceof Error ? error.message : String(error),
     });
 
-    // Show user-friendly error
-    PermissionAlert.show({
-      errorMessage:
-        'Unable to start location tracking. Please check your location permissions and try again.',
-      onDismiss: () => {
-        logger.info('Location update error alert dismissed');
-      },
-    });
+    // Only show permission alert if it's actually a permission issue
+    // For other errors (network, GPS disabled, etc.), just log them
+    if (error instanceof Error && error.message.toLowerCase().includes('permission')) {
+      PermissionAlert.show({
+        errorMessage:
+          'Unable to start location tracking. Please check your location permissions and try again.',
+        onDismiss: () => {
+          logger.info('Location update error alert dismissed');
+        },
+      });
+    } else {
+      logger.info('Location tracking error (non-permission related) - not showing alert', {
+        component: 'MapScreen',
+        action: 'handleLocationUpdate',
+        errorType: 'non_permission',
+        errorMessage: error instanceof Error ? error.message : String(error),
+      });
+    }
 
     throw error;
   }
@@ -361,14 +373,24 @@ async function getInitialLocation({
       action: 'getInitialLocation',
       error: error instanceof Error ? error.message : String(error),
     });
-    // Show user-friendly error message if initial location fails
-    PermissionAlert.show({
-      errorMessage:
-        'Unable to get your current location. Please ensure location services are enabled and try again.',
-      onDismiss: () => {
-        logger.info('Initial location error alert dismissed');
-      },
-    });
+    // Only show permission alert if it's actually a permission issue
+    // For other errors (network, GPS disabled, etc.), just log them
+    if (error instanceof Error && error.message.toLowerCase().includes('permission')) {
+      PermissionAlert.show({
+        errorMessage:
+          'Unable to get your current location. Please ensure location services are enabled and try again.',
+        onDismiss: () => {
+          logger.info('Initial location error alert dismissed');
+        },
+      });
+    } else {
+      logger.info('Initial location error (non-permission related) - not showing alert', {
+        component: 'MapScreen',
+        action: 'getInitialLocation',
+        errorType: 'non_permission',
+        errorMessage: error instanceof Error ? error.message : String(error),
+      });
+    }
   }
 }
 

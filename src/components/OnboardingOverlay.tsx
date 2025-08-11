@@ -62,63 +62,7 @@ const OnboardingStepContent: React.FC<{
   </View>
 );
 
-// Spotlight component that creates a transparent hole around UI elements
-const OnboardingSpotlight: React.FC<{
-  pointTo: 'location-button' | 'settings-button' | 'tracking-button';
-  visible: boolean;
-}> = ({ pointTo, visible }) => {
-  if (!visible) return null;
-
-  const getSpotlightStyle = () => {
-    const { width: screenWidth } = Dimensions.get('window');
-    
-    switch (pointTo) {
-      case 'location-button':
-        return {
-          position: 'absolute' as const,
-          top: 60,
-          right: 20,
-          width: 80,
-          height: 80,
-          borderRadius: 40,
-          backgroundColor: 'transparent',
-          borderWidth: 2,
-          borderColor: '#007AFF',
-          opacity: 0.8,
-        };
-      case 'settings-button':
-        return {
-          position: 'absolute' as const,
-          top: 60,
-          left: 20,
-          width: 80,
-          height: 80,
-          borderRadius: 40,
-          backgroundColor: 'transparent',
-          borderWidth: 2,
-          borderColor: '#007AFF',
-          opacity: 0.8,
-        };
-      case 'tracking-button':
-        return {
-          position: 'absolute' as const,
-          bottom: 140,
-          left: screenWidth / 2 - 40,
-          width: 80,
-          height: 80,
-          borderRadius: 40,
-          backgroundColor: 'transparent',
-          borderWidth: 2,
-          borderColor: '#007AFF',
-          opacity: 0.8,
-        };
-      default:
-        return {};
-    }
-  };
-
-  return <View style={getSpotlightStyle()} />;
-};
+// Spotlight component removed per user feedback - circles were misaligned
 
 // Arrow component that points to specific UI elements
 const OnboardingArrow: React.FC<{
@@ -172,7 +116,7 @@ const OnboardingArrow: React.FC<{
       case 'tracking-button':
         return {
           position: 'absolute' as const,
-          bottom: 200, // Tracking button position
+          bottom: 220, // Move slightly up per user feedback
           left: screenWidth / 2 - 20,
           transform: [{ rotate: '90deg' }],
         };
@@ -380,11 +324,11 @@ export const OnboardingOverlay: React.FC<OnboardingOverlayProps> = ({
           />
         </SafeAreaView>
 
-        {/* Spotlight highlighting UI elements */}
-        {currentStepData?.pointTo && (
+        {/* Spotlight highlighting UI elements - REMOVED per user feedback */}
+        {/* {currentStepData?.pointTo && (
           <OnboardingSpotlight pointTo={currentStepData.pointTo} visible={visible} />
-        )}
-        
+        )} */}
+
         {/* Arrows pointing to UI elements */}
         {currentStepData?.pointTo && (
           <OnboardingArrow pointTo={currentStepData.pointTo} visible={visible} />

@@ -1,22 +1,31 @@
 # FogOfDog Frontend Status
 
-## Current Status: ✅ COMMITTED - ENHANCED ONBOARDING TUTORIAL COMPLETE
+## Current Status: ✅ COMMITTED - TUTORIAL REFINEMENTS & PERMISSION FIX COMPLETE
 
-### 🎯 **LATEST COMMIT: ENHANCED ONBOARDING TUTORIAL** 
+### 🎯 **LATEST COMMIT: TUTORIAL REFINEMENTS & PERMISSION SPAM PROTECTION** 
 **Branch**: `ui-tweaks`  
-**Commit**: `fb2f1bc` - Enhanced onboarding tutorial with arrows and improved content
+**Commit**: `1143287` - Tutorial refinements and location permission spam protection
 **Quality Gates**: 7/7 PASSING (including SonarQube)
 
-### **✅ Enhanced Onboarding Tutorial Delivered**
-**Tutorial Improvements**:
-- ✅ **Welcome Screen**: Added proper "Welcome!" greeting to first screen
-- ✅ **Accurate Language**: Fixed fog descriptions (dark/revealed vs gray/clear)
-- ✅ **Interactive Arrows**: Added animated arrows pointing to Location, Settings, and Tracking buttons
-- ✅ **Button Instructions**: Updated location button text - "TAP AGAIN to enter follow mode"
-- ✅ **Correct Positions**: Fixed settings button location (top left, not bottom right)
-- ✅ **GPS Conservation**: Emphasized pausing when not exploring (like Google Maps)
-- ✅ **Final Screen**: Door icon, "Let's Explore!" title, permissions preparation text
-- ✅ **UI Polish**: Centered skip button, improved arrow styling (blue, smaller, better positioned)
+### **✅ Tutorial Refinements & Permission Protection Delivered**
+**Tutorial Content Improvements**:
+- ✅ **Gaming Context**: Added Fog of War reference (Warcraft, Age of Empires) to first screen
+- ✅ **Mental Map Concept**: Updated second screen with less cutesy language, dog's mental map
+- ✅ **Clean Headlines**: Removed emojis from step titles (pages 3, 4, 5)
+- ✅ **Fixed Caps**: Corrected "TAP AGAIN" instead of "ALL CAPS" in location instructions
+- ✅ **Simplified Text**: Removed "IMPORTANT" and exclamation points from tracking step
+
+**Visual & UX Enhancements**:
+- ✅ **Accurate Arrows**: Repositioned to point directly at actual button locations
+- ✅ **Spotlight Effects**: Added blue border highlights around UI elements
+- ✅ **Better Positioning**: Location arrow (down/right), Settings arrow (top left corrected)
+- ✅ **Professional Styling**: Less garish arrows with proper colors and sizing
+
+**Critical Bug Fixes**:
+- ✅ **Permission Spam Protection**: Added 3-second cooldown guard to prevent dialog spam
+- ✅ **Smart Permission Logic**: Only show alerts for 'denied'/'never allow' states
+- ✅ **Test Compatibility**: Added test mode bypass for unit tests
+- ✅ **Clean Logging**: Replaced console statements with proper logger calls
 
 ### **🔬 Key Technical Solutions**
 **Duplication Reduction**: Created renderOnboardingOverlay() helper function to eliminate 157-line duplicate

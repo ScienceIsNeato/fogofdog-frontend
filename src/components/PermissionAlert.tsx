@@ -1,4 +1,5 @@
 import { Alert, Platform, Linking } from 'react-native';
+import { logger } from '../utils/logger';
 
 // Guard to prevent permission alert spam
 class PermissionAlertGuard {
@@ -16,13 +17,9 @@ class PermissionAlertGuard {
     if (this.isShowing) {
       return false;
     }
-    
+
     const now = Date.now();
-    if (now - this.lastShownTime < this.COOLDOWN_MS) {
-      return false;
-    }
-    
-    return true;
+    return now - this.lastShownTime >= this.COOLDOWN_MS;
   }
 
   setShowing(isShowing: boolean): void {
@@ -77,13 +74,14 @@ export const PermissionAlert = {
     const { errorMessage, onDismiss, permissionStatus } = props;
 
     // Only show alert for 'never allow' or 'denied' status when permissionStatus is provided
+    // Accept 'granted', 'whenInUse' as valid permissions
     if (permissionStatus && !['denied', 'undetermined'].includes(permissionStatus)) {
-      console.warn('Location permission not optimal but not critical:', permissionStatus);
+      logger.warn('Location permission not optimal but not critical', { permissionStatus });
       return;
     }
 
     if (!alertGuard.canShow()) {
-      console.log('Permission alert blocked by guard - preventing spam');
+      logger.info('Permission alert blocked by guard - preventing spam');
       return;
     }
 
@@ -116,17 +114,18 @@ export const PermissionAlert = {
     const { errorMessage, onDismiss, permissionStatus } = props;
 
     // Only show for truly critical cases when permissionStatus is provided
+    // Accept 'granted', 'whenInUse' as valid permissions
     if (permissionStatus && !['denied'].includes(permissionStatus)) {
-      if (permissionStatus === 'granted') {
-        console.log('Permission granted, no need for critical alert');
+      if (['granted', 'whenInUse'].includes(permissionStatus)) {
+        logger.info('Permission granted, no need for critical alert', { permissionStatus });
         return;
       }
-      console.warn('Location permission suboptimal but not critical:', permissionStatus);
+      logger.warn('Location permission suboptimal but not critical', { permissionStatus });
       return;
     }
 
     if (!alertGuard.canShow()) {
-      console.log('Critical permission alert blocked by guard - preventing spam');
+      logger.info('Critical permission alert blocked by guard - preventing spam');
       return;
     }
 

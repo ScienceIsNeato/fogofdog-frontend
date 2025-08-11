@@ -13,7 +13,7 @@ export const ONBOARDING_STEPS: OnboardingStep[] = [
     id: 1,
     title: 'Welcome to the Fog!',
     description:
-      'Games like Warcraft and Age of Empires use an exploration mechanic called "Fog of War", where maps start out completely black and only come to life as you explore it. This game brings that concept out into the real world from the perspective of a dog.\n\nYou are a dog now.',
+      'Games like Warcraft and Age of Empires use an exploration mechanic called "Fog of War", where maps start out completely black and only come to life as you explore them. This game brings that concept out into the real world from the perspective of a dog.\n\nYou are a dog now.',
     icon: 'pets',
   },
   {
