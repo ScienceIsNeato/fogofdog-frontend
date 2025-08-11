@@ -436,8 +436,9 @@ const handleLocationPermissions = async (
     await requestLocationPermissions(allowLocationRequests);
 
   // Update permission state via callback
+  // Foreground permission is sufficient for basic functionality
   if (onPermissionsGranted) {
-    onPermissionsGranted(foregroundGranted && backgroundGranted);
+    onPermissionsGranted(foregroundGranted);
   }
 
   if (!foregroundGranted) {

@@ -1,31 +1,29 @@
 # FogOfDog Frontend Status
 
-## Current Status: ✅ COMMITTED - TUTORIAL REFINEMENTS & PERMISSION FIX COMPLETE
+## Current Status: ✅ COMMITTED - TUTORIAL POLISH & PERMISSION SYSTEM OVERHAUL COMPLETE
 
-### 🎯 **LATEST COMMIT: TUTORIAL REFINEMENTS & PERMISSION SPAM PROTECTION** 
+### 🎯 **LATEST COMMIT: TUTORIAL POLISH & PERMISSION SYSTEM FIXES** 
 **Branch**: `ui-tweaks`  
-**Commit**: `1143287` - Tutorial refinements and location permission spam protection
+**Commit**: `d908f5a` - Tutorial polish and permission system fixes
 **Quality Gates**: 7/7 PASSING (including SonarQube)
 
-### **✅ Tutorial Refinements & Permission Protection Delivered**
-**Tutorial Content Improvements**:
-- ✅ **Gaming Context**: Added Fog of War reference (Warcraft, Age of Empires) to first screen
-- ✅ **Mental Map Concept**: Updated second screen with less cutesy language, dog's mental map
-- ✅ **Clean Headlines**: Removed emojis from step titles (pages 3, 4, 5)
-- ✅ **Fixed Caps**: Corrected "TAP AGAIN" instead of "ALL CAPS" in location instructions
-- ✅ **Simplified Text**: Removed "IMPORTANT" and exclamation points from tracking step
+### **✅ Tutorial Polish & Permission System Overhaul Delivered**
+**Tutorial Polish**:
+- ✅ **Grammar Fix**: Corrected "explore them" instead of "explore it" for plural maps
+- ✅ **Removed Spotlights**: Eliminated misaligned blue circles per user feedback
+- ✅ **Arrow Positioning**: Fine-tuned step 5 arrow positioning for tracking button
 
-**Visual & UX Enhancements**:
-- ✅ **Accurate Arrows**: Repositioned to point directly at actual button locations
-- ✅ **Spotlight Effects**: Added blue border highlights around UI elements
-- ✅ **Better Positioning**: Location arrow (down/right), Settings arrow (top left corrected)
-- ✅ **Professional Styling**: Less garish arrows with proper colors and sizing
+**Permission System Overhaul**:
+- ✅ **"While Using App" Support**: Now accepts iOS "While Using App" permission as valid (not just "Always Allow")
+- ✅ **Expo API Integration**: Uses 'granted' boolean from Expo API instead of string comparison
+- ✅ **Stray Alert Fix**: Eliminated delayed permission errors appearing after 10-15 seconds of successful operation
+- ✅ **Intelligent Error Filtering**: Only show permission alerts for actual permission-related errors
+- ✅ **Enhanced Validation**: Improved permission status validation logic with proper error handling
 
-**Critical Bug Fixes**:
-- ✅ **Permission Spam Protection**: Added 3-second cooldown guard to prevent dialog spam
-- ✅ **Smart Permission Logic**: Only show alerts for 'denied'/'never allow' states
-- ✅ **Test Compatibility**: Added test mode bypass for unit tests
-- ✅ **Clean Logging**: Replaced console statements with proper logger calls
+**Technical Quality Improvements**:
+- ✅ **Code Cleanup**: Removed unused OnboardingSpotlight component to eliminate TypeScript warnings
+- ✅ **Error Handling**: Distinguished permission errors from network/GPS errors with proper logging
+- ✅ **API Reliability**: Fixed permission validation to work correctly with iOS permission selections
 
 ### **🔬 Key Technical Solutions**
 **Duplication Reduction**: Created renderOnboardingOverlay() helper function to eliminate 157-line duplicate
