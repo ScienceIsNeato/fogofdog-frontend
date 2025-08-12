@@ -16,7 +16,21 @@ declare global {
 
 // Mock dependencies
 jest.mock('expo-modules-core');
-jest.mock('expo-location');
+jest.mock('expo-location', () => ({
+  requestForegroundPermissionsAsync: jest.fn(),
+  requestBackgroundPermissionsAsync: jest.fn(),
+  getForegroundPermissionsAsync: jest.fn(),
+  getBackgroundPermissionsAsync: jest.fn(),
+  getCurrentPositionAsync: jest.fn(),
+  startLocationUpdatesAsync: jest.fn(),
+  stopLocationUpdatesAsync: jest.fn(),
+  PermissionStatus: {
+    GRANTED: 'granted',
+    DENIED: 'denied',
+    UNDETERMINED: 'undetermined',
+  },
+  Accuracy: { High: 1, Balanced: 2, LowPower: 3 },
+}));
 jest.mock('expo-task-manager');
 jest.mock('react-native-maps', () => {
   // Use import instead of require to satisfy ESLint
@@ -112,9 +126,13 @@ describe('MapScreen - Background Location Integration', () => {
       </Provider>
     );
 
-    await waitFor(() => {
-      expect(mockedBackgroundLocationService.initialize).toHaveBeenCalled();
-    });
+    // Wait for permission verification to complete first
+    await waitFor(
+      () => {
+        expect(mockedBackgroundLocationService.initialize).toHaveBeenCalled();
+      },
+      { timeout: 3000 } // Give more time for async permission flow
+    );
 
     await waitFor(() => {
       expect(mockedBackgroundLocationService.startBackgroundLocationTracking).toHaveBeenCalled();
@@ -135,9 +153,12 @@ describe('MapScreen - Background Location Integration', () => {
       </Provider>
     );
 
-    await waitFor(() => {
-      expect(mockedBackgroundLocationService.processStoredLocations).toHaveBeenCalled();
-    });
+    await waitFor(
+      () => {
+        expect(mockedBackgroundLocationService.processStoredLocations).toHaveBeenCalled();
+      },
+      { timeout: 3000 }
+    );
   });
 
   it('should handle background permission denial gracefully', async () => {
@@ -157,9 +178,12 @@ describe('MapScreen - Background Location Integration', () => {
       </Provider>
     );
 
-    await waitFor(() => {
-      expect(mockedBackgroundLocationService.initialize).toHaveBeenCalled();
-    });
+    await waitFor(
+      () => {
+        expect(mockedBackgroundLocationService.initialize).toHaveBeenCalled();
+      },
+      { timeout: 3000 }
+    );
 
     // Should still initialize but not start background tracking
     expect(mockedBackgroundLocationService.startBackgroundLocationTracking).not.toHaveBeenCalled();
@@ -172,9 +196,12 @@ describe('MapScreen - Background Location Integration', () => {
       </Provider>
     );
 
-    await waitFor(() => {
-      expect(mockedBackgroundLocationService.initialize).toHaveBeenCalled();
-    });
+    await waitFor(
+      () => {
+        expect(mockedBackgroundLocationService.initialize).toHaveBeenCalled();
+      },
+      { timeout: 3000 }
+    );
 
     unmount();
 
