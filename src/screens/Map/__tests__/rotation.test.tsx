@@ -101,6 +101,7 @@ jest.mock('react-native-maps', () => {
 jest.mock('expo-location', () => ({
   requestForegroundPermissionsAsync: jest.fn(),
   requestBackgroundPermissionsAsync: jest.fn(),
+  getForegroundPermissionsAsync: jest.fn(),
   getBackgroundPermissionsAsync: jest.fn(),
   getCurrentPositionAsync: jest.fn(),
   startLocationUpdatesAsync: jest.fn(),
@@ -146,12 +147,15 @@ describe('Map Rotation Disabled Tests', () => {
     (Location.requestForegroundPermissionsAsync as jest.Mock).mockResolvedValue(
       mockPermissionResponse
     );
-    (Location.requestBackgroundPermissionsAsync as jest.Mock).mockResolvedValue({
-      status: 'granted',
-    });
-    (Location.getBackgroundPermissionsAsync as jest.Mock).mockResolvedValue({
-      status: 'granted',
-    });
+    (Location.requestBackgroundPermissionsAsync as jest.Mock).mockResolvedValue(
+      mockPermissionResponse
+    );
+    (Location.getForegroundPermissionsAsync as jest.Mock).mockResolvedValue(
+      mockPermissionResponse
+    );
+    (Location.getBackgroundPermissionsAsync as jest.Mock).mockResolvedValue(
+      mockPermissionResponse
+    );
     (Location.getCurrentPositionAsync as jest.Mock).mockResolvedValue(mockLocationObject);
     (Location.startLocationUpdatesAsync as jest.Mock).mockResolvedValue(undefined);
     (Location.stopLocationUpdatesAsync as jest.Mock).mockResolvedValue(undefined);
@@ -174,7 +178,14 @@ describe('Map Rotation Disabled Tests', () => {
       </Provider>
     );
 
-    // Wait for initial rendering
+    // Wait for initial rendering and advance timers to skip permission verification delay
+    await act(async () => {
+      // Advance timers to skip the 30-second permission verification delay
+      jest.advanceTimersByTime(35000);
+      await Promise.resolve();
+    });
+
+    // Wait for permission verification to complete
     await act(async () => {
       jest.runAllTimers();
       await Promise.resolve();

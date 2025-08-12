@@ -71,6 +71,20 @@ describe('MapScreen - Background Location Integration', () => {
       expires: 'never',
     });
 
+    mockedLocation.getForegroundPermissionsAsync.mockResolvedValue({
+      status: Location.PermissionStatus.GRANTED,
+      granted: true,
+      canAskAgain: true,
+      expires: 'never',
+    });
+
+    mockedLocation.getBackgroundPermissionsAsync.mockResolvedValue({
+      status: Location.PermissionStatus.GRANTED,
+      granted: true,
+      canAskAgain: true,
+      expires: 'never',
+    });
+
     mockedLocation.getCurrentPositionAsync.mockResolvedValue({
       coords: {
         latitude: 37.7749,
