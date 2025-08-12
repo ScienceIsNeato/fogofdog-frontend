@@ -134,13 +134,8 @@ const explorationSlice = createSlice({
         state.currentLocation.latitude === newPoint.latitude &&
         state.currentLocation.longitude === newPoint.longitude
       ) {
-        logger.debug('🔄 Skipping identical location update', {
-          component: 'explorationSlice',
-          action: 'updateLocation',
-          currentLocation: `${state.currentLocation.latitude}, ${state.currentLocation.longitude}`,
-          newPoint: `${newPoint.latitude}, ${newPoint.longitude}`,
-          areIdentical: true,
-        });
+        // Skip logging for identical location updates to reduce log noise
+        // Only log significant location changes
         return;
       }
 
@@ -169,7 +164,7 @@ const explorationSlice = createSlice({
       const lastPoint = state.path.length > 0 ? state.path[state.path.length - 1] : null;
 
       if (!lastPoint) {
-        logger.debug(`Adding first path point at: ${newPoint.latitude}, ${newPoint.longitude}`, {
+        logger.info(`📍 Adding first path point at: ${newPoint.latitude}, ${newPoint.longitude}`, {
           component: 'explorationSlice',
           action: 'updateLocation',
         });

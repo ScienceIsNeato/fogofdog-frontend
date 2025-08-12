@@ -7,7 +7,7 @@ export interface PermissionVerificationState {
   isVerified: boolean;
   hasPermissions: boolean;
   backgroundGranted: boolean;
-  mode: 'full' | 'limited' | 'denied' | 'unknown';
+  mode: 'full' | 'limited' | 'denied' | 'once_only' | 'unknown';
   error: string | null;
 }
 
@@ -35,22 +35,32 @@ export const usePermissionVerification = (shouldVerify: boolean) => {
       action: 'startVerification',
     });
 
-    setState(prev => ({
+    setState((prev) => ({
       ...prev,
       isVerifying: true,
       error: null,
     }));
 
     try {
-      const result = await PermissionsOrchestrator.completePermissionVerification();
-      
+      // Add timeout to prevent hanging indefinitely
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => {
+          reject(new Error('Permission verification timeout after 30 seconds'));
+        }, 30000);
+      });
+
+      const result = (await Promise.race([
+        PermissionsOrchestrator.completePermissionVerification(),
+        timeoutPromise,
+      ])) as Awaited<ReturnType<typeof PermissionsOrchestrator.completePermissionVerification>>;
+
       setState({
         isVerifying: false,
         isVerified: true,
         hasPermissions: result.canProceed,
         backgroundGranted: result.backgroundGranted,
         mode: result.mode,
-        error: null,
+        error: result.error ?? null,
       });
 
       logger.info('Permission verification completed', {
@@ -58,20 +68,28 @@ export const usePermissionVerification = (shouldVerify: boolean) => {
         result,
       });
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Permission verification failed';
-      
+      const errorMessage =
+        error instanceof Error ? error.message : 'Permission verification failed';
+
+      // If it's a timeout error, provide a more helpful message
+      const isTimeout = errorMessage.includes('timeout');
+      const userFriendlyMessage = isTimeout
+        ? 'Permission request timed out. Please try again or check your location settings.'
+        : errorMessage;
+
       setState({
         isVerifying: false,
         isVerified: true,
         hasPermissions: false,
         backgroundGranted: false,
         mode: 'denied',
-        error: errorMessage,
+        error: userFriendlyMessage,
       });
 
       logger.error('Permission verification failed', {
         component: 'usePermissionVerification',
         error: errorMessage,
+        isTimeout,
       });
     }
   }, [shouldVerify, state.isVerifying, state.isVerified]);

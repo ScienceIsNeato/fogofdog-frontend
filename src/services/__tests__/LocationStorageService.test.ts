@@ -1,6 +1,15 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LocationStorageService, StoredLocationData } from '../LocationStorageService';
-import { withConsoleErrorSpy } from '../../__tests__/test-helpers/console-spy-helpers';
+// Mock console for testing
+const withConsoleErrorSpy = (callback: (consoleSpy: jest.SpyInstance) => void | Promise<void>) => {
+  const spy = jest.spyOn(console, 'error').mockImplementation();
+  const result = callback(spy);
+  if (result instanceof Promise) {
+    return result.finally(() => spy.mockRestore());
+  }
+  spy.mockRestore();
+  return undefined; // Explicitly return undefined for void case
+};
 
 // Mock AsyncStorage
 jest.mock('@react-native-async-storage/async-storage');

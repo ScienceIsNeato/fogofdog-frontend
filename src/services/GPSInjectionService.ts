@@ -133,22 +133,36 @@ export class GPSInjectionService {
   }
 
   /**
-   * Start periodic checking for injected GPS coordinates
+   * Check for GPS injection data once (event-driven, not polling)
+   * This should be called when the app starts or when external tools trigger injection
+   */
+  static async checkForInjectionOnce(): Promise<StoredLocationData[]> {
+    logger.info('Checking for GPS injection data (one-time check)', {
+      component: 'GPSInjectionService',
+      action: 'checkForInjectionOnce',
+    });
+
+    return await this.checkAndProcessInjectedGPS();
+  }
+
+  /**
+   * @deprecated Use checkForInjectionOnce() instead
+   * Periodic checking is a code smell - we should use event-driven architecture
    */
   static startPeriodicCheck(intervalMs: number = 5000): () => void {
-    const interval = setInterval(() => {
-      this.checkAndProcessInjectedGPS();
-    }, intervalMs);
-
-    logger.info('Started periodic GPS injection check', {
+    logger.warn('startPeriodicCheck is deprecated - use event-driven checkForInjectionOnce()', {
       component: 'GPSInjectionService',
       action: 'startPeriodicCheck',
       intervalMs,
     });
 
+    const interval = setInterval(() => {
+      this.checkAndProcessInjectedGPS();
+    }, intervalMs);
+
     return () => {
       clearInterval(interval);
-      logger.info('Stopped periodic GPS injection check', {
+      logger.info('Stopped deprecated periodic GPS injection check', {
         component: 'GPSInjectionService',
         action: 'startPeriodicCheck',
       });

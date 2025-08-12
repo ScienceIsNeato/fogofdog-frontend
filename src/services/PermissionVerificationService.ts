@@ -23,23 +23,21 @@ export class PermissionVerificationService {
 
     // Check if permissions are already granted
     if (await this.arePermissionsSufficient()) {
-      return { 
-        canProceed: true, 
-        hasBackgroundPermission: await this.hasBackgroundPermission() 
+      return {
+        canProceed: true,
+        hasBackgroundPermission: await this.hasBackgroundPermission(),
       };
     }
 
     // Dialog 1: Request initial location permission
     const dialog1Result = await this.handleDialog1();
-    
+
     if (!dialog1Result.canProceed) {
       return dialog1Result;
     }
 
     // Dialog 2: Request background permission upgrade (if applicable)
-    const dialog2Result = await this.handleDialog2();
-    
-    return dialog2Result;
+    return await this.handleDialog2();
   }
 
   /**
@@ -50,12 +48,12 @@ export class PermissionVerificationService {
     try {
       const foregroundStatus = await Location.getForegroundPermissionsAsync();
       const backgroundStatus = await Location.getBackgroundPermissionsAsync();
-      
+
       logger.info('Checking current permission status', {
         foreground: foregroundStatus.granted,
-        background: backgroundStatus.granted
+        background: backgroundStatus.granted,
       });
-      
+
       // Only sufficient if we have both - otherwise we need to go through the dialog flow
       return foregroundStatus.granted && backgroundStatus.granted;
     } catch (error) {
@@ -85,28 +83,29 @@ export class PermissionVerificationService {
   private static async handleDialog1(): Promise<PermissionVerificationResult> {
     try {
       logger.info('Requesting foreground location permission');
-      
+
       const result = await Location.requestForegroundPermissionsAsync();
-      
+
       if (!result.granted) {
         return {
           canProceed: false,
           hasBackgroundPermission: false,
-          warningMessage: 'Location access is required for FogOfDog to function. Please enable location permissions in your device settings.'
+          warningMessage:
+            'Location access is required for FogOfDog to function. Please enable location permissions in your device settings.',
         };
       }
 
       // User selected "Allow While Using App" or "Allow Once"
       return {
         canProceed: true,
-        hasBackgroundPermission: false
+        hasBackgroundPermission: false,
       };
     } catch (error) {
       logger.error('Dialog 1 failed', { error });
       return {
         canProceed: false,
         hasBackgroundPermission: false,
-        warningMessage: 'Failed to request location permissions. Please try again.'
+        warningMessage: 'Failed to request location permissions. Please try again.',
       };
     }
   }
@@ -121,56 +120,64 @@ export class PermissionVerificationService {
     try {
       // First, check current background permission status
       const initialBackgroundStatus = await Location.getBackgroundPermissionsAsync();
-      
+
       logger.info('Checking if iOS will show background permission dialog', {
         initialStatus: initialBackgroundStatus.status,
-        granted: initialBackgroundStatus.granted
+        granted: initialBackgroundStatus.granted,
       });
-      
+
       // If background permission is already determined (granted or denied), no dialog will show
       if (initialBackgroundStatus.status !== 'undetermined') {
         logger.info('Background permission already determined - no dialog needed', {
           status: initialBackgroundStatus.status,
-          granted: initialBackgroundStatus.granted
+          granted: initialBackgroundStatus.granted,
         });
-        
-        return {
+
+        const result: PermissionVerificationResult = {
           canProceed: true,
           hasBackgroundPermission: initialBackgroundStatus.granted,
-          warningMessage: initialBackgroundStatus.granted ? undefined : 
-            'FogOfDog works best with "Always Allow" location access. With "While Using App" permission, the app won\'t track your activities when your phone is locked or the app is in the background.'
         };
+
+        if (!initialBackgroundStatus.granted) {
+          result.warningMessage =
+            'FogOfDog works best with "Always Allow" location access. With "While Using App" permission, the app won\'t track your activities when your phone is locked or the app is in the background.';
+        }
+
+        return result;
       }
-      
+
       // Background permission is undetermined - iOS might show a dialog
       // Try requesting it and see if a dialog appears
-      logger.info('Background permission undetermined - requesting and waiting for potential dialog');
-      
+      logger.info(
+        'Background permission undetermined - requesting and waiting for potential dialog'
+      );
+
       await Location.requestBackgroundPermissionsAsync();
-      
+
       // Wait a short time to see if iOS shows the dialog
       await this.waitForBackgroundDialogCompletion();
-      
+
       // Check final permission status after potential user response
       const finalResult = await Location.getBackgroundPermissionsAsync();
-      
+
       if (finalResult.granted) {
         // User selected "Change to Always Allow"
         logger.info('Background permission granted by user');
         return {
           canProceed: true,
-          hasBackgroundPermission: true
+          hasBackgroundPermission: true,
         };
       } else {
         // User selected "Keep Only While Using" or iOS didn't show dialog
         logger.info('Background permission not granted', {
           finalStatus: finalResult.status,
-          reason: finalResult.status === 'denied' ? 'user_denied' : 'no_dialog_shown'
+          reason: finalResult.status === 'denied' ? 'user_denied' : 'no_dialog_shown',
         });
         return {
           canProceed: true,
           hasBackgroundPermission: false,
-          warningMessage: 'FogOfDog works best with "Always Allow" location access. With "While Using App" permission, the app won\'t track your activities when your phone is locked or the app is in the background.'
+          warningMessage:
+            'FogOfDog works best with "Always Allow" location access. With "While Using App" permission, the app won\'t track your activities when your phone is locked or the app is in the background.',
         };
       }
     } catch (error) {
@@ -179,7 +186,8 @@ export class PermissionVerificationService {
       return {
         canProceed: true,
         hasBackgroundPermission: false,
-        warningMessage: 'Background location permission could not be requested. The app will work with limited functionality.'
+        warningMessage:
+          'Background location permission could not be requested. The app will work with limited functionality.',
       };
     }
   }
@@ -192,41 +200,41 @@ export class PermissionVerificationService {
   private static async waitForBackgroundDialogCompletion(): Promise<void> {
     return new Promise((resolve) => {
       logger.info('Starting wait for background dialog completion');
-      
+
       let checkCount = 0;
       const maxChecks = 20; // 10 seconds maximum wait (shorter timeout)
-      
+
       const checkPermissionStatus = async () => {
         checkCount++;
-        
+
         try {
           // Check if permission status has stabilized
           const backgroundStatus = await Location.getBackgroundPermissionsAsync();
-          
+
           logger.debug('Checking background permission status during dialog wait', {
             checkCount,
             granted: backgroundStatus.granted,
-            status: backgroundStatus.status
+            status: backgroundStatus.status,
           });
-          
+
           // If status is no longer undetermined, user has responded or iOS decided not to show dialog
           if (backgroundStatus.status !== 'undetermined') {
             logger.info('Background dialog completed - permission status determined', {
               granted: backgroundStatus.granted,
               status: backgroundStatus.status,
-              checksRequired: checkCount
+              checksRequired: checkCount,
             });
             resolve();
             return;
           }
-          
+
           // Continue checking if we haven't exceeded max checks
           if (checkCount < maxChecks) {
             setTimeout(checkPermissionStatus, 500);
           } else {
             logger.info('Background dialog wait timeout - iOS likely did not show dialog', {
               maxChecksReached: maxChecks,
-              note: 'This is normal - iOS may not show background permission dialog in all cases'
+              note: 'This is normal - iOS may not show background permission dialog in all cases',
             });
             resolve();
           }
@@ -235,7 +243,7 @@ export class PermissionVerificationService {
           resolve(); // Resolve anyway to prevent hanging
         }
       };
-      
+
       // Start checking after a brief delay
       setTimeout(checkPermissionStatus, 500);
     });
@@ -251,12 +259,12 @@ export class PermissionVerificationService {
   }> {
     try {
       const result = await this.verifyAndRequestPermissions();
-      
+
       if (!result.canProceed) {
         return {
           canProceed: false,
           backgroundGranted: false,
-          mode: 'denied'
+          mode: 'denied',
         };
       }
 
@@ -264,21 +272,21 @@ export class PermissionVerificationService {
         return {
           canProceed: true,
           backgroundGranted: true,
-          mode: 'full'
+          mode: 'full',
         };
       }
 
       return {
         canProceed: true,
         backgroundGranted: false,
-        mode: 'limited'
+        mode: 'limited',
       };
     } catch (error) {
       logger.error('Permission verification failed', { error });
       return {
         canProceed: false,
         backgroundGranted: false,
-        mode: 'denied'
+        mode: 'denied',
       };
     }
   }

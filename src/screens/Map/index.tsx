@@ -7,6 +7,8 @@ import {
   AppState,
   Text,
   Alert,
+  TouchableOpacity,
+  Linking,
 } from 'react-native';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import {
@@ -130,34 +132,50 @@ function defineUnifiedLocationTask() {
 // Helper: startLocationUpdates
 async function startLocationUpdates(backgroundGranted: boolean = false) {
   try {
-    const locationOptions: any = {
-      accuracy: Location.Accuracy.High,
-      timeInterval: 3000,
-      distanceInterval: 5,
-    };
-
-    // Only add foreground service if we actually have background permission
-    // This prevents the "Background location permission is required" error
     if (backgroundGranted) {
-      locationOptions.foregroundService = {
-        notificationTitle: 'Fog of Dog',
-        notificationBody: 'Tracking your location to reveal the map',
+      // Use task-based location updates for background tracking
+      const locationOptions: any = {
+        accuracy: Location.Accuracy.High,
+        timeInterval: 3000,
+        distanceInterval: 5,
+        foregroundService: {
+          notificationTitle: 'Fog of Dog',
+          notificationBody: 'Tracking your location to reveal the map',
+        },
       };
+
       logger.info('Starting location updates with background service', {
         component: 'MapScreen',
         action: 'startLocationUpdates',
         backgroundGranted: true,
       });
+
+      await Location.startLocationUpdatesAsync(LOCATION_TASK, locationOptions);
     } else {
+      // Use watchPositionAsync for foreground-only tracking
       logger.info('Starting location updates in foreground-only mode', {
         component: 'MapScreen',
         action: 'startLocationUpdates',
         backgroundGranted: false,
-        note: 'No background permission - using foreground tracking only',
+        note: 'Using watchPositionAsync for foreground-only tracking',
       });
-    }
 
-    await Location.startLocationUpdatesAsync(LOCATION_TASK, locationOptions);
+      // Start watching position for foreground-only mode
+      await Location.watchPositionAsync(
+        {
+          accuracy: Location.Accuracy.High,
+          timeInterval: 3000,
+          distanceInterval: 5,
+        },
+        (location) => {
+          // Emit location update event for foreground tracking
+          DeviceEventEmitter.emit('locationUpdate', {
+            latitude: location.coords.latitude,
+            longitude: location.coords.longitude,
+          });
+        }
+      );
+    }
 
     logger.info('Location updates started successfully', {
       component: 'MapScreen',
@@ -165,23 +183,42 @@ async function startLocationUpdates(backgroundGranted: boolean = false) {
       mode: backgroundGranted ? 'background' : 'foreground-only',
     });
   } catch (error) {
-    logger.error('Failed to start location updates', error, {
+    logger.error('Failed to start location updates', {
       component: 'MapScreen',
       action: 'startLocationUpdates',
       backgroundGranted,
       errorMessage: error instanceof Error ? error.message : String(error),
+      error: error instanceof Error ? error.message : String(error),
     });
 
-    // Only show permission alert if it's actually a permission issue
-    // For other errors (network, GPS disabled, etc.), just log them
+    // Only show permission alert if it's actually a permission issue AND we don't have any permissions
+    // If backgroundGranted is false but we have foreground permission, that's a valid user choice
     if (error instanceof Error && error.message.toLowerCase().includes('permission')) {
-      PermissionAlert.show({
-        errorMessage:
-          'Unable to start location tracking. Please check your location permissions and try again.',
-        onDismiss: () => {
-          logger.info('Location update error alert dismissed');
-        },
-      });
+      // If we have foreground permission but not background, this is a user choice, not an error
+      if (!backgroundGranted) {
+        logger.info(
+          'Location service failed due to background permission limitation - this is expected with foreground-only permission',
+          {
+            component: 'MapScreen',
+            action: 'startLocationUpdates',
+            backgroundGranted,
+            note: 'User chose "Keep Only While Using" - app should work in foreground-only mode',
+          }
+        );
+        // Don't show error dialog - this is a valid user choice
+        // Don't throw error either - app should continue working in foreground-only mode
+        return;
+      } else {
+        // We have background permission but still getting permission error - this is a real problem
+        PermissionAlert.show({
+          errorMessage:
+            'Unable to start location tracking. Please check your location permissions and try again.',
+          onDismiss: () => {
+            logger.info('Location update error alert dismissed');
+          },
+        });
+        throw error; // This is a real error, so throw it
+      }
     } else {
       logger.info('Location tracking error (non-permission related) - not showing alert', {
         component: 'MapScreen',
@@ -189,9 +226,8 @@ async function startLocationUpdates(backgroundGranted: boolean = false) {
         errorType: 'non_permission',
         errorMessage: error instanceof Error ? error.message : String(error),
       });
+      throw error; // Non-permission errors should still be thrown
     }
-
-    throw error;
   }
 }
 
@@ -330,9 +366,9 @@ async function getInitialLocation({
       action: 'getInitialLocation',
       error: error instanceof Error ? error.message : String(error),
     });
-    // Only show permission alert if it's actually a permission issue
-    // For other errors (network, GPS disabled, etc.), just log them
+    // Only show permission alert if it's a real permission issue, not a user choice
     if (error instanceof Error && error.message.toLowerCase().includes('permission')) {
+      // Only show alert for truly critical permission issues
       PermissionAlert.show({
         errorMessage:
           'Unable to get your current location. Please ensure location services are enabled and try again.',
@@ -487,7 +523,7 @@ const createStartLocationServices =
     try {
       logger.info('Starting location services (tracking resumed)', {
         backgroundGranted,
-        component: 'createStartLocationServices'
+        component: 'createStartLocationServices',
       });
       const isActiveRef = { current: true };
 
@@ -500,7 +536,7 @@ const createStartLocationServices =
         currentRegion,
         backgroundGranted, // Pass the actual background permission status
       });
-      
+
       // Notify that location services started successfully
       setPermissionsGranted(true);
 
@@ -1445,14 +1481,8 @@ const useMapScreenServices = (
     explorationState,
   } = config;
 
-  // Debug logging for location service initialization
-  logger.info('MapScreen services initialization', {
-    component: 'MapScreen',
-    action: 'useMapScreenServices',
-    allowLocationRequests,
-    isTrackingPaused,
-    permissionsVerified,
-  });
+  // Only log when location services actually start/stop, not on every render
+  // (Removed excessive debug logging that was flooding console)
 
   // Use simplified unified location service
   useUnifiedLocationService(
@@ -1482,21 +1512,23 @@ const useMapScreenServices = (
         component: 'useMapScreenServices',
         action: 'startGPSInjection',
       });
-      
+
       // Check once for any existing GPS injection data
-      GPSInjectionService.checkForInjectionOnce().then((injectedData) => {
-        if (injectedData.length > 0) {
-          logger.info('Found GPS injection data after permission verification', {
+      GPSInjectionService.checkForInjectionOnce()
+        .then((injectedData) => {
+          if (injectedData.length > 0) {
+            logger.info('Found GPS injection data after permission verification', {
+              component: 'useMapScreenServices',
+              dataCount: injectedData.length,
+            });
+          }
+        })
+        .catch((error) => {
+          logger.warn('Error checking for GPS injection after permission verification', {
             component: 'useMapScreenServices',
-            dataCount: injectedData.length,
+            error: error instanceof Error ? error.message : String(error),
           });
-        }
-      }).catch((error) => {
-        logger.warn('Error checking for GPS injection after permission verification', {
-          component: 'useMapScreenServices',
-          error: error instanceof Error ? error.message : String(error),
         });
-      });
     }
   }, [permissionsVerified]);
 
@@ -1601,25 +1633,8 @@ const useMapScreenOnboarding = () => {
   // Location services should only start when both conditions are met
   const canStartLocationServices = hasCompletedOnboarding && !showOnboarding;
 
-  // Sanity check logging - using both console.log and logger
-  const renderID = Math.random().toString(36).substring(2, 11);
-  logger.debug(`🔍 SANITY CHECK - MapScreen render ${renderID}:`, {
-    isFirstTimeUser,
-    showOnboarding,
-    hasCompletedOnboarding,
-    canStartLocationServices,
-    timestamp: new Date().toISOString(),
-  });
-
-  // Debug logging for onboarding state
-  logger.info('MapScreen initialization', {
-    component: 'MapScreen',
-    action: 'useMapScreenOnboarding',
-    isFirstTimeUser,
-    showOnboarding,
-    hasCompletedOnboarding,
-    canStartLocationServices,
-  });
+  // Only log onboarding state changes, not every render
+  // (Removed excessive debug logging that was flooding console)
 
   const handleOnboardingComplete = useCallback(() => {
     logger.info('Onboarding completed from MapScreen', {
@@ -1674,9 +1689,9 @@ const useMapScreenHookStates = () => {
 
 // Helper function to initialize services and handlers
 const useMapScreenServicesAndHandlers = (
-  onboarding: any, 
-  mapState: any, 
-  reduxState: any, 
+  onboarding: any,
+  mapState: any,
+  reduxState: any,
   permissionsVerified: boolean = false,
   backgroundGranted: boolean = false // Add backgroundGranted parameter
 ) => {
@@ -1729,11 +1744,8 @@ const useMapScreenLogic = (
   backgroundGranted: boolean = false // Add backgroundGranted parameter
 ) => {
   const { onboarding, mapState, reduxState } = useMapScreenHookStates();
-  logger.info('MapScreen render', {
-    showOnboarding: onboarding.showOnboarding,
-    canStartLocationServices: onboarding.canStartLocationServices,
-    permissionsVerified,
-  });
+  // Only log significant render state changes, not every render
+  // (Removed excessive render logging that was flooding console)
 
   const { dataClearing, navigation, eventHandlers } = useMapScreenServicesAndHandlers(
     onboarding,
@@ -1772,29 +1784,35 @@ const useMapScreenLogic = (
 // Main component - now uses proper blocking permission verification flow
 export const MapScreen = () => {
   // Get onboarding state first
-  const { showOnboarding, handleOnboardingComplete, handleOnboardingSkip } = useMapScreenOnboarding();
-  
+  const { showOnboarding, handleOnboardingComplete, handleOnboardingSkip } =
+    useMapScreenOnboarding();
+
   // Start permission verification after onboarding is complete
   const shouldVerifyPermissions = !showOnboarding;
-  
+
   // Use actual permission verification service
-  const { 
-    isVerifying, 
-    isVerified, 
-    hasPermissions, 
+  const {
+    isVerifying,
+    isVerified,
+    hasPermissions,
     backgroundGranted,
     mode,
-    error 
+    error,
+    resetVerification,
   } = usePermissionVerification(shouldVerifyPermissions);
-  
+
   // Map permission verification state to our expected boolean
   const permissionsVerified = isVerified && hasPermissions;
-  
+
   // Pass permissions verification state to the logic hook
   const { uiProps } = useMapScreenLogic(permissionsVerified, backgroundGranted);
 
-  // Show permission verification screen while verifying
-  const showPermissionScreen = shouldVerifyPermissions && isVerifying;
+  // Show permission verification screen while verifying OR if permissions are denied
+  const showPermissionScreen =
+    shouldVerifyPermissions && (isVerifying || (isVerified && !hasPermissions));
+
+  // Show "Allow Once" warning if user selected that option
+  const showOnceOnlyWarning = isVerified && mode === 'once_only';
 
   return (
     <>
@@ -1806,9 +1824,92 @@ export const MapScreen = () => {
       />
       {showPermissionScreen && (
         <View style={styles.loadingContainer}>
-          <Text style={styles.loadingText}>
-            {error ? `Permission error: ${error}` : 'Verifying location permissions...'}
-          </Text>
+          {mode === 'denied' ? (
+            // Critical error state - no location permission
+            <View style={styles.criticalErrorContainer}>
+              <Text style={styles.criticalErrorTitle}>📍 Location Access Required</Text>
+              <Text style={styles.criticalErrorMessage}>
+                FogOfDog needs location access to track your exploration and create your fog map.
+                Without location permissions, the app cannot function.
+              </Text>
+              {error && <Text style={styles.criticalErrorDetails}>{error}</Text>}
+              <View style={styles.criticalErrorButtons}>
+                <TouchableOpacity
+                  style={styles.criticalErrorButtonPrimary}
+                  onPress={() => {
+                    logger.info('User opening Settings to fix location permissions');
+                    Linking.openSettings();
+                  }}
+                >
+                  <Text style={styles.criticalErrorButtonPrimaryText}>Open Settings</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.criticalErrorButtonSecondary}
+                  onPress={() => {
+                    logger.info('User requested permission verification retry after denial');
+                    resetVerification();
+                  }}
+                >
+                  <Text style={styles.criticalErrorButtonSecondaryText}>Try Again</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          ) : (
+            // Normal loading state
+            <>
+              <Text style={styles.loadingText}>
+                {error ? `Permission error: ${error}` : 'Verifying location permissions...'}
+              </Text>
+              {error && (
+                <TouchableOpacity
+                  style={styles.retryButton}
+                  onPress={() => {
+                    logger.info('User requested permission verification retry');
+                    resetVerification();
+                  }}
+                >
+                  <Text style={styles.retryButtonText}>Try Again</Text>
+                </TouchableOpacity>
+              )}
+            </>
+          )}
+        </View>
+      )}
+      {showOnceOnlyWarning && (
+        <View style={styles.warningContainer}>
+          <View style={styles.warningBox}>
+            <Text style={styles.warningTitle}>⚠️ Limited Functionality</Text>
+            <Text style={styles.warningText}>
+              You selected &ldquo;Allow Once&rdquo; which only provides a single location. FogOfDog
+              needs continuous location access to track your exploration and clear the fog.
+            </Text>
+            <Text style={styles.warningText}>
+              To use the app properly, please go to Settings → Privacy &amp; Security → Location
+              Services → FogOfDog and select &ldquo;While Using App&rdquo; or &ldquo;Always&rdquo;.
+            </Text>
+            <View style={styles.warningButtons}>
+              <TouchableOpacity
+                style={styles.warningButtonSecondary}
+                onPress={() => {
+                  logger.info('User dismissed Allow Once warning');
+                  // Reset verification to hide the warning
+                  // This allows the user to continue with limited functionality
+                  resetVerification();
+                }}
+              >
+                <Text style={styles.warningButtonSecondaryText}>Continue Anyway</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.warningButtonPrimary}
+                onPress={() => {
+                  logger.info('User chose to open settings from Allow Once warning');
+                  Linking.openSettings();
+                }}
+              >
+                <Text style={styles.warningButtonPrimaryText}>Open Settings</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
         </View>
       )}
     </>
@@ -1831,5 +1932,150 @@ const styles = StyleSheet.create({
   loadingText: {
     fontSize: 18,
     color: '#333',
+    textAlign: 'center',
+    marginBottom: 20,
+  },
+  retryButton: {
+    backgroundColor: '#007AFF',
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 8,
+    marginTop: 10,
+  },
+  retryButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  warningContainer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  warningBox: {
+    backgroundColor: 'white',
+    borderRadius: 12,
+    padding: 20,
+    maxWidth: 350,
+    alignItems: 'center',
+  },
+  warningTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#d32f2f',
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  warningText: {
+    fontSize: 16,
+    color: '#333',
+    textAlign: 'center',
+    marginBottom: 12,
+    lineHeight: 22,
+  },
+  warningButtons: {
+    flexDirection: 'row',
+    marginTop: 20,
+    gap: 12,
+  },
+  warningButtonPrimary: {
+    backgroundColor: '#007AFF',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 8,
+    flex: 1,
+  },
+  warningButtonSecondary: {
+    backgroundColor: 'transparent',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#007AFF',
+    flex: 1,
+  },
+  warningButtonPrimaryText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  warningButtonSecondaryText: {
+    color: '#007AFF',
+    fontSize: 16,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  // Critical error styles for denied permissions
+  criticalErrorContainer: {
+    backgroundColor: '#fff',
+    padding: 24,
+    borderRadius: 12,
+    margin: 20,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  criticalErrorTitle: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    color: '#d32f2f',
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  criticalErrorMessage: {
+    fontSize: 16,
+    color: '#333',
+    textAlign: 'center',
+    marginBottom: 16,
+    lineHeight: 22,
+  },
+  criticalErrorDetails: {
+    fontSize: 14,
+    color: '#666',
+    textAlign: 'center',
+    marginBottom: 20,
+    fontStyle: 'italic',
+  },
+  criticalErrorButtons: {
+    flexDirection: 'column',
+    width: '100%',
+    gap: 12,
+  },
+  criticalErrorButtonPrimary: {
+    backgroundColor: '#1976d2',
+    paddingVertical: 14,
+    paddingHorizontal: 24,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  criticalErrorButtonPrimaryText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  criticalErrorButtonSecondary: {
+    backgroundColor: '#f5f5f5',
+    paddingVertical: 14,
+    paddingHorizontal: 24,
+    borderRadius: 8,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#ddd',
+  },
+  criticalErrorButtonSecondaryText: {
+    color: '#666',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });

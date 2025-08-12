@@ -1,6 +1,32 @@
-# GPS Testing Tools
+# Development Testing Tools
 
-This directory contains tools for testing GPS coordinate processing and fog clearing functionality in FogOfDog.
+This directory contains tools for testing GPS coordinate processing, permission flows, and fog clearing functionality in FogOfDog.
+
+## Permission Reset Script
+
+For rapid development of permission flows, use the permission reset script:
+
+```bash
+# Reset location permissions only
+./scripts/reset-permissions.sh
+
+# Reset permissions and refresh the app
+./scripts/reset-permissions.sh --refresh
+
+# Reset permissions for specific simulator
+./scripts/reset-permissions.sh --simulator ABC123-DEF456
+
+# Show help
+./scripts/reset-permissions.sh --help
+```
+
+This script is especially useful when testing:
+- Permission dialog flows
+- Onboarding sequences  
+- Location service initialization
+- Permission denial/grant scenarios
+
+**Note**: The script automatically detects the booted iOS Simulator and resets location permissions for the FogOfDog app.
 
 ## GPS Injector Tool
 
