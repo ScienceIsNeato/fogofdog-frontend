@@ -107,8 +107,8 @@ describe('GPSInjectionService', () => {
       // eslint-disable-next-line @typescript-eslint/no-deprecated
       const cleanup = GPSInjectionService.startPeriodicCheck(1000);
 
-      expect(mockLogger.info).toHaveBeenCalledWith(
-        'Started periodic GPS injection check',
+      expect(mockLogger.warn).toHaveBeenCalledWith(
+        'startPeriodicCheck is deprecated - use event-driven checkForInjectionOnce()',
         expect.objectContaining({
           component: 'GPSInjectionService',
           action: 'startPeriodicCheck',
@@ -123,7 +123,7 @@ describe('GPSInjectionService', () => {
       // Test cleanup
       cleanup();
       expect(mockLogger.info).toHaveBeenCalledWith(
-        'Stopped periodic GPS injection check',
+        'Stopped deprecated periodic GPS injection check',
         expect.objectContaining({
           component: 'GPSInjectionService',
           action: 'startPeriodicCheck',

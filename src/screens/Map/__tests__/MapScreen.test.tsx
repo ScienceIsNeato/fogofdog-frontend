@@ -322,6 +322,8 @@ jest.mock('expo-location', () => {
   return {
     requestForegroundPermissionsAsync: jest.fn(),
     requestBackgroundPermissionsAsync: jest.fn(),
+    getForegroundPermissionsAsync: jest.fn(),
+    getBackgroundPermissionsAsync: jest.fn(),
     getCurrentPositionAsync: jest.fn(),
     startLocationUpdatesAsync: jest.fn(),
     stopLocationUpdatesAsync: jest.fn(),
@@ -369,6 +371,12 @@ describe('MapScreen', () => {
     (Location.requestBackgroundPermissionsAsync as jest.Mock).mockImplementation(() =>
       Promise.resolve(fullMockPermissionResponse)
     );
+    (Location.getForegroundPermissionsAsync as jest.Mock).mockImplementation(() =>
+      Promise.resolve(fullMockPermissionResponse)
+    );
+    (Location.getBackgroundPermissionsAsync as jest.Mock).mockImplementation(() =>
+      Promise.resolve(fullMockPermissionResponse)
+    );
     (Location.getCurrentPositionAsync as jest.Mock).mockImplementation(() =>
       Promise.resolve(fullMockInitialLocationObject)
     );
@@ -383,6 +391,8 @@ describe('MapScreen', () => {
     jest.useRealTimers();
     (Location.requestForegroundPermissionsAsync as jest.Mock).mockReset();
     (Location.requestBackgroundPermissionsAsync as jest.Mock).mockReset();
+    (Location.getForegroundPermissionsAsync as jest.Mock).mockReset();
+    (Location.getBackgroundPermissionsAsync as jest.Mock).mockReset();
     (Location.getCurrentPositionAsync as jest.Mock).mockReset();
     (Location.startLocationUpdatesAsync as jest.Mock).mockReset();
     (Location.stopLocationUpdatesAsync as jest.Mock).mockReset();
