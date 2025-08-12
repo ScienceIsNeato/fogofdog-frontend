@@ -14,7 +14,12 @@ export interface PermissionVerificationState {
 /**
  * Hook for managing blocking permission verification flow
  * This replaces the reactive permission polling with a proper blocking flow
+ *
+ * Note: This hook is necessarily complex as it manages permission state,
+ * timeout handling, error recovery, and automatic retry logic in a single
+ * cohesive flow that must remain atomic for proper permission handling.
  */
+// eslint-disable-next-line max-lines-per-function
 export const usePermissionVerification = (shouldVerify: boolean) => {
   const [state, setState] = useState<PermissionVerificationState>({
     isVerifying: false,

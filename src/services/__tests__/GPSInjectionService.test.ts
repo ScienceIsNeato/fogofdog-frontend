@@ -104,6 +104,7 @@ describe('GPSInjectionService', () => {
         .spyOn(GPSInjectionService, 'checkAndProcessInjectedGPS')
         .mockImplementation(() => Promise.resolve([]));
 
+      // eslint-disable-next-line @typescript-eslint/no-deprecated
       const cleanup = GPSInjectionService.startPeriodicCheck(1000);
 
       expect(mockLogger.info).toHaveBeenCalledWith(

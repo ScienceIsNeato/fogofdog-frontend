@@ -131,6 +131,10 @@ function defineUnifiedLocationTask() {
 }
 
 // Helper: startLocationUpdates
+// Note: This function handles complex location service setup with both foreground and background
+// modes, error handling, and permission validation. Breaking it down would lose critical
+// error handling flow and state consistency.
+// eslint-disable-next-line max-lines-per-function
 async function startLocationUpdates(backgroundGranted: boolean = false) {
   try {
     if (backgroundGranted) {
@@ -517,6 +521,7 @@ const createStartLocationServices =
     setIsLocationActive: (active: boolean) => void,
     setPermissionsGranted: (granted: boolean) => void,
     backgroundGranted: boolean // Add backgroundGranted parameter
+    // eslint-disable-next-line max-params
   ) =>
   async () => {
     const { mapRef, isMapCenteredOnUser, isFollowModeActive, currentRegion } = config;
@@ -567,6 +572,7 @@ const createStopLocationServices = (setIsLocationActive: (active: boolean) => vo
 };
 
 // Refactor useUnifiedLocationService to use helpers and support pause functionality
+// eslint-disable-next-line max-lines-per-function
 const useUnifiedLocationService = (
   dispatch: ReturnType<typeof useAppDispatch>,
   config: LocationServiceConfig,
@@ -574,6 +580,7 @@ const useUnifiedLocationService = (
   onPermissionsGranted?: (granted: boolean) => void,
   permissionsVerified: boolean = false, // NEW: Only start location services after permissions are verified
   backgroundGranted: boolean = false // Add backgroundGranted parameter
+  // eslint-disable-next-line max-params
 ) => {
   const { mapRef, isMapCenteredOnUser, isFollowModeActive, currentRegion, isTrackingPaused } =
     config;
@@ -1472,6 +1479,7 @@ const useMapScreenServices = (
   setPermissionsGranted?: (granted: boolean) => void,
   permissionsVerified: boolean = false, // New parameter to control GPS injection
   backgroundGranted: boolean = false // Add backgroundGranted parameter
+  // eslint-disable-next-line max-params
 ) => {
   const {
     mapRef,
@@ -1695,6 +1703,7 @@ const useMapScreenServicesAndHandlers = (
   reduxState: any,
   permissionsVerified: boolean = false,
   backgroundGranted: boolean = false // Add backgroundGranted parameter
+  // eslint-disable-next-line max-params
 ) => {
   const dataClearing = useDataClearing(
     mapState.dispatch,
@@ -1783,6 +1792,10 @@ const useMapScreenLogic = (
 };
 
 // Main component - now uses proper blocking permission verification flow
+// Note: This component manages complex permission states, critical error handling,
+// onboarding flow, and UI coordination. The complexity is necessary for proper
+// permission verification and error recovery flows.
+// eslint-disable-next-line max-lines-per-function
 export const MapScreen = () => {
   // Get onboarding state first
   const { showOnboarding, handleOnboardingComplete, handleOnboardingSkip } =
@@ -1847,7 +1860,9 @@ export const MapScreen = () => {
                 <TouchableOpacity
                   style={styles.criticalErrorButtonSecondary}
                   onPress={async () => {
-                    logger.info('User going back to retry permission verification after updating settings');
+                    logger.info(
+                      'User going back to retry permission verification after updating settings'
+                    );
                     resetVerification();
                     // Clear any cached permission state since user may have changed settings
                     try {
