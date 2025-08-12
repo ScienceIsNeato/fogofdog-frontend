@@ -57,6 +57,7 @@
     '^@shopify/react-native-skia$': '<rootDir>/__mocks__/@shopify/react-native-skia.ts',
   },
   testTimeout: 30000,
-  maxWorkers: '50%', // Optimize for CI speed
+  maxWorkers: process.env.CI ? 1 : '50%', // Single worker in CI to avoid resource issues
   watchman: false, // Disable watchman entirely
+  forceExit: process.env.CI ? true : false, // Force exit in CI to prevent hanging
 };
