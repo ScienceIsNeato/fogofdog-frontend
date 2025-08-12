@@ -38,6 +38,7 @@ import { GPSInjectionService } from '../../services/GPSInjectionService';
 import { BackgroundLocationService } from '../../services/BackgroundLocationService';
 import { AuthPersistenceService } from '../../services/AuthPersistenceService';
 import { DataClearingService } from '../../services/DataClearingService';
+import { PermissionsOrchestrator } from '../../services/PermissionsOrchestrator';
 import { DataStats, ClearType } from '../../types/dataClear';
 import { GeoPoint } from '../../types/user';
 import { useOnboardingContext } from '../../navigation';
@@ -1845,12 +1846,21 @@ export const MapScreen = () => {
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={styles.criticalErrorButtonSecondary}
-                  onPress={() => {
-                    logger.info('User requested permission verification retry after denial');
+                  onPress={async () => {
+                    logger.info('User going back to retry permission verification after updating settings');
                     resetVerification();
+                    // Clear any cached permission state since user may have changed settings
+                    try {
+                      await PermissionsOrchestrator.clearStoredPermissionState();
+                      logger.info('Cleared cached permission state for fresh verification');
+                    } catch (error) {
+                      logger.warn('Failed to clear cached permission state', { error });
+                    }
+                    // The useEffect in usePermissionVerification will automatically restart verification
+                    // when shouldVerifyPermissions is true and state is reset
                   }}
                 >
-                  <Text style={styles.criticalErrorButtonSecondaryText}>Try Again</Text>
+                  <Text style={styles.criticalErrorButtonSecondaryText}>Back</Text>
                 </TouchableOpacity>
               </View>
             </View>
