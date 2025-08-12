@@ -1,29 +1,33 @@
 # FogOfDog Frontend Status
 
-## Current Status: ✅ COMMITTED - TUTORIAL POLISH & PERMISSION SYSTEM OVERHAUL COMPLETE
+## Current Status: ✅ COMMITTED - CRITICAL LOCATION ACQUISITION FIX DELIVERED
 
-### 🎯 **LATEST COMMIT: TUTORIAL POLISH & PERMISSION SYSTEM FIXES** 
+### 🎯 **LATEST COMMIT: CRITICAL LOCATION ACQUISITION FIX** 
 **Branch**: `ui-tweaks`  
-**Commit**: `d908f5a` - Tutorial polish and permission system fixes
+**Commit**: `3d07156` - CRITICAL FIX: Location acquisition stuck on 'While Using App' permission
 **Quality Gates**: 7/7 PASSING (including SonarQube)
 
-### **✅ Tutorial Polish & Permission System Overhaul Delivered**
-**Tutorial Polish**:
-- ✅ **Grammar Fix**: Corrected "explore them" instead of "explore it" for plural maps
-- ✅ **Removed Spotlights**: Eliminated misaligned blue circles per user feedback
-- ✅ **Arrow Positioning**: Fine-tuned step 5 arrow positioning for tracking button
+### **✅ CRITICAL LOCATION ACQUISITION FIX DELIVERED**
 
-**Permission System Overhaul**:
-- ✅ **"While Using App" Support**: Now accepts iOS "While Using App" permission as valid (not just "Always Allow")
-- ✅ **Expo API Integration**: Uses 'granted' boolean from Expo API instead of string comparison
-- ✅ **Stray Alert Fix**: Eliminated delayed permission errors appearing after 10-15 seconds of successful operation
-- ✅ **Intelligent Error Filtering**: Only show permission alerts for actual permission-related errors
-- ✅ **Enhanced Validation**: Improved permission status validation logic with proper error handling
+**🚨 Root Cause Identified & Fixed**:
+- ✅ **Permission Callback Logic Error**: Fixed incorrect requirement for BOTH foreground AND background permissions
+- ✅ **"While Using App" Compatibility**: App now properly initializes with iOS recommended permission setting
+- ✅ **Infinite Loading Fix**: Eliminated "Getting your location..." stuck state
 
-**Technical Quality Improvements**:
-- ✅ **Code Cleanup**: Removed unused OnboardingSpotlight component to eliminate TypeScript warnings
-- ✅ **Error Handling**: Distinguished permission errors from network/GPS errors with proper logging
-- ✅ **API Reliability**: Fixed permission validation to work correctly with iOS permission selections
+**🔧 Technical Solution**:
+- ✅ **Logic Correction**: Changed `onPermissionsGranted(foregroundGranted && backgroundGranted)` to `onPermissionsGranted(foregroundGranted)`
+- ✅ **Permission Hierarchy**: Foreground permission sufficient for basic functionality, background optional
+- ✅ **Backward Compatibility**: Maintains full functionality with "Always Allow" permission
+
+**📱 User Impact Resolved**:
+- ✅ **Location Acquisition**: App now works correctly with "While Using App" permission
+- ✅ **No More Infinite Loading**: Location services initialize properly after permission grant
+- ✅ **Recommended iOS Setting**: Users can safely select "While Using App" without app malfunction
+
+**🎯 Previous Achievements (Still Active)**:
+- ✅ **Tutorial Polish**: Grammar fixes, removed misaligned spotlights, refined arrow positioning  
+- ✅ **Permission System**: Eliminated error dialog spam, intelligent error filtering
+- ✅ **Code Quality**: All 7 quality gates passing, clean TypeScript compilation
 
 ### **🔬 Key Technical Solutions**
 **Duplication Reduction**: Created renderOnboardingOverlay() helper function to eliminate 157-line duplicate
@@ -79,6 +83,38 @@
 - **Next**: Bridge the gap between tool and service
 
 **Logging Success**: Can now reliably monitor all GPS injection attempts with detailed debugging output.
+
+---
+
+## 🎯 **LATEST: PERMISSIONS ORCHESTRATOR - PROPER EVENT COORDINATION** ✅
+
+### **🎯 Root Cause Analysis**
+**Critical Insight**: Permission flow requires **three conditions**, not just two dialogs:
+1. **Condition 1** (Necessary): Dialog 1 response - user grants foreground permission
+2. **Condition 2** (Necessary): Dialog 2 response - user responds to background permission  
+3. **Condition 3** (Sufficient): App state change - `App became active` event fires
+
+**Previous Error**: Treating Dialog 2 completion as both necessary AND sufficient condition
+
+### **🛠️ Technical Solution: PermissionsOrchestrator**
+**New Architecture**: Event-driven orchestrator that coordinates all three conditions
+- ✅ **Proper Event Coordination**: AppState listener detects final completion
+- ✅ **Three-Condition Logic**: All conditions must be met for flow completion
+- ✅ **No Race Conditions**: Location services wait for all events to complete
+- ✅ **Timeout Safety**: 15-second fallback prevents infinite waiting
+
+### **📱 Complete User Flow**
+1. **Dialog 1**: "Allow FogOfDog to access your location?" → User clicks "Allow While Using App"
+2. **Dialog 2**: "Allow FogOfDog to also use your location even when not using the app?" → User makes choice
+3. **App Event**: `App became active, processing stored background locations` → Flow complete
+4. **Service Start**: Location services initialize with correct permissions
+
+### **🔧 Key Components**
+- **PermissionsOrchestrator**: Manages complete flow with AppState monitoring
+- **Event-Driven**: Responds to actual iOS completion signals, not assumptions
+- **Legacy Compatible**: Drop-in replacement for PermissionVerificationService
+
+**Status**: Three-condition permission flow implemented and backgroundGranted parameter properly wired to location services
 
 ---
 

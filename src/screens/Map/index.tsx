@@ -26,6 +26,7 @@ import LocationButton from '../../components/LocationButton';
 import { PermissionAlert } from '../../components/PermissionAlert';
 import { TrackingControlButton } from '../../components/TrackingControlButton';
 import { OnboardingOverlay } from '../../components/OnboardingOverlay';
+import { usePermissionVerification } from './hooks/usePermissionVerification';
 import { SettingsButton } from '../../components/SettingsButton';
 import UnifiedSettingsModal from '../../components/UnifiedSettingsModal';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -100,52 +101,8 @@ const handleLocationUpdate = ({
   }
 };
 
-// Helper: requestLocationPermissions with proper sequence
-async function requestLocationPermissions(allowRequests: boolean = true) {
-  if (!allowRequests) {
-    // During onboarding, return denied permissions to prevent location requests
-    logger.info('Location permissions blocked - onboarding not completed', {
-      component: 'MapScreen',
-      action: 'requestLocationPermissions',
-      reason: 'onboarding_not_completed',
-    });
-    return { foregroundGranted: false, backgroundGranted: false };
-  }
-
-  logger.info('Requesting location permissions', {
-    component: 'MapScreen',
-    action: 'requestLocationPermissions',
-    step: 'starting',
-  });
-
-  const { status: foregroundStatus, granted } = await Location.requestForegroundPermissionsAsync();
-  // Use the 'granted' boolean which handles both 'granted' and 'whenInUse' cases
-  // This is more reliable than checking status strings
-  const foregroundGranted = granted;
-
-  if (!foregroundGranted) {
-    logger.warn('Foreground location permission denied', {
-      component: 'MapScreen',
-      action: 'requestLocationPermissions',
-      foregroundStatus,
-    });
-    return { foregroundGranted: false, backgroundGranted: false };
-  }
-
-  const { status: backgroundStatus } = await Location.requestBackgroundPermissionsAsync();
-  const backgroundGranted = backgroundStatus === 'granted';
-
-  logger.info('Location permissions requested', {
-    component: 'MapScreen',
-    action: 'requestLocationPermissions',
-    foregroundGranted,
-    backgroundGranted,
-    foregroundStatus,
-    backgroundStatus,
-  });
-
-  return { foregroundGranted, backgroundGranted };
-}
+// OLD PERMISSION SYSTEM REMOVED
+// Permissions are now handled by PermissionVerificationService before MapScreen services start
 
 // Helper: defineUnifiedLocationTask
 function defineUnifiedLocationTask() {
@@ -427,34 +384,8 @@ const setupBackgroundLocationTracking = async (backgroundGranted: boolean) => {
   }
 };
 
-// Helper function for handling location permissions
-const handleLocationPermissions = async (
-  allowLocationRequests: boolean,
-  onPermissionsGranted?: (granted: boolean) => void
-) => {
-  const { foregroundGranted, backgroundGranted } =
-    await requestLocationPermissions(allowLocationRequests);
-
-  // Update permission state via callback
-  // Foreground permission is sufficient for basic functionality
-  if (onPermissionsGranted) {
-    onPermissionsGranted(foregroundGranted);
-  }
-
-  if (!foregroundGranted) {
-    logger.warn('Foreground location permission denied, showing permission alert');
-    PermissionAlert.showCritical({
-      errorMessage:
-        'Location access is required to use FogOfDog. Please enable location permissions in your device settings and restart the app.',
-      onDismiss: () => {
-        logger.info('Permission alert dismissed');
-      },
-    });
-    return null;
-  }
-
-  return { foregroundGranted, backgroundGranted };
-};
+// OLD PERMISSION HANDLING REMOVED
+// All permission handling is now done by PermissionVerificationService before this point
 
 // Helper function for initializing location services
 const initializeLocationServices = async (
@@ -485,16 +416,16 @@ const initializeLocationServices = async (
   await getInitialLocation(locationParams);
 };
 
-// Helper function for setting up unified location service
-const setupUnifiedLocationService = async ({
+// SIMPLIFIED LOCATION SERVICE INITIALIZATION
+// Permissions are already verified by PermissionVerificationService
+const initializeLocationServicesDirectly = async ({
   isActiveRef,
   dispatch,
   mapRef,
   isMapCenteredOnUser,
   isFollowModeActive,
   currentRegion,
-  allowLocationRequests = true,
-  onPermissionsGranted,
+  backgroundGranted = false, // Default to false, must be explicitly passed
 }: {
   isActiveRef: { current: boolean };
   dispatch: ReturnType<typeof useAppDispatch>;
@@ -502,41 +433,16 @@ const setupUnifiedLocationService = async ({
   isMapCenteredOnUser: boolean;
   isFollowModeActive: boolean;
   currentRegion: Region | undefined;
-  allowLocationRequests?: boolean;
-  onPermissionsGranted?: (granted: boolean) => void;
+  backgroundGranted?: boolean; // Add parameter for actual background permission status
 }) => {
   try {
-    // Skip location requests during onboarding
-    if (!allowLocationRequests) {
-      logger.info('Skipping location service initialization - state guard active', {
-        component: 'MapScreen',
-        action: 'setupUnifiedLocationService',
-        allowLocationRequests,
-        reason: 'onboarding_or_permissions_incomplete',
-        skipped: true,
-      });
-      return;
-    }
-
-    logger.info('Proceeding with location service initialization', {
+    logger.info('Initializing location services (permissions already verified)', {
       component: 'MapScreen',
-      action: 'setupUnifiedLocationService',
-      allowLocationRequests,
-      skipped: false,
+      action: 'initializeLocationServicesDirectly',
+      backgroundGranted,
     });
 
-    // Handle permissions
-    const permissionResult = await handleLocationPermissions(
-      allowLocationRequests,
-      onPermissionsGranted
-    );
-    if (!permissionResult) {
-      return; // Permission denied, early return
-    }
-
-    const { backgroundGranted } = permissionResult;
-
-    // Initialize all location services
+    // Use the actual background permission status passed from permission verification
     await initializeLocationServices(backgroundGranted, {
       isActiveRef,
       dispatch,
@@ -546,18 +452,13 @@ const setupUnifiedLocationService = async ({
       currentRegion,
     });
 
-    logger.info('Unified location service started with background integration');
+    logger.info('Location services initialized successfully');
   } catch (error) {
-    logger.error('Failed to setup unified location service', error, {
+    logger.error('Failed to initialize location services', {
       component: 'MapScreen',
-      action: 'setupUnifiedLocationService',
+      action: 'initializeLocationServicesDirectly',
+      error: error instanceof Error ? error.message : String(error),
     });
-
-    // Update permission state to false on error
-    if (onPermissionsGranted) {
-      onPermissionsGranted(false);
-    }
-
     throw error;
   }
 };
@@ -577,25 +478,31 @@ const createStartLocationServices =
     dispatch: ReturnType<typeof useAppDispatch>,
     config: LocationServiceConfig,
     setIsLocationActive: (active: boolean) => void,
-    setPermissionsGranted: (granted: boolean) => void
+    setPermissionsGranted: (granted: boolean) => void,
+    backgroundGranted: boolean // Add backgroundGranted parameter
   ) =>
   async () => {
     const { mapRef, isMapCenteredOnUser, isFollowModeActive, currentRegion } = config;
 
     try {
-      logger.info('Starting location services (tracking resumed)');
+      logger.info('Starting location services (tracking resumed)', {
+        backgroundGranted,
+        component: 'createStartLocationServices'
+      });
       const isActiveRef = { current: true };
 
-      await setupUnifiedLocationService({
+      await initializeLocationServicesDirectly({
         isActiveRef,
         dispatch,
         mapRef,
         isMapCenteredOnUser,
         isFollowModeActive,
         currentRegion,
-        allowLocationRequests: true,
-        onPermissionsGranted: setPermissionsGranted,
+        backgroundGranted, // Pass the actual background permission status
       });
+      
+      // Notify that location services started successfully
+      setPermissionsGranted(true);
 
       setIsLocationActive(true);
     } catch (error) {
@@ -627,7 +534,9 @@ const useUnifiedLocationService = (
   dispatch: ReturnType<typeof useAppDispatch>,
   config: LocationServiceConfig,
   allowLocationRequests: boolean = true,
-  onPermissionsGranted?: (granted: boolean) => void
+  onPermissionsGranted?: (granted: boolean) => void,
+  permissionsVerified: boolean = false, // NEW: Only start location services after permissions are verified
+  backgroundGranted: boolean = false // Add backgroundGranted parameter
 ) => {
   const { mapRef, isMapCenteredOnUser, isFollowModeActive, currentRegion, isTrackingPaused } =
     config;
@@ -656,8 +565,13 @@ const useUnifiedLocationService = (
 
   // Separate effect to handle start/stop based on pause state
   useEffect(() => {
-    // Skip location services during onboarding
-    if (!allowLocationRequests) {
+    // CRITICAL: Skip location services until permissions are verified
+    if (!allowLocationRequests || !permissionsVerified) {
+      logger.info('Skipping location services - permissions not verified', {
+        component: 'useUnifiedLocationService',
+        allowLocationRequests,
+        permissionsVerified,
+      });
       return;
     }
 
@@ -674,7 +588,8 @@ const useUnifiedLocationService = (
         if (onPermissionsGranted) {
           onPermissionsGranted(granted);
         }
-      }
+      },
+      backgroundGranted // Pass the actual background permission status
     );
     const stopLocationServices = createStopLocationServices(setIsLocationActive);
 
@@ -694,6 +609,8 @@ const useUnifiedLocationService = (
     isLocationActive,
     allowLocationRequests,
     onPermissionsGranted,
+    permissionsVerified, // Add permissionsVerified to dependency array
+    backgroundGranted, // Add backgroundGranted to dependency array
   ]);
 
   // Cleanup on unmount
@@ -1150,17 +1067,8 @@ const useExplorationStatePersistence = (explorationState: any) => {
   ]);
 };
 
-// Custom hook for GPS injection service
-const useGPSInjectionService = () => {
-  useEffect(() => {
-    const stopGPSInjectionCheck = GPSInjectionService.startPeriodicCheck(2000);
-    return () => {
-      if (typeof stopGPSInjectionCheck === 'function') {
-        stopGPSInjectionCheck();
-      }
-    };
-  }, []);
-};
+// GPS injection service is now integrated into useMapScreenServices
+// and only runs after permissions are verified
 
 // Helper function to process stored locations
 const processStoredBackgroundLocations = async (
@@ -1524,7 +1432,9 @@ const useMapScreenServices = (
   dispatch: ReturnType<typeof useAppDispatch>,
   config: MapScreenServicesConfig,
   allowLocationRequests: boolean = true,
-  setPermissionsGranted?: (granted: boolean) => void
+  setPermissionsGranted?: (granted: boolean) => void,
+  permissionsVerified: boolean = false, // New parameter to control GPS injection
+  backgroundGranted: boolean = false // Add backgroundGranted parameter
 ) => {
   const {
     mapRef,
@@ -1541,6 +1451,7 @@ const useMapScreenServices = (
     action: 'useMapScreenServices',
     allowLocationRequests,
     isTrackingPaused,
+    permissionsVerified,
   });
 
   // Use simplified unified location service
@@ -1554,7 +1465,9 @@ const useMapScreenServices = (
       isTrackingPaused,
     },
     allowLocationRequests,
-    setPermissionsGranted
+    setPermissionsGranted,
+    permissionsVerified, // Pass permissions verification state
+    backgroundGranted // Pass the background permission status
   );
 
   useZoomRestriction(currentRegion, mapRef);
@@ -1562,8 +1475,30 @@ const useMapScreenServices = (
   // Persist exploration state whenever it changes
   useExplorationStatePersistence(explorationState);
 
-  // Start GPS injection check only once on mount
-  useGPSInjectionService();
+  // Only start GPS injection check AFTER permissions are verified
+  useEffect(() => {
+    if (permissionsVerified) {
+      logger.info('Permissions verified, starting GPS injection service', {
+        component: 'useMapScreenServices',
+        action: 'startGPSInjection',
+      });
+      
+      // Check once for any existing GPS injection data
+      GPSInjectionService.checkForInjectionOnce().then((injectedData) => {
+        if (injectedData.length > 0) {
+          logger.info('Found GPS injection data after permission verification', {
+            component: 'useMapScreenServices',
+            dataCount: injectedData.length,
+          });
+        }
+      }).catch((error) => {
+        logger.warn('Error checking for GPS injection after permission verification', {
+          component: 'useMapScreenServices',
+          error: error instanceof Error ? error.message : String(error),
+        });
+      });
+    }
+  }, [permissionsVerified]);
 
   // Add AppState listener to process stored locations when app becomes active
   useAppStateChangeHandler(dispatch, isMapCenteredOnUser, currentRegion, mapRef);
@@ -1738,7 +1673,13 @@ const useMapScreenHookStates = () => {
 };
 
 // Helper function to initialize services and handlers
-const useMapScreenServicesAndHandlers = (onboarding: any, mapState: any, reduxState: any) => {
+const useMapScreenServicesAndHandlers = (
+  onboarding: any, 
+  mapState: any, 
+  reduxState: any, 
+  permissionsVerified: boolean = false,
+  backgroundGranted: boolean = false // Add backgroundGranted parameter
+) => {
   const dataClearing = useDataClearing(
     mapState.dispatch,
     {
@@ -1760,7 +1701,10 @@ const useMapScreenServicesAndHandlers = (onboarding: any, mapState: any, reduxSt
       isTrackingPaused: reduxState.isTrackingPaused,
       explorationState: reduxState.explorationState,
     },
-    onboarding.canStartLocationServices
+    onboarding.canStartLocationServices,
+    undefined, // setPermissionsGranted callback
+    permissionsVerified, // Pass permissions verification state
+    backgroundGranted // Pass background permission status
   );
 
   const eventHandlers = useMapEventHandlers({
@@ -1780,17 +1724,23 @@ const useMapScreenServicesAndHandlers = (onboarding: any, mapState: any, reduxSt
 };
 
 // Custom hook that combines all map screen logic
-const useMapScreenLogic = () => {
+const useMapScreenLogic = (
+  permissionsVerified: boolean = false,
+  backgroundGranted: boolean = false // Add backgroundGranted parameter
+) => {
   const { onboarding, mapState, reduxState } = useMapScreenHookStates();
   logger.info('MapScreen render', {
     showOnboarding: onboarding.showOnboarding,
     canStartLocationServices: onboarding.canStartLocationServices,
+    permissionsVerified,
   });
 
   const { dataClearing, navigation, eventHandlers } = useMapScreenServicesAndHandlers(
     onboarding,
     mapState,
-    reduxState
+    reduxState,
+    permissionsVerified,
+    backgroundGranted // Pass background permission status
   );
 
   return {
@@ -1819,10 +1769,32 @@ const useMapScreenLogic = () => {
   };
 };
 
-// Main component - now uses the logic hook and renders UI
+// Main component - now uses proper blocking permission verification flow
 export const MapScreen = () => {
-  const { showOnboarding, handleOnboardingComplete, handleOnboardingSkip, uiProps } =
-    useMapScreenLogic();
+  // Get onboarding state first
+  const { showOnboarding, handleOnboardingComplete, handleOnboardingSkip } = useMapScreenOnboarding();
+  
+  // Start permission verification after onboarding is complete
+  const shouldVerifyPermissions = !showOnboarding;
+  
+  // Use actual permission verification service
+  const { 
+    isVerifying, 
+    isVerified, 
+    hasPermissions, 
+    backgroundGranted,
+    mode,
+    error 
+  } = usePermissionVerification(shouldVerifyPermissions);
+  
+  // Map permission verification state to our expected boolean
+  const permissionsVerified = isVerified && hasPermissions;
+  
+  // Pass permissions verification state to the logic hook
+  const { uiProps } = useMapScreenLogic(permissionsVerified, backgroundGranted);
+
+  // Show permission verification screen while verifying
+  const showPermissionScreen = shouldVerifyPermissions && isVerifying;
 
   return (
     <>
@@ -1832,6 +1804,13 @@ export const MapScreen = () => {
         onComplete={handleOnboardingComplete}
         onSkip={handleOnboardingSkip}
       />
+      {showPermissionScreen && (
+        <View style={styles.loadingContainer}>
+          <Text style={styles.loadingText}>
+            {error ? `Permission error: ${error}` : 'Verifying location permissions...'}
+          </Text>
+        </View>
+      )}
     </>
   );
 };
