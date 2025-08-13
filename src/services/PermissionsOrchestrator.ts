@@ -195,74 +195,77 @@ export class PermissionsOrchestrator {
 
       const executePermissionFlow = async () => {
         try {
-        // Condition 1: Dialog 1 - Request foreground permission
-        logger.info('Condition 1: Requesting foreground permission');
-        const foregroundResult = await Location.requestForegroundPermissionsAsync();
+          // Condition 1: Dialog 1 - Request foreground permission
+          logger.info('Condition 1: Requesting foreground permission');
+          const foregroundResult = await Location.requestForegroundPermissionsAsync();
 
-        logger.info('Foreground permission result', {
-          granted: foregroundResult.granted,
-          status: foregroundResult.status,
-          canAskAgain: foregroundResult.canAskAgain,
-        });
+          logger.info('Foreground permission result', {
+            granted: foregroundResult.granted,
+            status: foregroundResult.status,
+            canAskAgain: foregroundResult.canAskAgain,
+          });
 
-        if (!foregroundResult.granted) {
-          logger.error(
-            'CRITICAL: Foreground location permission denied - FogOfDog cannot function without GPS access',
-            {
-              component: 'PermissionsOrchestrator',
-              action: 'requestPermissions',
-              foregroundStatus: foregroundResult.status,
-              canAskAgain: foregroundResult.canAskAgain,
-              severity: 'critical',
-            }
-          );
-          const result = {
-            canProceed: false,
-            hasBackgroundPermission: false,
-            mode: 'denied' as const,
-            error:
-              'Location permission is required for FogOfDog to function. Please enable location access in Settings.',
-          };
-          await this.saveStateAndResolve(result, resolve);
-          return;
-        }
-
-        // Check if user selected "Allow Once" - this is problematic for the app
-        if (foregroundResult.status === 'granted' && foregroundResult.canAskAgain === false) {
-          logger.warn('User selected "Allow Once" - app functionality will be severely limited');
-          const result = {
-            canProceed: false,
-            hasBackgroundPermission: false,
-            mode: 'once_only' as const, // Special mode for "Allow Once"
-          };
-          await this.saveStateAndResolve(result, resolve);
-          return;
-        }
-
-        logger.info('Condition 1 met: Foreground permission granted with sufficient scope');
-
-        // Condition 2: Dialog 2 - Request background permission (if iOS shows dialog)
-        logger.info('Condition 2: Requesting background permission');
-        await Location.requestBackgroundPermissionsAsync();
-
-        logger.info('Condition 2 initiated: Background permission requested');
-        logger.info('Waiting for Condition 3: App state change indicating dialog completion');
-
-        // Condition 3 will be handled by the app state listener
-        // Extended timeout as absolute last resort - user might take time to read and decide
-        setTimeout(() => {
-          if (this.currentResolver) {
-            logger.warn('Permission flow timeout after 60 seconds - resolving with current state', {
-              note: 'This should rarely happen - indicates user abandoned the dialog or iOS issue',
-            });
-            this.checkFinalPermissionState().then(async (result) => {
-              if (this.currentResolver) {
-                await this.saveStateAndResolve(result, this.currentResolver);
-                this.currentResolver = null;
+          if (!foregroundResult.granted) {
+            logger.error(
+              'CRITICAL: Foreground location permission denied - FogOfDog cannot function without GPS access',
+              {
+                component: 'PermissionsOrchestrator',
+                action: 'requestPermissions',
+                foregroundStatus: foregroundResult.status,
+                canAskAgain: foregroundResult.canAskAgain,
+                severity: 'critical',
               }
-            });
+            );
+            const result = {
+              canProceed: false,
+              hasBackgroundPermission: false,
+              mode: 'denied' as const,
+              error:
+                'Location permission is required for FogOfDog to function. Please enable location access in Settings.',
+            };
+            await this.saveStateAndResolve(result, resolve);
+            return;
           }
-        }, 60000); // 60 second timeout - much more generous
+
+          // Check if user selected "Allow Once" - this is problematic for the app
+          if (foregroundResult.status === 'granted' && foregroundResult.canAskAgain === false) {
+            logger.warn('User selected "Allow Once" - app functionality will be severely limited');
+            const result = {
+              canProceed: false,
+              hasBackgroundPermission: false,
+              mode: 'once_only' as const, // Special mode for "Allow Once"
+            };
+            await this.saveStateAndResolve(result, resolve);
+            return;
+          }
+
+          logger.info('Condition 1 met: Foreground permission granted with sufficient scope');
+
+          // Condition 2: Dialog 2 - Request background permission (if iOS shows dialog)
+          logger.info('Condition 2: Requesting background permission');
+          await Location.requestBackgroundPermissionsAsync();
+
+          logger.info('Condition 2 initiated: Background permission requested');
+          logger.info('Waiting for Condition 3: App state change indicating dialog completion');
+
+          // Condition 3 will be handled by the app state listener
+          // Extended timeout as absolute last resort - user might take time to read and decide
+          setTimeout(() => {
+            if (this.currentResolver) {
+              logger.warn(
+                'Permission flow timeout after 60 seconds - resolving with current state',
+                {
+                  note: 'This should rarely happen - indicates user abandoned the dialog or iOS issue',
+                }
+              );
+              this.checkFinalPermissionState().then(async (result) => {
+                if (this.currentResolver) {
+                  await this.saveStateAndResolve(result, this.currentResolver);
+                  this.currentResolver = null;
+                }
+              });
+            }
+          }, 60000); // 60 second timeout - much more generous
         } catch (error) {
           logger.error('Permission flow error', { error });
           const result = {
@@ -285,11 +288,11 @@ export class PermissionsOrchestrator {
     if (!foreground.granted) {
       return 'Denied/Not Set';
     }
-    
+
     if (foreground.canAskAgain === false) {
       return 'Allow Once (temporary)';
     }
-    
+
     return 'While Using App';
   }
 

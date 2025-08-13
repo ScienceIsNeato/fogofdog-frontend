@@ -60,7 +60,7 @@ const UnifiedSettingsModal: React.FC<UnifiedSettingsModalProps> = ({
         />
       );
     }
-    
+
     if (currentView === 'history') {
       return (
         <SettingsHistoryView
@@ -72,16 +72,14 @@ const UnifiedSettingsModal: React.FC<UnifiedSettingsModalProps> = ({
         />
       );
     }
-    
+
     return <SettingsDeveloperView onBack={handleBackToMain} styles={styles} />;
   };
 
   return (
     <Modal transparent animationType="fade" visible={visible} onRequestClose={handleClose}>
       <View style={styles.overlay}>
-        <View style={styles.dialog}>
-          {renderCurrentView()}
-        </View>
+        <View style={styles.dialog}>{renderCurrentView()}</View>
       </View>
     </Modal>
   );

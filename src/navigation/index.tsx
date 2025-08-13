@@ -14,7 +14,6 @@ import { MapScreen } from '../screens/Map';
 import { ProfileScreen } from '../screens/Profile';
 import { logger } from '../utils/logger';
 
-
 const MainStack = createNativeStackNavigator<MainStackParamList>();
 
 // Context for sharing onboarding state
@@ -161,9 +160,7 @@ export default function Navigation() {
       <View style={styles.container}>
         <NavigationContainer>
           <RootStack.Navigator screenOptions={{ headerShown: false }}>
-
             <RootStack.Screen name="Main" component={MainNavigator} />
-
           </RootStack.Navigator>
         </NavigationContainer>
       </View>

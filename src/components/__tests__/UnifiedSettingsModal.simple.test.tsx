@@ -17,8 +17,8 @@ describe('UnifiedSettingsModal - Core Functionality', () => {
   const mockDataStats: DataStats = {
     totalPoints: 1000,
     recentPoints: 50,
-    oldestDate: new Date('2024-01-01'),
-    newestDate: new Date('2024-01-15'),
+    oldestDate: new Date(2024, 0, 1), // January 1, 2024 (local time)
+    newestDate: new Date(2024, 0, 15), // January 15, 2024 (local time)
   };
 
   const defaultProps = {
@@ -141,8 +141,8 @@ describe('UnifiedSettingsModal - Core Functionality', () => {
       expect(getByText('Current Data')).toBeTruthy();
       expect(getByText('Total points: 1000')).toBeTruthy();
       expect(getByText('Recent points: 50')).toBeTruthy();
-      expect(getByText('Oldest: Dec 31, 2023')).toBeTruthy(); // Date formatting from formatDate function
-      expect(getByText('Newest: Jan 14, 2024')).toBeTruthy();
+      expect(getByText('Oldest: Jan 1, 2024')).toBeTruthy(); // Date formatting from formatDate function
+      expect(getByText('Newest: Jan 15, 2024')).toBeTruthy();
 
       // Check clear options
       expect(getByText('Last Hour')).toBeTruthy();
