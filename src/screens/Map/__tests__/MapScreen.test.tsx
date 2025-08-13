@@ -491,10 +491,6 @@ describe('MapScreen', () => {
     );
   });
 
-
-
-
-
   it('should not cause fog appearance to drift on vertical map pan when GPS location is stable', async () => {
     await renderMapScreen(store);
     await waitForInitialLocation(store, expectedStoredLocation);
@@ -601,9 +597,6 @@ describe('MapScreen', () => {
     // The path should be unchanged as GPS location was stable
     expect(store.getState().exploration.path).toEqual(initialPath);
   });
-
-
-
 
   it('renders LocationButton with correct props', async () => {
     await renderMapScreen(store);

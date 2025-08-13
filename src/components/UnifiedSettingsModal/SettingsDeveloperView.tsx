@@ -58,19 +58,22 @@ const useFreshInstallToggle = (
             {
               text: 'Clear Data',
               style: 'destructive',
-              onPress: async () => {
-                try {
-                  await DataClearingService.clearAllData();
-                  setSettings({ onboardingEnabled: false, freshInstallMode: false });
+              onPress: () => {
+                const clearData = async () => {
+                  try {
+                    await DataClearingService.clearAllData();
+                    setSettings({ onboardingEnabled: false, freshInstallMode: false });
 
-                  Alert.alert(
-                    'Fresh Install Mode Enabled',
-                    'App data has been cleared. Reload the app to experience the fresh install flow including GPS permissions.',
-                    [{ text: 'OK', style: 'default' }]
-                  );
-                } catch (_error) {
-                  Alert.alert('Error', 'Failed to enable fresh install mode. Please try again.');
-                }
+                    Alert.alert(
+                      'Fresh Install Mode Enabled',
+                      'App data has been cleared. Reload the app to experience the fresh install flow including GPS permissions.',
+                      [{ text: 'OK', style: 'default' }]
+                    );
+                  } catch (_error) {
+                    Alert.alert('Error', 'Failed to enable fresh install mode. Please try again.');
+                  }
+                };
+                clearData();
               },
             },
           ]

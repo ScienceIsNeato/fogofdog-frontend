@@ -323,12 +323,6 @@ export const OnboardingOverlay: React.FC<OnboardingOverlayProps> = ({
             onComplete={handleComplete}
           />
         </SafeAreaView>
-
-        {/* Spotlight highlighting UI elements - REMOVED per user feedback */}
-        {/* {currentStepData?.pointTo && (
-          <OnboardingSpotlight pointTo={currentStepData.pointTo} visible={visible} />
-        )} */}
-
         {/* Arrows pointing to UI elements */}
         {currentStepData?.pointTo && (
           <OnboardingArrow pointTo={currentStepData.pointTo} visible={visible} />

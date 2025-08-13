@@ -226,5 +226,36 @@ describe('Logger', () => {
         context
       );
     });
+
+    describe('throttledDebug method', () => {
+      beforeEach(() => {
+        jest.useFakeTimers();
+        jest.setSystemTime(new Date('2024-01-01T00:00:00.000Z'));
+      });
+
+      afterEach(() => {
+        jest.useRealTimers();
+      });
+
+      it('should log throttled debug messages at specified intervals', () => {
+        const key = 'test-key';
+        const message = 'Throttled message';
+
+        // First call should log
+        logger.throttledDebug(key, message);
+        expect(consoleLogSpy).toHaveBeenCalledTimes(1);
+
+        // Second call within interval should not log
+        logger.throttledDebug(key, message);
+        expect(consoleLogSpy).toHaveBeenCalledTimes(1);
+
+        // Advance time past interval
+        jest.advanceTimersByTime(1001);
+
+        // Third call after interval should log
+        logger.throttledDebug(key, message);
+        expect(consoleLogSpy).toHaveBeenCalledTimes(2);
+      });
+    });
   });
 });

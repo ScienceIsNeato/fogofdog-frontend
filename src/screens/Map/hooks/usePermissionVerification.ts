@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { PermissionsOrchestrator } from '../../../services/PermissionsOrchestrator';
+import { PermissionsOrchestrator, PermissionMode } from '../../../services/PermissionsOrchestrator';
 import { logger } from '../../../utils/logger';
 
 export interface PermissionVerificationState {
@@ -7,7 +7,7 @@ export interface PermissionVerificationState {
   isVerified: boolean;
   hasPermissions: boolean;
   backgroundGranted: boolean;
-  mode: 'full' | 'limited' | 'denied' | 'once_only' | 'unknown';
+  mode: PermissionMode | 'unknown';
   error: string | null;
 }
 

@@ -4,6 +4,10 @@ import * as Location from 'expo-location';
 // Mock expo-location
 jest.mock('expo-location');
 
+// Mock logger
+jest.mock('../../utils/logger');
+const { logger } = jest.requireMock('../../utils/logger');
+
 const mockLocation = Location as jest.Mocked<typeof Location>;
 
 describe('PermissionVerificationService', () => {
@@ -283,6 +287,35 @@ describe('PermissionVerificationService', () => {
       expect(result.hasBackgroundPermission).toBe(true);
       expect(result.warningMessage).toBeUndefined();
       expect(mockLocation.requestBackgroundPermissionsAsync).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('Background Permission Error Handling', () => {
+    it('should handle background permission check errors gracefully', async () => {
+      mockLocation.getBackgroundPermissionsAsync.mockRejectedValue(new Error('API Error'));
+
+      // @ts-expect-error - Testing private static method
+      const result = await PermissionVerificationService.hasBackgroundPermission();
+
+      expect(result).toBe(false);
+      expect(logger.error).toHaveBeenCalledWith('Failed to check background permission status', {
+        error: expect.any(Error),
+      });
+    });
+
+    it('should handle foreground permission request errors gracefully', async () => {
+      mockLocation.requestForegroundPermissionsAsync.mockRejectedValue(
+        new Error('Permission API failed')
+      );
+
+      // @ts-expect-error - Testing private static method
+      const result = await PermissionVerificationService.handleDialog1();
+
+      expect(result.canProceed).toBe(false);
+      expect(result.hasBackgroundPermission).toBe(false);
+      expect(logger.error).toHaveBeenCalledWith('Dialog 1 failed', {
+        error: expect.any(Error),
+      });
     });
   });
 

@@ -48,29 +48,39 @@ const UnifiedSettingsModal: React.FC<UnifiedSettingsModalProps> = ({
     Alert.alert(title, message, buttons);
   };
 
+  const renderCurrentView = () => {
+    if (currentView === 'main') {
+      return (
+        <SettingsMainView
+          onClose={handleClose}
+          onUserProfile={handleUserProfile}
+          onHistoryManagement={handleHistoryManagement}
+          onDeveloperSettings={handleDeveloperSettings}
+          styles={styles}
+        />
+      );
+    }
+    
+    if (currentView === 'history') {
+      return (
+        <SettingsHistoryView
+          dataStats={dataStats}
+          onClearData={onClearData}
+          isClearing={isClearing}
+          onBackToMain={handleBackToMain}
+          styles={styles}
+        />
+      );
+    }
+    
+    return <SettingsDeveloperView onBack={handleBackToMain} styles={styles} />;
+  };
+
   return (
     <Modal transparent animationType="fade" visible={visible} onRequestClose={handleClose}>
       <View style={styles.overlay}>
         <View style={styles.dialog}>
-          {currentView === 'main' ? (
-            <SettingsMainView
-              onClose={handleClose}
-              onUserProfile={handleUserProfile}
-              onHistoryManagement={handleHistoryManagement}
-              onDeveloperSettings={handleDeveloperSettings}
-              styles={styles}
-            />
-          ) : currentView === 'history' ? (
-            <SettingsHistoryView
-              dataStats={dataStats}
-              onClearData={onClearData}
-              isClearing={isClearing}
-              onBackToMain={handleBackToMain}
-              styles={styles}
-            />
-          ) : (
-            <SettingsDeveloperView onBack={handleBackToMain} styles={styles} />
-          )}
+          {renderCurrentView()}
         </View>
       </View>
     </Modal>

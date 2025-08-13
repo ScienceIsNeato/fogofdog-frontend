@@ -3,10 +3,12 @@ import { AppState } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { logger } from '../utils/logger';
 
+export type PermissionMode = 'full' | 'limited' | 'denied' | 'once_only';
+
 export interface PermissionResult {
   canProceed: boolean;
   hasBackgroundPermission: boolean;
-  mode: 'full' | 'limited' | 'denied' | 'once_only';
+  mode: PermissionMode;
   error?: string; // Critical error message for denied permissions
 }
 
@@ -61,7 +63,7 @@ export class PermissionsOrchestrator {
   /**
    * Handle app state changes - this is the third condition
    */
-  private static handleAppStateChange = async (nextAppState: string) => {
+  private static readonly handleAppStateChange = async (nextAppState: string) => {
     logger.info('App state changed', {
       nextAppState,
       hasResolver: !!this.currentResolver,
@@ -133,11 +135,7 @@ export class PermissionsOrchestrator {
         live: {
           foreground: {
             ...livePermissions.foreground,
-            interpretation: livePermissions.foreground.granted
-              ? livePermissions.foreground.canAskAgain === false
-                ? 'Allow Once (temporary)'
-                : 'While Using App'
-              : 'Denied/Not Set',
+            interpretation: this.getForegroundInterpretation(livePermissions.foreground),
           },
           background: {
             ...livePermissions.background,
@@ -192,10 +190,11 @@ export class PermissionsOrchestrator {
       return result;
     }
 
-    return new Promise(async (resolve) => {
+    return new Promise((resolve) => {
       this.currentResolver = resolve;
 
-      try {
+      const executePermissionFlow = async () => {
+        try {
         // Condition 1: Dialog 1 - Request foreground permission
         logger.info('Condition 1: Requesting foreground permission');
         const foregroundResult = await Location.requestForegroundPermissionsAsync();
@@ -264,16 +263,34 @@ export class PermissionsOrchestrator {
             });
           }
         }, 60000); // 60 second timeout - much more generous
-      } catch (error) {
-        logger.error('Permission flow error', { error });
-        const result = {
-          canProceed: false,
-          hasBackgroundPermission: false,
-          mode: 'denied' as const,
-        };
-        await this.saveStateAndResolve(result, resolve);
-      }
+        } catch (error) {
+          logger.error('Permission flow error', { error });
+          const result = {
+            canProceed: false,
+            hasBackgroundPermission: false,
+            mode: 'denied' as const,
+          };
+          await this.saveStateAndResolve(result, resolve);
+        }
+      };
+
+      executePermissionFlow();
     });
+  }
+
+  /**
+   * Helper method to interpret foreground permission status
+   */
+  private static getForegroundInterpretation(foreground: any): string {
+    if (!foreground.granted) {
+      return 'Denied/Not Set';
+    }
+    
+    if (foreground.canAskAgain === false) {
+      return 'Allow Once (temporary)';
+    }
+    
+    return 'While Using App';
   }
 
   /**
@@ -289,11 +306,7 @@ export class PermissionsOrchestrator {
           granted: foregroundStatus.granted,
           status: foregroundStatus.status,
           canAskAgain: foregroundStatus.canAskAgain,
-          interpretation: foregroundStatus.granted
-            ? foregroundStatus.canAskAgain === false
-              ? 'Allow Once (temporary)'
-              : 'While Using App'
-            : 'Denied/Not Set',
+          interpretation: this.getForegroundInterpretation(foregroundStatus),
         },
         background: {
           granted: backgroundStatus.granted,
@@ -306,7 +319,7 @@ export class PermissionsOrchestrator {
       const canProceed = foregroundStatus.granted;
       const hasBackgroundPermission = backgroundStatus.granted;
 
-      let mode: 'full' | 'limited' | 'denied' | 'once_only';
+      let mode: PermissionMode;
       if (!canProceed) {
         mode = 'denied';
       } else if (foregroundStatus.status === 'granted' && foregroundStatus.canAskAgain === false) {
@@ -536,7 +549,7 @@ export class PermissionsOrchestrator {
   static async completePermissionVerification(): Promise<{
     canProceed: boolean;
     backgroundGranted: boolean;
-    mode: 'full' | 'limited' | 'denied' | 'once_only';
+    mode: PermissionMode;
     error?: string;
   }> {
     const result = await this.requestPermissions();
@@ -544,7 +557,7 @@ export class PermissionsOrchestrator {
     const returnValue: {
       canProceed: boolean;
       backgroundGranted: boolean;
-      mode: 'full' | 'limited' | 'denied' | 'once_only';
+      mode: PermissionMode;
       error?: string;
     } = {
       canProceed: result.canProceed,

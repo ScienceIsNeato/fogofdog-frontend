@@ -365,8 +365,6 @@ describe('PermissionsOrchestrator - NEW Persistence Features', () => {
   });
 
   describe('Error Handling', () => {
-
-
     it('should handle AsyncStorage errors in clearStoredPermissionState', async () => {
       (AsyncStorage.removeItem as jest.Mock).mockRejectedValue(new Error('Storage error'));
 

@@ -1,21 +1,20 @@
-import React, { useEffect, useState, createContext, useContext, useRef } from 'react';
+import React, { useEffect, useState, createContext, useContext, useRef, useMemo } from 'react';
 import { View, StyleSheet, ActivityIndicator, Text } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useAppSelector, useAppDispatch } from '../store/hooks';
-// import { restorePersistedUser } from '../store/slices/userSlice'; // FUTURE: For user accounts
+
 import { restorePersistedState } from '../store/slices/explorationSlice';
 import { AuthPersistenceService } from '../services/AuthPersistenceService';
 import { OnboardingService } from '../services/OnboardingService';
 import { RootStackParamList, MainStackParamList } from '../types/navigation';
-// import { AuthStackParamList } from '../types/navigation'; // FUTURE: For user accounts
-// import { GeoPoint } from '../types/user'; // FUTURE: For user accounts
+
 import { MapScreen } from '../screens/Map';
-// import { SignInScreen, SignUpScreen } from '../screens/Auth'; // FUTURE: For user accounts
+
 import { ProfileScreen } from '../screens/Profile';
 import { logger } from '../utils/logger';
 
-// const AuthStack = createNativeStackNavigator<AuthStackParamList>(); // FUTURE: For user accounts
+
 const MainStack = createNativeStackNavigator<MainStackParamList>();
 
 // Context for sharing onboarding state
@@ -63,7 +62,7 @@ interface InitializationHookResult {
 const useAppInitialization = (): InitializationHookResult => {
   const dispatch = useAppDispatch();
   const user = useAppSelector((state) => state.user);
-  // const explorationState = useAppSelector((state) => state.exploration); // FUTURE: For user accounts
+
   const [isInitializing, setIsInitializing] = useState(true);
   const [isFirstTimeUser, setIsFirstTimeUser] = useState(false);
   const initializationStarted = useRef(false);
@@ -151,22 +150,20 @@ export default function Navigation() {
     isInitializing,
   });
 
+  const contextValue = useMemo(() => ({ isFirstTimeUser }), [isFirstTimeUser]);
+
   if (isInitializing) {
     return <LoadingScreen />;
   }
 
   return (
-    <OnboardingContext.Provider value={{ isFirstTimeUser }}>
+    <OnboardingContext.Provider value={contextValue}>
       <View style={styles.container}>
         <NavigationContainer>
           <RootStack.Navigator screenOptions={{ headerShown: false }}>
-            {/* BYPASS AUTH: Always show Main navigator regardless of user state */}
-            {/* FUTURE: Reactivate for user accounts - Conditional auth/main navigation */}
-            {/* {user ? ( */}
+
             <RootStack.Screen name="Main" component={MainNavigator} />
-            {/* ) : (
-              <RootStack.Screen name="Auth" component={AuthNavigator} />
-            )} */}
+
           </RootStack.Navigator>
         </NavigationContainer>
       </View>
