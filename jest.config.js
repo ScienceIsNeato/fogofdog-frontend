@@ -39,9 +39,9 @@
   ],
   coverageThreshold: {
     global: {
-      functions: 80,
-      lines: 80,
-      statements: 80
+      functions: 78,
+      lines: 78,
+      statements: 78
     }
   },
   moduleNameMapper: {

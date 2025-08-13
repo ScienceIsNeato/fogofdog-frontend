@@ -6,6 +6,7 @@ import { AuthPersistenceService } from '../../services/AuthPersistenceService';
 import { logger } from '../../utils/logger';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { AuthStackParamList } from '../../types/navigation';
+import { commonStyles } from '../../styles/commonStyles';
 
 // FUTURE: Reactivate for user accounts - SignIn Screen
 // This screen is preserved for future user account functionality
@@ -99,19 +100,8 @@ export const SignInScreen: React.FC<Props> = ({ navigation }) => {
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    padding: 20,
-  },
-  title: {
-    fontSize: 32,
-    color: '#000',
-    fontWeight: 'bold',
-    marginBottom: 40,
-  },
+  container: commonStyles.lightCenteredContainer,
+  title: commonStyles.lightScreenTitle,
   checkboxContainer: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -140,26 +130,8 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#333',
   },
-  button: {
-    backgroundColor: '#007AFF',
-    paddingHorizontal: 30,
-    paddingVertical: 15,
-    borderRadius: 8,
-    marginVertical: 10,
-    width: '100%',
-    alignItems: 'center',
-  },
-  buttonText: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: '600',
-  },
-  secondaryButton: {
-    backgroundColor: 'transparent',
-    borderWidth: 1,
-    borderColor: '#007AFF',
-  },
-  secondaryButtonText: {
-    color: '#007AFF',
-  },
+  button: commonStyles.primaryButton,
+  buttonText: commonStyles.buttonText,
+  secondaryButton: commonStyles.secondaryButton,
+  secondaryButtonText: commonStyles.secondaryButtonText,
 });

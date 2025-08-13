@@ -5,6 +5,9 @@ import * as Location from 'expo-location';
 // Mock dependencies
 jest.mock('@react-native-async-storage/async-storage');
 jest.mock('expo-location');
+jest.mock('../../utils/logger');
+
+const { logger } = jest.requireMock('../../utils/logger');
 jest.mock('react-native', () => ({
   AppState: {
     addEventListener: jest.fn(),
@@ -237,5 +240,144 @@ describe('PermissionsOrchestrator - NEW Persistence Features', () => {
     });
 
     // Note: "Allow Once" detection and complex permission flows are tested through integration tests
+  });
+
+  describe('App State Change Handling', () => {
+    beforeEach(() => {
+      jest.useFakeTimers();
+    });
+
+    afterEach(() => {
+      jest.runOnlyPendingTimers();
+      jest.useRealTimers();
+    });
+
+    it('should handle app becoming active during permission flow', async () => {
+      const mockResolver = jest.fn();
+      const mockCheckFinalPermissionState = jest.fn().mockResolvedValue({
+        canProceed: true,
+        hasBackgroundPermission: true,
+        mode: 'always',
+      });
+
+      // Set up state
+      (PermissionsOrchestrator as any).currentResolver = mockResolver;
+      jest
+        .spyOn(PermissionsOrchestrator as any, 'checkFinalPermissionState')
+        .mockImplementation(mockCheckFinalPermissionState);
+      jest
+        .spyOn(PermissionsOrchestrator as any, 'saveStateAndResolve')
+        .mockResolvedValue(undefined);
+
+      // Simulate app state change to 'active'
+      const handleAppStateChange = (PermissionsOrchestrator as any).handleAppStateChange;
+      handleAppStateChange('active');
+
+      // Fast-forward the setTimeout
+      jest.advanceTimersByTime(2000);
+      await Promise.resolve(); // Allow async operations to complete
+
+      expect(mockCheckFinalPermissionState).toHaveBeenCalled();
+      expect((PermissionsOrchestrator as any).saveStateAndResolve).toHaveBeenCalledWith(
+        {
+          canProceed: true,
+          hasBackgroundPermission: true,
+          mode: 'always',
+        },
+        mockResolver
+      );
+      // Note: currentResolver is set to null in the actual implementation after saveStateAndResolve
+    });
+
+    it('should handle app state change error gracefully', async () => {
+      const mockResolver = jest.fn();
+      const mockCheckFinalPermissionState = jest
+        .fn()
+        .mockRejectedValue(new Error('Permission check failed'));
+
+      // Set up state
+      (PermissionsOrchestrator as any).currentResolver = mockResolver;
+      jest
+        .spyOn(PermissionsOrchestrator as any, 'checkFinalPermissionState')
+        .mockImplementation(mockCheckFinalPermissionState);
+      jest
+        .spyOn(PermissionsOrchestrator as any, 'saveStateAndResolve')
+        .mockResolvedValue(undefined);
+
+      // Simulate app state change to 'active'
+      const handleAppStateChange = (PermissionsOrchestrator as any).handleAppStateChange;
+      handleAppStateChange('active');
+
+      // Fast-forward the setTimeout
+      jest.advanceTimersByTime(2000);
+      await Promise.resolve(); // Allow async operations to complete
+
+      expect(mockCheckFinalPermissionState).toHaveBeenCalled();
+      expect((PermissionsOrchestrator as any).saveStateAndResolve).toHaveBeenCalledWith(
+        {
+          canProceed: false,
+          hasBackgroundPermission: false,
+          mode: 'denied',
+        },
+        mockResolver
+      );
+      // Note: currentResolver is set to null in the actual implementation after saveStateAndResolve
+    });
+
+    it('should ignore app state changes when no resolver is active', () => {
+      const mockCheckFinalPermissionState = jest.fn();
+
+      // Ensure no resolver is set
+      (PermissionsOrchestrator as any).currentResolver = null;
+      jest
+        .spyOn(PermissionsOrchestrator as any, 'checkFinalPermissionState')
+        .mockImplementation(mockCheckFinalPermissionState);
+
+      // Simulate app state change to 'active'
+      const handleAppStateChange = (PermissionsOrchestrator as any).handleAppStateChange;
+      handleAppStateChange('active');
+
+      // Fast-forward the setTimeout
+      jest.advanceTimersByTime(2000);
+
+      expect(mockCheckFinalPermissionState).not.toHaveBeenCalled();
+    });
+
+    it('should ignore non-active app state changes', () => {
+      const mockCheckFinalPermissionState = jest.fn();
+      const mockResolver = jest.fn();
+
+      // Set up state
+      (PermissionsOrchestrator as any).currentResolver = mockResolver;
+      jest
+        .spyOn(PermissionsOrchestrator as any, 'checkFinalPermissionState')
+        .mockImplementation(mockCheckFinalPermissionState);
+
+      // Simulate app state change to 'background'
+      const handleAppStateChange = (PermissionsOrchestrator as any).handleAppStateChange;
+      handleAppStateChange('background');
+
+      // Fast-forward the setTimeout
+      jest.advanceTimersByTime(2000);
+
+      expect(mockCheckFinalPermissionState).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('Error Handling', () => {
+
+
+    it('should handle AsyncStorage errors in clearStoredPermissionState', async () => {
+      (AsyncStorage.removeItem as jest.Mock).mockRejectedValue(new Error('Storage error'));
+
+      await PermissionsOrchestrator.clearStoredPermissionState();
+
+      expect(logger.error).toHaveBeenCalledWith(
+        'Failed to clear stored permission state',
+        expect.objectContaining({
+          error: expect.any(Error),
+        })
+      );
+    });
   });
 });

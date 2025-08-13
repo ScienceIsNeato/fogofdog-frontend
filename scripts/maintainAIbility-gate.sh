@@ -152,11 +152,39 @@ if [[ "$RUN_LINT" == "true" ]]; then
     add_success "Lint Check" "Zero warnings in strict mode with auto-fix"
   else
     echo "❌ Lint Check: FAILED (strict mode - zero warnings allowed)"
+    echo ""
+    
+    # Show detailed lint warnings
+    echo "📋 Lint Warning Details:"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    
+    # Show the actual lint warnings (limit to avoid overwhelming output)
+    if [[ -n "$LINT_OUTPUT" ]]; then
+      # Filter out npm script output and show actual ESLint warnings
+      FILTERED_OUTPUT=$(echo "$LINT_OUTPUT" | grep -A 1000 "eslint" | grep -v "npm run lint:strict")
+      if [[ -n "$FILTERED_OUTPUT" ]]; then
+        echo "$FILTERED_OUTPUT" | head -30 | sed 's/^/  /'
+        
+        # Check if there are more warnings
+        TOTAL_LINES=$(echo "$FILTERED_OUTPUT" | wc -l)
+        if [[ $TOTAL_LINES -gt 30 ]]; then
+          echo "  ... and $(($TOTAL_LINES - 30)) more lines"
+          echo "  Run 'npm run lint' to see all warnings"
+        fi
+      else
+        echo "$LINT_OUTPUT" | head -15 | sed 's/^/  /'
+      fi
+    else
+      echo "  Unable to extract lint warning details"
+    fi
+    
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo ""
     echo "💡 Some issues may require manual fixing"
     
     # Extract warning count from output
     WARNING_COUNT=$(echo "$LINT_OUTPUT" | grep -o '[0-9]\+ warning' | head -1 | grep -o '[0-9]\+' || echo "unknown")
-    add_failure "Lint Check" "$WARNING_COUNT warnings found in strict mode" "Run 'npm run lint' to see details and fix manually"
+    add_failure "Lint Check" "$WARNING_COUNT warnings found in strict mode" "See detailed output above and run 'npm run lint' for full details"
   fi
   echo ""
 fi
@@ -173,10 +201,32 @@ if [[ "$RUN_TYPES" == "true" ]]; then
     add_success "Type Check" "TypeScript compilation successful in strict mode"
   else
     echo "❌ Type Check: FAILED (strict TypeScript compilation)"
+    echo ""
     
-    # Extract error count from output
+    # Show detailed TypeScript errors
+    echo "📋 TypeScript Error Details:"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    
+    # Show the actual TypeScript errors (limit to first 20 lines to avoid overwhelming output)
+    if [[ -n "$TYPE_OUTPUT" ]]; then
+      echo "$TYPE_OUTPUT" | head -20 | sed 's/^/  /'
+      
+      # Check if there are more errors
+      TOTAL_LINES=$(echo "$TYPE_OUTPUT" | wc -l)
+      if [[ $TOTAL_LINES -gt 20 ]]; then
+        echo "  ... and $(($TOTAL_LINES - 20)) more lines"
+        echo "  Run 'npm run type-check' to see all errors"
+      fi
+    else
+      echo "  Unable to extract TypeScript error details"
+    fi
+    
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo ""
+    
+    # Extract error count from output for summary
     ERROR_COUNT=$(echo "$TYPE_OUTPUT" | grep -o '[0-9]\+ error' | head -1 | grep -o '[0-9]\+' || echo "unknown")
-    add_failure "Type Check" "$ERROR_COUNT TypeScript errors found" "Run 'npm run type-check' to see details and fix type errors"
+    add_failure "Type Check" "$ERROR_COUNT TypeScript errors found" "See detailed output above and run 'npm run type-check' for full details"
   fi
   echo ""
 fi
@@ -193,22 +243,42 @@ if [[ "$RUN_TESTS" == "true" ]]; then
   
   if [[ "$TEST_ONLY_FAILED" == "true" ]]; then
     echo "❌ Tests: FAILED"
+    echo ""
     
-    # Extract specific test failures with better detail
-    FAILED_TESTS=$(echo "$TEST_ONLY_OUTPUT" | grep -o '[0-9]\+ failed' | head -1 || echo "unknown")
-    FAILING_SUITES=$(echo "$TEST_ONLY_OUTPUT" | grep "FAIL " | sed 's/FAIL //' | head -5)
-    FAILING_TESTS=$(echo "$TEST_ONLY_OUTPUT" | grep "● " | head -10 | sed 's/● /  • /')
+    # Show detailed test output with failures
+    echo "📋 Test Failure Details:"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     
-    # Build detailed failure message
-    FAILURE_DETAILS="Test failures: $FAILED_TESTS"
+    # Extract and show failing test suites
+    FAILING_SUITES=$(echo "$TEST_ONLY_OUTPUT" | grep "FAIL " | head -5)
     if [[ -n "$FAILING_SUITES" ]]; then
-      FAILURE_DETAILS="$FAILURE_DETAILS\n\nFailing test suites:\n$FAILING_SUITES"
-    fi
-    if [[ -n "$FAILING_TESTS" ]]; then
-      FAILURE_DETAILS="$FAILURE_DETAILS\n\nFailing tests:\n$FAILING_TESTS"
+      echo "🔴 Failing Test Suites:"
+      echo "$FAILING_SUITES" | sed 's/^/  /'
+      echo ""
     fi
     
-    add_failure "Tests" "$FAILURE_DETAILS" "Run 'npm test' for full details and fix failing tests"
+    # Extract and show specific failing tests with error messages
+    echo "🔴 Test Failures:"
+    # Get the summary section which has the actual error details
+    SUMMARY_SECTION=$(echo "$TEST_ONLY_OUTPUT" | sed -n '/Summary of all failing tests/,$p' | head -50)
+    if [[ -n "$SUMMARY_SECTION" ]]; then
+      echo "$SUMMARY_SECTION" | sed 's/^/  /'
+    else
+      # Fallback: show failing test names
+      FAILING_TESTS=$(echo "$TEST_ONLY_OUTPUT" | grep "● " | head -10)
+      if [[ -n "$FAILING_TESTS" ]]; then
+        echo "$FAILING_TESTS" | sed 's/^/  /'
+      else
+        echo "  Unable to extract specific test failures - run 'npm test' for details"
+      fi
+    fi
+    
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo ""
+    
+    # Extract summary stats for the failure record
+    FAILED_TESTS=$(echo "$TEST_ONLY_OUTPUT" | grep -o '[0-9]\+ failed' | head -1 || echo "unknown")
+    add_failure "Tests" "Test failures: $FAILED_TESTS" "See detailed output above and run 'npm test' for full details"
   else
     echo "✅ Tests: PASSED"
     

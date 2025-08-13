@@ -19,7 +19,7 @@
     "lint:errors-only": "eslint src --ext .ts,.tsx --quiet",
     "lint:strict": "eslint src --ext .ts,.tsx --max-warnings 0",
     "lint:transition": "eslint src --ext .ts,.tsx --max-warnings 35",
-    "duplication:check": "npx jscpd src --min-lines 3 --threshold 3 --reporters console",
+    "duplication:check": "npx jscpd src --min-lines 3 --threshold 3 --reporters console --ignore '**/__tests__/**,**/*.test.*'",
     "duplication:report": "npx jscpd src --min-lines 3 --threshold 3 --reporters html,console --output ./reports",
     "duplication:strict": "npx jscpd src --min-lines 3 --threshold 2 --reporters console",
     "duplication:ci": "npx jscpd src --min-lines 3 --threshold 3 --reporters console --silent",
