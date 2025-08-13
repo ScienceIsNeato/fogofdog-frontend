@@ -193,8 +193,22 @@ if [[ "$RUN_TESTS" == "true" ]]; then
   
   if [[ "$TEST_ONLY_FAILED" == "true" ]]; then
     echo "❌ Tests: FAILED"
+    
+    # Extract specific test failures with better detail
     FAILED_TESTS=$(echo "$TEST_ONLY_OUTPUT" | grep -o '[0-9]\+ failed' | head -1 || echo "unknown")
-    add_failure "Tests" "Test failures: $FAILED_TESTS" "Fix failing tests with 'npm test' then check coverage"
+    FAILING_SUITES=$(echo "$TEST_ONLY_OUTPUT" | grep "FAIL " | sed 's/FAIL //' | head -5)
+    FAILING_TESTS=$(echo "$TEST_ONLY_OUTPUT" | grep "● " | head -10 | sed 's/● /  • /')
+    
+    # Build detailed failure message
+    FAILURE_DETAILS="Test failures: $FAILED_TESTS"
+    if [[ -n "$FAILING_SUITES" ]]; then
+      FAILURE_DETAILS="$FAILURE_DETAILS\n\nFailing test suites:\n$FAILING_SUITES"
+    fi
+    if [[ -n "$FAILING_TESTS" ]]; then
+      FAILURE_DETAILS="$FAILURE_DETAILS\n\nFailing tests:\n$FAILING_TESTS"
+    fi
+    
+    add_failure "Tests" "$FAILURE_DETAILS" "Run 'npm test' for full details and fix failing tests"
   else
     echo "✅ Tests: PASSED"
     
@@ -311,7 +325,7 @@ if [ ${#FAILED_CHECKS_DETAILS[@]} -gt 0 ]; then
   for check in "${FAILED_CHECKS_DETAILS[@]}"; do
     IFS='|' read -r name reason fix <<< "$check"
     echo "   • $name"
-    echo "     Reason: $reason"
+    echo -e "     Reason: $reason"
     echo "     Fix: $fix"
     echo ""
   done

@@ -248,4 +248,6 @@ describe('PermissionAlert', () => {
       expect(props.onDismiss).toHaveBeenCalled();
     });
   });
+
+  // Note: Cooldown logic is internal to the alertGuard instance and tested through integration
 });

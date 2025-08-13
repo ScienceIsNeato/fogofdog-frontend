@@ -1,3 +1,4 @@
+/* eslint-disable no-undef */
 /**
  * Maestro GPS Starting Data Injection Helper
  * 
@@ -6,6 +7,8 @@
  * 
  * Usage in Maestro YAML:
  *   - runScript: .maestro/shared/inject-starting-data.js
+ * 
+ * Note: Uses Maestro-specific globals like 'device' - eslint disabled
  */
 
 // AsyncStorage key used by GPS injection system

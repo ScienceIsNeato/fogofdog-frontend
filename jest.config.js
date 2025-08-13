@@ -39,9 +39,9 @@
   ],
   coverageThreshold: {
     global: {
-      functions: 45,
-      lines: 45,
-      statements: 45
+      functions: 80,
+      lines: 80,
+      statements: 80
     }
   },
   moduleNameMapper: {
@@ -60,4 +60,6 @@
   maxWorkers: process.env.CI ? 1 : '50%', // Single worker in CI to avoid resource issues
   watchman: false, // Disable watchman entirely
   forceExit: process.env.CI ? true : false, // Force exit in CI to prevent hanging
+  verbose: process.env.CI ? true : false, // Verbose output in CI for debugging
+  bail: process.env.CI ? 1 : 0, // Stop on first failure in CI to get clearer logs
 };

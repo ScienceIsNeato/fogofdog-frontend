@@ -9,7 +9,7 @@
     "web": "expo start --web",
     "test": "jest --watchAll=false --passWithNoTests",
     "test:watch": "jest --watchAll",
-    "test:ci": "jest --watchAll=false --passWithNoTests --forceExit --detectOpenHandles",
+    "test:ci": "echo 'Starting CI tests...' && node --version && npm --version && jest --version && jest --watchAll=false --passWithNoTests --forceExit --detectOpenHandles --verbose --no-cache",
     "test:e2e": "detox test --configuration ios.sim.debug",
     "test:e2e:release": "detox test --configuration ios.sim.release",
     "build:e2e:ios": "detox build --configuration ios.sim.debug",

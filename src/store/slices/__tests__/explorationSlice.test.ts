@@ -529,4 +529,110 @@ describe('exploration slice', () => {
       expect(store.getState().exploration.isFollowModeActive).toBe(false);
     });
   });
+
+  describe('restorePersistedState', () => {
+    it('should restore valid persisted state', () => {
+      const validPersistedState = {
+        currentLocation: { latitude: 37.7749, longitude: -122.4194, timestamp: Date.now() },
+        path: [
+          { latitude: 37.7749, longitude: -122.4194, timestamp: Date.now() },
+          { latitude: 37.775, longitude: -122.4195, timestamp: Date.now() },
+        ],
+        exploredAreas: [{ latitude: 37.7749, longitude: -122.4194, timestamp: Date.now() }],
+        zoomLevel: 15,
+        isTrackingPaused: false,
+      };
+
+      store.dispatch({ type: 'exploration/restorePersistedState', payload: validPersistedState });
+      const state = store.getState().exploration;
+
+      expect(state.currentLocation).toEqual(validPersistedState.currentLocation);
+      expect(state.path).toEqual(validPersistedState.path);
+      expect(state.exploredAreas).toEqual(validPersistedState.exploredAreas);
+      expect(state.zoomLevel).toBe(15);
+      expect(state.isTrackingPaused).toBe(false);
+    });
+
+    it('should filter invalid points during restoration', () => {
+      const invalidPersistedState = {
+        currentLocation: null, // Invalid
+        path: [
+          { latitude: 37.7749, longitude: -122.4194, timestamp: Date.now() }, // Valid
+          { latitude: 'invalid', longitude: -122.4194, timestamp: Date.now() }, // Invalid
+          { latitude: 37.775, longitude: -122.4195, timestamp: Date.now() }, // Valid
+        ],
+        exploredAreas: [
+          { latitude: 37.7749, longitude: -122.4194, timestamp: Date.now() }, // Valid
+          { latitude: null, longitude: -122.4194, timestamp: Date.now() }, // Invalid
+        ],
+        zoomLevel: 25, // Invalid (too high)
+        isTrackingPaused: true,
+      };
+
+      store.dispatch({ type: 'exploration/restorePersistedState', payload: invalidPersistedState });
+      const state = store.getState().exploration;
+
+      expect(state.currentLocation).toBeNull(); // Should remain null
+      expect(state.path).toHaveLength(2); // Only valid points
+      expect(state.exploredAreas).toHaveLength(1); // Only valid points
+      expect(state.zoomLevel).toBe(14); // Should remain default, not 25
+      expect(state.isTrackingPaused).toBe(true); // Should be restored
+    });
+  });
+
+  describe('clearRecentData', () => {
+    beforeEach(() => {
+      // Set up test data using restorePersistedState to simulate a realistic scenario
+      store.dispatch({
+        type: 'exploration/restorePersistedState',
+        payload: {
+          currentLocation: { latitude: 37.7749, longitude: -122.4194, timestamp: Date.now() },
+          path: [
+            { latitude: 37.7749, longitude: -122.4194, timestamp: Date.now() },
+            { latitude: 37.775, longitude: -122.4195, timestamp: Date.now() },
+            { latitude: 37.7751, longitude: -122.4196, timestamp: Date.now() },
+          ],
+          exploredAreas: [
+            { latitude: 37.7749, longitude: -122.4194, timestamp: Date.now() },
+            { latitude: 37.775, longitude: -122.4195, timestamp: Date.now() },
+          ],
+          zoomLevel: 14,
+          isTrackingPaused: false,
+        },
+      });
+    });
+
+    it('should clear portion of path and explored areas based on hours', () => {
+      const initialState = store.getState().exploration;
+      expect(initialState.path).toHaveLength(3);
+      expect(initialState.exploredAreas).toHaveLength(2);
+
+      // Clear 50% of data (assuming 1 week = 168 hours, so 84 hours = 50%)
+      store.dispatch({ type: 'exploration/clearRecentData', payload: 84 });
+
+      const state = store.getState().exploration;
+      expect(state.path.length).toBeLessThan(initialState.path.length);
+      expect(state.exploredAreas.length).toBeLessThan(initialState.exploredAreas.length);
+    });
+
+    it('should clear all data when hours exceed max threshold', () => {
+      // Clear more than a week's worth (200 hours)
+      store.dispatch({ type: 'exploration/clearRecentData', payload: 200 });
+
+      const state = store.getState().exploration;
+      expect(state.path).toHaveLength(0);
+      expect(state.exploredAreas).toHaveLength(0);
+    });
+
+    it('should not clear data when no hours specified', () => {
+      const initialState = store.getState().exploration;
+
+      // Clear 0 hours
+      store.dispatch({ type: 'exploration/clearRecentData', payload: 0 });
+
+      const state = store.getState().exploration;
+      expect(state.path).toHaveLength(initialState.path.length);
+      expect(state.exploredAreas).toHaveLength(initialState.exploredAreas.length);
+    });
+  });
 });

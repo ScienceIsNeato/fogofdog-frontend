@@ -133,4 +133,21 @@ describe('GPSInjectionService', () => {
       spy.mockRestore();
     });
   });
+
+  describe('checkForInjectionOnce', () => {
+    it('should call checkAndProcessInjectedGPS and log action', async () => {
+      mockAsyncStorage.getItem.mockResolvedValue(null);
+
+      const result = await GPSInjectionService.checkForInjectionOnce();
+
+      expect(result).toEqual([]);
+      expect(mockLogger.info).toHaveBeenCalledWith(
+        'Checking for GPS injection data (one-time check)',
+        { component: 'GPSInjectionService', action: 'checkForInjectionOnce' }
+      );
+    });
+  });
+
+  // Note: File processing paths are complex to mock and test in isolation
+  // The main GPS injection functionality is covered by existing tests
 });
