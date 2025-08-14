@@ -11,15 +11,6 @@
  * Usage:
  *   Absolute mode: node tools/gps-injector-direct.js --mode absolute --lat 37.7749 --lon -122.4194
  *   Relative mode: node tools/gps-injector-direct.js --mode relative --angle 45 --distance 100
- * 
- * Environment Variables:
- *   DISABLE_GPS_OFFSET=true    - Disable random coordinate offset for precise testing
- *   GPS_OFFSET_MAGNITUDE=0.001 - Set custom offset magnitude (default: 0.0000001 ~0.01mm)
- * 
- * Random Offset Behavior:
- *   By default, adds tiny random offset (~0.01mm) to coordinates to prevent Redux
- *   from skipping updates due to same-coordinate optimization. This ensures reliable
- *   location updates during testing while maintaining coordinate accuracy.
  */
 
 const { execSync } = require('child_process');
@@ -138,18 +129,10 @@ async function setSimulatorLocation(lat, lon, timeDeltaHours = 0) {
 
       console.log(`🕒 Injecting with timestamp: ${timestamp.toISOString()} (${timeDeltaHours} hours delta)`);
 
-      // Add configurable random offset to ensure coordinates are never exactly the same
-      // This prevents Redux from skipping updates due to same-coordinate optimization
-      // The offset is extremely small (~0.01mm) to avoid affecting testing accuracy
-      // Set DISABLE_GPS_OFFSET=true to disable this behavior for precise testing
-      const useRandomOffset = !process.env.DISABLE_GPS_OFFSET;
-      const offsetMagnitude = parseFloat(process.env.GPS_OFFSET_MAGNITUDE || '0.0000001'); // ~0.01mm default
-      const randomOffset = useRandomOffset ? (Math.random() - 0.5) * offsetMagnitude : 0;
-      
       // Create data in the format GPSInjectionService expects (direct array, not wrapped)
       const coordinatesArray = [{
-        latitude: lat + randomOffset,
-        longitude: lon + randomOffset,
+        latitude: lat,
+        longitude: lon,
         timestamp: timestamp.getTime(), // Use timestamp in milliseconds
         accuracy: 5.0,
         altitude: 0,

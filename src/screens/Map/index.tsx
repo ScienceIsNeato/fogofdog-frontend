@@ -130,58 +130,56 @@ function defineUnifiedLocationTask() {
   });
 }
 
-// Helper: Background location service setup
-async function startBackgroundLocationUpdates(): Promise<void> {
-  const locationOptions: any = {
-    accuracy: Location.Accuracy.High,
-    timeInterval: 3000,
-    distanceInterval: 5,
-    foregroundService: {
-      notificationTitle: 'Fog of Dog',
-      notificationBody: 'Tracking your location to reveal the map',
-    },
-  };
-
-  logger.info('Starting location updates with background service', {
-    component: 'MapScreen',
-    action: 'startBackgroundLocationUpdates',
-  });
-
-  await Location.startLocationUpdatesAsync(LOCATION_TASK, locationOptions);
-}
-
-// Helper: Foreground-only location service setup
-async function startForegroundLocationUpdates(): Promise<void> {
-  logger.info('Starting location updates in foreground-only mode', {
-    component: 'MapScreen',
-    action: 'startForegroundLocationUpdates',
-    note: 'Using watchPositionAsync for foreground-only tracking',
-  });
-
-  // Start watching position for foreground-only mode
-  await Location.watchPositionAsync(
-    {
-      accuracy: Location.Accuracy.High,
-      timeInterval: 3000,
-      distanceInterval: 5,
-    },
-    (location) => {
-      // Emit location update event for foreground tracking
-      DeviceEventEmitter.emit('locationUpdate', {
-        latitude: location.coords.latitude,
-        longitude: location.coords.longitude,
-      });
-    }
-  );
-}
-
-// Main location updates coordinator
+// Helper: startLocationUpdates
+// Note: This function handles complex location service setup with both foreground and background
+// modes, error handling, and permission validation. Breaking it down would lose critical
+// error handling flow and state consistency.
+// eslint-disable-next-line max-lines-per-function
 async function startLocationUpdates(backgroundGranted: boolean = false) {
   try {
     if (backgroundGranted) {
-      await startBackgroundLocationUpdates();
+      // Use task-based location updates for background tracking
+      const locationOptions: any = {
+        accuracy: Location.Accuracy.High,
+        timeInterval: 3000,
+        distanceInterval: 5,
+        foregroundService: {
+          notificationTitle: 'Fog of Dog',
+          notificationBody: 'Tracking your location to reveal the map',
+        },
+      };
+
+      logger.info('Starting location updates with background service', {
+        component: 'MapScreen',
+        action: 'startLocationUpdates',
+        backgroundGranted: true,
+      });
+
+      await Location.startLocationUpdatesAsync(LOCATION_TASK, locationOptions);
     } else {
-      await startForegroundLocationUpdates();
+      // Use watchPositionAsync for foreground-only tracking
+      logger.info('Starting location updates in foreground-only mode', {
+        component: 'MapScreen',
+        action: 'startLocationUpdates',
+        backgroundGranted: false,
+        note: 'Using watchPositionAsync for foreground-only tracking',
+      });
+
+      // Start watching position for foreground-only mode
+      await Location.watchPositionAsync(
+        {
+          accuracy: Location.Accuracy.High,
+          timeInterval: 3000,
+          distanceInterval: 5,
+        },
+        (location) => {
+          // Emit location update event for foreground tracking
+          DeviceEventEmitter.emit('locationUpdate', {
+            latitude: location.coords.latitude,
+            longitude: location.coords.longitude,
+          });
+        }
+      );
     }
 
     logger.info('Location updates started successfully', {
@@ -515,6 +513,16 @@ interface LocationServiceConfig {
   isTrackingPaused: boolean;
 }
 
+// Comprehensive configuration interface for useUnifiedLocationService
+interface UnifiedLocationServiceConfig {
+  dispatch: ReturnType<typeof useAppDispatch>;
+  locationConfig: LocationServiceConfig;
+  allowLocationRequests?: boolean;
+  onPermissionsGranted?: (granted: boolean) => void;
+  permissionsVerified?: boolean;
+  backgroundGranted?: boolean;
+}
+
 // Helper functions for location service management
 const createStartLocationServices =
   (
@@ -575,17 +583,18 @@ const createStopLocationServices = (setIsLocationActive: (active: boolean) => vo
 
 // Refactor useUnifiedLocationService to use helpers and support pause functionality
 // eslint-disable-next-line max-lines-per-function
-const useUnifiedLocationService = (
-  dispatch: ReturnType<typeof useAppDispatch>,
-  config: LocationServiceConfig,
-  allowLocationRequests: boolean = true,
-  onPermissionsGranted?: (granted: boolean) => void,
-  permissionsVerified: boolean = false, // NEW: Only start location services after permissions are verified
-  backgroundGranted: boolean = false // Add backgroundGranted parameter
-  // eslint-disable-next-line max-params
-) => {
+const useUnifiedLocationService = (config: UnifiedLocationServiceConfig) => {
+  const {
+    dispatch,
+    locationConfig,
+    allowLocationRequests = true,
+    onPermissionsGranted,
+    permissionsVerified = false,
+    backgroundGranted = false,
+  } = config;
+
   const { mapRef, isMapCenteredOnUser, isFollowModeActive, currentRegion, isTrackingPaused } =
-    config;
+    locationConfig;
   // Track if location services are currently active
   const [isLocationActive, setIsLocationActive] = useState(false);
 
@@ -623,7 +632,7 @@ const useUnifiedLocationService = (
 
     const startLocationServices = createStartLocationServices(
       dispatch,
-      config,
+      locationConfig,
       setIsLocationActive,
       (granted) => {
         // This callback is now handled by the parent useUnifiedLocationService
@@ -651,7 +660,7 @@ const useUnifiedLocationService = (
   }, [
     isTrackingPaused,
     dispatch,
-    config,
+    locationConfig,
     isLocationActive,
     allowLocationRequests,
     onPermissionsGranted,
@@ -1473,23 +1482,27 @@ interface MapScreenServicesConfig {
   explorationState: any;
 }
 
-// Configuration for MapScreen services
-interface MapScreenServicesOptions {
+// Comprehensive configuration interface for useMapScreenServices
+interface MapScreenServicesFullConfig {
   dispatch: ReturnType<typeof useAppDispatch>;
-  config: MapScreenServicesConfig;
-  permissions: {
-    allowLocationRequests: boolean;
-    permissionsVerified: boolean;
-    backgroundGranted: boolean;
-  };
-  callbacks?: {
-    setPermissionsGranted?: (granted: boolean) => void;
-  };
+  servicesConfig: MapScreenServicesConfig;
+  allowLocationRequests?: boolean;
+  setPermissionsGranted?: (granted: boolean) => void;
+  permissionsVerified?: boolean;
+  backgroundGranted?: boolean;
 }
 
 // Helper hook to set up all MapScreen services and effects
-const useMapScreenServices = (options: MapScreenServicesOptions) => {
-  const { dispatch, config, permissions, callbacks } = options;
+const useMapScreenServices = (config: MapScreenServicesFullConfig) => {
+  const {
+    dispatch,
+    servicesConfig,
+    allowLocationRequests = true,
+    setPermissionsGranted,
+    permissionsVerified = false,
+    backgroundGranted = false,
+  } = config;
+
   const {
     mapRef,
     isMapCenteredOnUser,
@@ -1497,26 +1510,26 @@ const useMapScreenServices = (options: MapScreenServicesOptions) => {
     currentRegion,
     isTrackingPaused,
     explorationState,
-  } = config;
+  } = servicesConfig;
 
   // Only log when location services actually start/stop, not on every render
   // (Removed excessive debug logging that was flooding console)
 
-  // Use simplified unified location service
-  useUnifiedLocationService(
+  // Use simplified unified location service with configuration object
+  useUnifiedLocationService({
     dispatch,
-    {
+    locationConfig: {
       mapRef,
       isMapCenteredOnUser,
       isFollowModeActive,
       currentRegion,
       isTrackingPaused,
     },
-    permissions.allowLocationRequests,
-    callbacks?.setPermissionsGranted,
-    permissions.permissionsVerified, // Pass permissions verification state
-    permissions.backgroundGranted // Pass the background permission status
-  );
+    allowLocationRequests,
+    ...(setPermissionsGranted && { onPermissionsGranted: setPermissionsGranted }),
+    permissionsVerified,
+    backgroundGranted,
+  });
 
   useZoomRestriction(currentRegion, mapRef);
 
@@ -1525,7 +1538,7 @@ const useMapScreenServices = (options: MapScreenServicesOptions) => {
 
   // Only start GPS injection check AFTER permissions are verified
   useEffect(() => {
-    if (permissions.permissionsVerified) {
+    if (permissionsVerified) {
       logger.info('Permissions verified, starting GPS injection service', {
         component: 'useMapScreenServices',
         action: 'startGPSInjection',
@@ -1548,7 +1561,7 @@ const useMapScreenServices = (options: MapScreenServicesOptions) => {
           });
         });
     }
-  }, [permissions.permissionsVerified]);
+  }, [permissionsVerified]);
 
   // Add AppState listener to process stored locations when app becomes active
   useAppStateChangeHandler(dispatch, isMapCenteredOnUser, currentRegion, mapRef);
@@ -1705,15 +1718,24 @@ const useMapScreenHookStates = () => {
   return { onboarding, mapState, reduxState };
 };
 
+// Configuration interface for useMapScreenServicesAndHandlers
+interface MapScreenServicesHandlersConfig {
+  onboarding: any;
+  mapState: any;
+  reduxState: any;
+  permissionsVerified?: boolean;
+  backgroundGranted?: boolean;
+}
+
 // Helper function to initialize services and handlers
-const useMapScreenServicesAndHandlers = (
-  onboarding: any,
-  mapState: any,
-  reduxState: any,
-  permissionsVerified: boolean = false,
-  backgroundGranted: boolean = false // Add backgroundGranted parameter
-  // eslint-disable-next-line max-params
-) => {
+const useMapScreenServicesAndHandlers = (config: MapScreenServicesHandlersConfig) => {
+  const {
+    onboarding,
+    mapState,
+    reduxState,
+    permissionsVerified = false,
+    backgroundGranted = false,
+  } = config;
   const dataClearing = useDataClearing(
     mapState.dispatch,
     {
@@ -1727,7 +1749,7 @@ const useMapScreenServicesAndHandlers = (
 
   useMapScreenServices({
     dispatch: mapState.dispatch,
-    config: {
+    servicesConfig: {
       mapRef: mapState.mapRef,
       isMapCenteredOnUser: mapState.isMapCenteredOnUser,
       isFollowModeActive: mapState.isFollowModeActive,
@@ -1735,12 +1757,9 @@ const useMapScreenServicesAndHandlers = (
       isTrackingPaused: reduxState.isTrackingPaused,
       explorationState: reduxState.explorationState,
     },
-    permissions: {
-      allowLocationRequests: onboarding.canStartLocationServices,
-      permissionsVerified,
-      backgroundGranted,
-    },
-    // No callbacks needed
+    allowLocationRequests: onboarding.canStartLocationServices,
+    permissionsVerified,
+    backgroundGranted,
   });
 
   const eventHandlers = useMapEventHandlers({
@@ -1768,13 +1787,13 @@ const useMapScreenLogic = (
   // Only log significant render state changes, not every render
   // (Removed excessive render logging that was flooding console)
 
-  const { dataClearing, navigation, eventHandlers } = useMapScreenServicesAndHandlers(
+  const { dataClearing, navigation, eventHandlers } = useMapScreenServicesAndHandlers({
     onboarding,
     mapState,
     reduxState,
     permissionsVerified,
-    backgroundGranted // Pass background permission status
-  );
+    backgroundGranted,
+  });
 
   return {
     showOnboarding: onboarding.showOnboarding,
