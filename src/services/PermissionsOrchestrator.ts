@@ -119,75 +119,15 @@ export class PermissionsOrchestrator {
     logger.info('Starting orchestrated permission flow');
 
     // First, check if we have stored permission state from previous runs
-    const storedState = await this.loadPermissionState();
-    if (storedState) {
-      // Perform live permission check to validate stored state
-      const livePermissions = await this.getLivePermissionStatus();
-
-      logger.info('📦 Found Stored Permission State - Validating with Live Check', {
-        stored: {
-          mode: storedState.result.mode,
-          canProceed: storedState.result.canProceed,
-          hasBackground: storedState.result.hasBackgroundPermission,
-          ageMs: Date.now() - storedState.timestamp,
-          storedAt: new Date(storedState.timestamp).toISOString(),
-        },
-        live: {
-          foreground: {
-            ...livePermissions.foreground,
-            interpretation: this.getForegroundInterpretation(livePermissions.foreground),
-          },
-          background: {
-            ...livePermissions.background,
-            interpretation: livePermissions.background.granted ? 'Always Allow' : 'Not Granted',
-          },
-          summary: this.getPermissionSummary(
-            livePermissions.foreground,
-            livePermissions.background
-          ),
-        },
-      });
-
-      // Check if stored state is still valid (especially important for "Allow Once")
-      if (this.isStoredStateValid(storedState.result, livePermissions)) {
-        logger.info('Stored permission state validated - skipping orchestration');
-        return storedState.result;
-      } else {
-        logger.warn(
-          'Stored permission state is stale (likely Allow Once revoked) - clearing and re-running verification'
-        );
-        await this.clearStoredPermissionState();
-        // Continue to fresh permission verification below
-      }
+    const validatedStoredResult = await this.validateStoredPermissionState();
+    if (validatedStoredResult) {
+      return validatedStoredResult;
     }
-
-    // No stored state, proceed with permission verification
-    logger.info('No stored permission state found - proceeding with verification');
 
     // Check if we already have sufficient permissions
-    const currentResult = await this.checkFinalPermissionState();
-    if (currentResult.canProceed && currentResult.mode !== 'once_only') {
-      logger.info('Permissions already sufficient - skipping flow', {
-        mode: currentResult.mode,
-        hasBackground: currentResult.hasBackgroundPermission,
-        canProceed: currentResult.canProceed,
-      });
-      // Save this state so we don't need to check again
-      await this.savePermissionState(currentResult);
-      return currentResult;
-    }
-
-    // If we detected "Allow Once", return immediately to show the warning
-    if (currentResult.mode === 'once_only') {
-      logger.info('Detected "Allow Once" permission - returning warning result');
-      const result = {
-        canProceed: false, // Don't proceed with full functionality
-        hasBackgroundPermission: false,
-        mode: 'once_only' as const,
-      };
-      // Save this state so we don't need to check again
-      await this.savePermissionState(result);
-      return result;
+    const existingPermissionsResult = await this.checkExistingPermissions();
+    if (existingPermissionsResult) {
+      return existingPermissionsResult;
     }
 
     return new Promise((resolve) => {
@@ -294,6 +234,94 @@ export class PermissionsOrchestrator {
     }
 
     return 'While Using App';
+  }
+
+  /**
+   * Validate stored permission state against current live permissions
+   * Returns the stored result if valid, null if invalid or no stored state
+   */
+  private static async validateStoredPermissionState(): Promise<PermissionResult | null> {
+    const storedState = await this.loadPermissionState();
+    if (!storedState) {
+      logger.info('No stored permission state found');
+      return null;
+    }
+
+    // Perform live permission check to validate stored state
+    const livePermissions = await this.getLivePermissionStatus();
+
+    logger.info('📦 Found Stored Permission State - Validating with Live Check', {
+      stored: {
+        mode: storedState.result.mode,
+        canProceed: storedState.result.canProceed,
+        hasBackground: storedState.result.hasBackgroundPermission,
+        ageMs: Date.now() - storedState.timestamp,
+        storedAt: new Date(storedState.timestamp).toISOString(),
+      },
+      live: {
+        foreground: {
+          ...livePermissions.foreground,
+          interpretation: this.getForegroundInterpretation(livePermissions.foreground),
+        },
+        background: {
+          ...livePermissions.background,
+          interpretation: livePermissions.background.granted ? 'Always Allow' : 'Not Granted',
+        },
+        summary: this.getPermissionSummary(
+          livePermissions.foreground,
+          livePermissions.background
+        ),
+      },
+    });
+
+    // Check if stored state is still valid (especially important for "Allow Once")
+    if (this.isStoredStateValid(storedState.result, livePermissions)) {
+      logger.info('Stored permission state validated - skipping orchestration');
+      return storedState.result;
+    } else {
+      logger.warn(
+        'Stored permission state is stale (likely Allow Once revoked) - clearing and re-running verification'
+      );
+      await this.clearStoredPermissionState();
+      return null;
+    }
+  }
+
+  /**
+   * Check if existing permissions are sufficient to skip the dialog flow
+   * Returns the result if sufficient, null if dialogs are needed
+   */
+  private static async checkExistingPermissions(): Promise<PermissionResult | null> {
+    logger.info('No stored permission state found - proceeding with verification');
+
+    const currentResult = await this.checkFinalPermissionState();
+    
+    if (currentResult.canProceed && currentResult.mode !== 'once_only') {
+      logger.info('Permissions already sufficient - skipping flow', {
+        mode: currentResult.mode,
+        hasBackground: currentResult.hasBackgroundPermission,
+        canProceed: currentResult.canProceed,
+      });
+      // Save this state so we don't need to check again
+      await this.savePermissionState(currentResult);
+      return currentResult;
+    }
+
+    // If we detected "Allow Once", return immediately to show the warning
+    if (currentResult.mode === 'once_only') {
+      logger.info('Detected "Allow Once" permission - returning warning result');
+      const result = {
+        canProceed: false, // Don't proceed with full functionality
+        hasBackgroundPermission: false,
+        mode: 'once_only' as const,
+      };
+      // Save this state so we don't need to check again
+      await this.savePermissionState(result);
+      return result;
+    }
+
+    // Permissions are not sufficient, need to run dialog flow
+    return null;
   }
 
   /**

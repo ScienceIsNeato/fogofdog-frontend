@@ -130,63 +130,71 @@ function defineUnifiedLocationTask() {
   });
 }
 
-// Helper: startLocationUpdates
-// Note: This function handles complex location service setup with both foreground and background
-// modes, error handling, and permission validation. Breaking it down would lose critical
-// error handling flow and state consistency.
-// eslint-disable-next-line max-lines-per-function
+// Helper: Start background location updates with task-based tracking
+async function startBackgroundLocationUpdates(): Promise<void> {
+  const locationOptions: any = {
+    accuracy: Location.Accuracy.High,
+    timeInterval: 3000,
+    distanceInterval: 5,
+    foregroundService: {
+      notificationTitle: 'Fog of Dog',
+      notificationBody: 'Tracking your location to reveal the map',
+    },
+  };
+
+  logger.info('Starting location updates with background service', {
+    component: 'MapScreen',
+    action: 'startBackgroundLocationUpdates',
+    backgroundGranted: true,
+  });
+
+  await Location.startLocationUpdatesAsync(LOCATION_TASK, locationOptions);
+  
+  logger.info('Background location updates started successfully', {
+    component: 'MapScreen',
+    action: 'startBackgroundLocationUpdates',
+  });
+}
+
+// Helper: Start foreground-only location updates with watchPositionAsync
+async function startForegroundLocationUpdates(): Promise<void> {
+  logger.info('Starting location updates in foreground-only mode', {
+    component: 'MapScreen',
+    action: 'startForegroundLocationUpdates',
+    backgroundGranted: false,
+    note: 'Using watchPositionAsync for foreground-only tracking',
+  });
+
+  // Start watching position for foreground-only mode
+  await Location.watchPositionAsync(
+    {
+      accuracy: Location.Accuracy.High,
+      timeInterval: 3000,
+      distanceInterval: 5,
+    },
+    (location) => {
+      // Emit location update event for foreground tracking
+      DeviceEventEmitter.emit('locationUpdate', {
+        latitude: location.coords.latitude,
+        longitude: location.coords.longitude,
+      });
+    }
+  );
+  
+  logger.info('Foreground location updates started successfully', {
+    component: 'MapScreen',
+    action: 'startForegroundLocationUpdates',
+  });
+}
+
+// Helper: startLocationUpdates - now uses extracted functions
 async function startLocationUpdates(backgroundGranted: boolean = false) {
   try {
     if (backgroundGranted) {
-      // Use task-based location updates for background tracking
-      const locationOptions: any = {
-        accuracy: Location.Accuracy.High,
-        timeInterval: 3000,
-        distanceInterval: 5,
-        foregroundService: {
-          notificationTitle: 'Fog of Dog',
-          notificationBody: 'Tracking your location to reveal the map',
-        },
-      };
-
-      logger.info('Starting location updates with background service', {
-        component: 'MapScreen',
-        action: 'startLocationUpdates',
-        backgroundGranted: true,
-      });
-
-      await Location.startLocationUpdatesAsync(LOCATION_TASK, locationOptions);
+      await startBackgroundLocationUpdates();
     } else {
-      // Use watchPositionAsync for foreground-only tracking
-      logger.info('Starting location updates in foreground-only mode', {
-        component: 'MapScreen',
-        action: 'startLocationUpdates',
-        backgroundGranted: false,
-        note: 'Using watchPositionAsync for foreground-only tracking',
-      });
-
-      // Start watching position for foreground-only mode
-      await Location.watchPositionAsync(
-        {
-          accuracy: Location.Accuracy.High,
-          timeInterval: 3000,
-          distanceInterval: 5,
-        },
-        (location) => {
-          // Emit location update event for foreground tracking
-          DeviceEventEmitter.emit('locationUpdate', {
-            latitude: location.coords.latitude,
-            longitude: location.coords.longitude,
-          });
-        }
-      );
+      await startForegroundLocationUpdates();
     }
-
-    logger.info('Location updates started successfully', {
-      component: 'MapScreen',
-      action: 'startLocationUpdates',
-      mode: backgroundGranted ? 'background' : 'foreground-only',
-    });
   } catch (error) {
     logger.error('Failed to start location updates', {
       component: 'MapScreen',
