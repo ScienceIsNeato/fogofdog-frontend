@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, Linking } from 'react-native';
+import { View, Text, TouchableOpacity } from 'react-native';
 import { logger } from '../../../utils/logger';
 import { styles } from '../styles';
 
@@ -27,32 +27,37 @@ export const AllowOnceWarningOverlay: React.FC<AllowOnceWarningOverlayProps> = (
     onDismiss();
   };
 
-  const handleOpenSettings = () => {
-    logger.info('User chose to open settings from Allow Once warning');
-    Linking.openSettings();
-  };
+
 
   return (
-    <View style={styles.warningContainer}>
-      <View style={styles.warningBox}>
-        <Text style={styles.warningTitle}>⚠️ Limited Functionality</Text>
+    <TouchableOpacity
+      style={styles.warningContainer}
+      testID="allow-once-warning-overlay"
+      accessibilityLabel="Location permission warning dialog"
+      onPress={onDismiss}
+      activeOpacity={1}
+    >
+      <TouchableOpacity style={styles.warningBox} activeOpacity={1}>
+        <Text style={styles.warningTitle}>Location Permission Warning</Text>
         <Text style={styles.warningText}>
-          You selected &ldquo;Allow Once&rdquo; which only provides a single location. FogOfDog needs continuous
-          location access to track your exploration and clear the fog.
+          You granted &ldquo;Allow Once&rdquo; permission, which means location tracking will stop
+          when you close the app.
         </Text>
         <Text style={styles.warningText}>
-          To use the app properly, please go to Settings → Privacy & Security → Location Services →
-          FogOfDog and select &ldquo;While Using App&rdquo; or &ldquo;Always&rdquo;.
+          For continuous tracking, please go to Settings and select &ldquo;While Using App&rdquo; or
+          &ldquo;Always&rdquo;.
         </Text>
         <View style={styles.warningButtons}>
-          <TouchableOpacity style={styles.warningButtonSecondary} onPress={handleContinueAnyway}>
-            <Text style={styles.warningButtonSecondaryText}>Continue Anyway</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.warningButtonPrimary} onPress={handleOpenSettings}>
-            <Text style={styles.warningButtonPrimaryText}>Open Settings</Text>
+          <TouchableOpacity
+            style={styles.warningButtonPrimary}
+            onPress={handleContinueAnyway}
+            accessibilityRole="button"
+            accessibilityLabel="Dismiss warning"
+          >
+            <Text style={styles.warningButtonPrimaryText}>Understood</Text>
           </TouchableOpacity>
         </View>
-      </View>
-    </View>
+      </TouchableOpacity>
+    </TouchableOpacity>
   );
 };

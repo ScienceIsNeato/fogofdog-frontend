@@ -140,3 +140,6 @@ if [ "$REFRESH_APP" = false ]; then
     print_status "Tip: Use --refresh flag to automatically restart the app:"
     echo "  $0 --refresh"
 fi
+
+
+

@@ -1836,7 +1836,7 @@ const useMapScreenLogic = (
 // Note: This component manages complex permission states, critical error handling,
 // onboarding flow, and UI coordination. The complexity is necessary for proper
 // permission verification and error recovery flows.
- 
+
 export const MapScreen = () => {
   // Get onboarding state first
   const { showOnboarding, handleOnboardingComplete, handleOnboardingSkip } =

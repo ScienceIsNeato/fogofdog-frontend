@@ -1,5 +1,5 @@
 import React from 'react';
-import { Text, TouchableOpacity } from 'react-native';
+import { View, Text, TouchableOpacity } from 'react-native';
 import { logger } from '../../../utils/logger';
 import { styles } from '../styles';
 
@@ -22,15 +22,20 @@ export const PermissionLoadingScreen: React.FC<PermissionLoadingScreenProps> = (
   };
 
   return (
-    <>
-      <Text style={styles.loadingText}>
-        {error ? `Permission error: ${error}` : 'Verifying location permissions...'}
-      </Text>
+    <View testID="permission-loading-screen" accessibilityLabel="Permission loading screen">
+      <Text style={styles.loadingText}>Checking Location Permissions</Text>
+      <Text style={styles.loadingText}>Verifying your location settings and permissions...</Text>
+      {error && <Text style={styles.loadingText}>{error}</Text>}
       {error && (
-        <TouchableOpacity style={styles.retryButton} onPress={handleRetry}>
+        <TouchableOpacity
+          style={styles.retryButton}
+          onPress={handleRetry}
+          accessibilityRole="button"
+          accessibilityLabel="Retry permission check"
+        >
           <Text style={styles.retryButtonText}>Try Again</Text>
         </TouchableOpacity>
       )}
-    </>
+    </View>
   );
 };

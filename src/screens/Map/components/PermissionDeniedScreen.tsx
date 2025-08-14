@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, Linking } from 'react-native';
+import { View, Text, TouchableOpacity } from 'react-native';
 import { PermissionsOrchestrator } from '../../../services/PermissionsOrchestrator';
 import { logger } from '../../../utils/logger';
 import { styles } from '../styles';
@@ -17,10 +17,7 @@ export const PermissionDeniedScreen: React.FC<PermissionDeniedScreenProps> = ({
   error,
   onRetry,
 }) => {
-  const handleOpenSettings = () => {
-    logger.info('User opening Settings to fix location permissions');
-    Linking.openSettings();
-  };
+
 
   const handleRetry = async () => {
     logger.info('User going back to retry permission verification after updating settings');
@@ -38,19 +35,24 @@ export const PermissionDeniedScreen: React.FC<PermissionDeniedScreenProps> = ({
   };
 
   return (
-    <View style={styles.criticalErrorContainer}>
-      <Text style={styles.criticalErrorTitle}>📍 Location Access Required</Text>
+    <View
+      style={styles.criticalErrorContainer}
+      testID="permission-denied-screen"
+      accessibilityLabel="Permission denied screen"
+    >
+      <Text style={styles.criticalErrorTitle}>Location Permission Required</Text>
       <Text style={styles.criticalErrorMessage}>
-        FogOfDog needs location access to track your exploration and create your fog map. Without
-        location permissions, the app cannot function.
+        This app requires location permission to track your exploration and create your fog map.
       </Text>
       {error && <Text style={styles.criticalErrorDetails}>{error}</Text>}
       <View style={styles.criticalErrorButtons}>
-        <TouchableOpacity style={styles.criticalErrorButtonPrimary} onPress={handleOpenSettings}>
-          <Text style={styles.criticalErrorButtonPrimaryText}>Open Settings</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.criticalErrorButtonSecondary} onPress={handleRetry}>
-          <Text style={styles.criticalErrorButtonSecondaryText}>Back</Text>
+        <TouchableOpacity
+          style={styles.criticalErrorButtonSecondary}
+          onPress={handleRetry}
+          accessibilityRole="button"
+          accessibilityLabel="Retry permission request"
+        >
+          <Text style={styles.criticalErrorButtonSecondaryText}>Try Again</Text>
         </TouchableOpacity>
       </View>
     </View>
