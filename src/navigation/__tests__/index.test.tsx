@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, waitFor, act } from '@testing-library/react-native';
+import { render, waitFor } from '@testing-library/react-native';
 import { Provider } from 'react-redux';
 import { configureStore } from '@reduxjs/toolkit';
 import Navigation, { useOnboardingContext } from '../index';
