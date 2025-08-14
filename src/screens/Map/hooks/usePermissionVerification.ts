@@ -12,15 +12,9 @@ export interface PermissionVerificationState {
 }
 
 /**
- * Hook for managing blocking permission verification flow
- * This replaces the reactive permission polling with a proper blocking flow
- *
- * Note: This hook is necessarily complex as it manages permission state,
- * timeout handling, error recovery, and automatic retry logic in a single
- * cohesive flow that must remain atomic for proper permission handling.
+ * Hook for managing permission verification state
  */
-// eslint-disable-next-line max-lines-per-function
-export const usePermissionVerification = (shouldVerify: boolean) => {
+const usePermissionState = () => {
   const [state, setState] = useState<PermissionVerificationState>({
     isVerifying: false,
     isVerified: false,
@@ -29,6 +23,69 @@ export const usePermissionVerification = (shouldVerify: boolean) => {
     mode: 'unknown',
     error: null,
   });
+
+  const updateState = useCallback((updates: Partial<PermissionVerificationState>) => {
+    setState((prev) => ({ ...prev, ...updates }));
+  }, []);
+
+  const resetState = useCallback(() => {
+    setState({
+      isVerifying: false,
+      isVerified: false,
+      hasPermissions: false,
+      backgroundGranted: false,
+      mode: 'unknown',
+      error: null,
+    });
+  }, []);
+
+  return { state, updateState, resetState };
+};
+
+/**
+ * Hook for handling permission verification timeout
+ */
+const usePermissionTimeout = () => {
+  const createTimeoutPromise = useCallback((timeoutMs: number = 30000) => {
+    return new Promise((_, reject) => {
+      setTimeout(() => {
+        reject(new Error(`Permission verification timeout after ${timeoutMs / 1000} seconds`));
+      }, timeoutMs);
+    });
+  }, []);
+
+  const handleTimeoutError = useCallback((error: unknown): string => {
+    const errorMessage = error instanceof Error ? error.message : 'Permission verification failed';
+    const isTimeout = errorMessage.includes('timeout');
+
+    return isTimeout
+      ? 'Permission request timed out. Please try again or check your location settings.'
+      : errorMessage;
+  }, []);
+
+  return { createTimeoutPromise, handleTimeoutError };
+};
+
+/**
+ * Hook for managing PermissionsOrchestrator cleanup
+ */
+const usePermissionCleanup = () => {
+  useEffect(() => {
+    return () => {
+      PermissionsOrchestrator.cleanup();
+    };
+  }, []);
+};
+
+/**
+ * Hook for controlling permission verification flow
+ */
+const usePermissionVerificationFlow = (
+  shouldVerify: boolean,
+  state: PermissionVerificationState,
+  updateState: (updates: Partial<PermissionVerificationState>) => void
+) => {
+  const { createTimeoutPromise, handleTimeoutError } = usePermissionTimeout();
 
   const startVerification = useCallback(async () => {
     if (!shouldVerify || state.isVerifying || state.isVerified) {
@@ -40,26 +97,18 @@ export const usePermissionVerification = (shouldVerify: boolean) => {
       action: 'startVerification',
     });
 
-    setState((prev) => ({
-      ...prev,
+    updateState({
       isVerifying: true,
       error: null,
-    }));
+    });
 
     try {
-      // Add timeout to prevent hanging indefinitely
-      const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => {
-          reject(new Error('Permission verification timeout after 30 seconds'));
-        }, 30000);
-      });
-
       const result = (await Promise.race([
         PermissionsOrchestrator.completePermissionVerification(),
-        timeoutPromise,
+        createTimeoutPromise(),
       ])) as Awaited<ReturnType<typeof PermissionsOrchestrator.completePermissionVerification>>;
 
-      setState({
+      updateState({
         isVerifying: false,
         isVerified: true,
         hasPermissions: result.canProceed,
@@ -73,16 +122,9 @@ export const usePermissionVerification = (shouldVerify: boolean) => {
         result,
       });
     } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : 'Permission verification failed';
+      const userFriendlyMessage = handleTimeoutError(error);
 
-      // If it's a timeout error, provide a more helpful message
-      const isTimeout = errorMessage.includes('timeout');
-      const userFriendlyMessage = isTimeout
-        ? 'Permission request timed out. Please try again or check your location settings.'
-        : errorMessage;
-
-      setState({
+      updateState({
         isVerifying: false,
         isVerified: true,
         hasPermissions: false,
@@ -93,22 +135,18 @@ export const usePermissionVerification = (shouldVerify: boolean) => {
 
       logger.error('Permission verification failed', {
         component: 'usePermissionVerification',
-        error: errorMessage,
-        isTimeout,
+        error: userFriendlyMessage,
+        isTimeout: userFriendlyMessage.includes('timeout'),
       });
     }
-  }, [shouldVerify, state.isVerifying, state.isVerified]);
-
-  const resetVerification = useCallback(() => {
-    setState({
-      isVerifying: false,
-      isVerified: false,
-      hasPermissions: false,
-      backgroundGranted: false,
-      mode: 'unknown',
-      error: null,
-    });
-  }, []);
+  }, [
+    shouldVerify,
+    state.isVerifying,
+    state.isVerified,
+    updateState,
+    createTimeoutPromise,
+    handleTimeoutError,
+  ]);
 
   // Start verification when conditions are met
   useEffect(() => {
@@ -117,16 +155,23 @@ export const usePermissionVerification = (shouldVerify: boolean) => {
     }
   }, [shouldVerify, startVerification, state.isVerifying, state.isVerified]);
 
-  // Cleanup orchestrator on unmount
-  useEffect(() => {
-    return () => {
-      PermissionsOrchestrator.cleanup();
-    };
-  }, []);
+  return { startVerification };
+};
+
+/**
+ * Main hook for managing blocking permission verification flow
+ * Now composed of focused, single-responsibility hooks for better maintainability
+ */
+export const usePermissionVerification = (shouldVerify: boolean) => {
+  const { state, updateState, resetState } = usePermissionState();
+  const { startVerification } = usePermissionVerificationFlow(shouldVerify, state, updateState);
+
+  // Set up cleanup
+  usePermissionCleanup();
 
   return {
     ...state,
     startVerification,
-    resetVerification,
+    resetVerification: resetState,
   };
 };

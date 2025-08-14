@@ -267,10 +267,7 @@ export class PermissionsOrchestrator {
           ...livePermissions.background,
           interpretation: livePermissions.background.granted ? 'Always Allow' : 'Not Granted',
         },
-        summary: this.getPermissionSummary(
-          livePermissions.foreground,
-          livePermissions.background
-        ),
+        summary: this.getPermissionSummary(livePermissions.foreground, livePermissions.background),
       },
     });
 
@@ -295,7 +292,7 @@ export class PermissionsOrchestrator {
     logger.info('No stored permission state found - proceeding with verification');
 
     const currentResult = await this.checkFinalPermissionState();
-    
+
     if (currentResult.canProceed && currentResult.mode !== 'once_only') {
       logger.info('Permissions already sufficient - skipping flow', {
         mode: currentResult.mode,

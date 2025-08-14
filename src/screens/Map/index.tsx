@@ -7,9 +7,12 @@ import {
   AppState,
   Text,
   Alert,
-  TouchableOpacity,
-  Linking,
 } from 'react-native';
+import {
+  PermissionDeniedScreen,
+  PermissionLoadingScreen,
+  AllowOnceWarningOverlay,
+} from './components';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import {
   updateLocation,
@@ -38,7 +41,7 @@ import { GPSInjectionService } from '../../services/GPSInjectionService';
 import { BackgroundLocationService } from '../../services/BackgroundLocationService';
 import { AuthPersistenceService } from '../../services/AuthPersistenceService';
 import { DataClearingService } from '../../services/DataClearingService';
-import { PermissionsOrchestrator } from '../../services/PermissionsOrchestrator';
+
 import { DataStats, ClearType } from '../../types/dataClear';
 import { GeoPoint } from '../../types/user';
 import { useOnboardingContext } from '../../navigation';
@@ -149,7 +152,7 @@ async function startBackgroundLocationUpdates(): Promise<void> {
   });
 
   await Location.startLocationUpdatesAsync(LOCATION_TASK, locationOptions);
-  
+
   logger.info('Background location updates started successfully', {
     component: 'MapScreen',
     action: 'startBackgroundLocationUpdates',
@@ -180,7 +183,7 @@ async function startForegroundLocationUpdates(): Promise<void> {
       });
     }
   );
-  
+
   logger.info('Foreground location updates started successfully', {
     component: 'MapScreen',
     action: 'startForegroundLocationUpdates',
@@ -1833,7 +1836,7 @@ const useMapScreenLogic = (
 // Note: This component manages complex permission states, critical error handling,
 // onboarding flow, and UI coordination. The complexity is necessary for proper
 // permission verification and error recovery flows.
-// eslint-disable-next-line max-lines-per-function
+ 
 export const MapScreen = () => {
   // Get onboarding state first
   const { showOnboarding, handleOnboardingComplete, handleOnboardingSkip } =
@@ -1877,104 +1880,13 @@ export const MapScreen = () => {
       {showPermissionScreen && (
         <View style={styles.loadingContainer}>
           {mode === 'denied' ? (
-            // Critical error state - no location permission
-            <View style={styles.criticalErrorContainer}>
-              <Text style={styles.criticalErrorTitle}>📍 Location Access Required</Text>
-              <Text style={styles.criticalErrorMessage}>
-                FogOfDog needs location access to track your exploration and create your fog map.
-                Without location permissions, the app cannot function.
-              </Text>
-              {error && <Text style={styles.criticalErrorDetails}>{error}</Text>}
-              <View style={styles.criticalErrorButtons}>
-                <TouchableOpacity
-                  style={styles.criticalErrorButtonPrimary}
-                  onPress={() => {
-                    logger.info('User opening Settings to fix location permissions');
-                    Linking.openSettings();
-                  }}
-                >
-                  <Text style={styles.criticalErrorButtonPrimaryText}>Open Settings</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.criticalErrorButtonSecondary}
-                  onPress={async () => {
-                    logger.info(
-                      'User going back to retry permission verification after updating settings'
-                    );
-                    resetVerification();
-                    // Clear any cached permission state since user may have changed settings
-                    try {
-                      await PermissionsOrchestrator.clearStoredPermissionState();
-                      logger.info('Cleared cached permission state for fresh verification');
-                    } catch (error) {
-                      logger.warn('Failed to clear cached permission state', { error });
-                    }
-                    // The useEffect in usePermissionVerification will automatically restart verification
-                    // when shouldVerifyPermissions is true and state is reset
-                  }}
-                >
-                  <Text style={styles.criticalErrorButtonSecondaryText}>Back</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
+            <PermissionDeniedScreen error={error} onRetry={resetVerification} />
           ) : (
-            // Normal loading state
-            <>
-              <Text style={styles.loadingText}>
-                {error ? `Permission error: ${error}` : 'Verifying location permissions...'}
-              </Text>
-              {error && (
-                <TouchableOpacity
-                  style={styles.retryButton}
-                  onPress={() => {
-                    logger.info('User requested permission verification retry');
-                    resetVerification();
-                  }}
-                >
-                  <Text style={styles.retryButtonText}>Try Again</Text>
-                </TouchableOpacity>
-              )}
-            </>
+            <PermissionLoadingScreen error={error} onRetry={resetVerification} />
           )}
         </View>
       )}
-      {showOnceOnlyWarning && (
-        <View style={styles.warningContainer}>
-          <View style={styles.warningBox}>
-            <Text style={styles.warningTitle}>⚠️ Limited Functionality</Text>
-            <Text style={styles.warningText}>
-              You selected &ldquo;Allow Once&rdquo; which only provides a single location. FogOfDog
-              needs continuous location access to track your exploration and clear the fog.
-            </Text>
-            <Text style={styles.warningText}>
-              To use the app properly, please go to Settings → Privacy &amp; Security → Location
-              Services → FogOfDog and select &ldquo;While Using App&rdquo; or &ldquo;Always&rdquo;.
-            </Text>
-            <View style={styles.warningButtons}>
-              <TouchableOpacity
-                style={styles.warningButtonSecondary}
-                onPress={() => {
-                  logger.info('User dismissed Allow Once warning');
-                  // Reset verification to hide the warning
-                  // This allows the user to continue with limited functionality
-                  resetVerification();
-                }}
-              >
-                <Text style={styles.warningButtonSecondaryText}>Continue Anyway</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.warningButtonPrimary}
-                onPress={() => {
-                  logger.info('User chose to open settings from Allow Once warning');
-                  Linking.openSettings();
-                }}
-              >
-                <Text style={styles.warningButtonPrimaryText}>Open Settings</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      )}
+      <AllowOnceWarningOverlay visible={showOnceOnlyWarning} onDismiss={resetVerification} />
     </>
   );
 };
