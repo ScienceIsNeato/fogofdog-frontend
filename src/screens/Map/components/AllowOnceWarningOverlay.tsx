@@ -27,8 +27,6 @@ export const AllowOnceWarningOverlay: React.FC<AllowOnceWarningOverlayProps> = (
     onDismiss();
   };
 
-
-
   return (
     <TouchableOpacity
       style={styles.warningContainer}

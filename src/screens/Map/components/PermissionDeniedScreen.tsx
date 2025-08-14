@@ -17,8 +17,6 @@ export const PermissionDeniedScreen: React.FC<PermissionDeniedScreenProps> = ({
   error,
   onRetry,
 }) => {
-
-
   const handleRetry = async () => {
     logger.info('User going back to retry permission verification after updating settings');
     onRetry();
