@@ -45,7 +45,7 @@ const defaultExplorationState = {
 };
 
 // Shared mock store creators
-export const createMockStore = () => {
+export const createMockStore = (userState: any = null) => {
   return configureStore({
     reducer: {
       user: userReducer,
@@ -53,7 +53,7 @@ export const createMockStore = () => {
     },
     preloadedState: {
       user: {
-        user: null,
+        user: userState,
         isLoading: false,
         error: null,
       },

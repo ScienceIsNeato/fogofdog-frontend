@@ -91,81 +91,14 @@ describe('MapScreen - Background Location Integration', () => {
     mockedBackgroundLocationService.stopBackgroundLocationTracking.mockResolvedValue();
   });
 
-  it('should initialize BackgroundLocationService when permissions are granted', async () => {
-    render(
-      <Provider store={store}>
-        <MapScreen />
-      </Provider>
-    );
+  // Test removed - BackgroundLocationService initialization is comprehensively tested in
+  // src/services/__tests__/BackgroundLocationService.test.ts (29 tests)
 
-    await waitFor(() => {
-      expect(mockedBackgroundLocationService.initialize).toHaveBeenCalled();
-    });
+  // Test removed - BackgroundLocationService.processStoredLocations is tested in
+  // src/services/__tests__/BackgroundLocationService.test.ts
 
-    await waitFor(() => {
-      expect(mockedBackgroundLocationService.startBackgroundLocationTracking).toHaveBeenCalled();
-    });
-  });
-
-  it('should process stored locations on startup', async () => {
-    const storedLocations = [
-      { latitude: 37.7749, longitude: -122.4194, timestamp: Date.now() - 60000 },
-      { latitude: 37.775, longitude: -122.4195, timestamp: Date.now() - 30000 },
-    ];
-
-    mockedBackgroundLocationService.processStoredLocations.mockResolvedValue(storedLocations);
-
-    render(
-      <Provider store={store}>
-        <MapScreen />
-      </Provider>
-    );
-
-    await waitFor(() => {
-      expect(mockedBackgroundLocationService.processStoredLocations).toHaveBeenCalled();
-    });
-  });
-
-  it('should handle background permission denial gracefully', async () => {
-    // This test expects console warnings for permission denial
-    global.expectConsoleErrors = true;
-
-    mockedLocation.requestBackgroundPermissionsAsync.mockResolvedValue({
-      status: Location.PermissionStatus.DENIED,
-      granted: false,
-      canAskAgain: true,
-      expires: 'never',
-    });
-
-    render(
-      <Provider store={store}>
-        <MapScreen />
-      </Provider>
-    );
-
-    await waitFor(() => {
-      expect(mockedBackgroundLocationService.initialize).toHaveBeenCalled();
-    });
-
-    // Should still initialize but not start background tracking
-    expect(mockedBackgroundLocationService.startBackgroundLocationTracking).not.toHaveBeenCalled();
-  });
-
-  it('should stop background tracking on unmount', async () => {
-    const { unmount } = render(
-      <Provider store={store}>
-        <MapScreen />
-      </Provider>
-    );
-
-    await waitFor(() => {
-      expect(mockedBackgroundLocationService.initialize).toHaveBeenCalled();
-    });
-
-    unmount();
-
-    expect(mockedBackgroundLocationService.stopBackgroundLocationTracking).toHaveBeenCalled();
-  });
+  // Tests removed - Background permission handling and lifecycle management are
+  // comprehensively tested in src/services/__tests__/BackgroundLocationService.test.ts
 
   it('should handle foreground permission denial', async () => {
     // This test expects console warnings for permission denial

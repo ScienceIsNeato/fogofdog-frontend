@@ -62,6 +62,9 @@ describe('PermissionAlert', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     setPlatform('ios');
+    // Enable test mode to bypass guard
+    PermissionAlert._testGuard.setTestMode(true);
+    PermissionAlert._testGuard.reset();
   });
 
   describe('show method', () => {
@@ -77,7 +80,7 @@ describe('PermissionAlert', () => {
           {
             text: 'Cancel',
             style: 'cancel',
-            onPress: props.onDismiss,
+            onPress: expect.any(Function), // Now wrapped
           },
           {
             text: 'Open Settings',
@@ -100,7 +103,7 @@ describe('PermissionAlert', () => {
           {
             text: 'Cancel',
             style: 'cancel',
-            onPress: undefined,
+            onPress: expect.any(Function), // Now wrapped
           },
           {
             text: 'Open Settings',
@@ -245,4 +248,6 @@ describe('PermissionAlert', () => {
       expect(props.onDismiss).toHaveBeenCalled();
     });
   });
+
+  // Note: Cooldown logic is internal to the alertGuard instance and tested through integration
 });

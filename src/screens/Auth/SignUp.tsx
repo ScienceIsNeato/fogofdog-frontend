@@ -1,9 +1,23 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { useAppDispatch } from '../../store/hooks';
 import { setUser } from '../../store/slices/userSlice';
-import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import type { AuthStackParamList } from '../../types/navigation';
+import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { AuthStackParamList } from '../../types/navigation';
+import { commonStyles } from '../../styles/commonStyles';
+
+// FUTURE: Reactivate for user accounts - SignUp Screen
+// This screen is preserved for future user account functionality
+// When user accounts are needed, this screen provides:
+// - Basic sign up flow structure
+// - Navigation back to sign in
+// - Ready for integration with user registration API
+//
+// To reactivate:
+// 1. Add user registration form fields (email, password, etc.)
+// 2. Connect to user registration service/API
+// 3. Add form validation and error handling
+// 4. Integrate with AuthPersistenceService for auto-login
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'SignUp'>;
 
@@ -40,39 +54,10 @@ export const SignUpScreen: React.FC<Props> = ({ navigation }) => {
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#000',
-    padding: 20,
-  },
-  title: {
-    fontSize: 32,
-    color: '#fff',
-    fontWeight: 'bold',
-    marginBottom: 40,
-  },
-  button: {
-    backgroundColor: '#007AFF',
-    paddingHorizontal: 30,
-    paddingVertical: 15,
-    borderRadius: 8,
-    marginVertical: 10,
-    width: '100%',
-    alignItems: 'center',
-  },
-  buttonText: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: '600',
-  },
-  secondaryButton: {
-    backgroundColor: 'transparent',
-    borderWidth: 1,
-    borderColor: '#007AFF',
-  },
-  secondaryButtonText: {
-    color: '#007AFF',
-  },
+  container: commonStyles.centeredContainer,
+  title: commonStyles.screenTitle,
+  button: commonStyles.primaryButton,
+  buttonText: commonStyles.buttonText,
+  secondaryButton: commonStyles.secondaryButton,
+  secondaryButtonText: commonStyles.secondaryButtonText,
 });

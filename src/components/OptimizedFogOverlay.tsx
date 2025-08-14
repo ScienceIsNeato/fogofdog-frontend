@@ -105,17 +105,20 @@ const useOptimizedCoordinates = (
 
     const processingTime = performance.now() - startTime;
 
-    logger.debug(
-      `OptimizedFogOverlay: processed ${points.length} → ${viewportPoints.length} → ${densityReducedPoints.length} → ${finalPoints.length} points in ${processingTime.toFixed(2)}ms`,
-      {
-        component: 'OptimizedFogOverlay',
-        originalPoints: points.length,
-        viewportPoints: viewportPoints.length,
-        densityReducedPoints: densityReducedPoints.length,
-        finalPoints: finalPoints.length,
-        processingTimeMs: processingTime,
-      }
-    );
+    // Only log processing details when there's significant work or performance issues
+    if (points.length > 100 || processingTime > 10) {
+      logger.debug(
+        `OptimizedFogOverlay: processed ${points.length} → ${viewportPoints.length} → ${densityReducedPoints.length} → ${finalPoints.length} points in ${processingTime.toFixed(2)}ms`,
+        {
+          component: 'OptimizedFogOverlay',
+          originalPoints: points.length,
+          viewportPoints: viewportPoints.length,
+          densityReducedPoints: densityReducedPoints.length,
+          finalPoints: finalPoints.length,
+          processingTimeMs: processingTime,
+        }
+      );
+    }
 
     return { finalPoints, pixelCoordinates };
   }, [points, mapRegion]);

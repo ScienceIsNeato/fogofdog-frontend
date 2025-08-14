@@ -113,6 +113,30 @@ npm run android
 
 ## 🛠️ Development Workflow
 
+### 🚀 Metro Development Server
+
+**Always use the refresh-metro script to start Metro:**
+
+```bash
+# Start Metro with persistent logging
+./scripts/refresh-metro.sh
+
+# Monitor logs in real-time (run in separate terminal)
+./scripts/monitor-metro-logs.sh
+```
+
+**Benefits:**
+- 📁 Persistent logs saved to timestamped files in `/tmp/`
+- 📍 Current log tracker at `/tmp/METRO_CURRENT_LOG_FILENAME.txt`
+- 🔄 Programmatic app reload to connect to Metro
+- 🔒 Never lose logs when terminals close
+- 📡 Can monitor from any directory
+
+**Workflow:**
+1. Run `./scripts/refresh-metro.sh` (kills old Metro, starts new one, reloads app)
+2. Run `./scripts/monitor-metro-logs.sh` in another terminal to watch logs
+3. Develop with real-time log visibility
+
 ### 🧪 Testing
 
 #### Unit & Integration Tests (Jest)

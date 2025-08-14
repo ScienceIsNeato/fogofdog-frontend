@@ -1,27 +1,17 @@
 import React from 'react';
 import { render } from '@testing-library/react-native';
 import { Provider } from 'react-redux';
-import { createMockStoreWithUser, testUsers } from './shared-mocks';
+import {
+  createMockStoreWithUser,
+  testUsers,
+  mockNavigation,
+  createMockRoute,
+} from './shared-mocks';
 
 // Common mock props for MapScreen components
 export const mockMapProps = {
-  navigation: {
-    navigate: jest.fn(),
-    goBack: jest.fn(),
-    canGoBack: jest.fn(),
-    dispatch: jest.fn(),
-    isFocused: jest.fn(() => true),
-    addListener: jest.fn(),
-    removeListener: jest.fn(),
-    reset: jest.fn(),
-    setParams: jest.fn(),
-    setOptions: jest.fn(),
-  },
-  route: {
-    key: 'MapScreen',
-    name: 'Map' as const,
-    params: undefined,
-  },
+  navigation: mockNavigation,
+  route: createMockRoute('Map'),
 };
 
 // Mock location data

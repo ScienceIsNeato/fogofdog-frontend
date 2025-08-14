@@ -1,6 +1,6 @@
 export type RootStackParamList = {
   Auth: undefined;
-  Main: undefined;
+  Main: { isFirstTimeUser?: boolean }; // Add first-time user status
 };
 
 export type AuthStackParamList = {
@@ -9,7 +9,7 @@ export type AuthStackParamList = {
 };
 
 export type MainStackParamList = {
-  Map: undefined;
+  Map: { isFirstTimeUser?: boolean }; // Pass through first-time user status
   Profile: undefined;
 };
 

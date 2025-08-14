@@ -36,6 +36,7 @@ module.exports = {
   requestBackgroundPermissionsAsync: jest.fn().mockResolvedValue(createCompletePermissionResponse('granted')),
   getBackgroundPermissionsAsync: jest.fn().mockResolvedValue(createCompletePermissionResponse('granted')),
   requestForegroundPermissionsAsync: jest.fn().mockResolvedValue(createCompletePermissionResponse('granted')),
+  getForegroundPermissionsAsync: jest.fn().mockResolvedValue(createCompletePermissionResponse('granted')),
   getCurrentPositionAsync: jest.fn().mockResolvedValue({
     coords: { latitude: 40.7128, longitude: -74.006 },
   }),

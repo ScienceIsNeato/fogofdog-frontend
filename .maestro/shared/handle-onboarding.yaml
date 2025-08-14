@@ -1,0 +1,60 @@
+appId: com.fogofdog.app
+---
+# Handle Onboarding Flow
+# This shared flow handles the onboarding/tutorial screens that may appear
+# after our refactoring. It can be included in any test that needs to skip onboarding.
+
+# Check if onboarding overlay is present and skip it
+- runFlow:
+    when:
+      visible:
+        id: "onboarding-overlay"
+    commands:
+      # If onboarding is present, skip it by tapping the skip button
+      - runFlow:
+          when:
+            visible:
+              text: "Skip"
+          commands:
+            - tapOn:
+                text: "Skip"
+      
+      # Alternative: Look for skip button by text pattern
+      - runFlow:
+          when:
+            visible:
+              text: "Skip Tutorial"
+          commands:
+            - tapOn:
+                text: "Skip Tutorial"
+      
+      # Wait for onboarding to dismiss
+      - waitForAnimationToEnd:
+          timeout: 1000
+
+# Additional check for any welcome/tutorial screens that might appear
+- runFlow:
+    when:
+      visible: "Welcome"
+    commands:
+      - runFlow:
+          when:
+            visible: "Skip"
+          commands:
+            - tapOn: "Skip"
+      - runFlow:
+          when:
+            visible: "Get Started"
+          commands:
+            - tapOn: "Get Started"
+      - waitForAnimationToEnd:
+          timeout: 1000
+
+# Check for tutorial completion button
+- runFlow:
+    when:
+      visible: "Complete"
+    commands:
+      - tapOn: "Complete"
+      - waitForAnimationToEnd:
+          timeout: 1000

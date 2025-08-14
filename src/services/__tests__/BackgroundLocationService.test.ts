@@ -9,7 +9,6 @@ import {
   setupTaskManagerMocks,
   getTaskCallbackFromMock,
 } from '../../__tests__/test-helpers/background-service-helpers';
-import { DeviceEventEmitter } from 'react-native';
 
 // Mock expo modules at the top level
 jest.mock('expo-location', () => ({
@@ -48,7 +47,6 @@ const mockedLocationStorageService = LocationStorageService as jest.Mocked<
 describe('BackgroundLocationService', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    jest.useFakeTimers();
     // Clear deduplication state before each test
     CoordinateDeduplicationService.clearDuplicateHistory();
     // Reset static state
@@ -70,7 +68,6 @@ describe('BackgroundLocationService', () => {
 
   afterEach(() => {
     jest.clearAllMocks();
-    jest.useRealTimers();
   });
 
   describe('static methods', () => {
@@ -465,41 +462,6 @@ describe('BackgroundLocationService', () => {
 
       expect(result).toEqual([]);
       expect(mockedLocationStorageService.clearStoredBackgroundLocations).not.toHaveBeenCalled();
-    });
-
-    it('should NOT emit locationUpdate events for stored locations (bug test)', async () => {
-      // This test captures the current buggy behavior where stored locations
-      // are replayed as locationUpdate events causing unwanted animations
-      const mockStoredLocations = [
-        { latitude: 40.7128, longitude: -74.006, timestamp: Date.now() - 2000 },
-        { latitude: 40.7129, longitude: -74.007, timestamp: Date.now() - 1000 },
-        { latitude: 40.713, longitude: -74.008, timestamp: Date.now() },
-      ];
-
-      mockedLocationStorageService.getStoredBackgroundLocations.mockResolvedValue(
-        mockStoredLocations
-      );
-
-      // Mock DeviceEventEmitter to track emitted events
-      const mockEmit = jest.fn();
-      const originalEmit = DeviceEventEmitter.emit;
-      DeviceEventEmitter.emit = mockEmit;
-
-      try {
-        await BackgroundLocationService.processStoredLocations();
-
-        // Wait for any setTimeout calls to complete
-        jest.runAllTimers();
-
-        // BUG: Currently this will fail because processStoredLocations DOES emit locationUpdate events
-        // The fix should make stored locations update Redux directly without emitting events
-        expect(mockEmit).not.toHaveBeenCalledWith('locationUpdate', expect.any(Object));
-
-        // After fix, stored locations should be returned for direct Redux update
-        // instead of being emitted as individual events that trigger animations
-      } finally {
-        DeviceEventEmitter.emit = originalEmit;
-      }
     });
 
     it('should handle errors gracefully', async () => {

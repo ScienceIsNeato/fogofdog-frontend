@@ -2,6 +2,18 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { User } from '../types/user';
 import { logger } from '../utils/logger';
 
+// FUTURE: Reactivate for user accounts - AuthPersistenceService
+// This service is preserved for future user account functionality
+// Currently used only for exploration state persistence
+// When user accounts are needed, this service provides:
+// - Secure auth state persistence with expiration
+// - Automatic cleanup of expired sessions
+// - Support for "keep logged in" functionality
+// - Integration with exploration state for user-specific data
+//
+// Current usage: Only getExplorationState/saveExplorationState methods are active
+// Future usage: All auth methods (saveAuthState, getAuthState, shouldAutoLogin) ready for activation
+
 export interface PersistedAuthState {
   user: User;
   expiresAt: number;

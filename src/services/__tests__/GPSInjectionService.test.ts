@@ -104,10 +104,11 @@ describe('GPSInjectionService', () => {
         .spyOn(GPSInjectionService, 'checkAndProcessInjectedGPS')
         .mockImplementation(() => Promise.resolve([]));
 
+      // eslint-disable-next-line @typescript-eslint/no-deprecated
       const cleanup = GPSInjectionService.startPeriodicCheck(1000);
 
-      expect(mockLogger.info).toHaveBeenCalledWith(
-        'Started periodic GPS injection check',
+      expect(mockLogger.warn).toHaveBeenCalledWith(
+        'startPeriodicCheck is deprecated - use event-driven checkForInjectionOnce()',
         expect.objectContaining({
           component: 'GPSInjectionService',
           action: 'startPeriodicCheck',
@@ -122,7 +123,7 @@ describe('GPSInjectionService', () => {
       // Test cleanup
       cleanup();
       expect(mockLogger.info).toHaveBeenCalledWith(
-        'Stopped periodic GPS injection check',
+        'Stopped deprecated periodic GPS injection check',
         expect.objectContaining({
           component: 'GPSInjectionService',
           action: 'startPeriodicCheck',
@@ -132,4 +133,21 @@ describe('GPSInjectionService', () => {
       spy.mockRestore();
     });
   });
+
+  describe('checkForInjectionOnce', () => {
+    it('should call checkAndProcessInjectedGPS and log action', async () => {
+      mockAsyncStorage.getItem.mockResolvedValue(null);
+
+      const result = await GPSInjectionService.checkForInjectionOnce();
+
+      expect(result).toEqual([]);
+      expect(mockLogger.info).toHaveBeenCalledWith(
+        'Checking for GPS injection data (one-time check)',
+        { component: 'GPSInjectionService', action: 'checkForInjectionOnce' }
+      );
+    });
+  });
+
+  // Note: File processing paths are complex to mock and test in isolation
+  // The main GPS injection functionality is covered by existing tests
 });

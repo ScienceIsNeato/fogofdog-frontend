@@ -152,11 +152,39 @@ if [[ "$RUN_LINT" == "true" ]]; then
     add_success "Lint Check" "Zero warnings in strict mode with auto-fix"
   else
     echo "❌ Lint Check: FAILED (strict mode - zero warnings allowed)"
+    echo ""
+    
+    # Show detailed lint warnings
+    echo "📋 Lint Warning Details:"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    
+    # Show the actual lint warnings (limit to avoid overwhelming output)
+    if [[ -n "$LINT_OUTPUT" ]]; then
+      # Filter out npm script output and show actual ESLint warnings
+      FILTERED_OUTPUT=$(echo "$LINT_OUTPUT" | grep -A 1000 "eslint" | grep -v "npm run lint:strict")
+      if [[ -n "$FILTERED_OUTPUT" ]]; then
+        echo "$FILTERED_OUTPUT" | head -30 | sed 's/^/  /'
+        
+        # Check if there are more warnings
+        TOTAL_LINES=$(echo "$FILTERED_OUTPUT" | wc -l)
+        if [[ $TOTAL_LINES -gt 30 ]]; then
+          echo "  ... and $(($TOTAL_LINES - 30)) more lines"
+          echo "  Run 'npm run lint' to see all warnings"
+        fi
+      else
+        echo "$LINT_OUTPUT" | head -15 | sed 's/^/  /'
+      fi
+    else
+      echo "  Unable to extract lint warning details"
+    fi
+    
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo ""
     echo "💡 Some issues may require manual fixing"
     
     # Extract warning count from output
     WARNING_COUNT=$(echo "$LINT_OUTPUT" | grep -o '[0-9]\+ warning' | head -1 | grep -o '[0-9]\+' || echo "unknown")
-    add_failure "Lint Check" "$WARNING_COUNT warnings found in strict mode" "Run 'npm run lint' to see details and fix manually"
+    add_failure "Lint Check" "$WARNING_COUNT warnings found in strict mode" "See detailed output above and run 'npm run lint' for full details"
   fi
   echo ""
 fi
@@ -173,33 +201,106 @@ if [[ "$RUN_TYPES" == "true" ]]; then
     add_success "Type Check" "TypeScript compilation successful in strict mode"
   else
     echo "❌ Type Check: FAILED (strict TypeScript compilation)"
+    echo ""
     
-    # Extract error count from output
+    # Show detailed TypeScript errors
+    echo "📋 TypeScript Error Details:"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    
+    # Show the actual TypeScript errors (limit to first 20 lines to avoid overwhelming output)
+    if [[ -n "$TYPE_OUTPUT" ]]; then
+      echo "$TYPE_OUTPUT" | head -20 | sed 's/^/  /'
+      
+      # Check if there are more errors
+      TOTAL_LINES=$(echo "$TYPE_OUTPUT" | wc -l)
+      if [[ $TOTAL_LINES -gt 20 ]]; then
+        echo "  ... and $(($TOTAL_LINES - 20)) more lines"
+        echo "  Run 'npm run type-check' to see all errors"
+      fi
+    else
+      echo "  Unable to extract TypeScript error details"
+    fi
+    
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo ""
+    
+    # Extract error count from output for summary
     ERROR_COUNT=$(echo "$TYPE_OUTPUT" | grep -o '[0-9]\+ error' | head -1 | grep -o '[0-9]\+' || echo "unknown")
-    add_failure "Type Check" "$ERROR_COUNT TypeScript errors found" "Run 'npm run type-check' to see details and fix type errors"
+    add_failure "Type Check" "$ERROR_COUNT TypeScript errors found" "See detailed output above and run 'npm run type-check' for full details"
   fi
   echo ""
 fi
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# TEST COVERAGE (STRICT THRESHOLDS)
+# TEST SUITE & COVERAGE
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 if [[ "$RUN_TESTS" == "true" ]]; then
-  echo "🧪 Test Coverage (STRICT THRESHOLDS)"
-  TEST_OUTPUT=$(npm run test:coverage 2>&1) || TEST_FAILED=true
+  echo "🧪 Test Suite & Coverage"
   
-  if [[ "$TEST_FAILED" != "true" ]]; then
-    echo "✅ Test Coverage: PASSED (strict coverage thresholds)"
+  # First run tests without coverage to check for failures
+  echo "  🔍 Running test suite..."
+  TEST_ONLY_OUTPUT=$(npm test 2>&1) || TEST_ONLY_FAILED=true
+  
+  if [[ "$TEST_ONLY_FAILED" == "true" ]]; then
+    echo "❌ Tests: FAILED"
+    echo ""
     
-    # Extract coverage percentage
-    COVERAGE=$(echo "$TEST_OUTPUT" | grep -o '[0-9]\+\.[0-9]\+%' | head -1 || echo "unknown")
-    add_success "Test Coverage" "Coverage at $COVERAGE (above 80% threshold)"
+    # Show detailed test output with failures
+    echo "📋 Test Failure Details:"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    
+    # Extract and show failing test suites
+    FAILING_SUITES=$(echo "$TEST_ONLY_OUTPUT" | grep "FAIL " | head -5)
+    if [[ -n "$FAILING_SUITES" ]]; then
+      echo "🔴 Failing Test Suites:"
+      echo "$FAILING_SUITES" | sed 's/^/  /'
+      echo ""
+    fi
+    
+    # Extract and show specific failing tests with error messages
+    echo "🔴 Test Failures:"
+    # Get the summary section which has the actual error details
+    SUMMARY_SECTION=$(echo "$TEST_ONLY_OUTPUT" | sed -n '/Summary of all failing tests/,$p' | head -50)
+    if [[ -n "$SUMMARY_SECTION" ]]; then
+      echo "$SUMMARY_SECTION" | sed 's/^/  /'
+    else
+      # Fallback: show failing test names
+      FAILING_TESTS=$(echo "$TEST_ONLY_OUTPUT" | grep "● " | head -10)
+      if [[ -n "$FAILING_TESTS" ]]; then
+        echo "$FAILING_TESTS" | sed 's/^/  /'
+      else
+        echo "  Unable to extract specific test failures - run 'npm test' for details"
+      fi
+    fi
+    
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo ""
+    
+    # Extract summary stats for the failure record
+    FAILED_TESTS=$(echo "$TEST_ONLY_OUTPUT" | grep -o '[0-9]\+ failed' | head -1 || echo "unknown")
+    add_failure "Tests" "Test failures: $FAILED_TESTS" "See detailed output above and run 'npm test' for full details"
   else
-    echo "❌ Test Coverage: FAILED (strict coverage thresholds)"
+    echo "✅ Tests: PASSED"
     
-    # Extract coverage info
-    COVERAGE=$(echo "$TEST_OUTPUT" | grep -o '[0-9]\+\.[0-9]\+%' | head -1 || echo "unknown")
-    add_failure "Test Coverage" "Coverage at $COVERAGE (below 80% threshold)" "Add tests to increase coverage or run 'npm run test:coverage' for details"
+    # Now run coverage analysis
+    echo "  📊 Running coverage analysis..."
+    COVERAGE_OUTPUT=$(npm run test:coverage 2>&1) || COVERAGE_FAILED=true
+    
+    if [[ "$COVERAGE_FAILED" != "true" ]]; then
+      COVERAGE=$(echo "$COVERAGE_OUTPUT" | grep -o '[0-9]\+\.[0-9]\+%' | head -1 || echo "unknown")
+      echo "✅ Coverage: PASSED ($COVERAGE)"
+      add_success "Test Coverage" "Coverage at $COVERAGE (above 80% threshold)"
+    else
+      COVERAGE=$(echo "$COVERAGE_OUTPUT" | grep -o '[0-9]\+\.[0-9]\+%' | head -1 || echo "unknown")
+      echo "❌ Coverage: Analysis failed ($COVERAGE)"
+      
+      # Check if this might be a SonarQube new code coverage issue
+      if [[ "$COVERAGE" != "unknown" && $(echo "$COVERAGE" | grep -o '[0-9]\+' | head -1) -gt 80 ]]; then
+        add_failure "Test Coverage" "SonarQube analysis failed despite $COVERAGE overall coverage" "Likely new code lacks test coverage - add tests for recently added/modified functions and run again"
+      else
+        add_failure "Test Coverage" "Coverage analysis failed at $COVERAGE" "May indicate new code lacking coverage - add tests for recent changes"
+      fi
+    fi
   fi
   echo ""
 fi
@@ -294,7 +395,7 @@ if [ ${#FAILED_CHECKS_DETAILS[@]} -gt 0 ]; then
   for check in "${FAILED_CHECKS_DETAILS[@]}"; do
     IFS='|' read -r name reason fix <<< "$check"
     echo "   • $name"
-    echo "     Reason: $reason"
+    echo -e "     Reason: $reason"
     echo "     Fix: $fix"
     echo ""
   done
