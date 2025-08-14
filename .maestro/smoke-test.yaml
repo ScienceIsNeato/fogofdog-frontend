@@ -20,6 +20,10 @@ appId: com.fogofdog.app
 - waitForAnimationToEnd:
     timeout: 1000
 
+# Handle onboarding/tutorial if it appears
+- runFlow:
+    file: shared/handle-onboarding.yaml
+
 # Verify login screen
 - assertVisible: 
     text: "Sign In"

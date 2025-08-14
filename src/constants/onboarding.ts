@@ -11,31 +11,30 @@ export interface OnboardingStep {
 export const ONBOARDING_STEPS: OnboardingStep[] = [
   {
     id: 1,
-    title: 'Welcome to the Fog!',
+    title: 'Welcome!',
     description:
-      'Games like Warcraft and Age of Empires use an exploration mechanic called "Fog of War", where maps start out completely black and only come to life as you explore them. This game brings that concept out into the real world from the perspective of a dog.\n\nYou are a dog now.',
+      "This is a neighborhood exploration experience from the perspective of a fictional dog who just moved into your home. That's you.\n\nYou're a dog now.",
     icon: 'pets',
   },
   {
     id: 2,
     title: 'The world around you is shrouded in fog.',
     description:
-      "As you sniff around your 'hood, your mental map will start lighting up, and you'll remember places that you've been before.",
+      "As you sniff around your neighborhood, you'll develop a mental map, remembering places you've been before.",
     icon: 'pets', // Will be dog snoot - using pets as closest available
   },
   {
     id: 3,
     title: 'Location Button (Top Right)',
     description:
-      'Tap this button to center the map on your current position. Tap again to enter "follow mode" - it turns blue and keeps you centered as you move.',
+      'Tap this button to center the map on you. Tap again to enter "follow mode" — it turns blue and keeps you centered as you move.',
     icon: 'my-location',
     pointTo: 'location-button',
   },
   {
     id: 4,
     title: 'Settings Button (Top Left)',
-    description:
-      'Access app settings, manage your exploration history, clear data, and configure developer options through this menu.',
+    description: 'Access app settings like location data management and developer settings.',
     icon: 'settings',
     pointTo: 'settings-button',
   },
@@ -49,9 +48,9 @@ export const ONBOARDING_STEPS: OnboardingStep[] = [
   },
   {
     id: 6,
-    title: "Let's Explore!",
+    title: 'Adventure Time!',
     description:
-      "You'll see some permission screens next - we need location access to track your adventures. Don't worry, your data stays private on your device!",
+      'Time to hit the pavement and start carving some fun out of the fog!\n\nFYI: Location permission request incoming — required since this is a real-world adventure app. GPS data is securely stored on your device and nowhere else.',
     icon: 'meeting-room',
   },
 ];

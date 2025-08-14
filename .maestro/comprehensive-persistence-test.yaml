@@ -20,6 +20,10 @@ jsEngine: graaljs
 - waitForAnimationToEnd:
     timeout: 1000
 
+# Handle onboarding/tutorial if it appears
+- runFlow:
+    file: shared/handle-onboarding.yaml
+
 # 1.2 Verify login screen and checkbox
 - assertVisible:
     text: "Sign In"
