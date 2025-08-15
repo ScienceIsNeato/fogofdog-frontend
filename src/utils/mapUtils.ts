@@ -82,9 +82,6 @@ export function geoPointToPixel(
     const effectiveHeight = height - safeAreaInsets.top - safeAreaInsets.bottom;
     // Scale factor compensates for the difference between reported and actual height
     verticalScaleFactor = effectiveHeight / height;
-  } else {
-    // No safe area insets provided - assume no safe area compensation needed
-    verticalScaleFactor = 1.0;
   }
 
   // Convert these fractions to pixel coordinates

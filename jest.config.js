@@ -59,7 +59,7 @@
   testTimeout: 30000,
   maxWorkers: process.env.CI ? 1 : '50%', // Single worker in CI to avoid resource issues
   watchman: false, // Disable watchman entirely
-  forceExit: process.env.CI ? true : false, // Force exit in CI to prevent hanging
-  verbose: process.env.CI ? true : false, // Verbose output in CI for debugging
-  bail: process.env.CI ? 1 : 0, // Stop on first failure in CI to get clearer logs
+  forceExit: !!process.env.CI, // Force exit in CI to prevent hanging
+  verbose: !!process.env.CI, // Verbose output in CI for debugging
+  bail: !!process.env.CI, // Stop on first failure in CI to get clearer logs
 };

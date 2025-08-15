@@ -60,7 +60,7 @@ jsEngine: graaljs
 ---
 - launchApp: { appId: com.fogofdog.app, clearState: true }
 - runFlow: { file: login-to-map-test.yaml }
-- assertVisible: { text: "You are here" }
+- assertVisible: { text: "Woof!" }
 
 # Background app (optional)
 - pressKey: Home
@@ -73,7 +73,7 @@ jsEngine: graaljs
 # Return to app
 - tapOn: { text: "FogOfDog" }
 - waitForAnimationToEnd: { timeout: 3000 }
-- assertVisible: { text: "You are here" }
+- assertVisible: { text: "Woof!" }
 ```
 
 ---

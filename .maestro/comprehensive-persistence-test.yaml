@@ -46,7 +46,7 @@ jsEngine: graaljs
 - assertVisible:
     id: map-screen
 - assertVisible:
-    text: "You are here"
+    text: "Woof!"
 
 # 1.5 Create some fog clearing pattern
 - setLocation:
@@ -111,7 +111,7 @@ jsEngine: graaljs
 - assertVisible:
     id: map-screen
 - assertVisible:
-    text: "You are here"
+    text: "Woof!"
 
 # 2.3 Create distinctive L-shaped fog clearing pattern
 - setLocation:
@@ -188,7 +188,7 @@ jsEngine: graaljs
 - assertVisible:
     id: map-screen
 - assertVisible:
-    text: "You are here"
+    text: "Woof!"
 - tapOn:
     id: location-button
 - waitForAnimationToEnd:
@@ -226,7 +226,7 @@ jsEngine: graaljs
 - assertVisible:
     id: map-screen
 - assertVisible:
-    text: "You are here"
+    text: "Woof!"
 
 # Test completion
 # SUCCESS CRITERIA:

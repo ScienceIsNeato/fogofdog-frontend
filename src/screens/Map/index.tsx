@@ -1001,11 +1001,52 @@ const MapLoadingState = ({
 );
 
 // Render component for the map view and overlays
+/**
+ * Calculate adjusted marker coordinate to align with safe area compensated fog overlay
+ * The fog overlay accounts for safe area insets, but MapView markers use raw coordinates
+ */
+const calculateAdjustedMarkerCoordinate = (
+  currentLocation: LocationCoordinate,
+  currentRegion: Region | undefined,
+  mapDimensions: { width: number; height: number },
+  safeAreaInsets?: { top: number; bottom: number; left: number; right: number }
+): { latitude: number; longitude: number } => {
+  // Return original coordinates if we don't have all required data
+  if (!currentRegion || !safeAreaInsets || mapDimensions.height <= 0) {
+    return {
+      latitude: currentLocation.latitude,
+      longitude: currentLocation.longitude,
+    };
+  }
+
+  // Calculate the vertical offset needed to align marker with fog overlay center
+  // Mathematical reasoning:
+  // 1. Safe area creates a visual offset of safeAreaTop/2 (pushes content down)
+  // 2. Both MapView and fog overlay are affected by safe area, but differently
+  // 3. The net misalignment is half the visual offset = (safeAreaTop/2)/2 = safeAreaTop/4
+  // 4. Therefore: markerAdjustment = (safeAreaTop - safeAreaBottom) / 4
+  const safeAreaVerticalOffset = (safeAreaInsets.top - safeAreaInsets.bottom) / 4;
+
+  // Convert the pixel offset to a latitude offset
+  // Positive offset means marker should move north (higher latitude)
+  // Use actual map dimensions height
+  const latitudePerPixel = currentRegion.latitudeDelta / mapDimensions.height;
+  const latitudeAdjustment = safeAreaVerticalOffset * latitudePerPixel;
+
+  return {
+    latitude: currentLocation.latitude + latitudeAdjustment,
+    longitude: currentLocation.longitude,
+  };
+};
+
 // Helper component for rendering the MapView with marker
 const MapViewWithMarker = ({
   mapRef,
   initialRegion,
   currentLocation,
+  currentRegion,
+  mapDimensions,
+  safeAreaInsets,
   onRegionChange,
   onPanDrag,
   onRegionChangeComplete,
@@ -1013,35 +1054,44 @@ const MapViewWithMarker = ({
   mapRef: React.RefObject<MapView>;
   initialRegion: any;
   currentLocation: LocationCoordinate;
+  currentRegion?: Region | undefined;
+  mapDimensions: { width: number; height: number };
+  safeAreaInsets?: { top: number; bottom: number; left: number; right: number };
   onRegionChange: (region: Region) => void;
   onPanDrag: () => void;
   onRegionChangeComplete: (region: Region) => void;
-}) => (
-  <MapView
-    ref={mapRef}
-    style={styles.map}
-    initialRegion={initialRegion}
-    onRegionChange={onRegionChange}
-    onPanDrag={onPanDrag}
-    onRegionChangeComplete={onRegionChangeComplete}
-    showsUserLocation={false}
-    showsMyLocationButton={false}
-    rotateEnabled={false}
-    pitchEnabled={false}
-  >
-    <Marker
-      key={`current-location-marker`}
-      coordinate={{
-        latitude: currentLocation.latitude,
-        longitude: currentLocation.longitude,
-      }}
-      title="You are here"
-      anchor={{ x: 0.5, y: 0.5 }}
+}) => {
+  const adjustedCoordinate = calculateAdjustedMarkerCoordinate(
+    currentLocation,
+    currentRegion,
+    mapDimensions,
+    safeAreaInsets
+  );
+
+  return (
+    <MapView
+      ref={mapRef}
+      style={styles.map}
+      initialRegion={initialRegion}
+      onRegionChange={onRegionChange}
+      onPanDrag={onPanDrag}
+      onRegionChangeComplete={onRegionChangeComplete}
+      showsUserLocation={false}
+      showsMyLocationButton={false}
+      rotateEnabled={false}
+      pitchEnabled={false}
     >
-      <View style={USER_MARKER_STYLE} />
-    </Marker>
-  </MapView>
-);
+      <Marker
+        key={`current-location-marker`}
+        coordinate={adjustedCoordinate}
+        title="Woof!"
+        anchor={{ x: 0.5, y: 0.5 }}
+      >
+        <View style={USER_MARKER_STYLE} />
+      </Marker>
+    </MapView>
+  );
+};
 
 const MapScreenRenderer = ({
   mapRef,
@@ -1091,6 +1141,12 @@ const MapScreenRenderer = ({
         mapRef={mapRef}
         initialRegion={initialRegion}
         currentLocation={currentLocation}
+        currentRegion={currentFogRegion}
+        mapDimensions={{
+          width: currentFogRegion?.width ?? 0,
+          height: currentFogRegion?.height ?? 0,
+        }}
+        safeAreaInsets={insets}
         onRegionChange={onRegionChange}
         onPanDrag={onPanDrag}
         onRegionChangeComplete={onRegionChangeComplete}
