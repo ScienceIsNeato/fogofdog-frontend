@@ -189,8 +189,7 @@ export class PermissionsOrchestrator {
           logger.info('Waiting for Condition 3: App state change indicating dialog completion');
 
           // Condition 3 will be handled by the app state listener
-          // Extended timeout as absolute last resort - user might take time to read and decide
-          setTimeout(() => this.handlePermissionTimeout(), 60000); // 60 second timeout - much more generous
+          // No timeout - user can take as long as they need to make permission decisions
         } catch (error) {
           logger.error('Permission flow error', { error });
           const result = {
@@ -304,22 +303,6 @@ export class PermissionsOrchestrator {
 
     // Permissions are not sufficient, need to run dialog flow
     return null;
-  }
-
-  /**
-   * Handle permission flow timeout
-   */
-  private static async handlePermissionTimeout(): Promise<void> {
-    if (this.currentResolver) {
-      logger.warn('Permission flow timeout after 60 seconds - resolving with current state', {
-        note: 'This should rarely happen - indicates user abandoned the dialog or iOS issue',
-      });
-      const result = await this.checkFinalPermissionState();
-      if (this.currentResolver) {
-        await this.saveStateAndResolve(result, this.currentResolver);
-        this.currentResolver = null;
-      }
-    }
   }
 
   /**
