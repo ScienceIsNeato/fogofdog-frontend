@@ -83,9 +83,8 @@ export function geoPointToPixel(
     // Scale factor compensates for the difference between reported and actual height
     verticalScaleFactor = effectiveHeight / height;
   } else {
-    // Legacy fallback: Use previously determined empirical value for backward compatibility
-    // This should rarely be used as safeAreaInsets should always be provided
-    verticalScaleFactor = 0.89;
+    // No safe area insets provided - assume no safe area compensation needed
+    verticalScaleFactor = 1.0;
   }
 
   // Convert these fractions to pixel coordinates
