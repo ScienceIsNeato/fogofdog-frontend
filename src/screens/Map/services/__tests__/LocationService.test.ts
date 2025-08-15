@@ -49,6 +49,13 @@ const mockDeviceEventEmitter = DeviceEventEmitter as jest.Mocked<typeof DeviceEv
 const mockPermissionAlert = PermissionAlert as jest.Mocked<typeof PermissionAlert>;
 const mockLogger = logger as jest.Mocked<typeof logger>;
 
+// Shared test data to avoid duplication
+const mockExecutionInfo = {
+  taskName: 'unified-location-task',
+  eventId: 'test-event',
+  appState: 'active' as const,
+};
+
 describe('LocationService', () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -64,9 +71,9 @@ describe('LocationService', () => {
       );
     });
 
-        it('should handle task execution with valid location data', async () => {
+    it('should handle task execution with valid location data', async () => {
       defineUnifiedLocationTask();
-      
+
       const taskCallback = mockTaskManager.defineTask.mock.calls[0]?.[1];
       const mockLocationData = {
         data: {
@@ -80,7 +87,7 @@ describe('LocationService', () => {
           ],
         },
         error: null,
-        executionInfo: { taskName: 'unified-location-task', eventId: 'test-event', appState: 'active' as const },
+        executionInfo: mockExecutionInfo,
       };
 
       await taskCallback?.(mockLocationData);
@@ -91,16 +98,16 @@ describe('LocationService', () => {
       });
     });
 
-        it('should handle task execution with error', async () => {
+    it('should handle task execution with error', async () => {
       defineUnifiedLocationTask();
-      
+
       const taskCallback = mockTaskManager.defineTask.mock.calls[0]?.[1];
       const mockError = { message: 'Location error', code: 'LOCATION_ERROR' };
 
-      await taskCallback?.({ 
-        error: mockError, 
-        data: null, 
-        executionInfo: { taskName: 'unified-location-task', eventId: 'test-event', appState: 'active' as const } 
+      await taskCallback?.({
+        error: mockError,
+        data: null,
+        executionInfo: mockExecutionInfo,
       });
 
       expect(mockLogger.warn).toHaveBeenCalledWith('Location task error', {
@@ -109,15 +116,15 @@ describe('LocationService', () => {
       });
     });
 
-        it('should handle task execution with no location data', async () => {
+    it('should handle task execution with no location data', async () => {
       defineUnifiedLocationTask();
-      
+
       const taskCallback = mockTaskManager.defineTask.mock.calls[0]?.[1];
 
-      await taskCallback?.({ 
-        data: { locations: [] }, 
-        error: null, 
-        executionInfo: { taskName: 'unified-location-task', eventId: 'test-event', appState: 'active' as const } 
+      await taskCallback?.({
+        data: { locations: [] },
+        error: null,
+        executionInfo: mockExecutionInfo,
       });
 
       expect(mockDeviceEventEmitter.emit).not.toHaveBeenCalled();
