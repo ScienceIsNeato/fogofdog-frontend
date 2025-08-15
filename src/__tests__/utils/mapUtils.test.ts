@@ -29,13 +29,13 @@ describe('mapUtils', () => {
         height: 500,
       };
 
-      // North edge (with 0.89 scaling factor applied to Y coordinates)
+      // North edge (with legacy fallback scaling factor applied to Y coordinates)
       const northPoint = { latitude: 40.05, longitude: -74, timestamp: Date.now() };
       const northResult = geoPointToPixel(northPoint, region);
       expect(northResult.x).toBeCloseTo(200, 0);
       expect(northResult.y).toBeCloseTo(27.5, 0); // 250 - (250 * 0.89) = 27.5
 
-      // South edge (with 0.89 scaling factor applied to Y coordinates)
+      // South edge (with legacy fallback scaling factor applied to Y coordinates)
       const southPoint = { latitude: 39.95, longitude: -74, timestamp: Date.now() };
       const southResult = geoPointToPixel(southPoint, region);
       expect(southResult.x).toBeCloseTo(200, 0);
@@ -69,7 +69,7 @@ describe('mapUtils', () => {
       const westResult = geoPointToPixel(westPoint, region);
       expect(westResult.x).toBeCloseTo(100, 0); // Based on current implementation
 
-      // Testing a point south of center (with 0.89 scaling factor applied to Y coordinates)
+      // Testing a point south of center (with legacy fallback scaling factor applied to Y coordinates)
       const southPoint = { latitude: 51.495, longitude: -0.12, timestamp: Date.now() };
       const southResult = geoPointToPixel(southPoint, region);
       expect(southResult.y).toBeCloseTo(289, 0); // 200 + (100 * 0.89) = 289

@@ -69,7 +69,7 @@ describe('mapUtils - Safe Area Scaling', () => {
 
       const result = geoPointToPixel(northPoint, mockRegion); // No safe area insets
 
-      // Should use 0.89 fallback factor
+      // Should use legacy fallback factor when safe area insets not provided
       const expectedY = mockRegion.height / 2 + -0.25 * mockRegion.height * 0.89;
       expect(result.y).toBeCloseTo(expectedY, 2);
     });
