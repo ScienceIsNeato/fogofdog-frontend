@@ -112,7 +112,7 @@ export class PermissionsOrchestrator {
    * persistence, validation, and iOS dialog coordination. Breaking it down would lose
    * the critical flow control needed for proper permission handling.
    */
-  // eslint-disable-next-line max-lines-per-function
+
   static async requestPermissions(): Promise<PermissionResult> {
     await this.initialize();
 
@@ -190,22 +190,7 @@ export class PermissionsOrchestrator {
 
           // Condition 3 will be handled by the app state listener
           // Extended timeout as absolute last resort - user might take time to read and decide
-          setTimeout(() => {
-            if (this.currentResolver) {
-              logger.warn(
-                'Permission flow timeout after 60 seconds - resolving with current state',
-                {
-                  note: 'This should rarely happen - indicates user abandoned the dialog or iOS issue',
-                }
-              );
-              this.checkFinalPermissionState().then(async (result) => {
-                if (this.currentResolver) {
-                  await this.saveStateAndResolve(result, this.currentResolver);
-                  this.currentResolver = null;
-                }
-              });
-            }
-          }, 60000); // 60 second timeout - much more generous
+          setTimeout(() => this.handlePermissionTimeout(), 60000); // 60 second timeout - much more generous
         } catch (error) {
           logger.error('Permission flow error', { error });
           const result = {
@@ -319,6 +304,22 @@ export class PermissionsOrchestrator {
 
     // Permissions are not sufficient, need to run dialog flow
     return null;
+  }
+
+  /**
+   * Handle permission flow timeout
+   */
+  private static async handlePermissionTimeout(): Promise<void> {
+    if (this.currentResolver) {
+      logger.warn('Permission flow timeout after 60 seconds - resolving with current state', {
+        note: 'This should rarely happen - indicates user abandoned the dialog or iOS issue',
+      });
+      const result = await this.checkFinalPermissionState();
+      if (this.currentResolver) {
+        await this.saveStateAndResolve(result, this.currentResolver);
+        this.currentResolver = null;
+      }
+    }
   }
 
   /**

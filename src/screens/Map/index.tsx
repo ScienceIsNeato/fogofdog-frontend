@@ -44,7 +44,7 @@ import { DataClearingService } from '../../services/DataClearingService';
 
 import { DataStats, ClearType } from '../../types/dataClear';
 import { GeoPoint } from '../../types/user';
-import { useOnboardingContext } from '../../navigation';
+import { useOnboardingContext } from '../../contexts/OnboardingContext';
 // Performance optimizations available via OptimizedFogOverlay component
 
 // Unified location task name
@@ -114,7 +114,10 @@ const handleLocationUpdate = ({
 function defineUnifiedLocationTask() {
   TaskManager.defineTask(LOCATION_TASK, async ({ data, error }) => {
     if (error) {
-      logger.warn('Location task error', { error: error?.message || String(error) });
+      logger.warn('Location task error', {
+        errorMessage: error?.message || 'Unknown error',
+        errorType: typeof error,
+      });
       return Promise.resolve();
     }
     if (data) {
@@ -190,6 +193,44 @@ async function startForegroundLocationUpdates(): Promise<void> {
   });
 }
 
+// Helper: Handle permission error for foreground-only mode
+function handleForegroundPermissionError() {
+  logger.info(
+    'Location service failed due to background permission limitation - this is expected with foreground-only permission',
+    {
+      component: 'MapScreen',
+      action: 'startLocationUpdates',
+      note: 'User chose "Keep Only While Using" - app should work in foreground-only mode',
+    }
+  );
+  // Don't show error dialog - this is a valid user choice
+  // Don't throw error either - app should continue working in foreground-only mode
+}
+
+// Helper: Handle permission error for background mode
+function handleBackgroundPermissionError(error: Error) {
+  // We have background permission but still getting permission error - this is a real problem
+  PermissionAlert.show({
+    errorMessage:
+      'Unable to start location tracking. Please check your location permissions and try again.',
+    onDismiss: () => {
+      logger.info('Location update error alert dismissed');
+    },
+  });
+  throw error; // This is a real error, so throw it
+}
+
+// Helper: Handle non-permission location errors
+function handleNonPermissionError(error: Error) {
+  logger.info('Location tracking error (non-permission related) - not showing alert', {
+    component: 'MapScreen',
+    action: 'handleLocationUpdate',
+    errorType: 'non_permission',
+    errorMessage: error instanceof Error ? error.message : String(error),
+  });
+  throw error; // Non-permission errors should still be thrown
+}
+
 // Helper: startLocationUpdates - now uses extracted functions
 async function startLocationUpdates(backgroundGranted: boolean = false) {
   try {
@@ -207,42 +248,14 @@ async function startLocationUpdates(backgroundGranted: boolean = false) {
       error: error instanceof Error ? error.message : String(error),
     });
 
-    // Only show permission alert if it's actually a permission issue AND we don't have any permissions
-    // If backgroundGranted is false but we have foreground permission, that's a valid user choice
     if (error instanceof Error && error.message.toLowerCase().includes('permission')) {
-      // If we have foreground permission but not background, this is a user choice, not an error
-      if (!backgroundGranted) {
-        logger.info(
-          'Location service failed due to background permission limitation - this is expected with foreground-only permission',
-          {
-            component: 'MapScreen',
-            action: 'startLocationUpdates',
-            backgroundGranted,
-            note: 'User chose "Keep Only While Using" - app should work in foreground-only mode',
-          }
-        );
-        // Don't show error dialog - this is a valid user choice
-        // Don't throw error either - app should continue working in foreground-only mode
-        return;
+      if (backgroundGranted) {
+        handleBackgroundPermissionError(error);
       } else {
-        // We have background permission but still getting permission error - this is a real problem
-        PermissionAlert.show({
-          errorMessage:
-            'Unable to start location tracking. Please check your location permissions and try again.',
-          onDismiss: () => {
-            logger.info('Location update error alert dismissed');
-          },
-        });
-        throw error; // This is a real error, so throw it
+        handleForegroundPermissionError();
       }
     } else {
-      logger.info('Location tracking error (non-permission related) - not showing alert', {
-        component: 'MapScreen',
-        action: 'handleLocationUpdate',
-        errorType: 'non_permission',
-        errorMessage: error instanceof Error ? error.message : String(error),
-      });
-      throw error; // Non-permission errors should still be thrown
+      handleNonPermissionError(error as Error);
     }
   }
 }
@@ -988,6 +1001,48 @@ const MapLoadingState = ({
 );
 
 // Render component for the map view and overlays
+// Helper component for rendering the MapView with marker
+const MapViewWithMarker = ({
+  mapRef,
+  initialRegion,
+  currentLocation,
+  onRegionChange,
+  onPanDrag,
+  onRegionChangeComplete,
+}: {
+  mapRef: React.RefObject<MapView>;
+  initialRegion: any;
+  currentLocation: LocationCoordinate;
+  onRegionChange: (region: Region) => void;
+  onPanDrag: () => void;
+  onRegionChangeComplete: (region: Region) => void;
+}) => (
+  <MapView
+    ref={mapRef}
+    style={styles.map}
+    initialRegion={initialRegion}
+    onRegionChange={onRegionChange}
+    onPanDrag={onPanDrag}
+    onRegionChangeComplete={onRegionChangeComplete}
+    showsUserLocation={false}
+    showsMyLocationButton={false}
+    rotateEnabled={false}
+    pitchEnabled={false}
+  >
+    <Marker
+      key={`current-location-marker`}
+      coordinate={{
+        latitude: currentLocation.latitude,
+        longitude: currentLocation.longitude,
+      }}
+      title="You are here"
+      anchor={{ x: 0.5, y: 0.5 }}
+    >
+      <View style={USER_MARKER_STYLE} />
+    </Marker>
+  </MapView>
+);
+
 const MapScreenRenderer = ({
   mapRef,
   currentLocation,
@@ -1032,35 +1087,19 @@ const MapScreenRenderer = ({
         setMapDimensions({ width, height });
       }}
     >
-      <MapView
-        ref={mapRef}
-        style={styles.map}
+      <MapViewWithMarker
+        mapRef={mapRef}
         initialRegion={initialRegion}
+        currentLocation={currentLocation}
         onRegionChange={onRegionChange}
         onPanDrag={onPanDrag}
         onRegionChangeComplete={onRegionChangeComplete}
-        showsUserLocation={false}
-        showsMyLocationButton={false}
-        rotateEnabled={false}
-        pitchEnabled={false}
-      >
-        {currentLocation && (
-          <Marker
-            key={`marker-${currentLocation.latitude}-${currentLocation.longitude}-${Date.now()}`}
-            coordinate={{
-              latitude: currentLocation.latitude,
-              longitude: currentLocation.longitude,
-            }}
-            title="You are here"
-            anchor={{ x: 0.5, y: 0.5 }}
-          >
-            <View style={USER_MARKER_STYLE} />
-          </Marker>
-        )}
-      </MapView>
+      />
 
       {/* Use OptimizedFogOverlay for better performance with many GPS points */}
-      {currentFogRegion && <OptimizedFogOverlay mapRegion={currentFogRegion} />}
+      {currentFogRegion && (
+        <OptimizedFogOverlay mapRegion={currentFogRegion} safeAreaInsets={insets} />
+      )}
 
       <LocationButton
         onPress={centerOnUserLocation}
@@ -1675,6 +1714,17 @@ const useMapScreenOnboarding = () => {
   // Location services should only start when both conditions are met
   const canStartLocationServices = hasCompletedOnboarding && !showOnboarding;
 
+  // Debug logging for location service state
+  useEffect(() => {
+    logger.debug('canStartLocationServices state change', {
+      component: 'MapScreen',
+      action: 'canStartLocationServices',
+      hasCompletedOnboarding,
+      showOnboarding,
+      canStartLocationServices,
+    });
+  }, [hasCompletedOnboarding, showOnboarding, canStartLocationServices]);
+
   // Only log onboarding state changes, not every render
   // (Removed excessive debug logging that was flooding console)
 
@@ -1757,6 +1807,26 @@ const useMapScreenServicesAndHandlers = (config: MapScreenServicesHandlersConfig
     reduxState.explorationState
   );
   const navigation = useMapScreenNavigation(dataClearing.setIsSettingsModalVisible);
+
+  // Debug logging for location service state
+  useEffect(() => {
+    logger.debug('useMapScreenServicesAndHandlers - allowLocationRequests state', {
+      component: 'useMapScreenServicesAndHandlers',
+      action: 'allowLocationRequests',
+      canStartLocationServices: onboarding.canStartLocationServices,
+      permissionsVerified,
+      backgroundGranted,
+      showOnboarding: onboarding.showOnboarding,
+      hasCompletedOnboarding: onboarding.hasCompletedOnboarding,
+      timestamp: Date.now(),
+    });
+  }, [
+    onboarding.canStartLocationServices,
+    permissionsVerified,
+    backgroundGranted,
+    onboarding.showOnboarding,
+    onboarding.hasCompletedOnboarding,
+  ]);
 
   useMapScreenServices({
     dispatch: mapState.dispatch,

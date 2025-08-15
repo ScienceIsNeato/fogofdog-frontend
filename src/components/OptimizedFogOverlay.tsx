@@ -13,6 +13,7 @@ import { GeoPoint } from '../types/user';
 
 interface OptimizedFogOverlayProps {
   mapRegion: MapRegion & { width: number; height: number };
+  safeAreaInsets?: { top: number; bottom: number; left: number; right: number };
 }
 
 // Performance constants
@@ -48,7 +49,8 @@ const cullPointsToViewport = (
 const reduceVisualDensity = (
   points: GeoPoint[],
   mapRegion: MapRegion & { width: number; height: number },
-  minDistancePixels: number
+  minDistancePixels: number,
+  safeAreaInsets?: { top: number; bottom: number; left: number; right: number }
 ): GeoPoint[] => {
   if (points.length === 0) return points;
 
@@ -56,13 +58,13 @@ const reduceVisualDensity = (
   if (!firstPoint) return points;
 
   const result: GeoPoint[] = [firstPoint]; // Always include first point
-  let lastPixel = geoPointToPixel(firstPoint, mapRegion);
+  let lastPixel = geoPointToPixel(firstPoint, mapRegion, safeAreaInsets);
 
   for (let i = 1; i < points.length; i++) {
     const currentPoint = points[i];
     if (!currentPoint) continue;
 
-    const currentPixel = geoPointToPixel(currentPoint, mapRegion);
+    const currentPixel = geoPointToPixel(currentPoint, mapRegion, safeAreaInsets);
     const distance = Math.sqrt(
       Math.pow(currentPixel.x - lastPixel.x, 2) + Math.pow(currentPixel.y - lastPixel.y, 2)
     );
@@ -79,7 +81,8 @@ const reduceVisualDensity = (
 // Memoized coordinate conversion with region change detection
 const useOptimizedCoordinates = (
   points: GeoPoint[],
-  mapRegion: MapRegion & { width: number; height: number }
+  mapRegion: MapRegion & { width: number; height: number },
+  safeAreaInsets?: { top: number; bottom: number; left: number; right: number }
 ) => {
   return useMemo(() => {
     const startTime = performance.now();
@@ -91,7 +94,8 @@ const useOptimizedCoordinates = (
     const densityReducedPoints = reduceVisualDensity(
       viewportPoints,
       mapRegion,
-      MIN_VISUAL_DISTANCE_PIXELS
+      MIN_VISUAL_DISTANCE_PIXELS,
+      safeAreaInsets
     );
 
     // Step 3: Limit total points for performance
@@ -100,7 +104,7 @@ const useOptimizedCoordinates = (
     // Step 4: Convert to pixel coordinates once
     const pixelCoordinates = finalPoints.map((point) => ({
       point,
-      pixel: geoPointToPixel(point, mapRegion),
+      pixel: geoPointToPixel(point, mapRegion, safeAreaInsets),
     }));
 
     const processingTime = performance.now() - startTime;
@@ -121,15 +125,22 @@ const useOptimizedCoordinates = (
     }
 
     return { finalPoints, pixelCoordinates };
-  }, [points, mapRegion]);
+  }, [points, mapRegion, safeAreaInsets]);
 };
 
 // Hook for calculating optimized fog rendering properties
-const useOptimizedFogCalculations = (mapRegion: MapRegion & { width: number; height: number }) => {
+const useOptimizedFogCalculations = (
+  mapRegion: MapRegion & { width: number; height: number },
+  safeAreaInsets?: { top: number; bottom: number; left: number; right: number }
+) => {
   const pathPoints = useSelector((state: RootState) => state.exploration.path);
 
   // Get optimized coordinates
-  const { finalPoints, pixelCoordinates } = useOptimizedCoordinates(pathPoints, mapRegion);
+  const { finalPoints, pixelCoordinates } = useOptimizedCoordinates(
+    pathPoints,
+    mapRegion,
+    safeAreaInsets
+  );
 
   // Compute the Skia path from optimized points
   const skiaPath = useMemo(() => {
@@ -248,9 +259,9 @@ const OptimizedFogMask: React.FC<{
 /**
  * OptimizedFogOverlay component with performance optimizations for many GPS points
  */
-const OptimizedFogOverlay: React.FC<OptimizedFogOverlayProps> = ({ mapRegion }) => {
+const OptimizedFogOverlay: React.FC<OptimizedFogOverlayProps> = ({ mapRegion, safeAreaInsets }) => {
   const { originalPointCount, finalPoints, pixelCoordinates, skiaPath, radiusPixels, strokeWidth } =
-    useOptimizedFogCalculations(mapRegion);
+    useOptimizedFogCalculations(mapRegion, safeAreaInsets);
 
   // Performance logging
   useEffect(() => {

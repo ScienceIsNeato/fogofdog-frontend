@@ -7,11 +7,13 @@ import { logger } from './logger';
  *
  * @param point - Geographic coordinate (latitude/longitude)
  * @param region - Current map region with dimensions
+ * @param safeAreaInsets - Optional safe area insets to calculate proper viewport scaling
  * @returns {x, y} pixel coordinates where the point should be drawn
  */
 export function geoPointToPixel(
   point: GeoPoint,
-  region: MapRegion & { width: number; height: number }
+  region: MapRegion & { width: number; height: number },
+  safeAreaInsets?: { top: number; bottom: number; left: number; right: number }
 ): { x: number; y: number } {
   const { latitude, longitude } = point;
   const {
@@ -60,9 +62,20 @@ export function geoPointToPixel(
   // For longitude: negative means west of center, positive means east of center
   const lonFraction = (longitude - centerLon) / longitudeDelta;
 
+  // Calculate viewport scaling factor to compensate for safe area insets
+  let verticalScaleFactor = 1.0;
+  if (safeAreaInsets) {
+    // The effective map viewport height is reduced by safe area insets
+    const effectiveHeight = height - safeAreaInsets.top - safeAreaInsets.bottom;
+    verticalScaleFactor = effectiveHeight / height;
+  } else {
+    // Fallback to empirically determined factor when safe area insets are not available
+    verticalScaleFactor = 0.89;
+  }
+
   // Convert these fractions to pixel coordinates
   // For y: positive latFraction (north) should decrease y (move up on screen)
-  const y = height / 2 + latFraction * height;
+  const y = height / 2 + latFraction * height * verticalScaleFactor;
   // For x: positive lonFraction (east) should increase x (move right on screen)
   const x = width / 2 + lonFraction * width;
 

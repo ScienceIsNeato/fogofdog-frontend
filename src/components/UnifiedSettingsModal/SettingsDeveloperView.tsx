@@ -69,7 +69,8 @@ const useFreshInstallToggle = (
                       'App data has been cleared. Reload the app to experience the fresh install flow including GPS permissions.',
                       [{ text: 'OK', style: 'default' }]
                     );
-                  } catch (_error) {
+                  } catch (error) {
+                    logger.error('Failed to enable fresh install mode', { error });
                     Alert.alert('Error', 'Failed to enable fresh install mode. Please try again.');
                   }
                 };
