@@ -5,13 +5,24 @@ import { logger } from './logger';
 /**
  * Converts a geographic point (lat/lon) to pixel coordinates relative to the map view
  *
+ * VERTICAL SLOP FIX: This function includes safe area compensation to prevent
+ * coordinate drift during map panning. The issue occurred because MapView reports
+ * the full screen dimensions, but the actual renderable area is smaller due to
+ * safe area insets (status bar, home indicator, etc.).
+ *
+ * The solution dynamically calculates a vertical scaling factor based on the
+ * ratio of effective viewport height to reported height, ensuring fog overlay
+ * coordinates remain accurate across all device configurations.
+ *
  * @param point - Geographic coordinate (latitude/longitude)
  * @param region - Current map region with dimensions
- * @returns {x, y} pixel coordinates where the point should be drawn
+ * @param safeAreaInsets - Optional safe area insets for accurate scaling (recommended)
+ * @returns {x, y} pixel coordinates where the point should be drawn with safe area compensation
  */
 export function geoPointToPixel(
   point: GeoPoint,
-  region: MapRegion & { width: number; height: number }
+  region: MapRegion & { width: number; height: number },
+  safeAreaInsets?: { top: number; bottom: number; left: number; right: number }
 ): { x: number; y: number } {
   const { latitude, longitude } = point;
   const {
@@ -60,9 +71,22 @@ export function geoPointToPixel(
   // For longitude: negative means west of center, positive means east of center
   const lonFraction = (longitude - centerLon) / longitudeDelta;
 
+  // Calculate viewport scaling factor to account for safe area insets
+  // Problem: MapView reports full screen height, but actual renderable area is smaller
+  // due to status bar, home indicator, etc. This causes "vertical slop" where fog
+  // overlay coordinates drift during map panning.
+  // Solution: Scale Y coordinates based on the ratio of effective vs full height
+  let verticalScaleFactor = 1.0;
+  if (safeAreaInsets) {
+    // Calculate the actual renderable height by subtracting safe area insets
+    const effectiveHeight = height - safeAreaInsets.top - safeAreaInsets.bottom;
+    // Scale factor compensates for the difference between reported and actual height
+    verticalScaleFactor = effectiveHeight / height;
+  }
+
   // Convert these fractions to pixel coordinates
   // For y: positive latFraction (north) should decrease y (move up on screen)
-  const y = height / 2 + latFraction * height;
+  const y = height / 2 + latFraction * height * verticalScaleFactor;
   // For x: positive lonFraction (east) should increase x (move right on screen)
   const x = width / 2 + lonFraction * width;
 

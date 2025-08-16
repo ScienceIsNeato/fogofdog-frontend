@@ -72,14 +72,11 @@ export class BackgroundLocationService {
           }
 
           // Log other errors as actual errors
-          logger.error('Background location task error', error, {
+          logger.error('Background location task error', {
             component: 'BackgroundLocationService',
             action: 'backgroundTask',
-          });
-          logger.error('Background location task error details', error, {
-            component: 'BackgroundLocationService',
-            action: 'backgroundTask',
-            errorDetails: error.message || String(error),
+            errorMessage: error?.message || 'Unknown error',
+            errorType: typeof error,
           });
           return;
         }

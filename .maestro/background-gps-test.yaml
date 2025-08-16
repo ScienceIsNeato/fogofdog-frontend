@@ -37,7 +37,7 @@ jsEngine: graaljs
 - runFlow:
     file: robust-login.yaml
 - assertVisible:
-    text: "You are here" # Point 1: Default login location visible
+    text: "Woof!" # Point 1: Default login location visible
 
 # 3. Move to Point 2 (1000m South) BEFORE backgrounding the app
 - setLocation:
@@ -50,7 +50,7 @@ jsEngine: graaljs
 - waitForAnimationToEnd:
     timeout: 500
 - assertVisible:
-    text: "You are here" # Point 2: 1000m South location confirmed
+    text: "Woof!" # Point 2: 1000m South location confirmed
 
 # 4. Background the app (simulates real-world background GPS scenario)
 - pressKey: Home
@@ -122,7 +122,7 @@ jsEngine: graaljs
 - waitForAnimationToEnd:
     timeout: 800  # Should respond quickly without waiting for coordinate replay
 - assertVisible:
-    text: "You are here" # Final background location should be immediately visible
+    text: "Woof!" # Final background location should be immediately visible
 
 # 8. Additional validation: Quick location changes should work immediately
 # This would fail if step-by-step animation was still happening
@@ -136,7 +136,7 @@ jsEngine: graaljs
 - waitForAnimationToEnd:
     timeout: 500
 - assertVisible:
-    text: "You are here" # Should respond immediately
+    text: "Woof!" # Should respond immediately
 
 # 9. Final validation sequence - Background path should have cleared fog immediately
 - waitForAnimationToEnd:
@@ -144,7 +144,7 @@ jsEngine: graaljs
 
 # Validate the map shows cleared areas from the 8-point background sequence
 - assertVisible:
-    text: "You are here"
+    text: "Woof!"
     
 # Validate that the fog system is working properly
 - assertVisible:
@@ -168,7 +168,7 @@ jsEngine: graaljs
 
 # This distant point should still be in fog since it wasn't part of our background sequence
 - assertVisible:
-    text: "You are here" # Location marker appears even in fog
+    text: "Woof!" # Location marker appears even in fog
 - assertVisible:
     id: "map-screen" # Map is still functional
 

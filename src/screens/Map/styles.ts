@@ -1,5 +1,19 @@
 import { StyleSheet } from 'react-native';
 
+// Common modal container styles to avoid duplication
+const modalContainerBase = {
+  backgroundColor: '#fff',
+  padding: 24,
+  borderRadius: 12,
+  margin: 20,
+  alignItems: 'center' as const,
+  shadowColor: '#000',
+  shadowOffset: { width: 0, height: 2 },
+  shadowOpacity: 0.25,
+  shadowRadius: 4,
+  elevation: 5,
+};
+
 export const styles = StyleSheet.create({
   // Loading container styles
   loadingContainer: {
@@ -27,19 +41,11 @@ export const styles = StyleSheet.create({
     fontWeight: '600',
   },
 
-  // Critical error styles
-  criticalErrorContainer: {
-    backgroundColor: '#fff',
-    padding: 24,
-    borderRadius: 12,
-    margin: 20,
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    elevation: 5,
-  },
+  // Shared modal container styles
+  modalContainer: modalContainerBase,
+
+  // Critical error styles (uses shared base)
+  criticalErrorContainer: modalContainerBase,
   criticalErrorTitle: {
     fontSize: 22,
     fontWeight: 'bold',
@@ -105,18 +111,8 @@ export const styles = StyleSheet.create({
     alignItems: 'center',
     zIndex: 1000,
   },
-  warningBox: {
-    backgroundColor: '#fff',
-    padding: 24,
-    borderRadius: 12,
-    margin: 20,
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    elevation: 5,
-  },
+  // Warning box uses shared modal container styles
+  warningBox: modalContainerBase,
   warningTitle: {
     fontSize: 20,
     fontWeight: 'bold',

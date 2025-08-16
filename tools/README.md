@@ -200,4 +200,37 @@ node tools/gps-injector-simple.js --mode relative --angle 30 --distance 75
 node tools/gps-injector-simple.js --mode relative --angle 120 --distance 50  
 node tools/gps-injector-simple.js --mode relative --angle 200 --distance 125
 node tools/gps-injector-simple.js --mode relative --angle 350 --distance 80
+```
+
+## Simulator Location Setup
+
+### `setup-simulator-location.sh`
+
+Sets a default location in the iOS Simulator for development. This prevents the app from getting stuck on "Getting your location..." when the simulator has no location set.
+
+**Location**: `scripts/setup-simulator-location.sh`
+
+**Usage**:
+```bash
+# Set default development location (Eugene, Oregon South Hills)
+./scripts/setup-simulator-location.sh
+```
+
+**What it does**:
+- Checks if iOS Simulator is running
+- Sets the simulator location to Eugene, Oregon South Hills (44.0248, -123.1044)
+- Provides instructions for setting custom locations
+
+**When to use**:
+- After setting up a new development environment
+- When the simulator location gets cleared (after iOS updates, etc.)
+- When starting work on location-dependent features
+
+**Manual alternative**:
+```bash
+# Set custom location
+xcrun simctl location booted set <latitude>,<longitude>
+
+# Clear location
+xcrun simctl location booted clear
 ``` 

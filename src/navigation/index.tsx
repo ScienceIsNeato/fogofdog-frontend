@@ -1,4 +1,4 @@
-import React, { useEffect, useState, createContext, useContext, useRef, useMemo } from 'react';
+import React, { useEffect, useState, useRef, useMemo } from 'react';
 import { View, StyleSheet, ActivityIndicator, Text } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
@@ -8,6 +8,7 @@ import { restorePersistedState } from '../store/slices/explorationSlice';
 import { AuthPersistenceService } from '../services/AuthPersistenceService';
 import { OnboardingService } from '../services/OnboardingService';
 import { RootStackParamList, MainStackParamList } from '../types/navigation';
+import { OnboardingContext } from '../contexts/OnboardingContext';
 
 import { MapScreen } from '../screens/Map';
 
@@ -15,15 +16,6 @@ import { ProfileScreen } from '../screens/Profile';
 import { logger } from '../utils/logger';
 
 const MainStack = createNativeStackNavigator<MainStackParamList>();
-
-// Context for sharing onboarding state
-interface OnboardingContextType {
-  isFirstTimeUser: boolean;
-}
-
-const OnboardingContext = createContext<OnboardingContextType>({ isFirstTimeUser: false });
-
-export const useOnboardingContext = () => useContext(OnboardingContext);
 
 // FUTURE: Reactivate for user accounts - Auth Navigator
 // This component is preserved for future user account functionality

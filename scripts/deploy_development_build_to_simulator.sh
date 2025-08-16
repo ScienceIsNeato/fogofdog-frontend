@@ -116,6 +116,27 @@ if [ "$FRESH_INSTALL" = true ]; then
   echo ""
 fi
 
+# Setup simulator location for development
+echo -e "${YELLOW}🌍 Setting up simulator location...${NC}"
+if command -v jq >/dev/null 2>&1; then
+  # Use the dedicated setup script
+  if [ -f "scripts/setup-simulator-location.sh" ]; then
+    echo "Running location setup script..."
+    bash scripts/setup-simulator-location.sh || {
+      echo -e "${YELLOW}⚠️  Location setup failed, continuing anyway...${NC}"
+    }
+  else
+    # Fallback: Set location directly
+    echo "Setting default location (Eugene, Oregon South Hills)..."
+    xcrun simctl location booted set "44.0248,-123.1044" 2>/dev/null || {
+      echo -e "${YELLOW}⚠️  Could not set location, continuing anyway...${NC}"
+    }
+  fi
+else
+  echo -e "${YELLOW}⚠️  jq not available, skipping location setup...${NC}"
+fi
+echo ""
+
 # Clear Metro cache for fresh development build
 echo -e "${YELLOW}🧹 Clearing Metro cache for fresh build...${NC}"
 npx expo start --clear --no-dev --minify >/dev/null 2>&1 &
@@ -194,11 +215,17 @@ echo -e "${YELLOW}💡 Tips:${NC}"
   * Restart Metro: ./scripts/refresh-metro.sh
   * Fresh deployment: ./scripts/deploy_development_build_to_simulator.sh --fresh
 
+### 🌍 Location Setup
+  * Default location (Eugene, Oregon) is set automatically
+  * Manual location setup: ./scripts/setup-simulator-location.sh
+  * Custom location: xcrun simctl location booted set <lat>,<lon>
+
 # Fresh install specific tips
 if [ "$FRESH_INSTALL" = true ]; then
   echo ""
   echo -e "${GREEN}🎯 Fresh Install Mode:${NC}"
   echo "  • App data has been cleared"
-  echo "  • You should see the 6-step onboarding tutorial"
+  echo "  • You should see the 6-step onboarding tutorial"  
   echo "  • This simulates a first-time user experience"
+  echo "  • Default location (Eugene, Oregon) has been set automatically"
 fi 

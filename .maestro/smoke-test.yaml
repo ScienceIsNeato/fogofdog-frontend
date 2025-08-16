@@ -47,7 +47,7 @@ appId: com.fogofdog.app
 - assertVisible:
     id: "map-screen"
 - assertVisible:
-    text: "You are here"
+    text: "Woof!"
 
 # Test location button works
 - tapOn:
@@ -66,6 +66,6 @@ appId: com.fogofdog.app
 - waitForAnimationToEnd:
     timeout: 500
 - assertVisible:
-    text: "You are here"
+    text: "Woof!"
 
 # Smoke test complete - basic functionality verified 

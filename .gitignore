@@ -89,5 +89,6 @@ cursor-rules/
 .envrc
 
 metro.log
+nohup.out
 
 build/

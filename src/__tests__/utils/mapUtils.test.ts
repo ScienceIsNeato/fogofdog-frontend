@@ -29,25 +29,25 @@ describe('mapUtils', () => {
         height: 500,
       };
 
-      // North edge
+      // North edge (no safe area insets provided, so no scaling applied to Y coordinates)
       const northPoint = { latitude: 40.05, longitude: -74, timestamp: Date.now() };
       const northResult = geoPointToPixel(northPoint, region);
       expect(northResult.x).toBeCloseTo(200, 0);
-      expect(northResult.y).toBeCloseTo(0, 0);
+      expect(northResult.y).toBeCloseTo(0, 0); // 250 - (250 * 1.0) = 0
 
-      // South edge
+      // South edge (no safe area insets provided, so no scaling applied to Y coordinates)
       const southPoint = { latitude: 39.95, longitude: -74, timestamp: Date.now() };
       const southResult = geoPointToPixel(southPoint, region);
       expect(southResult.x).toBeCloseTo(200, 0);
-      expect(southResult.y).toBeCloseTo(500, 0);
+      expect(southResult.y).toBeCloseTo(500, 0); // 250 + (250 * 1.0) = 500
 
-      // East edge
+      // East edge (no scaling applied to X coordinates)
       const eastPoint = { latitude: 40, longitude: -73.95, timestamp: Date.now() };
       const eastResult = geoPointToPixel(eastPoint, region);
       expect(eastResult.x).toBeCloseTo(400, 0);
       expect(eastResult.y).toBeCloseTo(250, 0);
 
-      // West edge
+      // West edge (no scaling applied to X coordinates)
       const westPoint = { latitude: 40, longitude: -74.05, timestamp: Date.now() };
       const westResult = geoPointToPixel(westPoint, region);
       expect(westResult.x).toBeCloseTo(0, 0);
@@ -69,10 +69,10 @@ describe('mapUtils', () => {
       const westResult = geoPointToPixel(westPoint, region);
       expect(westResult.x).toBeCloseTo(100, 0); // Based on current implementation
 
-      // Testing a point south of center
+      // Testing a point south of center (no safe area insets provided, so no scaling applied)
       const southPoint = { latitude: 51.495, longitude: -0.12, timestamp: Date.now() };
       const southResult = geoPointToPixel(southPoint, region);
-      expect(southResult.y).toBeCloseTo(300, 0); // Based on current implementation
+      expect(southResult.y).toBeCloseTo(300, 0); // 200 + (100 * 1.0) = 300
     });
   });
 
