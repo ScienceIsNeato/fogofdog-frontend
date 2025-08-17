@@ -158,37 +158,4 @@ export const generatePerformanceTestData = (
   return points;
 };
 
-/**
- * Predefined test datasets for common scenarios
- */
-export const TestDatasets = {
-  minimal: () => generatePerformanceTestData(1, TestPatterns.SINGLE_POINT),
-  veryLight: () => generatePerformanceTestData(10, TestPatterns.RANDOM_WALK),
-  light: () => generatePerformanceTestData(100, TestPatterns.RANDOM_WALK),
-  medium: () => generatePerformanceTestData(500, TestPatterns.REALISTIC_DRIVE),
-  heavy: () => generatePerformanceTestData(1000, TestPatterns.HIKING_TRAIL),
-  veryHeavy: () => generatePerformanceTestData(2500, TestPatterns.CIRCULAR_PATH),
-  extreme: () => generatePerformanceTestData(5000, TestPatterns.RANDOM_WALK),
-  maximum: () => generatePerformanceTestData(10000, TestPatterns.GRID_PATTERN),
-  stressTest: () => generatePerformanceTestData(25000, TestPatterns.RANDOM_WALK, { radiusKm: 5 }),
-};
 
-/**
- * Helper to describe a dataset
- */
-export const describeDataset = (datasetName: keyof typeof TestDatasets): string => {
-  const dataset = TestDatasets[datasetName]();
-  const descriptions = {
-    minimal: `${dataset.length} point (single location)`,
-    veryLight: `${dataset.length} points (very light usage)`,
-    light: `${dataset.length} points (short walk)`,
-    medium: `${dataset.length} points (long walk/bike ride)`,
-    heavy: `${dataset.length} points (full day tracking)`,
-    veryHeavy: `${dataset.length} points (multi-day tracking)`,
-    extreme: `${dataset.length} points (week-long tracking)`,
-    maximum: `${dataset.length} points (month-long tracking)`,
-    stressTest: `${dataset.length} points (stress test)`,
-  };
-
-  return descriptions[datasetName];
-};
