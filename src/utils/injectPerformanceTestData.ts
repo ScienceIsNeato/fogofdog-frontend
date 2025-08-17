@@ -1,9 +1,6 @@
 import { store } from '../store';
 import { updateLocation } from '../store/slices/explorationSlice';
-import {
-  TestPatterns,
-  generatePerformanceTestData,
-} from './performanceTestData';
+import { TestPatterns, generatePerformanceTestData } from './performanceTestData';
 import { logger } from './logger';
 
 /**
@@ -30,8 +27,6 @@ export class PerformanceTestDataInjector {
     store.dispatch({ type: 'exploration/clearAllData' });
     logger.info('🧹 Cleared all GPS data for performance testing');
   }
-
-
 
   /**
    * Inject custom test data
@@ -137,11 +132,7 @@ export class PerformanceTestDataInjector {
     const state = store.getState();
     return state.exploration.path.length;
   }
-
-
 }
 
 // Export singleton instance
 export const performanceTestInjector = PerformanceTestDataInjector.getInstance();
-
-

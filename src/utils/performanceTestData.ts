@@ -157,5 +157,3 @@ export const generatePerformanceTestData = (
 
   return points;
 };
-
-
