@@ -8,6 +8,7 @@ import {
 } from '../../services/DeveloperSettingsService';
 import { DataClearingService } from '../../services/DataClearingService';
 import { logger } from '../../utils/logger';
+import { SimplePerformancePanel } from '../SimplePerformancePanel';
 
 interface SettingsDeveloperViewProps {
   onBack: () => void;
@@ -188,6 +189,9 @@ export const SettingsDeveloperView: React.FC<SettingsDeveloperViewProps> = ({ on
             clear all app data.
           </Text>
         </View>
+
+        {/* Performance Testing Panel */}
+        <SimplePerformancePanel />
       </View>
     </>
   );

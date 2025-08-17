@@ -73,31 +73,6 @@ function shouldConnect(point1: GeoPoint, point2: GeoPoint): { connect: boolean; 
 }
 
 /**
- * Logs connection decision details
- */
-function logConnectionDecision(
-  point1: GeoPoint,
-  point2: GeoPoint,
-  decision: { connect: boolean; reason?: string }
-): void {
-  const distance = calculateDistance(point1, point2);
-  const speed = calculateSpeed(point1, point2);
-  const timeDiff = Math.abs(point2.timestamp - point1.timestamp) / 1000;
-
-  if (decision.connect) {
-    // eslint-disable-next-line no-console
-    console.log(
-      `✅ Connecting points: ${distance.toFixed(1)}m, ${speed.toFixed(1)}mph, ${timeDiff.toFixed(1)}s`
-    );
-  } else {
-    // eslint-disable-next-line no-console
-    console.log(
-      `❌ Rejecting connection: ${decision.reason} (${distance.toFixed(1)}m, ${speed.toFixed(1)}mph, ${timeDiff.toFixed(1)}s)`
-    );
-  }
-}
-
-/**
  * Main filtering function that processes GPS path points and returns valid segments
  */
 export class PathConnectionFilter {
@@ -134,7 +109,7 @@ export class PathConnectionFilter {
       const decision = shouldConnect(currentPoint, nextPoint);
 
       // Log the decision for debugging
-      logConnectionDecision(currentPoint, nextPoint, decision);
+      // logConnectionDecision(currentPoint, nextPoint, decision);
 
       if (decision.connect) {
         segments.push({
@@ -143,11 +118,6 @@ export class PathConnectionFilter {
         });
       }
     }
-
-    // eslint-disable-next-line no-console
-    console.log(
-      `📊 PathConnectionFilter: ${segments.length}/${sortedPoints.length - 1} connections approved`
-    );
 
     return segments;
   }

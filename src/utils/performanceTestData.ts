@@ -80,24 +80,27 @@ const generateOtherPatternCoordinates = (
     case TestPatterns.SINGLE_POINT:
       // All points at the same location (no change needed)
       break;
-    case TestPatterns.CIRCULAR_PATH:
+    case TestPatterns.CIRCULAR_PATH: {
       const angle = (i / count) * 2 * Math.PI;
       latitude += Math.cos(angle) * radiusDegrees;
       longitude += Math.sin(angle) * radiusDegrees;
       break;
-    case TestPatterns.GRID_PATTERN:
+    }
+    case TestPatterns.GRID_PATTERN: {
       const gridSize = Math.ceil(Math.sqrt(count));
       const row = Math.floor(i / gridSize);
       const col = i % gridSize;
       latitude += (row / gridSize - 0.5) * radiusDegrees * 2;
       longitude += (col / gridSize - 0.5) * radiusDegrees * 2;
       break;
-    case TestPatterns.HIKING_TRAIL:
+    }
+    case TestPatterns.HIKING_TRAIL: {
       const trailProgress = i / count;
       const windingFactor = Math.sin(trailProgress * Math.PI * 4) * 0.3;
       latitude += trailProgress * radiusDegrees + windingFactor * radiusDegrees;
       longitude += trailProgress * radiusDegrees * 0.3 + windingFactor * radiusDegrees * 0.5;
       break;
+    }
     default:
       // RANDOM_WALK and any other patterns use random distribution
       latitude += (Math.random() - 0.5) * radiusDegrees * 2;
