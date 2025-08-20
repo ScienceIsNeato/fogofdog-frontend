@@ -22,11 +22,29 @@ export const SimplePerformancePanel: React.FC<SimplePerformancePanelProps> = () 
   const injectTestData = async (count: number) => {
     if (isLoading) return;
 
+    // Show confirmation dialog before starting injection
+    Alert.alert(
+      'GPS Injection Ready',
+      'Clicking OK will return you to the app and commence adding GPS points. Enjoy the show!',
+      [
+        { 
+          text: 'Cancel', 
+          style: 'cancel' 
+        },
+        {
+          text: 'OK',
+          onPress: () => performGPSInjection(count),
+        },
+      ]
+    );
+  };
+
+  const performGPSInjection = async (count: number) => {
     setIsLoading(true);
     try {
       await performanceTestInjector.injectCustomData(count, 'REALISTIC_DRIVE');
       updateCount();
-      Alert.alert('Success', `Added ${count} GPS points`);
+      // No success dialog - user will see the GPS points being added in real-time
     } catch (error) {
       Alert.alert('Error', 'Failed to inject test data');
       logger.error('Failed to inject test data', error);

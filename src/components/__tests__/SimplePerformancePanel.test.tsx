@@ -40,8 +40,33 @@ describe('SimplePerformancePanel', () => {
     expect(getByText('GPS Points: 1,234')).toBeTruthy();
   });
 
-  it('should inject test data when +500 button is pressed', async () => {
+  it('should show confirmation dialog when +500 button is pressed', async () => {
+    const { getByText } = render(<SimplePerformancePanel />);
+
+    fireEvent.press(getByText('+500'));
+
+    expect(Alert.alert).toHaveBeenCalledWith(
+      'GPS Injection Ready',
+      'Clicking OK will return you to the app and commence adding GPS points. Enjoy the show!',
+      expect.arrayContaining([
+        { text: 'Cancel', style: 'cancel' },
+        expect.objectContaining({
+          text: 'OK',
+        }),
+      ])
+    );
+  });
+
+  it('should inject test data when confirmation dialog OK is pressed', async () => {
     (performanceTestInjector.injectCustomData as jest.Mock).mockResolvedValue(undefined);
+    
+    // Mock Alert.alert to simulate user pressing OK
+    (Alert.alert as jest.Mock).mockImplementation((_title, _message, buttons) => {
+      const okButton = buttons.find((b: any) => b.text === 'OK');
+      if (okButton?.onPress) {
+        okButton.onPress();
+      }
+    });
 
     const { getByText } = render(<SimplePerformancePanel />);
 
@@ -52,19 +77,30 @@ describe('SimplePerformancePanel', () => {
     });
   });
 
-  it('should show success alert after injecting data', async () => {
+  it('should not show success alert after injecting data', async () => {
     (performanceTestInjector.injectCustomData as jest.Mock).mockResolvedValue(undefined);
     (performanceTestInjector.getCurrentDataCount as jest.Mock)
       .mockReturnValueOnce(0)
       .mockReturnValueOnce(500);
+
+    // Mock Alert.alert to simulate user pressing OK
+    (Alert.alert as jest.Mock).mockImplementation((_title, _message, buttons) => {
+      const okButton = buttons.find((b: any) => b.text === 'OK');
+      if (okButton?.onPress) {
+        okButton.onPress();
+      }
+    });
 
     const { getByText } = render(<SimplePerformancePanel />);
 
     fireEvent.press(getByText('+500'));
 
     await waitFor(() => {
-      expect(Alert.alert).toHaveBeenCalledWith('Success', 'Added 500 GPS points');
+      expect(performanceTestInjector.injectCustomData).toHaveBeenCalledWith(500, 'REALISTIC_DRIVE');
     });
+
+    // Should not show success alert (user sees GPS points in real-time instead)
+    expect(Alert.alert).not.toHaveBeenCalledWith('Success', 'Added 500 GPS points');
   });
 
   it('should handle injection errors gracefully', async () => {
@@ -76,6 +112,20 @@ describe('SimplePerformancePanel', () => {
       new Error('Test error')
     );
 
+    // Mock Alert.alert to simulate user pressing OK on confirmation, then handle error alert
+    let callCount = 0;
+    (Alert.alert as jest.Mock).mockImplementation((title, message, buttons) => {
+      callCount++;
+      if (callCount === 1) {
+        // First call is the confirmation dialog
+        const okButton = buttons?.find((b: any) => b.text === 'OK');
+        if (okButton?.onPress) {
+          okButton.onPress();
+        }
+      }
+      // Second call will be the error alert - just let it be called
+    });
+
     const { getByText } = render(<SimplePerformancePanel />);
 
     fireEvent.press(getByText('+500'));
@@ -86,6 +136,33 @@ describe('SimplePerformancePanel', () => {
 
     // Restore console.error
     console.error = originalConsoleError;
+  });
+
+  it('should not inject data when confirmation dialog Cancel is pressed', () => {
+    (performanceTestInjector.injectCustomData as jest.Mock).mockResolvedValue(undefined);
+    
+    // Mock Alert.alert to simulate user pressing Cancel (no onPress callback needed)
+    (Alert.alert as jest.Mock).mockImplementation((_title, _message, buttons) => {
+      // Cancel button typically has no onPress callback, just dismisses dialog
+      // We don't need to call anything here
+    });
+
+    const { getByText } = render(<SimplePerformancePanel />);
+
+    fireEvent.press(getByText('+500'));
+    
+    // Verify the confirmation dialog was shown
+    expect(Alert.alert).toHaveBeenCalledWith(
+      'GPS Injection Ready',
+      'Clicking OK will return you to the app and commence adding GPS points. Enjoy the show!',
+      expect.arrayContaining([
+        { text: 'Cancel', style: 'cancel' },
+        expect.objectContaining({ text: 'OK' }),
+      ])
+    );
+    
+    // Verify injection was not called
+    expect(performanceTestInjector.injectCustomData).not.toHaveBeenCalled();
   });
 
   it('should show confirmation dialog when Clear button is pressed', () => {
@@ -127,11 +204,21 @@ describe('SimplePerformancePanel', () => {
       () => new Promise((resolve) => setTimeout(resolve, 100))
     );
 
+    // Mock Alert.alert to simulate user pressing OK
+    (Alert.alert as jest.Mock).mockImplementation((_title, _message, buttons) => {
+      const okButton = buttons?.find((b: any) => b.text === 'OK');
+      if (okButton?.onPress) {
+        okButton.onPress();
+      }
+    });
+
     const { getByText } = render(<SimplePerformancePanel />);
 
     fireEvent.press(getByText('+500'));
 
-    // Buttons should be disabled during loading
-    expect(getByText('Loading...')).toBeTruthy();
+    // Wait for loading state to appear after confirmation
+    await waitFor(() => {
+      expect(getByText('Loading...')).toBeTruthy();
+    });
   });
 });

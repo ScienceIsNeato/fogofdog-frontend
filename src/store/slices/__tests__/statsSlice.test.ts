@@ -44,16 +44,16 @@ jest.mock('../../../services/StatsCalculationService', () => ({
     }),
     formatTimeAsTimer: jest.fn((time) => {
       if (time === 0) return ':00'; // Handle 0 time case
-      
+
       const totalSeconds = Math.floor(time / 1000);
       const totalMinutes = Math.floor(totalSeconds / 60);
       const totalHours = Math.floor(totalMinutes / 60);
       const totalDays = Math.floor(totalHours / 24);
-      
+
       const seconds = totalSeconds % 60;
       const minutes = totalMinutes % 60;
       const hours = totalHours % 24;
-      
+
       if (totalDays > 0) {
         return `${totalDays} day${totalDays !== 1 ? 's' : ''}, ${hours} hour${hours !== 1 ? 's' : ''}, ${minutes} minute${minutes !== 1 ? 's' : ''} and ${seconds} second${seconds !== 1 ? 's' : ''}`;
       } else if (totalHours > 0) {
@@ -513,7 +513,7 @@ describe('statsSlice', () => {
       let updatedState = statsReducer(initialState, action);
       expect(updatedState.formattedStats.sessionTime).toBe(':30');
 
-      // Test 1-60 minutes - should be MM:SS format  
+      // Test 1-60 minutes - should be MM:SS format
       initialState = {
         ...defaultStatsState,
         currentSession: {
@@ -531,7 +531,7 @@ describe('statsSlice', () => {
       initialState = {
         ...defaultStatsState,
         currentSession: {
-          sessionId: 'test-session', 
+          sessionId: 'test-session',
           startTime: Date.now() - 3900000, // 65 minutes ago
         },
         session: { distance: 0, area: 0, time: 0 },

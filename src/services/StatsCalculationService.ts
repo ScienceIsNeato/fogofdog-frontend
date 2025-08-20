@@ -493,7 +493,7 @@ export class StatsCalculationService {
   /**
    * Format time as timer with progressive precision based on elapsed time
    * < 60s: :XX (seconds only)
-   * 1m-1h: XX:YY (minutes:seconds)  
+   * 1m-1h: XX:YY (minutes:seconds)
    * 1h-1d: XX:YY:ZZ (hours:minutes:seconds)
    * > 1d: W days, X hours, Y minutes and Z seconds
    */
@@ -502,11 +502,11 @@ export class StatsCalculationService {
     const totalMinutes = Math.floor(totalSeconds / 60);
     const totalHours = Math.floor(totalMinutes / 60);
     const totalDays = Math.floor(totalHours / 24);
-    
+
     const seconds = totalSeconds % 60;
     const minutes = totalMinutes % 60;
     const hours = totalHours % 24;
-    
+
     if (totalDays > 0) {
       // > 1 day: "2 days, 3 hours, 15 minutes and 42 seconds"
       return `${totalDays} day${totalDays !== 1 ? 's' : ''}, ${hours} hour${hours !== 1 ? 's' : ''}, ${minutes} minute${minutes !== 1 ? 's' : ''} and ${seconds} second${seconds !== 1 ? 's' : ''}`;

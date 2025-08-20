@@ -62,7 +62,7 @@ export const HUDStatsPanel: React.FC = () => {
             </View>
           </View>
         </View>
-        
+
         {/* Stats Grid */}
         <View style={styles.statsContainer}>
           <HUDStatRow
