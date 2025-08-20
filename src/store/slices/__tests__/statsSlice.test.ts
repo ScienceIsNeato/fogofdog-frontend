@@ -16,8 +16,13 @@ import statsReducer, {
   endSession,
   processGeoPoint,
   loadPersistedStats,
+  updateSessionTimer,
 } from '../statsSlice';
+
+// Import types from the slice interface
+type StatsState = ReturnType<typeof statsReducer>;
 import { StatsCalculationService } from '../../../services/StatsCalculationService';
+import { defaultStatsState } from '../../../__tests__/test-helpers/shared-mocks';
 
 // Mock the StatsCalculationService to avoid complex dependencies
 jest.mock('../../../services/StatsCalculationService', () => ({
@@ -31,7 +36,18 @@ jest.mock('../../../services/StatsCalculationService', () => ({
     })),
     formatDistance: jest.fn((distance) => `${distance}m`),
     formatArea: jest.fn((area) => `${area}m²`),
-    formatTime: jest.fn((time) => `${time}ms`),
+    formatTime: jest.fn((time) => {
+      if (time >= 1000) {
+        return `${Math.floor(time / 1000)}s`;
+      }
+      return `${time}ms`;
+    }),
+    formatTimeAsTimer: jest.fn((time) => {
+      const totalSeconds = Math.floor(time / 1000);
+      const minutes = Math.floor(totalSeconds / 60);
+      const seconds = totalSeconds % 60;
+      return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+    }),
     incrementStats: jest.fn(),
     calculateTotalsFromHistory: jest.fn(),
     startNewSession: jest.fn(),
@@ -397,6 +413,73 @@ describe('statsSlice', () => {
       expect(state.total.time).toBe(60000);
       expect(state.isLoading).toBe(false);
       expect(state.lastError).toBeNull();
+    });
+  });
+
+  describe('updateSessionTimer', () => {
+    it('should update session time for active session', () => {
+      const startTime = Date.now() - 5000; // 5 seconds ago
+      const initialState: StatsState = {
+        ...defaultStatsState,
+        currentSession: {
+          sessionId: 'test-session-123',
+          startTime,
+        },
+        session: {
+          distance: 100,
+          area: 50,
+          time: 0, // Will be updated by timer
+        },
+      };
+
+      const action = updateSessionTimer();
+      const updatedState = statsReducer(initialState, action);
+
+      expect(updatedState.session.time).toBeGreaterThanOrEqual(4900); // ~5 seconds, allowing for timing variance
+      expect(updatedState.session.time).toBeLessThanOrEqual(5100);
+      expect(updatedState.formattedStats.sessionTime).toBe('00:05');
+    });
+
+    it('should not update time if no active session', () => {
+      const initialState: StatsState = {
+        ...defaultStatsState,
+        currentSession: {
+          sessionId: 'inactive-session',
+          startTime: Date.now(),
+          endTime: Date.now(), // Session has ended
+        },
+        session: {
+          distance: 100,
+          area: 50,
+          time: 1000,
+        },
+      };
+
+      const action = updateSessionTimer();
+      const updatedState = statsReducer(initialState, action);
+
+      expect(updatedState.session.time).toBe(1000); // Unchanged
+    });
+
+    it('should not update time if session is ended', () => {
+      const initialState: StatsState = {
+        ...defaultStatsState,
+        currentSession: {
+          sessionId: 'ended-session',
+          startTime: Date.now() - 5000,
+          endTime: Date.now() - 1000, // Session ended 1 second ago
+        },
+        session: {
+          distance: 100,
+          area: 50,
+          time: 4000, // 4 seconds recorded
+        },
+      };
+
+      const action = updateSessionTimer();
+      const updatedState = statsReducer(initialState, action);
+
+      expect(updatedState.session.time).toBe(4000); // Unchanged
     });
   });
 });

@@ -46,7 +46,7 @@ const defaultExplorationState = {
 };
 
 // Default stats state
-const defaultStatsState = {
+export const defaultStatsState = {
   total: { distance: 0, area: 0, time: 0 },
   session: { distance: 0, area: 0, time: 0 },
   currentSession: {

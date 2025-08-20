@@ -491,6 +491,18 @@ export class StatsCalculationService {
   }
 
   /**
+   * Format time in milliseconds to MM:SS timer format for active sessions
+   */
+  static formatTimeAsTimer(milliseconds: number): string {
+    const totalSeconds = Math.floor(milliseconds / 1000);
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+
+    // Format as MM:SS with leading zeros
+    return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+  }
+
+  /**
    * Create initial stats state
    */
   static createInitialState(): StatsState {

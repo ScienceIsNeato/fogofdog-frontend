@@ -1,11 +1,14 @@
 import React from 'react';
-import { render } from '@testing-library/react-native';
+import { render, act } from '@testing-library/react-native';
 import { Provider } from 'react-redux';
 import { configureStore } from '@reduxjs/toolkit';
 import { HUDStatsPanel } from '../HUDStatsPanel';
 import userReducer from '../../store/slices/userSlice';
 import explorationReducer from '../../store/slices/explorationSlice';
-import statsReducer from '../../store/slices/statsSlice';
+import statsReducer, { updateSessionTimer } from '../../store/slices/statsSlice';
+
+// Mock timers
+jest.useFakeTimers();
 
 // Helper function to create mock store with stats
 const createMockStoreWithStats = (statsState: any) => {
@@ -194,5 +197,99 @@ describe('HUDStatsPanel', () => {
     // Should have time labels
     const timeLabels = getAllByText('Time');
     expect(timeLabels.length).toBe(2);
+  });
+
+  describe('Timer Integration', () => {
+    beforeEach(() => {
+      jest.clearAllTimers();
+    });
+
+    afterEach(() => {
+      jest.runOnlyPendingTimers();
+      jest.clearAllTimers();
+    });
+
+    it('should start timer when session is active and tracking is not paused', () => {
+      const activeSessionState = {
+        ...mockStatsState,
+        currentSession: {
+          startTime: Date.now(),
+          endTime: null,
+        },
+      };
+
+      const store = createMockStoreWithStats(activeSessionState);
+      const dispatchSpy = jest.spyOn(store, 'dispatch');
+
+      render(
+        <Provider store={store}>
+          <HUDStatsPanel />
+        </Provider>
+      );
+
+      // Fast-forward time to trigger timer
+      act(() => {
+        jest.advanceTimersByTime(1000);
+      });
+
+      // Should dispatch updateSessionTimer action
+      expect(dispatchSpy).toHaveBeenCalledWith(updateSessionTimer());
+    });
+
+    it('should not start timer when tracking is paused', () => {
+      const pausedTrackingState = {
+        ...mockStatsState,
+        currentSession: {
+          startTime: Date.now(),
+          endTime: null,
+        },
+      };
+
+      const store = createMockStoreWithStats(pausedTrackingState);
+      // Override exploration state to show tracking is paused
+      store.dispatch({ type: 'exploration/setTrackingPaused', payload: true });
+
+      const dispatchSpy = jest.spyOn(store, 'dispatch');
+      const callCountBefore = dispatchSpy.mock.calls.length;
+
+      render(
+        <Provider store={store}>
+          <HUDStatsPanel />
+        </Provider>
+      );
+
+      // Fast-forward time
+      act(() => {
+        jest.advanceTimersByTime(2000);
+      });
+
+      // Should not dispatch updateSessionTimer action (only the setTrackingPaused we called above)
+      const newCalls = dispatchSpy.mock.calls.slice(callCountBefore);
+      expect(newCalls).not.toContainEqual([updateSessionTimer()]);
+    });
+
+    it('should not start timer when no active session', () => {
+      const noSessionState = {
+        ...mockStatsState,
+        currentSession: null,
+      };
+
+      const store = createMockStoreWithStats(noSessionState);
+      const dispatchSpy = jest.spyOn(store, 'dispatch');
+
+      render(
+        <Provider store={store}>
+          <HUDStatsPanel />
+        </Provider>
+      );
+
+      // Fast-forward time
+      act(() => {
+        jest.advanceTimersByTime(1000);
+      });
+
+      // Should not dispatch updateSessionTimer action
+      expect(dispatchSpy).not.toHaveBeenCalledWith(updateSessionTimer());
+    });
   });
 });

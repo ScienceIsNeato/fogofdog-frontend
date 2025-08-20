@@ -276,6 +276,32 @@ const statsSlice = createSlice({
     refreshFormattedStats: (state) => {
       updateFormattedStats(state);
     },
+
+    /**
+     * Update the current session time for real-time timer
+     * This action is called every second when tracking is active
+     */
+    updateSessionTimer: (state) => {
+      // Only update if we have an active session
+      if (state.currentSession && !state.currentSession.endTime) {
+        const now = Date.now();
+        const sessionStartTime = state.currentSession.startTime;
+        const elapsedTime = now - sessionStartTime;
+
+        // Update session time (in milliseconds)
+        state.session.time = elapsedTime;
+
+        // Update formatted time display with MM:SS format for active sessions
+        state.formattedStats.sessionTime = StatsCalculationService.formatTimeAsTimer(elapsedTime);
+
+        logger.debug('Updated session timer', {
+          component: 'statsSlice',
+          action: 'updateSessionTimer',
+          elapsedTime,
+          formattedTime: state.formattedStats.sessionTime,
+        });
+      }
+    },
   },
 });
 
@@ -293,6 +319,7 @@ export const {
   resetAllStats,
   resetSessionStats,
   refreshFormattedStats,
+  updateSessionTimer,
 } = statsSlice.actions;
 
 export default statsSlice.reducer;

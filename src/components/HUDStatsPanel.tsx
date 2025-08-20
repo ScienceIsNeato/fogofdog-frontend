@@ -1,8 +1,13 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
-import { useSelector } from 'react-redux';
-import { selectFormattedStats, selectIsStatsLoading } from '../store/slices/statsSlice';
+import { useSelector, useDispatch } from 'react-redux';
+import {
+  selectFormattedStats,
+  selectIsStatsLoading,
+  selectIsSessionActive,
+  updateSessionTimer,
+} from '../store/slices/statsSlice';
 import { RootState } from '../store';
 
 /**
@@ -12,8 +17,30 @@ import { RootState } from '../store';
  * Shows both lifetime totals and current session stats.
  */
 export const HUDStatsPanel: React.FC = () => {
+  const dispatch = useDispatch();
   const formattedStats = useSelector((state: RootState) => selectFormattedStats(state));
   const isLoading = useSelector((state: RootState) => selectIsStatsLoading(state));
+  const isSessionActive = useSelector((state: RootState) => selectIsSessionActive(state));
+  const isTrackingPaused = useSelector((state: RootState) => state.exploration.isTrackingPaused);
+
+  // Real-time timer effect - updates every second when tracking is active
+  useEffect(() => {
+    let intervalId: NodeJS.Timeout | null = null;
+
+    // Start timer if we have an active session and tracking is not paused
+    if (isSessionActive && !isTrackingPaused) {
+      intervalId = setInterval(() => {
+        dispatch(updateSessionTimer());
+      }, 1000); // Update every second
+    }
+
+    // Cleanup interval on unmount or when conditions change
+    return () => {
+      if (intervalId) {
+        clearInterval(intervalId);
+      }
+    };
+  }, [dispatch, isSessionActive, isTrackingPaused]);
 
   if (isLoading) {
     return <HUDLoadingView />;
