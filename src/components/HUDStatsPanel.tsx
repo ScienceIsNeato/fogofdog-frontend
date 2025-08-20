@@ -49,9 +49,41 @@ export const HUDStatsPanel: React.FC = () => {
   return (
     <View style={styles.container}>
       <View style={styles.panel}>
-        <HUDSessionStats formattedStats={formattedStats} />
-        <View style={styles.separator} />
-        <HUDAllTimeStats formattedStats={formattedStats} />
+        {/* Category Headers */}
+        <View style={styles.categoryHeaders}>
+          <View style={styles.sectionLabels}>
+            <View style={styles.sectionLabelContainer}>
+              <MaterialIcons name="play-circle-outline" size={16} color="#007AFF" />
+              <Text style={styles.sectionLabel}>Session</Text>
+            </View>
+            <View style={styles.sectionLabelContainer}>
+              <MaterialIcons name="all-inclusive" size={16} color="#007AFF" />
+              <Text style={styles.sectionLabel}>All Time</Text>
+            </View>
+          </View>
+        </View>
+        
+        {/* Stats Grid */}
+        <View style={styles.statsContainer}>
+          <HUDStatRow
+            icon="pets"
+            label="Distance"
+            sessionValue={formattedStats.sessionDistance}
+            totalValue={formattedStats.totalDistance}
+          />
+          <HUDStatRow
+            icon="map"
+            label="Area"
+            sessionValue={formattedStats.sessionArea}
+            totalValue={formattedStats.totalArea}
+          />
+          <HUDStatRow
+            icon="access-time"
+            label="Time"
+            sessionValue={formattedStats.sessionTime}
+            totalValue={formattedStats.totalTime}
+          />
+        </View>
       </View>
     </View>
   );
@@ -69,72 +101,22 @@ const HUDLoadingView: React.FC = () => (
 );
 
 /**
- * Session stats section component
+ * Individual stat row component showing category icon, label, and both session/total values
  */
-const HUDSessionStats: React.FC<{ formattedStats: any }> = ({ formattedStats }) => (
-  <View style={styles.statsSection}>
-    <View style={styles.statsRow}>
-      <View style={styles.sectionHeader}>
-        <MaterialIcons name="play-circle-outline" size={20} color="#007AFF" />
-        <Text style={styles.sectionLabel}>Session</Text>
-      </View>
-      <HUDStatsGrid
-        distance={formattedStats.sessionDistance}
-        area={formattedStats.sessionArea}
-        time={formattedStats.sessionTime}
-      />
+const HUDStatRow: React.FC<{
+  icon: string;
+  label: string;
+  sessionValue: string;
+  totalValue: string;
+}> = ({ icon, label, sessionValue, totalValue }) => (
+  <View style={styles.statRow}>
+    <View style={styles.statCategory}>
+      <MaterialIcons name={icon as any} size={18} color="#007AFF" />
+      <Text style={styles.statLabel}>{label}</Text>
     </View>
-  </View>
-);
-
-/**
- * All time stats section component
- */
-const HUDAllTimeStats: React.FC<{ formattedStats: any }> = ({ formattedStats }) => (
-  <View style={styles.statsSection}>
-    <View style={styles.statsRow}>
-      <View style={styles.sectionHeader}>
-        <MaterialIcons name="all-inclusive" size={20} color="#007AFF" />
-        <Text style={styles.sectionLabel}>All Time</Text>
-      </View>
-      <HUDStatsGrid
-        distance={formattedStats.totalDistance}
-        area={formattedStats.totalArea}
-        time={formattedStats.totalTime}
-      />
-    </View>
-  </View>
-);
-
-/**
- * Stats grid component
- */
-const HUDStatsGrid: React.FC<{ distance: string; area: string; time: string }> = ({
-  distance,
-  area,
-  time,
-}) => (
-  <View style={styles.statsGrid}>
-    <View style={styles.statItem}>
-      <View style={styles.statLabelContainer}>
-        <MaterialIcons name="pets" size={18} color="#007AFF" />
-        <Text style={styles.statLabel}>Distance</Text>
-      </View>
-      <Text style={styles.statValue}>{distance}</Text>
-    </View>
-    <View style={styles.statItem}>
-      <View style={styles.statLabelContainer}>
-        <MaterialIcons name="map" size={18} color="#007AFF" />
-        <Text style={styles.statLabel}>Area</Text>
-      </View>
-      <Text style={styles.statValue}>{area}</Text>
-    </View>
-    <View style={styles.statItem}>
-      <View style={styles.statLabelContainer}>
-        <MaterialIcons name="access-time" size={18} color="#007AFF" />
-        <Text style={styles.statLabel}>Time</Text>
-      </View>
-      <Text style={styles.statValue}>{time}</Text>
+    <View style={styles.statValues}>
+      <Text style={styles.statValue}>{sessionValue}</Text>
+      <Text style={styles.statValue}>{totalValue}</Text>
     </View>
   </View>
 );
@@ -150,68 +132,61 @@ const styles = StyleSheet.create({
   panel: {
     backgroundColor: 'rgba(0, 0, 0, 0.75)', // Slightly more opaque for better readability
     paddingHorizontal: 16,
-    paddingVertical: 14,
+    paddingVertical: 12,
     borderTopWidth: 1,
     borderTopColor: 'rgba(255, 255, 255, 0.25)',
   },
-  statsSection: {
-    backgroundColor: 'rgba(255, 255, 255, 0.05)', // Subtle background for each section
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
+  categoryHeaders: {
+    marginBottom: 8,
   },
-  statsRow: {
+  sectionLabels: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    paddingLeft: 100, // Offset for the category icon space
+  },
+  sectionLabelContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    minWidth: 90, // Fixed width for alignment
-    marginRight: 16,
+    flex: 1,
+    justifyContent: 'center',
   },
   sectionLabel: {
     color: 'white',
-    fontSize: 15,
+    fontSize: 13,
     fontWeight: '700',
+    marginLeft: 6,
+  },
+  statsContainer: {
+    gap: 6,
+  },
+  statRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 4,
+  },
+  statCategory: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    width: 100, // Fixed width for category labels
+    marginRight: 16,
+  },
+  statLabel: {
+    color: 'rgba(255, 255, 255, 0.9)',
+    fontSize: 12,
+    fontWeight: '500',
     marginLeft: 8,
   },
-  statsGrid: {
+  statValues: {
     flexDirection: 'row',
     flex: 1,
     justifyContent: 'space-around',
-    alignItems: 'center',
-  },
-  statItem: {
-    alignItems: 'center',
-    flex: 1,
-    paddingHorizontal: 4,
-  },
-  statLabelContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 4,
-  },
-  statLabel: {
-    color: 'rgba(255, 255, 255, 0.8)',
-    fontSize: 11,
-    fontWeight: '500',
-    marginLeft: 4,
-    textAlign: 'center',
-  },
-  separator: {
-    height: 1,
-    backgroundColor: 'rgba(255, 255, 255, 0.15)',
-    marginVertical: 8,
-    marginHorizontal: 8,
   },
   statValue: {
     color: 'white',
     fontSize: 14,
     fontWeight: '600',
     textAlign: 'center',
+    flex: 1,
   },
   loadingContainer: {
     backgroundColor: 'rgba(0, 0, 0, 0.7)',

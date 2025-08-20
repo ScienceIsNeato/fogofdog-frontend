@@ -56,12 +56,12 @@ const initialState: StatsState = {
   lastError: null,
   lastSaveTime: null,
   formattedStats: {
-    totalDistance: '0m',
-    totalArea: '0m²',
-    totalTime: '0m',
-    sessionDistance: '0m',
-    sessionArea: '0m²',
-    sessionTime: '0m',
+    totalDistance: StatsCalculationService.formatDistance(0),
+    totalArea: StatsCalculationService.formatArea(0),
+    totalTime: StatsCalculationService.formatTimeAsTimer(0),
+    sessionDistance: StatsCalculationService.formatDistance(0),
+    sessionArea: StatsCalculationService.formatArea(0),
+    sessionTime: StatsCalculationService.formatTimeAsTimer(0),
   },
 };
 
@@ -72,10 +72,10 @@ const updateFormattedStats = (state: StatsState): void => {
   state.formattedStats = {
     totalDistance: StatsCalculationService.formatDistance(state.total.distance),
     totalArea: StatsCalculationService.formatArea(state.total.area),
-    totalTime: StatsCalculationService.formatTime(state.total.time),
+    totalTime: StatsCalculationService.formatTimeAsTimer(state.total.time),
     sessionDistance: StatsCalculationService.formatDistance(state.session.distance),
     sessionArea: StatsCalculationService.formatArea(state.session.area),
-    sessionTime: StatsCalculationService.formatTime(state.session.time),
+    sessionTime: StatsCalculationService.formatTimeAsTimer(state.session.time),
   };
 };
 

@@ -491,15 +491,35 @@ export class StatsCalculationService {
   }
 
   /**
-   * Format time in milliseconds to MM:SS timer format for active sessions
+   * Format time as timer with progressive precision based on elapsed time
+   * < 60s: :XX (seconds only)
+   * 1m-1h: XX:YY (minutes:seconds)  
+   * 1h-1d: XX:YY:ZZ (hours:minutes:seconds)
+   * > 1d: W days, X hours, Y minutes and Z seconds
    */
   static formatTimeAsTimer(milliseconds: number): string {
     const totalSeconds = Math.floor(milliseconds / 1000);
-    const minutes = Math.floor(totalSeconds / 60);
+    const totalMinutes = Math.floor(totalSeconds / 60);
+    const totalHours = Math.floor(totalMinutes / 60);
+    const totalDays = Math.floor(totalHours / 24);
+    
     const seconds = totalSeconds % 60;
-
-    // Format as MM:SS with leading zeros
-    return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+    const minutes = totalMinutes % 60;
+    const hours = totalHours % 24;
+    
+    if (totalDays > 0) {
+      // > 1 day: "2 days, 3 hours, 15 minutes and 42 seconds"
+      return `${totalDays} day${totalDays !== 1 ? 's' : ''}, ${hours} hour${hours !== 1 ? 's' : ''}, ${minutes} minute${minutes !== 1 ? 's' : ''} and ${seconds} second${seconds !== 1 ? 's' : ''}`;
+    } else if (totalHours > 0) {
+      // 1h-1d: "02:15:42" (HH:MM:SS)
+      return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+    } else if (totalMinutes > 0) {
+      // 1m-1h: "15:42" (MM:SS)
+      return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+    } else {
+      // < 60s: ":42" (seconds only)
+      return `:${seconds.toString().padStart(2, '0')}`;
+    }
   }
 
   /**

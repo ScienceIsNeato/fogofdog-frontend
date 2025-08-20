@@ -87,10 +87,10 @@ describe('HUDStatsPanel', () => {
     expect(getByText('All Time')).toBeTruthy();
     expect(getByText('Session')).toBeTruthy();
 
-    // Check labels (appear twice - once for each section)
-    expect(getAllByText('Distance')).toHaveLength(2);
-    expect(getAllByText('Area')).toHaveLength(2);
-    expect(getAllByText('Time')).toHaveLength(2);
+    // Check labels (appear once as category headers in new layout)
+    expect(getAllByText('Distance')).toHaveLength(1);
+    expect(getAllByText('Area')).toHaveLength(1);
+    expect(getAllByText('Time')).toHaveLength(1);
 
     // Check values
     expect(getByText('5.0km')).toBeTruthy();
@@ -186,17 +186,17 @@ describe('HUDStatsPanel', () => {
   it('should render labeled stats with blue vector icons', () => {
     const { getAllByText } = renderWithMockStore(<HUDStatsPanel />, mockStatsState);
 
-    // Should have distance labels (appears twice - once for total, once for session)
+    // Should have distance labels (appears once as category header in new layout)
     const distanceLabels = getAllByText('Distance');
-    expect(distanceLabels.length).toBe(2);
+    expect(distanceLabels.length).toBe(1);
 
     // Should have area labels
     const areaLabels = getAllByText('Area');
-    expect(areaLabels.length).toBe(2);
+    expect(areaLabels.length).toBe(1);
 
     // Should have time labels
     const timeLabels = getAllByText('Time');
-    expect(timeLabels.length).toBe(2);
+    expect(timeLabels.length).toBe(1);
   });
 
   describe('Timer Integration', () => {

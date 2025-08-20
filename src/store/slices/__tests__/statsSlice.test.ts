@@ -18,11 +18,11 @@ import statsReducer, {
   loadPersistedStats,
   updateSessionTimer,
 } from '../statsSlice';
+import { StatsCalculationService } from '../../../services/StatsCalculationService';
+import { defaultStatsState } from '../../../__tests__/test-helpers/shared-mocks';
 
 // Import types from the slice interface
 type StatsState = ReturnType<typeof statsReducer>;
-import { StatsCalculationService } from '../../../services/StatsCalculationService';
-import { defaultStatsState } from '../../../__tests__/test-helpers/shared-mocks';
 
 // Mock the StatsCalculationService to avoid complex dependencies
 jest.mock('../../../services/StatsCalculationService', () => ({
@@ -43,10 +43,26 @@ jest.mock('../../../services/StatsCalculationService', () => ({
       return `${time}ms`;
     }),
     formatTimeAsTimer: jest.fn((time) => {
+      if (time === 0) return ':00'; // Handle 0 time case
+      
       const totalSeconds = Math.floor(time / 1000);
-      const minutes = Math.floor(totalSeconds / 60);
+      const totalMinutes = Math.floor(totalSeconds / 60);
+      const totalHours = Math.floor(totalMinutes / 60);
+      const totalDays = Math.floor(totalHours / 24);
+      
       const seconds = totalSeconds % 60;
-      return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+      const minutes = totalMinutes % 60;
+      const hours = totalHours % 24;
+      
+      if (totalDays > 0) {
+        return `${totalDays} day${totalDays !== 1 ? 's' : ''}, ${hours} hour${hours !== 1 ? 's' : ''}, ${minutes} minute${minutes !== 1 ? 's' : ''} and ${seconds} second${seconds !== 1 ? 's' : ''}`;
+      } else if (totalHours > 0) {
+        return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+      } else if (totalMinutes > 0) {
+        return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+      } else {
+        return `:${seconds.toString().padStart(2, '0')}`;
+      }
     }),
     incrementStats: jest.fn(),
     calculateTotalsFromHistory: jest.fn(),
@@ -86,10 +102,10 @@ describe('statsSlice', () => {
       expect(state.formattedStats).toEqual({
         totalDistance: '0m',
         totalArea: '0m²',
-        totalTime: '0m',
+        totalTime: ':00',
         sessionDistance: '0m',
         sessionArea: '0m²',
-        sessionTime: '0m',
+        sessionTime: ':00',
       });
     });
   });
@@ -437,7 +453,7 @@ describe('statsSlice', () => {
 
       expect(updatedState.session.time).toBeGreaterThanOrEqual(4900); // ~5 seconds, allowing for timing variance
       expect(updatedState.session.time).toBeLessThanOrEqual(5100);
-      expect(updatedState.formattedStats.sessionTime).toBe('00:05');
+      expect(updatedState.formattedStats.sessionTime).toBe(':05'); // < 60s format
     });
 
     it('should not update time if no active session', () => {
@@ -480,6 +496,50 @@ describe('statsSlice', () => {
       const updatedState = statsReducer(initialState, action);
 
       expect(updatedState.session.time).toBe(4000); // Unchanged
+    });
+
+    it('should format different time ranges correctly', () => {
+      // Test < 60 seconds - should be :XX format
+      let initialState: StatsState = {
+        ...defaultStatsState,
+        currentSession: {
+          sessionId: 'test-session',
+          startTime: Date.now() - 30000, // 30 seconds ago
+        },
+        session: { distance: 0, area: 0, time: 0 },
+      };
+
+      let action = updateSessionTimer();
+      let updatedState = statsReducer(initialState, action);
+      expect(updatedState.formattedStats.sessionTime).toBe(':30');
+
+      // Test 1-60 minutes - should be MM:SS format  
+      initialState = {
+        ...defaultStatsState,
+        currentSession: {
+          sessionId: 'test-session',
+          startTime: Date.now() - 90000, // 90 seconds ago
+        },
+        session: { distance: 0, area: 0, time: 0 },
+      };
+
+      action = updateSessionTimer();
+      updatedState = statsReducer(initialState, action);
+      expect(updatedState.formattedStats.sessionTime).toBe('01:30');
+
+      // Test 1+ hours - should be HH:MM:SS format
+      initialState = {
+        ...defaultStatsState,
+        currentSession: {
+          sessionId: 'test-session', 
+          startTime: Date.now() - 3900000, // 65 minutes ago
+        },
+        session: { distance: 0, area: 0, time: 0 },
+      };
+
+      action = updateSessionTimer();
+      updatedState = statsReducer(initialState, action);
+      expect(updatedState.formattedStats.sessionTime).toBe('01:05:00');
     });
   });
 });
