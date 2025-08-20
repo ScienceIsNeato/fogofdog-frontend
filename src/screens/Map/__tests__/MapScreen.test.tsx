@@ -6,6 +6,7 @@ import { configureStore, Store } from '@reduxjs/toolkit';
 import { MapScreen } from '../index';
 import explorationReducer, { updateLocation } from '../../../store/slices/explorationSlice';
 import userReducer from '../../../store/slices/userSlice';
+import statsReducer from '../../../store/slices/statsSlice';
 import type { RootState } from '../../../store';
 import * as Location from 'expo-location';
 import { Region } from 'react-native-maps';
@@ -387,6 +388,7 @@ describe('MapScreen', () => {
       reducer: {
         exploration: explorationReducer,
         user: userReducer,
+        stats: statsReducer,
       },
     });
     // Use mockImplementation for better type compatibility with Jest mocks
@@ -783,7 +785,7 @@ describe('MapScreen', () => {
 
     // Start with no location in store
     const storeWithoutLocation = configureStore({
-      reducer: { exploration: explorationReducer, user: userReducer },
+      reducer: { exploration: explorationReducer, user: userReducer, stats: statsReducer },
       preloadedState: {
         exploration: {
           path: [],
@@ -851,7 +853,7 @@ describe('MapScreen', () => {
 
     // Start with no location in store
     const storeWithoutLocation = configureStore({
-      reducer: { exploration: explorationReducer, user: userReducer },
+      reducer: { exploration: explorationReducer, user: userReducer, stats: statsReducer },
       preloadedState: {
         exploration: {
           path: [],
@@ -895,6 +897,7 @@ describe('MapScreen', () => {
       reducer: {
         exploration: explorationReducer,
         user: userReducer,
+        stats: statsReducer,
       },
       preloadedState: {
         exploration: {
@@ -912,6 +915,27 @@ describe('MapScreen', () => {
           isTrackingPaused: false,
         },
         user: { user: null, isLoading: false, error: null },
+        stats: {
+          total: { distance: 0, area: 0, time: 0 },
+          session: { distance: 0, area: 0, time: 0 },
+          currentSession: {
+            sessionId: 'test-session',
+            startTime: Date.now(),
+          },
+          isInitialized: false,
+          lastProcessedPoint: null,
+          isLoading: false,
+          lastError: null,
+          lastSaveTime: null,
+          formattedStats: {
+            totalDistance: '0m',
+            totalArea: '0m²',
+            totalTime: '0m',
+            sessionDistance: '0m',
+            sessionArea: '0m²',
+            sessionTime: '0m',
+          },
+        },
       },
     });
 

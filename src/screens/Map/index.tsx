@@ -22,6 +22,8 @@ import {
   setFollowMode,
   processBackgroundLocations,
 } from '../../store/slices/explorationSlice';
+import { processGeoPoint, initializeFromHistory, setLoading } from '../../store/slices/statsSlice';
+import { StatsPersistenceService } from '../../services/StatsPersistenceService';
 import MapView, { Marker, Region } from 'react-native-maps';
 import * as Location from 'expo-location';
 import * as TaskManager from 'expo-task-manager';
@@ -34,6 +36,7 @@ import { OnboardingOverlay } from '../../components/OnboardingOverlay';
 import { usePermissionVerification } from './hooks/usePermissionVerification';
 import { SettingsButton } from '../../components/SettingsButton';
 import UnifiedSettingsModal from '../../components/UnifiedSettingsModal';
+import { HUDStatsPanel } from '../../components/HUDStatsPanel';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { logger } from '../../utils/logger';
 
@@ -92,6 +95,9 @@ const handleLocationUpdate = ({
   currentRegion,
 }: HandleLocationUpdateOptions) => {
   dispatch(updateLocation(location));
+
+  // Process location for stats tracking
+  dispatch(processGeoPoint({ geoPoint: location }));
 
   // Auto-center map if follow mode is active OR if user clicked center once
   const shouldCenterMap = isFollowModeActive || isMapCenteredOnUser;
@@ -1742,10 +1748,13 @@ const MapScreenUI: React.FC<{
       <TrackingControlButton
         style={{
           position: 'absolute',
-          bottom: 160, // Above the data clear button
+          bottom: 180, // Positioned for equal spacing with HUD separator
           alignSelf: 'center',
         }}
       />
+
+      {/* HUD Stats Panel */}
+      <HUDStatsPanel />
 
       {/* Unified Settings Modal */}
       <UnifiedSettingsModal
@@ -1915,6 +1924,49 @@ const useMapScreenServicesAndHandlers = (config: MapScreenServicesHandlersConfig
   return { dataClearing, navigation, eventHandlers };
 };
 
+// Custom hook for stats initialization and persistence
+const useStatsInitialization = () => {
+  const dispatch = useAppDispatch();
+  const totalStats = useAppSelector((state) => state.stats.total);
+
+  // Initialize stats system
+  useEffect(() => {
+    const initializeStats = async () => {
+      try {
+        dispatch(setLoading(true));
+
+        // Load all GPS history from exploration state and initialize stats from it
+        const explorationState = await AuthPersistenceService.getExplorationState();
+        const gpsHistory = explorationState?.path ?? [];
+        dispatch(initializeFromHistory({ gpsHistory }));
+
+        logger.info('Initialized stats from GPS history', {
+          component: 'MapScreen',
+          action: 'initializeStats',
+          historyLength: gpsHistory.length,
+        });
+      } catch (error) {
+        logger.error('Failed to initialize stats system', {
+          component: 'MapScreen',
+          action: 'initializeStats',
+          errorMessage: error instanceof Error ? error.message : 'Unknown error',
+        });
+        dispatch(setLoading(false));
+      }
+    };
+
+    initializeStats();
+  }, [dispatch]);
+
+  // Save stats periodically
+  useEffect(() => {
+    // Only save if we have meaningful stats data
+    if (totalStats.distance > 0 || totalStats.area > 0 || totalStats.time > 0) {
+      StatsPersistenceService.saveStats(totalStats);
+    }
+  }, [totalStats]);
+};
+
 // Custom hook that combines all map screen logic
 const useMapScreenLogic = (
   permissionsVerified: boolean = false,
@@ -1964,6 +2016,9 @@ const useMapScreenLogic = (
 // permission verification and error recovery flows.
 
 export const MapScreen = () => {
+  // Initialize stats system
+  useStatsInitialization();
+
   // Get onboarding state first
   const { showOnboarding, handleOnboardingComplete, handleOnboardingSkip } =
     useMapScreenOnboarding();
@@ -1998,6 +2053,7 @@ export const MapScreen = () => {
   return (
     <>
       <MapScreenUI {...uiProps} />
+      <HUDStatsPanel />
       <OnboardingOverlay
         visible={showOnboarding}
         onComplete={handleOnboardingComplete}

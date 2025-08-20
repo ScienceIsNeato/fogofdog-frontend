@@ -1,6 +1,7 @@
 import { configureStore } from '@reduxjs/toolkit';
 import userReducer from '../../store/slices/userSlice';
 import explorationReducer from '../../store/slices/explorationSlice';
+import statsReducer from '../../store/slices/statsSlice';
 
 // Shared mock navigation object
 export const mockNavigation = {
@@ -44,12 +45,36 @@ const defaultExplorationState = {
   isTrackingPaused: false,
 };
 
+// Default stats state
+const defaultStatsState = {
+  total: { distance: 0, area: 0, time: 0 },
+  session: { distance: 0, area: 0, time: 0 },
+  currentSession: {
+    sessionId: 'test-session',
+    startTime: Date.now(),
+  },
+  lastProcessedPoint: null,
+  isInitialized: false,
+  isLoading: false,
+  lastError: null,
+  lastSaveTime: null,
+  formattedStats: {
+    totalDistance: '0m',
+    totalArea: '0m²',
+    totalTime: '0m',
+    sessionDistance: '0m',
+    sessionArea: '0m²',
+    sessionTime: '0m',
+  },
+};
+
 // Shared mock store creators
 export const createMockStore = (userState: any = null) => {
   return configureStore({
     reducer: {
       user: userReducer,
       exploration: explorationReducer,
+      stats: statsReducer,
     },
     preloadedState: {
       user: {
@@ -58,6 +83,7 @@ export const createMockStore = (userState: any = null) => {
         error: null,
       },
       exploration: defaultExplorationState,
+      stats: defaultStatsState,
     },
   });
 };
@@ -73,6 +99,7 @@ export const createMockStoreWithUser = (
     reducer: {
       user: userReducer,
       exploration: explorationReducer,
+      stats: statsReducer,
     },
     preloadedState: {
       user: {
@@ -81,6 +108,7 @@ export const createMockStoreWithUser = (
         error: null,
       },
       exploration: defaultExplorationState,
+      stats: defaultStatsState,
     },
   });
 };
