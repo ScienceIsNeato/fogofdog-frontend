@@ -5,9 +5,10 @@ import { logger } from '../utils/logger';
 
 interface SimplePerformancePanelProps {
   styles?: any;
+  onCloseModal?: (() => void) | undefined;
 }
 
-export const SimplePerformancePanel: React.FC<SimplePerformancePanelProps> = () => {
+export const SimplePerformancePanel: React.FC<SimplePerformancePanelProps> = ({ onCloseModal }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [currentCount, setCurrentCount] = useState(0);
 
@@ -27,9 +28,9 @@ export const SimplePerformancePanel: React.FC<SimplePerformancePanelProps> = () 
       'GPS Injection Ready',
       'Clicking OK will return you to the app and commence adding GPS points. Enjoy the show!',
       [
-        { 
-          text: 'Cancel', 
-          style: 'cancel' 
+        {
+          text: 'Cancel',
+          style: 'cancel',
         },
         {
           text: 'OK',
@@ -40,6 +41,11 @@ export const SimplePerformancePanel: React.FC<SimplePerformancePanelProps> = () 
   };
 
   const performGPSInjection = async (count: number) => {
+    // Close the modal first as promised in the confirmation dialog
+    if (onCloseModal) {
+      onCloseModal();
+    }
+
     setIsLoading(true);
     try {
       await performanceTestInjector.injectCustomData(count, 'REALISTIC_DRIVE');
