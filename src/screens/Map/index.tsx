@@ -1974,29 +1974,14 @@ const useStatsInitialization = () => {
     }
 
     const recalculateAreaPeriodically = () => {
-      // Convert GeoPoint[] to GPSEvent[] for the area calculation
-      const gpsEvents = explorationState.path.map((point) => ({
+      // Convert GeoPoint[] to serializable GPS data for area calculation
+      const serializableGPSData = explorationState.path.map((point) => ({
         latitude: point.latitude,
         longitude: point.longitude,
         timestamp: point.timestamp || Date.now(),
-        distanceTo: function (_other: any) {
-          return 0;
-        }, // Placeholder method
-        toString: function () {
-          return `${this.latitude},${this.longitude}`;
-        },
-        isWithinDistance: function (_other: any, _distance: number) {
-          return false;
-        },
-        toCoordinate: function () {
-          return { latitude: this.latitude, longitude: this.longitude };
-        },
-        toLocationData: function () {
-          return { latitude: this.latitude, longitude: this.longitude, timestamp: this.timestamp };
-        },
       }));
 
-      dispatch(recalculateArea(gpsEvents));
+      dispatch(recalculateArea(serializableGPSData));
 
       logger.debug('Triggered periodic area recalculation', {
         component: 'MapScreen',

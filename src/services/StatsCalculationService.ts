@@ -439,23 +439,22 @@ export class StatsCalculationService {
   }
 
   /**
-   * Recalculate area from current GPS path (for periodic updates during active sessions)
+   * Recalculate area from serializable GPS points (for periodic updates during active sessions)
    */
-  static recalculateAreaFromCurrentPath(
+  static recalculateAreaFromSerializablePoints(
     currentStats: StatsState,
-    currentGPSPath: GPSEvent[]
+    serializablePoints: SerializableGPSPoint[]
   ): StatsState {
-    if (currentGPSPath.length < 3) {
+    if (serializablePoints.length < 3) {
       return currentStats; // Need at least 3 points for area calculation
     }
 
-    const serializablePath = currentGPSPath.map((point) => this.gpsEventToSerializable(point));
-    const recalculatedArea = this.calculateArea(serializablePath);
+    const recalculatedArea = this.calculateArea(serializablePoints);
 
-    logger.debug('Recalculated area from current GPS path', {
+    logger.debug('Recalculated area from serializable GPS points', {
       component: 'StatsCalculationService',
-      action: 'recalculateAreaFromCurrentPath',
-      pathLength: currentGPSPath.length,
+      action: 'recalculateAreaFromSerializablePoints',
+      pathLength: serializablePoints.length,
       recalculatedArea: recalculatedArea.toFixed(2),
       previousTotalArea: currentStats.total.area.toFixed(2),
     });
@@ -467,6 +466,22 @@ export class StatsCalculationService {
         area: recalculatedArea,
       },
     };
+  }
+
+  /**
+   * Recalculate area from current GPS path (for periodic updates during active sessions)
+   * @deprecated Use recalculateAreaFromSerializablePoints instead for Redux compatibility
+   */
+  static recalculateAreaFromCurrentPath(
+    currentStats: StatsState,
+    currentGPSPath: GPSEvent[]
+  ): StatsState {
+    if (currentGPSPath.length < 3) {
+      return currentStats; // Need at least 3 points for area calculation
+    }
+
+    const serializablePath = currentGPSPath.map((point) => this.gpsEventToSerializable(point));
+    return this.recalculateAreaFromSerializablePoints(currentStats, serializablePath);
   }
 
   /**
