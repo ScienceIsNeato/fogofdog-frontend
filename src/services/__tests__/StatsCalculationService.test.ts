@@ -303,12 +303,17 @@ describe('StatsCalculationService', () => {
       expect(result.total.time).toBe(500); // Time difference is positive (500ms)
     });
 
-    it('should handle extremely large coordinates', () => {
+    it('should filter out extremely large distance jumps', () => {
+      // Test that unrealistic distance jumps (>50km) are filtered out
       const extremePath = [createGPSEvent(90, 180, 1000), createGPSEvent(-90, -180, 2000)];
 
-      expect(() => {
-        StatsCalculationService.calculateTotalsFromHistory(extremePath);
-      }).not.toThrow();
+      // This would be ~20,000km if not filtered
+      const result = StatsCalculationService.calculateTotalsFromHistory(extremePath);
+      
+      // Distance should be 0 because the 20,000km jump was filtered out
+      expect(result.total.distance).toBe(0);
+      expect(result.total.time).toBe(1000); // Time should still be calculated
+      expect(result.isInitialized).toBe(true);
     });
 
     it('should handle very large datasets efficiently', () => {

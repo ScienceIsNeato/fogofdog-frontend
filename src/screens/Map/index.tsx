@@ -22,7 +22,12 @@ import {
   setFollowMode,
   processBackgroundLocations,
 } from '../../store/slices/explorationSlice';
-import { processGeoPoint, initializeFromHistory, setLoading } from '../../store/slices/statsSlice';
+import {
+  processGeoPoint,
+  initializeFromHistory,
+  setLoading,
+  recalculateArea,
+} from '../../store/slices/statsSlice';
 import { StatsPersistenceService } from '../../services/StatsPersistenceService';
 import MapView, { Marker, Region } from 'react-native-maps';
 import * as Location from 'expo-location';
@@ -1928,6 +1933,10 @@ const useMapScreenServicesAndHandlers = (config: MapScreenServicesHandlersConfig
 const useStatsInitialization = () => {
   const dispatch = useAppDispatch();
   const totalStats = useAppSelector((state) => state.stats.total);
+  const explorationState = useAppSelector((state) => state.exploration);
+  const isSessionActive = useAppSelector(
+    (state) => state.stats.currentSession && !state.stats.currentSession.endTime
+  );
 
   // Initialize stats system
   useEffect(() => {
@@ -1957,6 +1966,50 @@ const useStatsInitialization = () => {
 
     initializeStats();
   }, [dispatch]);
+
+  // Periodically recalculate area from current GPS path during active sessions
+  useEffect(() => {
+    if (!isSessionActive || explorationState.path.length < 3) {
+      return; // Need active session and at least 3 points for area calculation
+    }
+
+    const recalculateAreaPeriodically = () => {
+      // Convert GeoPoint[] to GPSEvent[] for the area calculation
+      const gpsEvents = explorationState.path.map((point) => ({
+        latitude: point.latitude,
+        longitude: point.longitude,
+        timestamp: point.timestamp || Date.now(),
+        distanceTo: function (_other: any) {
+          return 0;
+        }, // Placeholder method
+        toString: function () {
+          return `${this.latitude},${this.longitude}`;
+        },
+        isWithinDistance: function (_other: any, _distance: number) {
+          return false;
+        },
+        toCoordinate: function () {
+          return { latitude: this.latitude, longitude: this.longitude };
+        },
+        toLocationData: function () {
+          return { latitude: this.latitude, longitude: this.longitude, timestamp: this.timestamp };
+        },
+      }));
+
+      dispatch(recalculateArea(gpsEvents));
+
+      logger.debug('Triggered periodic area recalculation', {
+        component: 'MapScreen',
+        action: 'recalculateAreaPeriodically',
+        pathLength: explorationState.path.length,
+      });
+    };
+
+    // Recalculate area every 30 seconds during active sessions
+    const areaRecalcInterval = setInterval(recalculateAreaPeriodically, 30000);
+
+    return () => clearInterval(areaRecalcInterval);
+  }, [dispatch, isSessionActive, explorationState.path]);
 
   // Save stats periodically
   useEffect(() => {

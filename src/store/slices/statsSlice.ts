@@ -320,6 +320,24 @@ const statsSlice = createSlice({
      * Update the current session time for real-time timer
      * This action is called every second when tracking is active
      */
+    /**
+     * Recalculate area from current GPS path (called periodically during active sessions)
+     */
+    recalculateArea: (state, action: PayloadAction<GPSEvent[]>) => {
+      logger.debug('Recalculating area from current GPS path', {
+        component: 'statsSlice',
+        action: 'recalculateArea',
+        pathLength: action.payload.length,
+      });
+
+      const updatedStats = StatsCalculationService.recalculateAreaFromCurrentPath(
+        state,
+        action.payload
+      );
+      Object.assign(state, updatedStats);
+      updateFormattedStats(state);
+    },
+
     updateSessionTimer: (state) => {
       // Only update if we have an active session and tracking is not paused
       if (state.currentSession && !state.currentSession.endTime) {
@@ -375,6 +393,7 @@ export const {
   pauseTracking,
   resumeTracking,
   updateSessionTimer,
+  recalculateArea,
 } = statsSlice.actions;
 
 export default statsSlice.reducer;

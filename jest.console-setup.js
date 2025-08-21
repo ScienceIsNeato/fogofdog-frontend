@@ -49,8 +49,11 @@ afterEach(() => {
   console.error = originalConsoleError;
   console.warn = originalConsoleWarn;
   
-  // Skip console error checking if test expects them
-  if (global.expectConsoleErrors) {
+  // Skip console error/warning checking if test expects them
+  if (global.expectConsoleErrors || global.expectConsoleWarnings) {
+    // Reset arrays for next test
+    consoleErrors.length = 0;
+    consoleWarnings.length = 0;
     return;
   }
   
@@ -67,4 +70,8 @@ afterEach(() => {
       `Test failed due to console.warn messages:\n${consoleWarnings.map(msg => `  • ${msg}`).join('\n')}`
     );
   }
+  
+  // Reset arrays for next test
+  consoleErrors.length = 0;
+  consoleWarnings.length = 0;
 }); 

@@ -226,12 +226,33 @@ export class StatsCalculationService {
     // Convert to serializable points for calculations
     const serializablePath = gpsHistory.map((point) => this.gpsEventToSerializable(point));
 
-    // Calculate total distance
+    // Calculate total distance with validation against unrealistic jumps
+    const MAX_REASONABLE_DISTANCE_METERS = 50000; // 50km max jump between points
     let totalDistance = 0;
     for (let i = 1; i < gpsHistory.length; i++) {
       const distance = this.calculateDistance(gpsHistory[i - 1]!, gpsHistory[i]!);
+
       if (distance >= this.MIN_MOVEMENT_THRESHOLD_METERS) {
-        totalDistance += distance;
+        if (distance > MAX_REASONABLE_DISTANCE_METERS) {
+          logger.warn('Filtering out unrealistic distance jump in GPS history', {
+            component: 'StatsCalculationService',
+            action: 'calculateTotalsFromHistory',
+            distanceJump: `${(distance / 1000).toFixed(2)}km`,
+            maxAllowed: `${MAX_REASONABLE_DISTANCE_METERS / 1000}km`,
+            fromPoint: {
+              lat: gpsHistory[i - 1]!.latitude.toFixed(6),
+              lng: gpsHistory[i - 1]!.longitude.toFixed(6),
+              timestamp: new Date(gpsHistory[i - 1]!.timestamp).toISOString(),
+            },
+            toPoint: {
+              lat: gpsHistory[i]!.latitude.toFixed(6),
+              lng: gpsHistory[i]!.longitude.toFixed(6),
+              timestamp: new Date(gpsHistory[i]!.timestamp).toISOString(),
+            },
+          });
+        } else {
+          totalDistance += distance;
+        }
       }
     }
 
@@ -248,11 +269,30 @@ export class StatsCalculationService {
       totalTime += sessionDuration;
     }
 
+
+
     logger.info('History calculation complete', {
       component: 'StatsCalculationService',
       totalDistance,
       totalArea,
       totalTime,
+      historyLength: gpsHistory.length,
+      firstPoint:
+        gpsHistory.length > 0
+          ? {
+              lat: gpsHistory[0]!.latitude.toFixed(6),
+              lng: gpsHistory[0]!.longitude.toFixed(6),
+              timestamp: new Date(gpsHistory[0]!.timestamp).toISOString(),
+            }
+          : null,
+      lastPoint:
+        gpsHistory.length > 0
+          ? {
+              lat: gpsHistory[gpsHistory.length - 1]!.latitude.toFixed(6),
+              lng: gpsHistory[gpsHistory.length - 1]!.longitude.toFixed(6),
+              timestamp: new Date(gpsHistory[gpsHistory.length - 1]!.timestamp).toISOString(),
+            }
+          : null,
     });
 
     // Start fresh session
@@ -319,28 +359,48 @@ export class StatsCalculationService {
     if (currentStats.lastProcessedPoint) {
       const prevGPSEvent = this.serializableToGPSEvent(currentStats.lastProcessedPoint);
       const distanceIncrement = this.calculateDistance(prevGPSEvent, newPoint);
+      const MAX_REASONABLE_DISTANCE_METERS = 50000; // 50km max jump between points
 
-      // Only add distance if movement is above threshold
+      // Only add distance if movement is above threshold and below unrealistic jump threshold
       if (distanceIncrement >= this.MIN_MOVEMENT_THRESHOLD_METERS) {
-        updatedStats.session.distance += distanceIncrement;
-        updatedStats.total.distance += distanceIncrement;
+        if (distanceIncrement > MAX_REASONABLE_DISTANCE_METERS) {
+          logger.warn('Filtering out unrealistic distance jump in incremental stats', {
+            component: 'StatsCalculationService',
+            action: 'incrementStats',
+            distanceJump: `${(distanceIncrement / 1000).toFixed(2)}km`,
+            maxAllowed: `${MAX_REASONABLE_DISTANCE_METERS / 1000}km`,
+            previousPoint: {
+              lat: currentStats.lastProcessedPoint.latitude.toFixed(6),
+              lng: currentStats.lastProcessedPoint.longitude.toFixed(6),
+              timestamp: new Date(currentStats.lastProcessedPoint.timestamp).toISOString(),
+            },
+            newPoint: {
+              lat: newPoint.latitude.toFixed(6),
+              lng: newPoint.longitude.toFixed(6),
+              timestamp: new Date(newPoint.timestamp).toISOString(),
+            },
+          });
+        } else {
+          updatedStats.session.distance += distanceIncrement;
+          updatedStats.total.distance += distanceIncrement;
 
-        logger.debug('Distance incremented', {
-          component: 'StatsCalculationService',
-          distanceIncrement: distanceIncrement.toFixed(2),
-          sessionDistance: updatedStats.session.distance.toFixed(2),
-          totalDistance: updatedStats.total.distance.toFixed(2),
-          previousPoint: {
-            lat: currentStats.lastProcessedPoint.latitude.toFixed(6),
-            lng: currentStats.lastProcessedPoint.longitude.toFixed(6),
-            timestamp: new Date(currentStats.lastProcessedPoint.timestamp).toISOString(),
-          },
-          newPoint: {
-            lat: newPoint.latitude.toFixed(6),
-            lng: newPoint.longitude.toFixed(6),
-            timestamp: new Date(newPoint.timestamp).toISOString(),
-          },
-        });
+          logger.debug('Distance incremented', {
+            component: 'StatsCalculationService',
+            distanceIncrement: distanceIncrement.toFixed(2),
+            sessionDistance: updatedStats.session.distance.toFixed(2),
+            totalDistance: updatedStats.total.distance.toFixed(2),
+            previousPoint: {
+              lat: currentStats.lastProcessedPoint.latitude.toFixed(6),
+              lng: currentStats.lastProcessedPoint.longitude.toFixed(6),
+              timestamp: new Date(currentStats.lastProcessedPoint.timestamp).toISOString(),
+            },
+            newPoint: {
+              lat: newPoint.latitude.toFixed(6),
+              lng: newPoint.longitude.toFixed(6),
+              timestamp: new Date(newPoint.timestamp).toISOString(),
+            },
+          });
+        }
       } else {
         logger.debug('Distance below threshold, not incremented', {
           component: 'StatsCalculationService',
@@ -370,7 +430,43 @@ export class StatsCalculationService {
 
     // Always update last processed point (even if it's the first point)
     updatedStats.lastProcessedPoint = serializablePoint;
+
+    // TODO: Area calculation for incremental updates
+    // For now, area is only calculated during full history processing
+    // This could be improved by periodically recalculating area during active sessions
+
     return updatedStats;
+  }
+
+  /**
+   * Recalculate area from current GPS path (for periodic updates during active sessions)
+   */
+  static recalculateAreaFromCurrentPath(
+    currentStats: StatsState,
+    currentGPSPath: GPSEvent[]
+  ): StatsState {
+    if (currentGPSPath.length < 3) {
+      return currentStats; // Need at least 3 points for area calculation
+    }
+
+    const serializablePath = currentGPSPath.map((point) => this.gpsEventToSerializable(point));
+    const recalculatedArea = this.calculateArea(serializablePath);
+
+    logger.debug('Recalculated area from current GPS path', {
+      component: 'StatsCalculationService',
+      action: 'recalculateAreaFromCurrentPath',
+      pathLength: currentGPSPath.length,
+      recalculatedArea: recalculatedArea.toFixed(2),
+      previousTotalArea: currentStats.total.area.toFixed(2),
+    });
+
+    return {
+      ...currentStats,
+      total: {
+        ...currentStats.total,
+        area: recalculatedArea,
+      },
+    };
   }
 
   /**
