@@ -92,7 +92,11 @@ export const SimplePerformancePanel: React.FC<SimplePerformancePanelProps> = ({ 
           <Text style={styles.buttonText}>+500</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.clearButton} onPress={() => handleClearData(updateCount)} disabled={isLoading}>
+        <TouchableOpacity
+          style={styles.clearButton}
+          onPress={() => handleClearData(updateCount)}
+          disabled={isLoading}
+        >
           <Text style={styles.buttonText}>Clear</Text>
         </TouchableOpacity>
       </View>

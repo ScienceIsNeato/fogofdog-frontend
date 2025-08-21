@@ -1,7 +1,7 @@
 import { configureStore } from '@reduxjs/toolkit';
-import userReducer from '../../store/slices/userSlice';
-import explorationReducer from '../../store/slices/explorationSlice';
-import statsReducer from '../../store/slices/statsSlice';
+import userReducer from '../store/slices/userSlice';
+import explorationReducer from '../store/slices/explorationSlice';
+import statsReducer from '../store/slices/statsSlice';
 
 // Shared mock navigation object
 export const mockNavigation = {

@@ -2,8 +2,8 @@ import React from 'react';
 import { render, fireEvent } from '@testing-library/react-native';
 import { Provider } from 'react-redux';
 import { SignUpScreen } from '../SignUp';
-import { createMockStore, mockNavigation } from '../../../__tests__/test-helpers/shared-mocks';
-import { renderAuthScreen } from '../../../__tests__/test-helpers/render-utils';
+import { createMockStore, mockNavigation } from '../../../test-helpers/shared-mocks';
+import { renderAuthScreen } from '../../../test-helpers/render-utils';
 
 // Using shared mock navigation and store utilities
 

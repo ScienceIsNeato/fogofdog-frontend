@@ -75,7 +75,7 @@ const renderMapScreen = async (store: Store<RootState>) => {
   );
 
   await act(async () => {
-    jest.runAllTimers();
+    jest.advanceTimersByTime(1000);
     await Promise.resolve();
   });
 
@@ -157,7 +157,7 @@ const simulateRegionChange = async (
   });
 
   await act(async () => {
-    jest.runAllTimers();
+    jest.advanceTimersByTime(1000);
     await Promise.resolve();
   });
 
@@ -436,7 +436,7 @@ describe('MapScreen', () => {
     }
 
     await act(async () => {
-      jest.runAllTimers();
+      jest.advanceTimersByTime(1000);
       await Promise.resolve();
     });
 
@@ -459,7 +459,7 @@ describe('MapScreen', () => {
       store.dispatch(updateLocation(mockUpdatedCoords));
     });
     await act(async () => {
-      jest.runAllTimers();
+      jest.advanceTimersByTime(1000);
       await Promise.resolve();
     });
 
@@ -477,7 +477,7 @@ describe('MapScreen', () => {
       mapView.props.onPress();
     });
     await act(async () => {
-      jest.runAllTimers();
+      jest.advanceTimersByTime(1000);
       await Promise.resolve();
     });
 
@@ -509,7 +509,7 @@ describe('MapScreen', () => {
     }
 
     await act(async () => {
-      jest.runAllTimers();
+      jest.advanceTimersByTime(1000);
       await Promise.resolve();
     });
 
@@ -547,7 +547,7 @@ describe('MapScreen', () => {
     await act(async () => {
       if (initialMapViewArgs.onRegionChangeComplete)
         initialMapViewArgs.onRegionChangeComplete(pannedRegion);
-      jest.runAllTimers();
+      jest.advanceTimersByTime(1000);
       await Promise.resolve();
     });
 
@@ -617,7 +617,7 @@ describe('MapScreen', () => {
     });
 
     await act(async () => {
-      jest.runAllTimers();
+      jest.advanceTimersByTime(1000);
       await Promise.resolve();
     });
 
@@ -639,7 +639,7 @@ describe('MapScreen', () => {
     });
 
     await act(async () => {
-      jest.runAllTimers();
+      jest.advanceTimersByTime(1000);
       await Promise.resolve();
     });
 
@@ -670,7 +670,7 @@ describe('MapScreen', () => {
     });
 
     await act(async () => {
-      jest.runAllTimers();
+      jest.advanceTimersByTime(1000);
       await Promise.resolve();
     });
 
@@ -812,7 +812,7 @@ describe('MapScreen', () => {
     );
 
     await act(async () => {
-      jest.runAllTimers();
+      jest.advanceTimersByTime(1000);
       await Promise.resolve();
     });
 
@@ -826,7 +826,7 @@ describe('MapScreen', () => {
     });
 
     await act(async () => {
-      jest.runAllTimers();
+      jest.advanceTimersByTime(1000);
       await Promise.resolve();
     });
 
@@ -880,7 +880,7 @@ describe('MapScreen', () => {
     );
 
     await act(async () => {
-      jest.runAllTimers();
+      jest.advanceTimersByTime(1000);
       await Promise.resolve();
     });
 

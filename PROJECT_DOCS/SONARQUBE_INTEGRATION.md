@@ -6,21 +6,29 @@ This project now includes comprehensive SonarQube analysis that can be run local
 
 ## Quick Start
 
-### Fast Local Checks (Git Hook Validation)
+### Full Quality Analysis (Default - Recommended)
 ```bash
-./scripts/maintainAIbility-gate.sh
+python scripts/ship_it.py
 ```
-- Runs: Lint, Format, TypeScript, Tests, Duplication
-- Duration: ~30 seconds
-- Use for: Regular development commits
+- Runs: All checks including SonarQube (parallel execution)
+- Duration: ~20-30 seconds (parallel)
+- Use for: Pre-commit validation, comprehensive quality checks
 
-### Full Quality Analysis (CI Validation)
+### Fast Development Iteration
 ```bash
-./scripts/maintainAIbility-gate.sh --full
+python scripts/ship_it.py --fail-fast
 ```
-- Runs: All fast checks + SonarQube analysis
-- Duration: ~2-3 minutes
-- Use for: Pre-merge validation, comprehensive quality checks
+- Runs: All checks, exits immediately on first failure
+- Duration: Varies (stops at first issue)
+- Use for: Rapid development cycles, "get this ready to commit"
+
+### Selective Checks
+```bash
+python scripts/ship_it.py --checks tests lint format
+```
+- Runs: Only specified checks
+- Duration: ~5-10 seconds
+- Use for: Focused iteration on specific issues
 
 ## ✅ Status: INTEGRATION COMPLETE
 

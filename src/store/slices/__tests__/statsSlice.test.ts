@@ -19,7 +19,7 @@ import statsReducer, {
   updateSessionTimer,
 } from '../statsSlice';
 import { StatsCalculationService } from '../../../services/StatsCalculationService';
-import { defaultStatsState } from '../../../__tests__/test-helpers/shared-mocks';
+import { defaultStatsState } from '../../../test-helpers/shared-mocks';
 
 // Import types from the slice interface
 type StatsState = ReturnType<typeof statsReducer>;

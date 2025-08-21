@@ -200,11 +200,17 @@ describe('HUDStatsPanel', () => {
   });
 
   describe('Timer Integration', () => {
+    let cleanup: (() => void) | undefined;
+
     beforeEach(() => {
       jest.clearAllTimers();
     });
 
     afterEach(() => {
+      // Unmount component to trigger cleanup
+      if (cleanup) {
+        cleanup();
+      }
       jest.runOnlyPendingTimers();
       jest.clearAllTimers();
     });
@@ -221,11 +227,12 @@ describe('HUDStatsPanel', () => {
       const store = createMockStoreWithStats(activeSessionState);
       const dispatchSpy = jest.spyOn(store, 'dispatch');
 
-      render(
+      const { unmount } = render(
         <Provider store={store}>
           <HUDStatsPanel />
         </Provider>
       );
+      cleanup = unmount;
 
       // Fast-forward time to trigger timer
       act(() => {
@@ -252,11 +259,12 @@ describe('HUDStatsPanel', () => {
       const dispatchSpy = jest.spyOn(store, 'dispatch');
       const callCountBefore = dispatchSpy.mock.calls.length;
 
-      render(
+      const { unmount } = render(
         <Provider store={store}>
           <HUDStatsPanel />
         </Provider>
       );
+      cleanup = unmount;
 
       // Fast-forward time
       act(() => {
@@ -277,11 +285,12 @@ describe('HUDStatsPanel', () => {
       const store = createMockStoreWithStats(noSessionState);
       const dispatchSpy = jest.spyOn(store, 'dispatch');
 
-      render(
+      const { unmount } = render(
         <Provider store={store}>
           <HUDStatsPanel />
         </Provider>
       );
+      cleanup = unmount;
 
       // Fast-forward time
       act(() => {

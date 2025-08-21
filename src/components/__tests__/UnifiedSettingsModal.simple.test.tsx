@@ -7,6 +7,15 @@ import { DataStats } from '../../types/dataClear';
 
 // Mock dependencies
 jest.mock('../../services/OnboardingService');
+jest.mock('../../services/DeveloperSettingsService', () => ({
+  getDeveloperSettings: jest.fn().mockResolvedValue({
+    onboardingEnabled: false,
+    freshInstallMode: false,
+  }),
+  setFreshInstallMode: jest.fn().mockResolvedValue(undefined),
+  resetToFreshInstall: jest.fn().mockResolvedValue(undefined),
+  toggleOnboarding: jest.fn().mockResolvedValue(undefined),
+}));
 jest.mock('../../utils/logger');
 jest.mock('expo-haptics');
 
