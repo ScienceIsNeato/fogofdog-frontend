@@ -310,11 +310,12 @@ function setupLocationListeners({
 
   const gpsInjectionListener = DeviceEventEmitter.addListener(
     'GPS_COORDINATES_INJECTED',
-    (location: { latitude: number; longitude: number }) => {
+    (location: { latitude: number; longitude: number; timestamp?: number }) => {
       logger.info('🎯 GPS injection event received in MapScreen', {
         component: 'MapScreen',
         action: 'gpsInjectionListener',
         location: `${location.latitude}, ${location.longitude}`,
+        timestamp: location.timestamp ? new Date(location.timestamp).toISOString() : 'current time',
         isActive: isActiveRef.current,
       });
 
@@ -323,12 +324,14 @@ function setupLocationListeners({
           component: 'MapScreen',
           action: 'gpsInjectionListener',
           location: `${location.latitude}, ${location.longitude}`,
+          timestamp: location.timestamp ? new Date(location.timestamp).toISOString() : 'current time',
         });
 
         const geoPoint: GeoPoint = {
           latitude: location.latitude,
           longitude: location.longitude,
-          timestamp: Date.now(),
+          // Preserve original timestamp from test data, fallback to current time
+          timestamp: location.timestamp || Date.now(),
         };
 
         handleLocationUpdate({
