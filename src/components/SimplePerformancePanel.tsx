@@ -4,9 +4,22 @@ import { performanceTestInjector } from '../utils/injectPerformanceTestData';
 import { logger } from '../utils/logger';
 
 interface SimplePerformancePanelProps {
-  styles?: any;
   onCloseModal?: (() => void) | undefined;
 }
+
+const handleClearData = (updateCount: () => void) => {
+  Alert.alert('Clear Data', 'Remove all GPS points?', [
+    { text: 'Cancel', style: 'cancel' },
+    {
+      text: 'Clear',
+      style: 'destructive',
+      onPress: () => {
+        performanceTestInjector.clearData();
+        updateCount();
+      },
+    },
+  ]);
+};
 
 export const SimplePerformancePanel: React.FC<SimplePerformancePanelProps> = ({ onCloseModal }) => {
   const [isLoading, setIsLoading] = useState(false);
@@ -34,18 +47,20 @@ export const SimplePerformancePanel: React.FC<SimplePerformancePanelProps> = ({ 
         },
         {
           text: 'OK',
-          onPress: () => performGPSInjection(count),
+          onPress: () => {
+            // Close the modal immediately as promised in the dialog
+            if (onCloseModal) {
+              onCloseModal();
+            }
+            // Start GPS injection after modal is closed
+            performGPSInjection(count);
+          },
         },
       ]
     );
   };
 
   const performGPSInjection = async (count: number) => {
-    // Close the modal first as promised in the confirmation dialog
-    if (onCloseModal) {
-      onCloseModal();
-    }
-
     setIsLoading(true);
     try {
       await performanceTestInjector.injectCustomData(count, 'REALISTIC_DRIVE');
@@ -57,20 +72,6 @@ export const SimplePerformancePanel: React.FC<SimplePerformancePanelProps> = ({ 
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const clearData = () => {
-    Alert.alert('Clear Data', 'Remove all GPS points?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Clear',
-        style: 'destructive',
-        onPress: () => {
-          performanceTestInjector.clearData();
-          updateCount();
-        },
-      },
-    ]);
   };
 
   return (
@@ -91,7 +92,7 @@ export const SimplePerformancePanel: React.FC<SimplePerformancePanelProps> = ({ 
           <Text style={styles.buttonText}>+500</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.clearButton} onPress={clearData} disabled={isLoading}>
+        <TouchableOpacity style={styles.clearButton} onPress={() => handleClearData(updateCount)} disabled={isLoading}>
           <Text style={styles.buttonText}>Clear</Text>
         </TouchableOpacity>
       </View>

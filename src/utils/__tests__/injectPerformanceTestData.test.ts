@@ -2,17 +2,24 @@ import { performanceTestInjector } from '../injectPerformanceTestData';
 import { store } from '../../store';
 import { logger } from '../logger';
 import { generatePerformanceTestData } from '../performanceTestData';
+import { DeviceEventEmitter } from 'react-native';
 
 // Mock dependencies
 jest.mock('../../store');
 jest.mock('../logger');
 jest.mock('../performanceTestData');
+jest.mock('react-native', () => ({
+  DeviceEventEmitter: {
+    emit: jest.fn(),
+  },
+}));
 
 const mockStore = store as jest.Mocked<typeof store>;
 const mockLogger = logger as jest.Mocked<typeof logger>;
 const mockGenerateData = generatePerformanceTestData as jest.MockedFunction<
   typeof generatePerformanceTestData
 >;
+const mockDeviceEventEmitter = DeviceEventEmitter as jest.Mocked<typeof DeviceEventEmitter>;
 
 describe('PerformanceTestDataInjector', () => {
   beforeEach(() => {
@@ -61,17 +68,27 @@ describe('PerformanceTestDataInjector', () => {
 
   describe('injectCustomData', () => {
     it('should inject custom test data successfully', async () => {
-      await performanceTestInjector.injectCustomData(2, 'REALISTIC_DRIVE');
+      // Fast forward timers to trigger the setTimeout calls
+      jest.useFakeTimers();
+
+      const injectionPromise = performanceTestInjector.injectCustomData(2, 'REALISTIC_DRIVE');
+
+      // Fast forward to trigger all setTimeout calls
+      jest.runAllTimers();
+
+      await injectionPromise;
 
       expect(mockGenerateData).toHaveBeenCalledWith(2, 'realistic_drive', {});
-      expect(mockStore.dispatch).toHaveBeenCalledTimes(2); // One for each point
+      expect(mockDeviceEventEmitter.emit).toHaveBeenCalledTimes(2); // One for each point
       expect(mockLogger.info).toHaveBeenCalledWith(
         '🚀 Starting injection of 2 custom points (REALISTIC_DRIVE) from default location...'
       );
+
+      jest.useRealTimers();
     });
 
     it('should handle injection errors gracefully', async () => {
-      (mockStore.dispatch as jest.Mock).mockImplementation(() => {
+      mockGenerateData.mockImplementation(() => {
         throw new Error('Test error');
       });
 

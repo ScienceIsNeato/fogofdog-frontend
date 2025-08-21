@@ -1,5 +1,5 @@
 import { store } from '../store';
-import { updateLocation } from '../store/slices/explorationSlice';
+import { DeviceEventEmitter } from 'react-native';
 import { TestPatterns, generatePerformanceTestData } from './performanceTestData';
 import { logger } from './logger';
 
@@ -23,8 +23,10 @@ export class PerformanceTestDataInjector {
    * Clear all existing GPS data
    */
   clearData(): void {
-    // Clear the exploration state
+    // Clear the exploration state using the proper action
     store.dispatch({ type: 'exploration/clearAllData' });
+    // Also clear stats state
+    store.dispatch({ type: 'stats/resetAllStats' });
     logger.info('🧹 Cleared all GPS data for performance testing');
   }
 
@@ -99,15 +101,16 @@ export class PerformanceTestDataInjector {
     for (let i = 0; i < sortedPoints.length; i += batchSize) {
       const batch = sortedPoints.slice(i, i + batchSize);
 
-      // Inject batch
-      batch.forEach((point) => {
-        store.dispatch(
-          updateLocation({
+      // Inject batch using the same GPS injection system as real GPS
+      batch.forEach((point, index) => {
+        // Use setTimeout to spread out the injections slightly to simulate real GPS timing
+        setTimeout(() => {
+          DeviceEventEmitter.emit('GPS_COORDINATES_INJECTED', {
             latitude: point.latitude,
             longitude: point.longitude,
             timestamp: point.timestamp,
-          })
-        );
+          });
+        }, index * 5); // 5ms between points to avoid overwhelming the system
       });
 
       // Progress logging
