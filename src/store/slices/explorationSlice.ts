@@ -386,6 +386,43 @@ const explorationSlice = createSlice({
     setFollowMode: (state, action: PayloadAction<boolean>) => {
       state.isFollowModeActive = action.payload;
     },
+
+    /**
+     * Prepend historical GPS data to the beginning of the path
+     * Used for performance testing with historical sessions
+     */
+    prependHistoricalData: (state, action: PayloadAction<{ historicalPoints: GeoPoint[] }>) => {
+      const { historicalPoints } = action.payload;
+      
+      logger.info('Prepending historical GPS data to exploration path', {
+        component: 'explorationSlice',
+        action: 'prependHistoricalData',
+        historicalPointsCount: historicalPoints.length,
+        existingPathLength: state.path.length,
+      });
+
+      // Validate all historical points
+      const validHistoricalPoints = historicalPoints.filter(point => {
+        if (!isValidGeoPoint(point)) {
+          logger.warn(`Invalid historical GPS point: ${JSON.stringify(point)}. Skipping.`, {
+            component: 'explorationSlice',
+            action: 'prependHistoricalData',
+          });
+          return false;
+        }
+        return true;
+      });
+
+      // Prepend historical points to the beginning of the path
+      state.path = [...validHistoricalPoints, ...state.path];
+
+      logger.info(`Historical data prepended successfully`, {
+        component: 'explorationSlice',
+        action: 'prependHistoricalData',
+        validPointsAdded: validHistoricalPoints.length,
+        newTotalPathLength: state.path.length,
+      });
+    },
   },
 });
 
@@ -404,5 +441,6 @@ export const {
   clearAllData,
   toggleFollowMode,
   setFollowMode,
+  prependHistoricalData,
 } = explorationSlice.actions;
 export default explorationSlice.reducer;

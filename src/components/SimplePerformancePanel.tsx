@@ -33,42 +33,79 @@ export const SimplePerformancePanel: React.FC<SimplePerformancePanelProps> = ({ 
     updateCount();
   }, []);
 
-  const injectTestData = async (count: number) => {
+  const injectRealTimeData = async (count: number) => {
     if (isLoading) return;
 
-    // Show confirmation dialog before starting injection
     Alert.alert(
-      'GPS Injection Ready',
-      'Clicking OK will return you to the app and commence adding GPS points. Enjoy the show!',
+      'Real-Time GPS Injection',
+      `This will inject ${count} GPS points in real-time with current timestamps. The GPS beacon will act as the "head" of the worm. This will take about ${Math.round(count / 60)} minutes.`,
       [
         {
           text: 'Cancel',
           style: 'cancel',
         },
         {
-          text: 'OK',
+          text: 'Start Real-Time',
           onPress: () => {
-            // Close the modal immediately as promised in the dialog
             if (onCloseModal) {
               onCloseModal();
             }
-            // Start GPS injection after modal is closed
-            performGPSInjection(count);
+            performRealTimeInjection(count);
           },
         },
       ]
     );
   };
 
-  const performGPSInjection = async (count: number) => {
+  const injectHistoricalData = async (count: number) => {
+    if (isLoading) return;
+
+    Alert.alert(
+      'Historical GPS Data',
+      `This will prepend ${count} historical GPS points to the beginning of your record as a complete session. This happens instantly.`,
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Add Historical',
+          onPress: () => {
+            if (onCloseModal) {
+              onCloseModal();
+            }
+            performHistoricalInjection(count);
+          },
+        },
+      ]
+    );
+  };
+
+  const performRealTimeInjection = async (count: number) => {
     setIsLoading(true);
     try {
-      await performanceTestInjector.injectCustomData(count, 'REALISTIC_DRIVE');
+      await performanceTestInjector.injectRealTimeData(count, 'REALISTIC_DRIVE', {
+        intervalMs: 1000, // 1 second between points
+      });
       updateCount();
-      // No success dialog - user will see the GPS points being added in real-time
     } catch (error) {
-      Alert.alert('Error', 'Failed to inject test data');
-      logger.error('Failed to inject test data', error);
+      Alert.alert('Error', 'Failed to inject real-time data');
+      logger.error('Failed to inject real-time data', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const performHistoricalInjection = async (count: number) => {
+    setIsLoading(true);
+    try {
+      await performanceTestInjector.prependHistoricalData(count, 'REALISTIC_DRIVE', {
+        sessionDurationHours: 2, // 2-hour historical session
+      });
+      updateCount();
+    } catch (error) {
+      Alert.alert('Error', 'Failed to inject historical data');
+      logger.error('Failed to inject historical data', error);
     } finally {
       setIsLoading(false);
     }
@@ -82,22 +119,52 @@ export const SimplePerformancePanel: React.FC<SimplePerformancePanelProps> = ({ 
         <Text style={styles.statusText}>GPS Points: {currentCount.toLocaleString()}</Text>
       </View>
 
-      <View style={styles.buttonRow}>
-        <TouchableOpacity
-          style={styles.testButton}
-          onPress={() => injectTestData(500)}
-          disabled={isLoading}
-        >
-          <Text style={styles.buttonText}>+500</Text>
-        </TouchableOpacity>
+      <View style={styles.buttonContainer}>
+        <Text style={styles.sectionLabel}>Real-Time Injection</Text>
+        <View style={styles.buttonRow}>
+          <TouchableOpacity
+            style={styles.realTimeButton}
+            onPress={() => injectRealTimeData(100)}
+            disabled={isLoading}
+          >
+            <Text style={styles.buttonText}>+100 Live</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.realTimeButton}
+            onPress={() => injectRealTimeData(500)}
+            disabled={isLoading}
+          >
+            <Text style={styles.buttonText}>+500 Live</Text>
+          </TouchableOpacity>
+        </View>
+        
+        <Text style={styles.sectionLabel}>Historical Data</Text>
+        <View style={styles.buttonRow}>
+          <TouchableOpacity
+            style={styles.historicalButton}
+            onPress={() => injectHistoricalData(100)}
+            disabled={isLoading}
+          >
+            <Text style={styles.buttonText}>+100 History</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.historicalButton}
+            onPress={() => injectHistoricalData(500)}
+            disabled={isLoading}
+          >
+            <Text style={styles.buttonText}>+500 History</Text>
+          </TouchableOpacity>
+        </View>
 
-        <TouchableOpacity
-          style={styles.clearButton}
-          onPress={() => handleClearData(updateCount)}
-          disabled={isLoading}
-        >
-          <Text style={styles.buttonText}>Clear</Text>
-        </TouchableOpacity>
+        <View style={styles.buttonRow}>
+          <TouchableOpacity
+            style={styles.clearButton}
+            onPress={() => handleClearData(updateCount)}
+            disabled={isLoading}
+          >
+            <Text style={styles.buttonText}>Clear All Data</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       {isLoading && <Text style={styles.loadingText}>Loading...</Text>}
@@ -130,18 +197,37 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#6c757d',
   },
+  buttonContainer: {
+    gap: 8,
+  },
+  sectionLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#495057',
+    marginTop: 8,
+    marginBottom: 4,
+  },
   buttonRow: {
     flexDirection: 'row',
     gap: 8,
   },
-  testButton: {
+  realTimeButton: {
     flex: 1,
-    backgroundColor: '#007bff',
+    backgroundColor: '#28a745', // Green for real-time
     paddingVertical: 8,
     paddingHorizontal: 12,
     borderRadius: 6,
     alignItems: 'center',
   },
+  historicalButton: {
+    flex: 1,
+    backgroundColor: '#6f42c1', // Purple for historical
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 6,
+    alignItems: 'center',
+  },
+
   clearButton: {
     flex: 1,
     backgroundColor: '#dc3545',
