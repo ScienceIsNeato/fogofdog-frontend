@@ -80,7 +80,6 @@ export const SimplePerformancePanel: React.FC<SimplePerformancePanelProps> = ({ 
 
       <View style={styles.statusRow}>
         <Text style={styles.statusText}>GPS Points: {currentCount.toLocaleString()}</Text>
-        <Text style={styles.adaptiveText}>Adaptive Optimization: Active</Text>
       </View>
 
       <View style={styles.buttonRow}>
@@ -130,11 +129,6 @@ const styles = StyleSheet.create({
   statusText: {
     fontSize: 14,
     color: '#6c757d',
-  },
-  adaptiveText: {
-    fontSize: 12,
-    color: '#28a745',
-    fontWeight: '500',
   },
   buttonRow: {
     flexDirection: 'row',
