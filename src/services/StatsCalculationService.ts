@@ -27,6 +27,9 @@ export interface SessionInfo {
   sessionId: string;
   startTime: number;
   endTime?: number;
+  // Pause tracking for accurate session timing
+  lastActiveTime?: number; // Last time tracking was active (for calculating pause duration)
+  totalPausedTime: number; // Total time spent paused during this session
 }
 
 /**
@@ -269,6 +272,8 @@ export class StatsCalculationService {
       currentSession: {
         sessionId,
         startTime: Date.now(),
+        totalPausedTime: 0,
+        lastActiveTime: Date.now(),
       },
       lastProcessedPoint: null, // Start fresh session - don't connect to historical data
       isInitialized: true,
@@ -384,6 +389,8 @@ export class StatsCalculationService {
       currentSession: {
         sessionId: newSessionId,
         startTime: Date.now(),
+        totalPausedTime: 0,
+        lastActiveTime: Date.now(),
       },
     };
   }
@@ -397,6 +404,49 @@ export class StatsCalculationService {
       currentSession: {
         ...currentStats.currentSession,
         endTime: Date.now(),
+      },
+    };
+  }
+
+  /**
+   * Handle tracking pause - record the pause start time
+   */
+  static pauseSession(currentStats: StatsState): StatsState {
+    const now = Date.now();
+    return {
+      ...currentStats,
+      currentSession: {
+        ...currentStats.currentSession,
+        lastActiveTime: now,
+      },
+    };
+  }
+
+  /**
+   * Handle tracking resume - add paused time to total
+   */
+  static resumeSession(currentStats: StatsState): StatsState {
+    const now = Date.now();
+    const lastActiveTime = currentStats.currentSession.lastActiveTime;
+
+    if (lastActiveTime) {
+      const pauseDuration = now - lastActiveTime;
+      return {
+        ...currentStats,
+        currentSession: {
+          ...currentStats.currentSession,
+          totalPausedTime: currentStats.currentSession.totalPausedTime + pauseDuration,
+          lastActiveTime: now,
+        },
+      };
+    }
+
+    // If no lastActiveTime, just update it
+    return {
+      ...currentStats,
+      currentSession: {
+        ...currentStats.currentSession,
+        lastActiveTime: now,
       },
     };
   }
@@ -532,6 +582,8 @@ export class StatsCalculationService {
       currentSession: {
         sessionId: this.generateSessionId(),
         startTime: Date.now(),
+        totalPausedTime: 0,
+        lastActiveTime: Date.now(),
       },
       lastProcessedPoint: null,
       isInitialized: false,

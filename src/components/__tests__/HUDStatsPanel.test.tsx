@@ -87,7 +87,7 @@ describe('HUDStatsPanel', () => {
     expect(getByText('All Time')).toBeTruthy();
     expect(getByText('Session')).toBeTruthy();
 
-    // Check labels (appear once as category headers in new layout)
+    // Check labels (appear once as row headers in new grid layout)
     expect(getAllByText('Distance')).toHaveLength(1);
     expect(getAllByText('Area')).toHaveLength(1);
     expect(getAllByText('Time')).toHaveLength(1);
@@ -186,7 +186,7 @@ describe('HUDStatsPanel', () => {
   it('should render labeled stats with blue vector icons', () => {
     const { getAllByText } = renderWithMockStore(<HUDStatsPanel />, mockStatsState);
 
-    // Should have distance labels (appears once as category header in new layout)
+    // Should have distance labels (appears once as row header in grid layout)
     const distanceLabels = getAllByText('Distance');
     expect(distanceLabels.length).toBe(1);
 

@@ -52,6 +52,8 @@ export const defaultStatsState = {
   currentSession: {
     sessionId: 'test-session',
     startTime: Date.now(),
+    totalPausedTime: 0,
+    lastActiveTime: Date.now(),
   },
   lastProcessedPoint: null,
   isInitialized: false,

@@ -921,6 +921,8 @@ describe('MapScreen', () => {
           currentSession: {
             sessionId: 'test-session',
             startTime: Date.now(),
+            totalPausedTime: 0,
+            lastActiveTime: Date.now(),
           },
           isInitialized: false,
           lastProcessedPoint: null,

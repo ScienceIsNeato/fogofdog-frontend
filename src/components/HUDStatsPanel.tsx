@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useSelector, useDispatch } from 'react-redux';
@@ -7,23 +7,50 @@ import {
   selectIsStatsLoading,
   selectIsSessionActive,
   updateSessionTimer,
+  pauseTracking,
+  resumeTracking,
 } from '../store/slices/statsSlice';
 import { RootState } from '../store';
+import { SessionResetButton } from './SessionResetButton';
 
 /**
- * HUD Stats Panel Component
- *
- * Displays real-time exploration statistics in a persistent bottom panel.
- * Shows both lifetime totals and current session stats.
+ * Custom hook to handle pause/resume state changes
  */
-export const HUDStatsPanel: React.FC = () => {
-  const dispatch = useDispatch();
-  const formattedStats = useSelector((state: RootState) => selectFormattedStats(state));
-  const isLoading = useSelector((state: RootState) => selectIsStatsLoading(state));
-  const isSessionActive = useSelector((state: RootState) => selectIsSessionActive(state));
-  const isTrackingPaused = useSelector((state: RootState) => state.exploration.isTrackingPaused);
+const usePauseResumeHandler = (
+  dispatch: ReturnType<typeof useDispatch>,
+  isSessionActive: boolean,
+  isTrackingPaused: boolean
+) => {
+  const prevIsTrackingPausedRef = useRef<boolean>(isTrackingPaused);
 
-  // Real-time timer effect - updates every second when tracking is active
+  useEffect(() => {
+    const prevPaused = prevIsTrackingPausedRef.current;
+    const currentPaused = isTrackingPaused;
+
+    // Only dispatch if there's an active session and the state actually changed
+    if (isSessionActive && prevPaused !== currentPaused) {
+      if (currentPaused) {
+        // Just became paused - record pause time
+        dispatch(pauseTracking());
+      } else {
+        // Just became unpaused - calculate and add paused duration
+        dispatch(resumeTracking());
+      }
+    }
+
+    // Update ref for next comparison
+    prevIsTrackingPausedRef.current = currentPaused;
+  }, [dispatch, isSessionActive, isTrackingPaused]);
+};
+
+/**
+ * Custom hook to handle real-time timer updates
+ */
+const useSessionTimer = (
+  dispatch: ReturnType<typeof useDispatch>,
+  isSessionActive: boolean,
+  isTrackingPaused: boolean
+) => {
   useEffect(() => {
     let intervalId: NodeJS.Timeout | null = null;
 
@@ -41,6 +68,24 @@ export const HUDStatsPanel: React.FC = () => {
       }
     };
   }, [dispatch, isSessionActive, isTrackingPaused]);
+};
+
+/**
+ * HUD Stats Panel Component
+ *
+ * Displays real-time exploration statistics in a persistent bottom panel.
+ * Shows both lifetime totals and current session stats.
+ */
+export const HUDStatsPanel: React.FC = () => {
+  const dispatch = useDispatch();
+  const formattedStats = useSelector((state: RootState) => selectFormattedStats(state));
+  const isLoading = useSelector((state: RootState) => selectIsStatsLoading(state));
+  const isSessionActive = useSelector((state: RootState) => selectIsSessionActive(state));
+  const isTrackingPaused = useSelector((state: RootState) => state.exploration.isTrackingPaused);
+
+  // Use custom hooks for cleaner code organization
+  usePauseResumeHandler(dispatch, isSessionActive, isTrackingPaused);
+  useSessionTimer(dispatch, isSessionActive, isTrackingPaused);
 
   if (isLoading) {
     return <HUDLoadingView />;
@@ -49,39 +94,44 @@ export const HUDStatsPanel: React.FC = () => {
   return (
     <View style={styles.container}>
       <View style={styles.panel}>
-        {/* Category Headers */}
-        <View style={styles.categoryHeaders}>
-          <View style={styles.sectionLabels}>
-            <View style={styles.sectionLabelContainer}>
-              <MaterialIcons name="play-circle-outline" size={16} color="#007AFF" />
-              <Text style={styles.sectionLabel}>Session</Text>
-            </View>
-            <View style={styles.sectionLabelContainer}>
-              <MaterialIcons name="all-inclusive" size={16} color="#007AFF" />
-              <Text style={styles.sectionLabel}>All Time</Text>
-            </View>
+        {/* Stat Headers Row with Reset Button */}
+        <View style={styles.statHeaders}>
+          <View style={styles.statColumn}>
+            <MaterialIcons name="pets" size={16} color="#007AFF" />
+            <Text style={styles.statHeaderLabel}>Distance</Text>
+          </View>
+          <View style={styles.statColumn}>
+            <MaterialIcons name="map" size={16} color="#007AFF" />
+            <Text style={styles.statHeaderLabel}>Area</Text>
+          </View>
+          <View style={styles.statColumn}>
+            <MaterialIcons name="access-time" size={16} color="#007AFF" />
+            <Text style={styles.statHeaderLabel}>Time</Text>
+          </View>
+          <View style={styles.resetButtonContainer}>
+            <SessionResetButton style={styles.rectangularResetButton} />
           </View>
         </View>
 
-        {/* Stats Grid */}
-        <View style={styles.statsContainer}>
-          <HUDStatRow
-            icon="pets"
-            label="Distance"
-            sessionValue={formattedStats.sessionDistance}
-            totalValue={formattedStats.totalDistance}
+        {/* Data Rows */}
+        <View style={styles.dataGrid}>
+          <HUDDataRow
+            icon="play-circle-outline"
+            label="Session"
+            values={[
+              formattedStats.sessionDistance,
+              formattedStats.sessionArea,
+              formattedStats.sessionTime,
+            ]}
           />
-          <HUDStatRow
-            icon="map"
-            label="Area"
-            sessionValue={formattedStats.sessionArea}
-            totalValue={formattedStats.totalArea}
-          />
-          <HUDStatRow
-            icon="access-time"
-            label="Time"
-            sessionValue={formattedStats.sessionTime}
-            totalValue={formattedStats.totalTime}
+          <HUDDataRow
+            icon="all-inclusive"
+            label="All Time"
+            values={[
+              formattedStats.totalDistance,
+              formattedStats.totalArea,
+              formattedStats.totalTime,
+            ]}
           />
         </View>
       </View>
@@ -101,22 +151,20 @@ const HUDLoadingView: React.FC = () => (
 );
 
 /**
- * Individual stat row component showing category icon, label, and both session/total values
+ * Data row component showing stat values with row label on the right
  */
-const HUDStatRow: React.FC<{
+const HUDDataRow: React.FC<{
   icon: string;
   label: string;
-  sessionValue: string;
-  totalValue: string;
-}> = ({ icon, label, sessionValue, totalValue }) => (
-  <View style={styles.statRow}>
-    <View style={styles.statCategory}>
-      <MaterialIcons name={icon as any} size={18} color="#007AFF" />
-      <Text style={styles.statLabel}>{label}</Text>
-    </View>
-    <View style={styles.statValues}>
-      <Text style={styles.statValue}>{sessionValue}</Text>
-      <Text style={styles.statValue}>{totalValue}</Text>
+  values: string[];
+}> = ({ icon, label, values }) => (
+  <View style={styles.dataRow}>
+    <Text style={styles.dataValue}>{values[0]}</Text>
+    <Text style={styles.dataValue}>{values[1]}</Text>
+    <Text style={styles.dataValue}>{values[2]}</Text>
+    <View style={styles.rowLabel}>
+      <MaterialIcons name={icon as any} size={14} color="#007AFF" />
+      <Text style={styles.rowLabelText}>{label}</Text>
     </View>
   </View>
 );
@@ -124,7 +172,7 @@ const HUDStatRow: React.FC<{
 const styles = StyleSheet.create({
   container: {
     position: 'absolute',
-    bottom: 0,
+    bottom: 20, // Add breathing room from bottom of screen
     left: 0,
     right: 0,
     zIndex: 1000, // Ensure it's above map elements
@@ -136,57 +184,67 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: 'rgba(255, 255, 255, 0.25)',
   },
-  categoryHeaders: {
-    marginBottom: 8,
-  },
-  sectionLabels: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    paddingLeft: 100, // Offset for the category icon space
-  },
-  sectionLabelContainer: {
+  statHeaders: {
     flexDirection: 'row',
     alignItems: 'center',
-    flex: 1,
+    justifyContent: 'space-between', // 4-column table spanning full width
+    marginBottom: 8,
+    paddingBottom: 6,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255, 255, 255, 0.15)',
+  },
+  resetButtonContainer: {
+    flex: 1, // Take equal space as a column
+    alignItems: 'center',
     justifyContent: 'center',
   },
-  sectionLabel: {
+  rectangularResetButton: {
+    // Additional styles will be applied by the SessionResetButton component
+  },
+  labelColumn: {
+    width: 80, // Fixed width for row labels (now on the right)
+    alignItems: 'flex-end', // Right-align the labels
+  },
+  statColumn: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  statHeaderLabel: {
     color: 'white',
-    fontSize: 13,
-    fontWeight: '700',
-    marginLeft: 6,
+    fontSize: 11,
+    fontWeight: '600',
+    marginTop: 2,
+    textAlign: 'center',
   },
-  statsContainer: {
-    gap: 6,
+  dataGrid: {
+    gap: 4,
   },
-  statRow: {
+  dataRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between', // 4-column table layout
     paddingVertical: 4,
   },
-  statCategory: {
+
+  rowLabel: {
+    flex: 1, // Take equal space as 4th column
     flexDirection: 'row',
     alignItems: 'center',
-    width: 100, // Fixed width for category labels
-    marginRight: 16,
+    justifyContent: 'center',
   },
-  statLabel: {
+  rowLabelText: {
     color: 'rgba(255, 255, 255, 0.9)',
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '500',
-    marginLeft: 8,
+    marginLeft: 4,
   },
-  statValues: {
-    flexDirection: 'row',
-    flex: 1,
-    justifyContent: 'space-around',
-  },
-  statValue: {
+  dataValue: {
+    flex: 1, // Equal width columns
     color: 'white',
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: '600',
     textAlign: 'center',
-    flex: 1,
   },
   loadingContainer: {
     backgroundColor: 'rgba(0, 0, 0, 0.7)',

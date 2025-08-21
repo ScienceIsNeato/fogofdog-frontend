@@ -68,6 +68,21 @@ jest.mock('../../../services/StatsCalculationService', () => ({
     calculateTotalsFromHistory: jest.fn(),
     startNewSession: jest.fn(),
     endCurrentSession: jest.fn(),
+    pauseSession: jest.fn((state) => ({
+      ...state,
+      currentSession: {
+        ...state.currentSession,
+        lastActiveTime: Date.now(),
+      },
+    })),
+    resumeSession: jest.fn((state) => ({
+      ...state,
+      currentSession: {
+        ...state.currentSession,
+        totalPausedTime: (state.currentSession?.totalPausedTime ?? 0) + 10000,
+        lastActiveTime: Date.now(),
+      },
+    })),
     geoPointToGPSEvent: jest.fn(),
   },
 }));
@@ -169,6 +184,8 @@ describe('statsSlice', () => {
         currentSession: {
           sessionId: 'test-session',
           startTime: Date.now(),
+          totalPausedTime: 0,
+          lastActiveTime: Date.now(),
         },
         lastProcessedPoint: null,
         isInitialized: true,
@@ -329,6 +346,8 @@ describe('statsSlice', () => {
         currentSession: {
           sessionId: 'new-session-123',
           startTime: Date.now(),
+          totalPausedTime: 0,
+          lastActiveTime: Date.now(),
         },
         lastProcessedPoint: null,
         isInitialized: true,
@@ -357,6 +376,8 @@ describe('statsSlice', () => {
           sessionId: 'ended-session',
           startTime: Date.now() - 10000,
           endTime: Date.now(),
+          totalPausedTime: 0,
+          lastActiveTime: Date.now() - 5000,
         },
         lastProcessedPoint: null,
         isInitialized: true,
@@ -384,6 +405,8 @@ describe('statsSlice', () => {
         currentSession: {
           sessionId: 'active-session',
           startTime: Date.now() - 20000,
+          totalPausedTime: 0,
+          lastActiveTime: Date.now(),
         },
         lastProcessedPoint: {
           latitude: 40.7589,
@@ -432,6 +455,53 @@ describe('statsSlice', () => {
     });
   });
 
+  describe('pauseTracking and resumeTracking', () => {
+    it('should record pause time when pauseTracking is called', () => {
+      const mockTime = 1000000;
+      jest.spyOn(Date, 'now').mockReturnValue(mockTime);
+
+      const initialState: StatsState = {
+        ...defaultStatsState,
+        currentSession: {
+          sessionId: 'test-session',
+          startTime: mockTime - 5000,
+          totalPausedTime: 0,
+          lastActiveTime: mockTime - 5000,
+        },
+      };
+
+      const action = { type: 'stats/pauseTracking' };
+      const updatedState = statsReducer(initialState, action);
+
+      expect(updatedState.currentSession.lastActiveTime).toBe(mockTime);
+      expect(updatedState.currentSession.totalPausedTime).toBe(0);
+    });
+
+    it('should calculate paused duration when resumeTracking is called', () => {
+      const sessionStart = 1000000;
+      const pauseTime = 1005000; // 5 seconds after start
+      const resumeTime = 1015000; // 10 seconds after pause
+
+      jest.spyOn(Date, 'now').mockReturnValue(resumeTime);
+
+      const initialState: StatsState = {
+        ...defaultStatsState,
+        currentSession: {
+          sessionId: 'test-session',
+          startTime: sessionStart,
+          totalPausedTime: 0,
+          lastActiveTime: pauseTime, // When pause was called
+        },
+      };
+
+      const action = { type: 'stats/resumeTracking' };
+      const updatedState = statsReducer(initialState, action);
+
+      expect(updatedState.currentSession.totalPausedTime).toBe(10000); // 10 seconds
+      expect(updatedState.currentSession.lastActiveTime).toBe(resumeTime);
+    });
+  });
+
   describe('updateSessionTimer', () => {
     it('should update session time for active session', () => {
       const startTime = Date.now() - 5000; // 5 seconds ago
@@ -440,6 +510,8 @@ describe('statsSlice', () => {
         currentSession: {
           sessionId: 'test-session-123',
           startTime,
+          totalPausedTime: 0,
+          lastActiveTime: startTime,
         },
         session: {
           distance: 100,
@@ -456,6 +528,35 @@ describe('statsSlice', () => {
       expect(updatedState.formattedStats.sessionTime).toBe(':05'); // < 60s format
     });
 
+    it('should exclude paused time from session duration', () => {
+      const sessionStart = Date.now() - 25000; // 25 seconds ago
+      const totalPausedTime = 10000; // 10 seconds paused
+      // Active time should be 15 seconds
+
+      const initialState: StatsState = {
+        ...defaultStatsState,
+        currentSession: {
+          sessionId: 'test-session',
+          startTime: sessionStart,
+          totalPausedTime,
+          lastActiveTime: Date.now() - 10000, // Last active 10s ago
+        },
+        session: {
+          distance: 100,
+          area: 50,
+          time: 0,
+        },
+      };
+
+      const action = updateSessionTimer();
+      const updatedState = statsReducer(initialState, action);
+
+      // Should be approximately 15 seconds (25 total - 10 paused)
+      expect(updatedState.session.time).toBeGreaterThanOrEqual(14900);
+      expect(updatedState.session.time).toBeLessThanOrEqual(15100);
+      expect(updatedState.formattedStats.sessionTime).toBe(':15');
+    });
+
     it('should not update time if no active session', () => {
       const initialState: StatsState = {
         ...defaultStatsState,
@@ -463,6 +564,8 @@ describe('statsSlice', () => {
           sessionId: 'inactive-session',
           startTime: Date.now(),
           endTime: Date.now(), // Session has ended
+          totalPausedTime: 0,
+          lastActiveTime: Date.now(),
         },
         session: {
           distance: 100,
@@ -484,6 +587,8 @@ describe('statsSlice', () => {
           sessionId: 'ended-session',
           startTime: Date.now() - 5000,
           endTime: Date.now() - 1000, // Session ended 1 second ago
+          totalPausedTime: 0,
+          lastActiveTime: Date.now() - 1000,
         },
         session: {
           distance: 100,
@@ -505,6 +610,8 @@ describe('statsSlice', () => {
         currentSession: {
           sessionId: 'test-session',
           startTime: Date.now() - 30000, // 30 seconds ago
+          totalPausedTime: 0,
+          lastActiveTime: Date.now() - 30000,
         },
         session: { distance: 0, area: 0, time: 0 },
       };
@@ -519,6 +626,8 @@ describe('statsSlice', () => {
         currentSession: {
           sessionId: 'test-session',
           startTime: Date.now() - 90000, // 90 seconds ago
+          totalPausedTime: 0,
+          lastActiveTime: Date.now() - 90000,
         },
         session: { distance: 0, area: 0, time: 0 },
       };
@@ -533,6 +642,8 @@ describe('statsSlice', () => {
         currentSession: {
           sessionId: 'test-session',
           startTime: Date.now() - 3900000, // 65 minutes ago
+          totalPausedTime: 0,
+          lastActiveTime: Date.now() - 3900000,
         },
         session: { distance: 0, area: 0, time: 0 },
       };

@@ -264,6 +264,19 @@ const statsSlice = createSlice({
         action: 'resetSessionStats',
       });
 
+      // First, accumulate the current session time into total time
+      if (state.currentSession && !state.currentSession.endTime) {
+        const now = Date.now();
+        const sessionStartTime = state.currentSession.startTime;
+        const totalPausedTime = state.currentSession.totalPausedTime;
+        const totalElapsedTime = now - sessionStartTime;
+        const activeElapsedTime = totalElapsedTime - totalPausedTime;
+
+        // Add current session active time to total time
+        state.total.time += activeElapsedTime;
+      }
+
+      // Then start a new session (this resets session stats but preserves total)
       const updatedStats = StatsCalculationService.startNewSession(state);
       Object.assign(state, updatedStats);
       updateFormattedStats(state);
@@ -278,27 +291,67 @@ const statsSlice = createSlice({
     },
 
     /**
+     * Handle tracking pause - record when pause started
+     */
+    pauseTracking: (state) => {
+      logger.debug('Pausing tracking in stats', {
+        component: 'statsSlice',
+        action: 'pauseTracking',
+      });
+
+      const updatedStats = StatsCalculationService.pauseSession(state);
+      Object.assign(state, updatedStats);
+    },
+
+    /**
+     * Handle tracking resume - calculate and add paused time
+     */
+    resumeTracking: (state) => {
+      logger.debug('Resuming tracking in stats', {
+        component: 'statsSlice',
+        action: 'resumeTracking',
+      });
+
+      const updatedStats = StatsCalculationService.resumeSession(state);
+      Object.assign(state, updatedStats);
+    },
+
+    /**
      * Update the current session time for real-time timer
      * This action is called every second when tracking is active
      */
     updateSessionTimer: (state) => {
-      // Only update if we have an active session
+      // Only update if we have an active session and tracking is not paused
       if (state.currentSession && !state.currentSession.endTime) {
         const now = Date.now();
         const sessionStartTime = state.currentSession.startTime;
-        const elapsedTime = now - sessionStartTime;
+        const totalPausedTime = state.currentSession.totalPausedTime;
 
-        // Update session time (in milliseconds)
-        state.session.time = elapsedTime;
+        // Calculate active elapsed time (excluding paused periods)
+        const totalElapsedTime = now - sessionStartTime;
+        const activeElapsedTime = totalElapsedTime - totalPausedTime;
 
-        // Update formatted time display with MM:SS format for active sessions
-        state.formattedStats.sessionTime = StatsCalculationService.formatTimeAsTimer(elapsedTime);
+        // Update session time with active time only (in milliseconds)
+        state.session.time = activeElapsedTime;
+
+        // Update formatted time displays with progressive formatting
+        state.formattedStats.sessionTime =
+          StatsCalculationService.formatTimeAsTimer(activeElapsedTime);
+
+        // Total time = stored historical total + current session active elapsed time
+        const currentTotalTime = state.total.time + activeElapsedTime;
+        state.formattedStats.totalTime =
+          StatsCalculationService.formatTimeAsTimer(currentTotalTime);
 
         logger.debug('Updated session timer', {
           component: 'statsSlice',
           action: 'updateSessionTimer',
-          elapsedTime,
-          formattedTime: state.formattedStats.sessionTime,
+          totalElapsedTime,
+          totalPausedTime,
+          activeElapsedTime,
+          currentTotalTime,
+          formattedSessionTime: state.formattedStats.sessionTime,
+          formattedTotalTime: state.formattedStats.totalTime,
         });
       }
     },
@@ -319,6 +372,8 @@ export const {
   resetAllStats,
   resetSessionStats,
   refreshFormattedStats,
+  pauseTracking,
+  resumeTracking,
   updateSessionTimer,
 } = statsSlice.actions;
 
