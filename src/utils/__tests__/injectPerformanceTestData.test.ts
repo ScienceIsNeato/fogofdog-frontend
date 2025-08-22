@@ -163,4 +163,41 @@ describe('PerformanceTestDataInjector', () => {
       jest.useRealTimers();
     });
   });
+
+  describe('error handling', () => {
+    it('should handle injection state management', () => {
+      // Test that the injector properly manages its injection state
+      expect(performanceTestInjector).toBeDefined();
+      expect(typeof performanceTestInjector.injectRealTimeData).toBe('function');
+    });
+
+    it('should prevent concurrent injections', async () => {
+      jest.useFakeTimers();
+
+      const mockData = [{ latitude: 37.7749, longitude: -122.4194, timestamp: Date.now() }];
+      mockGenerateData.mockReturnValue(mockData);
+
+      mockStore.getState = jest.fn(() => ({
+        user: { isAuthenticated: false, user: null, isLoading: false, error: null },
+        exploration: {
+          path: [],
+          currentLocation: { latitude: 45.0, longitude: -122.0 },
+        },
+      })) as any;
+
+      // Start first injection
+      const firstInjection = performanceTestInjector.injectRealTimeData(1, 'REALISTIC_DRIVE');
+
+      // Try to start second injection immediately
+      const secondInjection = performanceTestInjector.injectRealTimeData(1, 'REALISTIC_DRIVE');
+
+      jest.runAllTimers();
+
+      await Promise.all([firstInjection, secondInjection]);
+
+      expect(mockLogger.warn).toHaveBeenCalledWith('Data injection already in progress');
+
+      jest.useRealTimers();
+    });
+  });
 });

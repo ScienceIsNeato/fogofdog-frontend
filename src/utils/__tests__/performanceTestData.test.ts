@@ -106,5 +106,51 @@ describe('performanceTestData', () => {
         expect(typeof point.timestamp).toBe('number');
       });
     });
+
+    it('should generate RANDOM_WALK pattern data', () => {
+      const points = generatePerformanceTestData(5, TestPatterns.RANDOM_WALK);
+
+      expect(points).toHaveLength(5);
+      if (points.length > 1) {
+        expect(points[0]?.timestamp).toBeLessThan(points[points.length - 1]?.timestamp ?? 0);
+      }
+    });
+
+    it('should generate CIRCULAR_PATH pattern data', () => {
+      const points = generatePerformanceTestData(4, TestPatterns.CIRCULAR_PATH);
+
+      expect(points).toHaveLength(4);
+      points.forEach((point) => {
+        expect(point.latitude).toBeGreaterThan(-90);
+        expect(point.latitude).toBeLessThan(90);
+        expect(point.longitude).toBeGreaterThan(-180);
+        expect(point.longitude).toBeLessThan(180);
+      });
+    });
+
+    it('should handle custom options', () => {
+      const customOptions = {
+        startingLocation: { latitude: 40.7128, longitude: -74.006 },
+        intervalSeconds: 30,
+        startTime: 1000000,
+      };
+
+      const points = generatePerformanceTestData(2, TestPatterns.REALISTIC_DRIVE, customOptions);
+
+      expect(points).toHaveLength(2);
+      if (points.length > 0) {
+        expect(points[0]?.timestamp).toBeGreaterThanOrEqual(customOptions.startTime);
+      }
+    });
+
+    it('should handle edge cases', () => {
+      // Test with minimal count
+      const singlePoint = generatePerformanceTestData(1, TestPatterns.REALISTIC_DRIVE);
+      expect(singlePoint).toHaveLength(1);
+
+      // Test with zero count should still return empty array gracefully
+      const zeroPoints = generatePerformanceTestData(0, TestPatterns.REALISTIC_DRIVE);
+      expect(zeroPoints).toHaveLength(0);
+    });
   });
 });

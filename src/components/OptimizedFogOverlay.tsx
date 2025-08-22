@@ -19,7 +19,7 @@ interface OptimizedFogOverlayProps {
 // Performance constants
 const VIEWPORT_BUFFER = 0.5; // Show points 50% outside viewport
 const MIN_VISUAL_DISTANCE_PIXELS = 5; // Skip points closer than 5px visually
-const MAX_POINTS_PER_FRAME = 500; // Limit for performance
+const MAX_POINTS_PER_FRAME = 5000; // Limit for performance
 
 // Viewport culling: Only process points visible on screen + buffer
 const cullPointsToViewport = (

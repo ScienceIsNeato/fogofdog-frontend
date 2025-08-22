@@ -132,12 +132,11 @@ class QualityGateExecutor:
                     
                     # Fail-fast: exit immediately on first failure
                     if fail_fast and result.status == CheckStatus.FAILED:
-                        print(f"\n🚨 FAIL-FAST: {result.name} failed, stopping remaining checks...")
-                        # Cancel remaining futures
-                        for remaining_future in future_to_check:
-                            if remaining_future != future:
-                                remaining_future.cancel()
-                        break
+                        print(f"\n🚨 FAIL-FAST: {result.name} failed, terminating immediately...")
+                        # Force shutdown executor to kill running processes
+                        executor.shutdown(wait=False, cancel_futures=True)
+                        # Exit immediately without waiting
+                        sys.exit(1)
                     
                 except (concurrent.futures.TimeoutError, RuntimeError) as exc:
                     # Handle any exceptions from the future
