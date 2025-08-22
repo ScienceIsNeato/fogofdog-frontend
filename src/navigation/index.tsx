@@ -93,22 +93,22 @@ const useAppInitialization = (): InitializationHookResult => {
           const convertedData = {
             ...explorationData,
             currentLocation: explorationData.currentLocation
-              ? { 
-                  ...explorationData.currentLocation, 
+              ? {
+                  ...explorationData.currentLocation,
                   // Only update timestamp if it's missing, preserve original GPS timestamps
-                  timestamp: explorationData.currentLocation.timestamp || currentTimestamp 
+                  timestamp: (explorationData.currentLocation as any).timestamp ?? currentTimestamp,
                 }
               : null,
             // Preserve original GPS timestamps for accurate time calculations
-            path: explorationData.path.map((coord) => ({ 
-              ...coord, 
+            path: explorationData.path.map((coord) => ({
+              ...coord,
               // Only add timestamp if missing, preserve original GPS timestamps
-              timestamp: coord.timestamp || currentTimestamp 
+              timestamp: (coord as any).timestamp ?? currentTimestamp,
             })),
             exploredAreas: explorationData.exploredAreas.map((coord) => ({
               ...coord,
-              // Only add timestamp if missing, preserve original GPS timestamps  
-              timestamp: coord.timestamp || currentTimestamp,
+              // Only add timestamp if missing, preserve original GPS timestamps
+              timestamp: (coord as any).timestamp ?? currentTimestamp,
             })),
           };
           dispatch(restorePersistedState(convertedData));

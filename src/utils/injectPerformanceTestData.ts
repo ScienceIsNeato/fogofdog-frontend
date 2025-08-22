@@ -77,7 +77,9 @@ export class PerformanceTestDataInjector {
 
       await this.injectRealTimePoints(spatialPoints, intervalMs);
 
-      logger.info(`✅ Real-time injection complete: ${count} points over ${(count * intervalMs / 1000 / 60).toFixed(1)} minutes`);
+      logger.info(
+        `✅ Real-time injection complete: ${count} points over ${((count * intervalMs) / 1000 / 60).toFixed(1)} minutes`
+      );
     } catch (error) {
       logger.error('Failed to inject real-time data', error);
     } finally {
@@ -110,13 +112,14 @@ export class PerformanceTestDataInjector {
       // Get current GPS history to find the starting point
       const currentState = store.getState();
       const currentPath = currentState.exploration.path;
-      
+
       // Find the earliest point in current history, or use current location
-      const earliestPoint = currentPath.length > 0 
-        ? currentPath.reduce((earliest, point) => 
-            point.timestamp < earliest.timestamp ? point : earliest
-          )
-        : currentState.exploration.currentLocation;
+      const earliestPoint =
+        currentPath.length > 0
+          ? currentPath.reduce((earliest, point) =>
+              point.timestamp < earliest.timestamp ? point : earliest
+            )
+          : currentState.exploration.currentLocation;
 
       if (!earliestPoint) {
         logger.warn('No existing GPS data or current location to prepend to');
@@ -148,69 +151,6 @@ export class PerformanceTestDataInjector {
   }
 
   /**
-   * Inject points with real-time timing to avoid "forking worms" effect
-   * Points are injected with current timestamps but with realistic intervals
-   */
-  private async injectPoints(
-    points: { latitude: number; longitude: number; timestamp: number }[],
-    testName: string,
-    options: { batchSize?: number; delayMs?: number } = {}
-  ): Promise<void> {
-    const { batchSize = 100, delayMs = 500 } = options; // Slower injection for realism
-
-    // Sort points by timestamp to maintain chronological order
-    const sortedPoints = [...points].sort((a, b) => a.timestamp - b.timestamp);
-
-    logger.info(`🎯 Starting real-time GPS injection: ${sortedPoints.length} points with ${delayMs}ms intervals`, {
-      component: 'PerformanceTestDataInjector',
-      action: 'injectPoints',
-      totalPoints: sortedPoints.length,
-      estimatedDurationMinutes: (sortedPoints.length * delayMs / 1000 / 60).toFixed(1),
-    });
-
-    for (let i = 0; i < sortedPoints.length; i++) {
-      const point = sortedPoints[i];
-      
-      // Inject with current timestamp to avoid temporal conflicts
-      DeviceEventEmitter.emit('GPS_COORDINATES_INJECTED', {
-        latitude: point.latitude,
-        longitude: point.longitude,
-        timestamp: Date.now(), // Use current time for production-like behavior
-      });
-
-      // Progress logging every 50 points
-      if (i % 50 === 0 || i === sortedPoints.length - 1) {
-        const progress = i + 1;
-        const percentage = ((progress / sortedPoints.length) * 100).toFixed(1);
-        
-        logger.info(
-          `📊 GPS injection progress: ${progress}/${sortedPoints.length} points (${percentage}%)`,
-          {
-            component: 'PerformanceTestDataInjector',
-            action: 'injectPoints',
-            testName,
-            progress,
-            total: sortedPoints.length,
-            percentage,
-          }
-        );
-      }
-
-      // Real-time delay between points (except for last point)
-      if (i < sortedPoints.length - 1) {
-        await new Promise((resolve) => setTimeout(resolve, delayMs));
-      }
-    }
-
-    logger.info(`✅ GPS injection complete: ${sortedPoints.length} points injected over ${(sortedPoints.length * delayMs / 1000 / 60).toFixed(1)} minutes`, {
-      component: 'PerformanceTestDataInjector',
-      action: 'injectPoints',
-      testName,
-      totalPoints: sortedPoints.length,
-    });
-  }
-
-  /**
    * Generate spatial path (coordinates only, no timestamps)
    */
   private generateSpatialPath(
@@ -225,7 +165,7 @@ export class PerformanceTestDataInjector {
       intervalSeconds: 1, // Dummy interval
     });
 
-    return tempPoints.map(point => ({
+    return tempPoints.map((point) => ({
       latitude: point.latitude,
       longitude: point.longitude,
     }));
@@ -244,10 +184,10 @@ export class PerformanceTestDataInjector {
     }
   ): GeoPoint[] {
     const { endingLocation, sessionDurationHours, ...generateOptions } = options;
-    
+
     // Calculate when the historical session should end (just before earliest existing point)
-    const sessionEndTime = Date.now() - (60 * 1000); // End 1 minute ago to avoid conflicts
-    const sessionStartTime = sessionEndTime - (sessionDurationHours * 60 * 60 * 1000);
+    const sessionEndTime = Date.now() - 60 * 1000; // End 1 minute ago to avoid conflicts
+    const sessionStartTime = sessionEndTime - sessionDurationHours * 60 * 60 * 1000;
     const intervalMs = (sessionEndTime - sessionStartTime) / count;
 
     // Generate path that ends at the specified location
@@ -271,7 +211,8 @@ export class PerformanceTestDataInjector {
   ): Promise<void> {
     for (let i = 0; i < spatialPoints.length; i++) {
       const point = spatialPoints[i];
-      
+      if (!point) continue;
+
       // Inject with current timestamp (no timestamp specified = current time)
       DeviceEventEmitter.emit('GPS_COORDINATES_INJECTED', {
         latitude: point.latitude,
@@ -283,7 +224,7 @@ export class PerformanceTestDataInjector {
       if (i % 50 === 0 || i === spatialPoints.length - 1) {
         const progress = i + 1;
         const percentage = ((progress / spatialPoints.length) * 100).toFixed(1);
-        
+
         logger.info(`📊 Real-time injection: ${progress}/${spatialPoints.length} (${percentage}%)`);
       }
 
@@ -301,16 +242,16 @@ export class PerformanceTestDataInjector {
     // Dispatch action to prepend historical data to exploration state
     store.dispatch({
       type: 'exploration/prependHistoricalData',
-      payload: { historicalPoints }
+      payload: { historicalPoints },
     });
 
     // Reinitialize stats to include the new historical session
     const currentState = store.getState();
     const fullPath = currentState.exploration.path;
-    
+
     store.dispatch({
       type: 'stats/initializeFromHistory',
-      payload: { gpsHistory: fullPath }
+      payload: { gpsHistory: fullPath },
     });
 
     logger.info(`📚 Historical data prepended and stats recalculated`, {

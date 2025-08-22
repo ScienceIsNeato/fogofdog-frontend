@@ -18,6 +18,11 @@ interface ExplorationState {
     hasPermission: boolean;
     storedLocationCount: number;
   };
+  gpsInjectionStatus: {
+    isRunning: boolean;
+    type: 'real-time' | 'historical' | null;
+    message: string;
+  };
 }
 
 // Helper function to calculate distance between two geo-points (Haversine formula)
@@ -109,6 +114,11 @@ const initialState: ExplorationState = {
     isRunning: false,
     hasPermission: false,
     storedLocationCount: 0,
+  },
+  gpsInjectionStatus: {
+    isRunning: false,
+    type: null,
+    message: '',
   },
 };
 
@@ -297,6 +307,38 @@ const explorationSlice = createSlice({
     ) => {
       state.backgroundLocationStatus = action.payload;
     },
+
+    startGPSInjection: (
+      state,
+      action: PayloadAction<{
+        type: 'real-time' | 'historical';
+        message: string;
+      }>
+    ) => {
+      state.gpsInjectionStatus = {
+        isRunning: true,
+        type: action.payload.type,
+        message: action.payload.message,
+      };
+      logger.info('GPS injection started', {
+        component: 'explorationSlice',
+        action: 'startGPSInjection',
+        type: action.payload.type,
+        message: action.payload.message,
+      });
+    },
+
+    stopGPSInjection: (state) => {
+      state.gpsInjectionStatus = {
+        isRunning: false,
+        type: null,
+        message: '',
+      };
+      logger.info('GPS injection stopped', {
+        component: 'explorationSlice',
+        action: 'stopGPSInjection',
+      });
+    },
     restorePersistedState: (
       state,
       action: PayloadAction<{
@@ -393,7 +435,7 @@ const explorationSlice = createSlice({
      */
     prependHistoricalData: (state, action: PayloadAction<{ historicalPoints: GeoPoint[] }>) => {
       const { historicalPoints } = action.payload;
-      
+
       logger.info('Prepending historical GPS data to exploration path', {
         component: 'explorationSlice',
         action: 'prependHistoricalData',
@@ -402,7 +444,7 @@ const explorationSlice = createSlice({
       });
 
       // Validate all historical points
-      const validHistoricalPoints = historicalPoints.filter(point => {
+      const validHistoricalPoints = historicalPoints.filter((point) => {
         if (!isValidGeoPoint(point)) {
           logger.warn(`Invalid historical GPS point: ${JSON.stringify(point)}. Skipping.`, {
             component: 'explorationSlice',
@@ -436,6 +478,8 @@ export const {
   setTrackingPaused,
   processBackgroundLocations,
   updateBackgroundLocationStatus,
+  startGPSInjection,
+  stopGPSInjection,
   restorePersistedState,
   clearRecentData,
   clearAllData,

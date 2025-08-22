@@ -2,6 +2,7 @@ import { GPSEvent } from '../types/GPSEvent';
 import { GeoPoint } from '../types/user';
 import { logger } from '../utils/logger';
 import { FOG_CONFIG } from '../config/fogConfig';
+import { GPSConnectionService } from './GPSConnectionService';
 
 /**
  * Statistics data structure for both session and total stats
@@ -51,7 +52,7 @@ export interface StatsState {
  */
 export class StatsCalculationService {
   private static readonly EARTH_RADIUS_METERS = 6371000;
-  private static readonly MIN_MOVEMENT_THRESHOLD_METERS = 5; // Minimum movement to count as active
+
   private static readonly MAX_TIME_GAP_MS = 300000; // 5 minutes max between points for time tracking
   private static readonly SESSION_GAP_THRESHOLD_MS = 10 * 60 * 1000; // 10 minutes gap = new session
 
@@ -83,7 +84,7 @@ export class StatsCalculationService {
 
     // Each GPS point clears a circular area with radius from FOG_CONFIG
     const circleAreaSquareMeters = Math.PI * FOG_CONFIG.RADIUS_METERS * FOG_CONFIG.RADIUS_METERS;
-    
+
     // Total area = number of points × area of each circle
     // Note: This ignores overlap between nearby circles, but provides
     // a simple approximation that matches the visual fog clearing
@@ -208,6 +209,59 @@ export class StatsCalculationService {
   }
 
   /**
+   * Sort GPS history chronologically and convert to serializable format
+   * This is critical when historical data is prepended to existing data
+   */
+  private static preprocessGPSHistory(gpsHistory: GPSEvent[]): {
+    sortedHistory: GPSEvent[];
+    serializablePath: SerializableGPSPoint[];
+  } {
+    const sortedHistory = [...gpsHistory].sort((a, b) => a.timestamp - b.timestamp);
+    const serializablePath = sortedHistory.map((point) => this.gpsEventToSerializable(point));
+    return { sortedHistory, serializablePath };
+  }
+
+  /**
+   * Calculate total distance with validation against unrealistic jumps
+   */
+  private static calculateTotalDistanceFromHistory(sortedHistory: GPSEvent[]): number {
+    // Convert GPSEvents to GeoPoints for unified connection processing
+    const geoPoints = sortedHistory.map((event) => GPSConnectionService.gpsEventToGeoPoint(event));
+
+    // Use unified connection logic to get only connected segments
+    const processedPoints = GPSConnectionService.processGPSPoints(geoPoints);
+
+    // Calculate total distance using only connected segments
+    const totalDistance = GPSConnectionService.calculateTotalDistance(processedPoints);
+
+    logger.info('Distance calculated using unified connection logic', {
+      component: 'StatsCalculationService',
+      action: 'calculateTotalDistanceFromHistory',
+      totalPoints: processedPoints.length,
+      connectedSegments: processedPoints.filter((p) => p.connectsToPrevious).length,
+      sessionStarts: processedPoints.filter((p) => p.startsNewSession).length,
+      totalDistance: `${(totalDistance / 1000).toFixed(2)}km`,
+    });
+
+    return totalDistance;
+  }
+
+  /**
+   * Calculate total session time from GPS history
+   */
+  private static calculateTotalTimeFromHistory(sortedHistory: GPSEvent[]): number {
+    const sessions = this.extractSessionsFromPath(sortedHistory);
+    let totalTime = 0;
+
+    for (const session of sessions) {
+      const sessionDuration = session.endTime - session.startTime;
+      totalTime += sessionDuration;
+    }
+
+    return totalTime;
+  }
+
+  /**
    * MAIN METHOD: Calculate totals from complete GPS history
    * Used on app startup and after history management changes
    */
@@ -224,74 +278,34 @@ export class StatsCalculationService {
       return initialState;
     }
 
-    // Convert to serializable points for calculations
-    const serializablePath = gpsHistory.map((point) => this.gpsEventToSerializable(point));
+    // Preprocess GPS history
+    const { sortedHistory, serializablePath } = this.preprocessGPSHistory(gpsHistory);
 
-    // Calculate total distance with validation against unrealistic jumps
-    const MAX_REASONABLE_DISTANCE_METERS = 50000; // 50km max jump between points
-    let totalDistance = 0;
-    for (let i = 1; i < gpsHistory.length; i++) {
-      const distance = this.calculateDistance(gpsHistory[i - 1]!, gpsHistory[i]!);
-
-      if (distance >= this.MIN_MOVEMENT_THRESHOLD_METERS) {
-        if (distance > MAX_REASONABLE_DISTANCE_METERS) {
-          logger.warn('Filtering out unrealistic distance jump in GPS history', {
-            component: 'StatsCalculationService',
-            action: 'calculateTotalsFromHistory',
-            distanceJump: `${(distance / 1000).toFixed(2)}km`,
-            maxAllowed: `${MAX_REASONABLE_DISTANCE_METERS / 1000}km`,
-            fromPoint: {
-              lat: gpsHistory[i - 1]!.latitude.toFixed(6),
-              lng: gpsHistory[i - 1]!.longitude.toFixed(6),
-              timestamp: new Date(gpsHistory[i - 1]!.timestamp).toISOString(),
-            },
-            toPoint: {
-              lat: gpsHistory[i]!.latitude.toFixed(6),
-              lng: gpsHistory[i]!.longitude.toFixed(6),
-              timestamp: new Date(gpsHistory[i]!.timestamp).toISOString(),
-            },
-          });
-        } else {
-          totalDistance += distance;
-        }
-      }
-    }
-
-    // Calculate total area from entire path
+    // Calculate totals using extracted helper methods
+    const totalDistance = this.calculateTotalDistanceFromHistory(sortedHistory);
     const totalArea = this.calculateArea(serializablePath);
-
-    // Extract sessions based on time gaps and calculate total session time
-    const sessions = this.extractSessionsFromPath(gpsHistory);
-    let totalTime = 0;
-
-    // Sum up all session durations
-    for (const session of sessions) {
-      const sessionDuration = session.endTime - session.startTime;
-      totalTime += sessionDuration;
-    }
-
-
+    const totalTime = this.calculateTotalTimeFromHistory(sortedHistory);
 
     logger.info('History calculation complete', {
       component: 'StatsCalculationService',
       totalDistance,
       totalArea,
       totalTime,
-      historyLength: gpsHistory.length,
+      historyLength: sortedHistory.length,
       firstPoint:
-        gpsHistory.length > 0
+        sortedHistory.length > 0
           ? {
-              lat: gpsHistory[0]!.latitude.toFixed(6),
-              lng: gpsHistory[0]!.longitude.toFixed(6),
-              timestamp: new Date(gpsHistory[0]!.timestamp).toISOString(),
+              lat: sortedHistory[0]!.latitude.toFixed(6),
+              lng: sortedHistory[0]!.longitude.toFixed(6),
+              timestamp: new Date(sortedHistory[0]!.timestamp).toISOString(),
             }
           : null,
       lastPoint:
-        gpsHistory.length > 0
+        sortedHistory.length > 0
           ? {
-              lat: gpsHistory[gpsHistory.length - 1]!.latitude.toFixed(6),
-              lng: gpsHistory[gpsHistory.length - 1]!.longitude.toFixed(6),
-              timestamp: new Date(gpsHistory[gpsHistory.length - 1]!.timestamp).toISOString(),
+              lat: sortedHistory[sortedHistory.length - 1]!.latitude.toFixed(6),
+              lng: sortedHistory[sortedHistory.length - 1]!.longitude.toFixed(6),
+              timestamp: new Date(sortedHistory[sortedHistory.length - 1]!.timestamp).toISOString(),
             }
           : null,
     });
@@ -319,6 +333,90 @@ export class StatsCalculationService {
       lastProcessedPoint: null, // Start fresh session - don't connect to historical data
       isInitialized: true,
     };
+  }
+
+  /**
+   * Calculate and apply distance increment between two points
+   */
+  private static applyDistanceIncrement(
+    updatedStats: StatsState,
+    prevPoint: SerializableGPSPoint,
+    newPoint: GPSEvent
+  ): void {
+    // Use unified connection logic to determine if points should be connected
+    const prevGeoPoint = {
+      latitude: prevPoint.latitude,
+      longitude: prevPoint.longitude,
+      timestamp: prevPoint.timestamp,
+    };
+    const newGeoPoint = GPSConnectionService.gpsEventToGeoPoint(newPoint);
+
+    // Process the two points to check if they should be connected
+    const processedPoints = GPSConnectionService.processGPSPoints([prevGeoPoint, newGeoPoint]);
+
+    // Only add distance if the new point connects to the previous point
+    if (processedPoints.length === 2 && processedPoints[1]!.connectsToPrevious) {
+      const segments = GPSConnectionService.getConnectedSegments(processedPoints);
+      if (segments.length === 1) {
+        const distanceIncrement = segments[0]!.distance;
+
+        updatedStats.session.distance += distanceIncrement;
+        updatedStats.total.distance += distanceIncrement;
+
+        logger.debug('Distance incremented using unified connection logic', {
+          component: 'StatsCalculationService',
+          action: 'applyDistanceIncrement',
+          distanceIncrement: distanceIncrement.toFixed(2),
+          sessionDistance: updatedStats.session.distance.toFixed(2),
+          totalDistance: updatedStats.total.distance.toFixed(2),
+        });
+      }
+    } else {
+      const reason =
+        processedPoints.length === 2 ? processedPoints[1]!.disconnectionReason : 'Invalid points';
+      logger.debug('Distance not incremented - points not connected', {
+        component: 'StatsCalculationService',
+        action: 'applyDistanceIncrement',
+        reason,
+        previousPoint: {
+          lat: prevPoint.latitude.toFixed(6),
+          lng: prevPoint.longitude.toFixed(6),
+          timestamp: new Date(prevPoint.timestamp).toISOString(),
+        },
+        newPoint: {
+          lat: newPoint.latitude.toFixed(6),
+          lng: newPoint.longitude.toFixed(6),
+          timestamp: new Date(newPoint.timestamp).toISOString(),
+        },
+      });
+    }
+  }
+
+  /**
+   * Calculate and apply time increment for active sessions
+   */
+  private static applyTimeIncrement(
+    updatedStats: StatsState,
+    prevPoint: SerializableGPSPoint,
+    newPoint: GPSEvent
+  ): void {
+    // Calculate time increment if session is active
+    if (!updatedStats.currentSession.endTime) {
+      const timeIncrement = newPoint.timestamp - prevPoint.timestamp;
+
+      // Only add time if it's reasonable
+      if (timeIncrement > 0 && timeIncrement < this.MAX_TIME_GAP_MS) {
+        updatedStats.session.time += timeIncrement;
+        updatedStats.total.time += timeIncrement;
+
+        logger.debug('Time incremented', {
+          component: 'StatsCalculationService',
+          timeIncrement,
+          sessionTime: updatedStats.session.time,
+          totalTime: updatedStats.total.time,
+        });
+      }
+    }
   }
 
   /**
@@ -356,92 +454,17 @@ export class StatsCalculationService {
       return currentStats;
     }
 
-    // Calculate distance increment if we have a previous point
+    // Apply increments if we have a previous point
     if (currentStats.lastProcessedPoint) {
-      const prevGPSEvent = this.serializableToGPSEvent(currentStats.lastProcessedPoint);
-      const distanceIncrement = this.calculateDistance(prevGPSEvent, newPoint);
-      const MAX_REASONABLE_DISTANCE_METERS = 50000; // 50km max jump between points
-
-      // Only add distance if movement is above threshold and below unrealistic jump threshold
-      if (distanceIncrement >= this.MIN_MOVEMENT_THRESHOLD_METERS) {
-        if (distanceIncrement > MAX_REASONABLE_DISTANCE_METERS) {
-          logger.warn('Filtering out unrealistic distance jump in incremental stats', {
-            component: 'StatsCalculationService',
-            action: 'incrementStats',
-            distanceJump: `${(distanceIncrement / 1000).toFixed(2)}km`,
-            maxAllowed: `${MAX_REASONABLE_DISTANCE_METERS / 1000}km`,
-            previousPoint: {
-              lat: currentStats.lastProcessedPoint.latitude.toFixed(6),
-              lng: currentStats.lastProcessedPoint.longitude.toFixed(6),
-              timestamp: new Date(currentStats.lastProcessedPoint.timestamp).toISOString(),
-            },
-            newPoint: {
-              lat: newPoint.latitude.toFixed(6),
-              lng: newPoint.longitude.toFixed(6),
-              timestamp: new Date(newPoint.timestamp).toISOString(),
-            },
-          });
-        } else {
-          updatedStats.session.distance += distanceIncrement;
-          updatedStats.total.distance += distanceIncrement;
-
-          logger.debug('Distance incremented', {
-            component: 'StatsCalculationService',
-            distanceIncrement: distanceIncrement.toFixed(2),
-            sessionDistance: updatedStats.session.distance.toFixed(2),
-            totalDistance: updatedStats.total.distance.toFixed(2),
-            previousPoint: {
-              lat: currentStats.lastProcessedPoint.latitude.toFixed(6),
-              lng: currentStats.lastProcessedPoint.longitude.toFixed(6),
-              timestamp: new Date(currentStats.lastProcessedPoint.timestamp).toISOString(),
-            },
-            newPoint: {
-              lat: newPoint.latitude.toFixed(6),
-              lng: newPoint.longitude.toFixed(6),
-              timestamp: new Date(newPoint.timestamp).toISOString(),
-            },
-          });
-        }
-      } else {
-        logger.debug('Distance below threshold, not incremented', {
-          component: 'StatsCalculationService',
-          distanceIncrement: distanceIncrement.toFixed(2),
-          threshold: this.MIN_MOVEMENT_THRESHOLD_METERS,
-        });
-      }
-
-      // Calculate time increment if session is active
-      if (!currentStats.currentSession.endTime) {
-        const timeIncrement = newPoint.timestamp - currentStats.lastProcessedPoint.timestamp;
-
-        // Only add time if it's reasonable
-        if (timeIncrement > 0 && timeIncrement < this.MAX_TIME_GAP_MS) {
-          updatedStats.session.time += timeIncrement;
-          updatedStats.total.time += timeIncrement;
-
-          logger.debug('Time incremented', {
-            component: 'StatsCalculationService',
-            timeIncrement,
-            sessionTime: updatedStats.session.time,
-            totalTime: updatedStats.total.time,
-          });
-        }
-      }
+      this.applyDistanceIncrement(updatedStats, currentStats.lastProcessedPoint, newPoint);
+      this.applyTimeIncrement(updatedStats, currentStats.lastProcessedPoint, newPoint);
     }
 
     // Always update last processed point (even if it's the first point)
     updatedStats.lastProcessedPoint = serializablePoint;
 
-    // Calculate session area if we have enough points in current session
-    if (updatedStats.currentSession && !updatedStats.currentSession.endTime) {
-      // Get all GPS points from current session for area calculation
-      // We need to reconstruct the session path from the full path
-      const sessionStartTime = updatedStats.currentSession.startTime;
-      
-      // For now, trigger area recalculation periodically during active sessions
-      // This will be handled by the periodic area recalculation in MapScreen
-      // Session area will be calculated as part of the total area recalculation
-    }
+    // Session area calculation is handled by the periodic area recalculation in MapScreen
+    // and real-time area updates when new GPS points are added
 
     return updatedStats;
   }
@@ -464,10 +487,10 @@ export class StatsCalculationService {
     let sessionArea = 0;
     if (currentStats.currentSession && !currentStats.currentSession.endTime) {
       const sessionStartTime = currentStats.currentSession.startTime;
-      
+
       // Filter points that belong to current session
       const sessionPoints = serializablePoints.filter(
-        point => point.timestamp >= sessionStartTime
+        (point) => point.timestamp >= sessionStartTime
       );
 
       if (sessionPoints.length >= 3) {
@@ -689,7 +712,7 @@ export class StatsCalculationService {
   /**
    * Format time as compact timer with progressive precision based on elapsed time
    * < 60s: "3 secs"
-   * 1m-1h: "3 min 13 secs"  
+   * 1m-1h: "3 min 13 secs"
    * 1h-1d: "4h 3m 13s"
    * > 1d: "27d 12h 15m 13s"
    */

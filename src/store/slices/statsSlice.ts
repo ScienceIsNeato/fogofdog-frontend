@@ -5,6 +5,7 @@ import {
   StatsCalculationService,
   StatsState as CalculationStatsState,
   ExplorationStats,
+  SerializableGPSPoint,
 } from '../../services/StatsCalculationService';
 import { logger } from '../../utils/logger';
 

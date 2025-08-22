@@ -1,7 +1,8 @@
 import React from 'react';
-import { render, fireEvent, act } from '@testing-library/react-native';
+import { fireEvent, act } from '@testing-library/react-native';
 import { Alert } from 'react-native';
 import UnifiedSettingsModal from '../UnifiedSettingsModal';
+import { renderWithProviders } from '../../utils/test-utils';
 
 import { DataStats } from '../../types/dataClear';
 
@@ -44,7 +45,9 @@ describe('UnifiedSettingsModal - Core Functionality', () => {
 
   describe('Main View Rendering', () => {
     it('renders main settings view correctly', () => {
-      const { getByText, getByTestId } = render(<UnifiedSettingsModal {...defaultProps} />);
+      const { getByText, getByTestId } = renderWithProviders(
+        <UnifiedSettingsModal {...defaultProps} />
+      );
 
       expect(getByText('Settings')).toBeTruthy();
       expect(getByText('User Profile')).toBeTruthy();
@@ -55,7 +58,9 @@ describe('UnifiedSettingsModal - Core Functionality', () => {
     });
 
     it('does not render when not visible', () => {
-      const { queryByText } = render(<UnifiedSettingsModal {...defaultProps} visible={false} />);
+      const { queryByText } = renderWithProviders(
+        <UnifiedSettingsModal {...defaultProps} visible={false} />
+      );
 
       expect(queryByText('Settings')).toBeNull();
     });
@@ -63,7 +68,7 @@ describe('UnifiedSettingsModal - Core Functionality', () => {
 
   describe('Main View Interactions', () => {
     it('calls onClose when close button is pressed', async () => {
-      const { getByTestId } = render(<UnifiedSettingsModal {...defaultProps} />);
+      const { getByTestId } = renderWithProviders(<UnifiedSettingsModal {...defaultProps} />);
 
       const closeButton = getByTestId('close-button');
 
@@ -75,7 +80,7 @@ describe('UnifiedSettingsModal - Core Functionality', () => {
     });
 
     it('calls onClose when close button is pressed (duplicate test)', async () => {
-      const { getByTestId } = render(<UnifiedSettingsModal {...defaultProps} />);
+      const { getByTestId } = renderWithProviders(<UnifiedSettingsModal {...defaultProps} />);
 
       const closeButton = getByTestId('close-button');
 
@@ -87,7 +92,7 @@ describe('UnifiedSettingsModal - Core Functionality', () => {
     });
 
     it('shows coming soon alert when User Profile is pressed', async () => {
-      const { getByText } = render(<UnifiedSettingsModal {...defaultProps} />);
+      const { getByText } = renderWithProviders(<UnifiedSettingsModal {...defaultProps} />);
 
       const userProfileButton = getByText('User Profile');
 
@@ -102,7 +107,9 @@ describe('UnifiedSettingsModal - Core Functionality', () => {
     });
 
     it('navigates to developer settings view when Developer Settings is pressed', async () => {
-      const { getByText, queryByText } = render(<UnifiedSettingsModal {...defaultProps} />);
+      const { getByText, queryByText } = renderWithProviders(
+        <UnifiedSettingsModal {...defaultProps} />
+      );
 
       const developerButton = getByText('Developer Settings');
 
@@ -119,7 +126,9 @@ describe('UnifiedSettingsModal - Core Functionality', () => {
 
   describe('Navigation to History View', () => {
     it('navigates to history view when History Management is pressed', async () => {
-      const { getByText, queryByText } = render(<UnifiedSettingsModal {...defaultProps} />);
+      const { getByText, queryByText } = renderWithProviders(
+        <UnifiedSettingsModal {...defaultProps} />
+      );
 
       const historyButton = getByText('Exploration History Management');
 
@@ -138,7 +147,7 @@ describe('UnifiedSettingsModal - Core Functionality', () => {
 
   describe('History View Functionality', () => {
     it('renders history view with data stats and clear options', async () => {
-      const { getByText } = render(<UnifiedSettingsModal {...defaultProps} />);
+      const { getByText } = renderWithProviders(<UnifiedSettingsModal {...defaultProps} />);
 
       // Navigate to history view
       const historyButton = getByText('Exploration History Management');
@@ -160,7 +169,7 @@ describe('UnifiedSettingsModal - Core Functionality', () => {
     });
 
     it('navigates back to main view when back button is pressed', async () => {
-      const { getByText, getByTestId, queryByText } = render(
+      const { getByText, getByTestId, queryByText } = renderWithProviders(
         <UnifiedSettingsModal {...defaultProps} />
       );
 
@@ -184,7 +193,7 @@ describe('UnifiedSettingsModal - Core Functionality', () => {
     });
 
     it('shows confirmation alert when clear option is pressed', async () => {
-      const { getByText } = render(<UnifiedSettingsModal {...defaultProps} />);
+      const { getByText } = renderWithProviders(<UnifiedSettingsModal {...defaultProps} />);
 
       // Navigate to history view
       const historyButton = getByText('Exploration History Management');
@@ -208,7 +217,7 @@ describe('UnifiedSettingsModal - Core Functionality', () => {
     });
 
     it('calls onClearData when clear is confirmed', async () => {
-      const { getByText } = render(<UnifiedSettingsModal {...defaultProps} />);
+      const { getByText } = renderWithProviders(<UnifiedSettingsModal {...defaultProps} />);
 
       // Navigate to history view
       const historyButton = getByText('Exploration History Management');
@@ -242,7 +251,9 @@ describe('UnifiedSettingsModal - Core Functionality', () => {
         isClearing: true,
       };
 
-      const { getByText, getAllByTestId } = render(<UnifiedSettingsModal {...clearingProps} />);
+      const { getByText, getAllByTestId } = renderWithProviders(
+        <UnifiedSettingsModal {...clearingProps} />
+      );
 
       // Navigate to history view
       const historyButton = getByText('Exploration History Management');
@@ -260,7 +271,9 @@ describe('UnifiedSettingsModal - Core Functionality', () => {
         isClearing: true,
       };
 
-      const { getByText, getAllByTestId } = render(<UnifiedSettingsModal {...clearingProps} />);
+      const { getByText, getAllByTestId } = renderWithProviders(
+        <UnifiedSettingsModal {...clearingProps} />
+      );
 
       // Navigate to history view
       const historyButton = getByText('Exploration History Management');
@@ -278,7 +291,7 @@ describe('UnifiedSettingsModal - Core Functionality', () => {
 
   describe('Developer Settings View', () => {
     it('navigates back to main view when back button is pressed', async () => {
-      const { getByText, queryByText, getByTestId } = render(
+      const { getByText, queryByText, getByTestId } = renderWithProviders(
         <UnifiedSettingsModal {...defaultProps} />
       );
 
@@ -313,7 +326,7 @@ describe('UnifiedSettingsModal - Core Functionality', () => {
         },
       };
 
-      const { getByText } = render(<UnifiedSettingsModal {...propsWithNoDate} />);
+      const { getByText } = renderWithProviders(<UnifiedSettingsModal {...propsWithNoDate} />);
 
       // Navigate to history view
       const historyButton = getByText('Exploration History Management');

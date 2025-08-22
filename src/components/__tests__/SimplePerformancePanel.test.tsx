@@ -1,14 +1,16 @@
 import React from 'react';
-import { render, fireEvent, waitFor } from '@testing-library/react-native';
+import { fireEvent, waitFor } from '@testing-library/react-native';
 import { Alert } from 'react-native';
 import { SimplePerformancePanel } from '../SimplePerformancePanel';
+import { renderWithProviders } from '../../utils/test-utils';
 import { performanceTestInjector } from '../../utils/injectPerformanceTestData';
 
 // Mock the performance test injector
 jest.mock('../../utils/injectPerformanceTestData', () => ({
   performanceTestInjector: {
     getCurrentDataCount: jest.fn(),
-    injectCustomData: jest.fn(),
+    injectRealTimeData: jest.fn(),
+    prependHistoricalData: jest.fn(),
     clearData: jest.fn(),
   },
 }));
@@ -23,80 +25,88 @@ describe('SimplePerformancePanel', () => {
   });
 
   it('should render correctly with initial state', () => {
-    const { getByText } = render(<SimplePerformancePanel />);
+    const { getByText } = renderWithProviders(<SimplePerformancePanel />);
 
     expect(getByText('Performance Testing')).toBeTruthy();
     expect(getByText('GPS Points: 0')).toBeTruthy();
-    expect(getByText('Adaptive Optimization: Active')).toBeTruthy();
-    expect(getByText('+500')).toBeTruthy();
-    expect(getByText('Clear')).toBeTruthy();
+    expect(getByText('+500 Live')).toBeTruthy();
+    expect(getByText('+500 History')).toBeTruthy();
+    expect(getByText('Clear All Data')).toBeTruthy();
   });
 
   it('should display current GPS point count', () => {
     (performanceTestInjector.getCurrentDataCount as jest.Mock).mockReturnValue(1234);
 
-    const { getByText } = render(<SimplePerformancePanel />);
+    const { getByText } = renderWithProviders(<SimplePerformancePanel />);
 
     expect(getByText('GPS Points: 1,234')).toBeTruthy();
   });
 
   it('should show confirmation dialog when +500 button is pressed', async () => {
-    const { getByText } = render(<SimplePerformancePanel />);
+    const { getByText } = renderWithProviders(<SimplePerformancePanel />);
 
-    fireEvent.press(getByText('+500'));
+    fireEvent.press(getByText('+500 Live'));
 
     expect(Alert.alert).toHaveBeenCalledWith(
-      'GPS Injection Ready',
-      'Clicking OK will return you to the app and commence adding GPS points. Enjoy the show!',
+      'Real-Time GPS Injection',
+      'This will inject 500 GPS points in real-time with current timestamps. The GPS beacon will act as the "head" of the worm. This will take about 8 minutes.',
       expect.arrayContaining([
         { text: 'Cancel', style: 'cancel' },
         expect.objectContaining({
-          text: 'OK',
+          text: 'Start Real-Time',
         }),
       ])
     );
   });
 
-  it('should inject test data when confirmation dialog OK is pressed', async () => {
-    (performanceTestInjector.injectCustomData as jest.Mock).mockResolvedValue(undefined);
+  it('should inject real-time data when confirmation dialog Start Real-Time is pressed', async () => {
+    (performanceTestInjector.injectRealTimeData as jest.Mock).mockResolvedValue(undefined);
 
-    // Mock Alert.alert to simulate user pressing OK
+    // Mock Alert.alert to simulate user pressing Start Real-Time
     (Alert.alert as jest.Mock).mockImplementation((_title, _message, buttons) => {
-      const okButton = buttons.find((b: any) => b.text === 'OK');
-      if (okButton?.onPress) {
-        okButton.onPress();
+      const startButton = buttons.find((b: any) => b.text === 'Start Real-Time');
+      if (startButton?.onPress) {
+        startButton.onPress();
       }
     });
 
-    const { getByText } = render(<SimplePerformancePanel />);
+    const { getByText } = renderWithProviders(<SimplePerformancePanel />);
 
-    fireEvent.press(getByText('+500'));
+    fireEvent.press(getByText('+500 Live'));
 
     await waitFor(() => {
-      expect(performanceTestInjector.injectCustomData).toHaveBeenCalledWith(500, 'REALISTIC_DRIVE');
+      expect(performanceTestInjector.injectRealTimeData).toHaveBeenCalledWith(
+        500,
+        'REALISTIC_DRIVE',
+        { intervalMs: 1000 }
+      );
     });
   });
 
   it('should not show success alert after injecting data', async () => {
-    (performanceTestInjector.injectCustomData as jest.Mock).mockResolvedValue(undefined);
+    (performanceTestInjector.injectRealTimeData as jest.Mock).mockResolvedValue(undefined);
     (performanceTestInjector.getCurrentDataCount as jest.Mock)
       .mockReturnValueOnce(0)
       .mockReturnValueOnce(500);
 
     // Mock Alert.alert to simulate user pressing OK
     (Alert.alert as jest.Mock).mockImplementation((_title, _message, buttons) => {
-      const okButton = buttons.find((b: any) => b.text === 'OK');
-      if (okButton?.onPress) {
-        okButton.onPress();
+      const startButton = buttons.find((b: any) => b.text === 'Start Real-Time');
+      if (startButton?.onPress) {
+        startButton.onPress();
       }
     });
 
-    const { getByText } = render(<SimplePerformancePanel />);
+    const { getByText } = renderWithProviders(<SimplePerformancePanel />);
 
-    fireEvent.press(getByText('+500'));
+    fireEvent.press(getByText('+500 Live'));
 
     await waitFor(() => {
-      expect(performanceTestInjector.injectCustomData).toHaveBeenCalledWith(500, 'REALISTIC_DRIVE');
+      expect(performanceTestInjector.injectRealTimeData).toHaveBeenCalledWith(
+        500,
+        'REALISTIC_DRIVE',
+        { intervalMs: 1000 }
+      );
     });
 
     // Should not show success alert (user sees GPS points in real-time instead)
@@ -108,7 +118,7 @@ describe('SimplePerformancePanel', () => {
     const originalConsoleError = console.error;
     console.error = jest.fn();
 
-    (performanceTestInjector.injectCustomData as jest.Mock).mockRejectedValue(
+    (performanceTestInjector.injectRealTimeData as jest.Mock).mockRejectedValue(
       new Error('Test error')
     );
 
@@ -118,20 +128,20 @@ describe('SimplePerformancePanel', () => {
       callCount++;
       if (callCount === 1) {
         // First call is the confirmation dialog
-        const okButton = buttons?.find((b: any) => b.text === 'OK');
-        if (okButton?.onPress) {
-          okButton.onPress();
+        const startButton = buttons?.find((b: any) => b.text === 'Start Real-Time');
+        if (startButton?.onPress) {
+          startButton.onPress();
         }
       }
       // Second call will be the error alert - just let it be called
     });
 
-    const { getByText } = render(<SimplePerformancePanel />);
+    const { getByText } = renderWithProviders(<SimplePerformancePanel />);
 
-    fireEvent.press(getByText('+500'));
+    fireEvent.press(getByText('+500 Live'));
 
     await waitFor(() => {
-      expect(Alert.alert).toHaveBeenCalledWith('Error', 'Failed to inject test data');
+      expect(Alert.alert).toHaveBeenCalledWith('Error', 'Failed to inject real-time data');
     });
 
     // Restore console.error
@@ -139,7 +149,7 @@ describe('SimplePerformancePanel', () => {
   });
 
   it('should not inject data when confirmation dialog Cancel is pressed', () => {
-    (performanceTestInjector.injectCustomData as jest.Mock).mockResolvedValue(undefined);
+    (performanceTestInjector.injectRealTimeData as jest.Mock).mockResolvedValue(undefined);
 
     // Mock Alert.alert to simulate user pressing Cancel (no onPress callback needed)
     (Alert.alert as jest.Mock).mockImplementation((_title, _message, _buttons) => {
@@ -147,50 +157,56 @@ describe('SimplePerformancePanel', () => {
       // We don't need to call anything here
     });
 
-    const { getByText } = render(<SimplePerformancePanel />);
+    const { getByText } = renderWithProviders(<SimplePerformancePanel />);
 
-    fireEvent.press(getByText('+500'));
+    fireEvent.press(getByText('+500 Live'));
 
     // Verify the confirmation dialog was shown
     expect(Alert.alert).toHaveBeenCalledWith(
-      'GPS Injection Ready',
-      'Clicking OK will return you to the app and commence adding GPS points. Enjoy the show!',
+      'Real-Time GPS Injection',
+      'This will inject 500 GPS points in real-time with current timestamps. The GPS beacon will act as the "head" of the worm. This will take about 8 minutes.',
       expect.arrayContaining([
         { text: 'Cancel', style: 'cancel' },
-        expect.objectContaining({ text: 'OK' }),
+        expect.objectContaining({ text: 'Start Real-Time' }),
       ])
     );
 
     // Verify injection was not called
-    expect(performanceTestInjector.injectCustomData).not.toHaveBeenCalled();
+    expect(performanceTestInjector.injectRealTimeData).not.toHaveBeenCalled();
   });
 
   it('should call onCloseModal when GPS injection starts', async () => {
     const mockOnCloseModal = jest.fn();
-    (performanceTestInjector.injectCustomData as jest.Mock).mockResolvedValue(undefined);
+    (performanceTestInjector.injectRealTimeData as jest.Mock).mockResolvedValue(undefined);
 
-    // Mock Alert.alert to simulate user pressing OK
+    // Mock Alert.alert to simulate user pressing Start Real-Time
     (Alert.alert as jest.Mock).mockImplementation((_title, _message, buttons) => {
-      const okButton = buttons?.find((b: any) => b.text === 'OK');
-      if (okButton?.onPress) {
-        okButton.onPress();
+      const startButton = buttons?.find((b: any) => b.text === 'Start Real-Time');
+      if (startButton?.onPress) {
+        startButton.onPress();
       }
     });
 
-    const { getByText } = render(<SimplePerformancePanel onCloseModal={mockOnCloseModal} />);
+    const { getByText } = renderWithProviders(
+      <SimplePerformancePanel onCloseModal={mockOnCloseModal} />
+    );
 
-    fireEvent.press(getByText('+500'));
+    fireEvent.press(getByText('+500 Live'));
 
     await waitFor(() => {
       expect(mockOnCloseModal).toHaveBeenCalled();
-      expect(performanceTestInjector.injectCustomData).toHaveBeenCalledWith(500, 'REALISTIC_DRIVE');
+      expect(performanceTestInjector.injectRealTimeData).toHaveBeenCalledWith(
+        500,
+        'REALISTIC_DRIVE',
+        { intervalMs: 1000 }
+      );
     });
   });
 
   it('should show confirmation dialog when Clear button is pressed', () => {
-    const { getByText } = render(<SimplePerformancePanel />);
+    const { getByText } = renderWithProviders(<SimplePerformancePanel />);
 
-    fireEvent.press(getByText('Clear'));
+    fireEvent.press(getByText('Clear All Data'));
 
     expect(Alert.alert).toHaveBeenCalledWith(
       'Clear Data',
@@ -214,29 +230,29 @@ describe('SimplePerformancePanel', () => {
       }
     });
 
-    const { getByText } = render(<SimplePerformancePanel />);
+    const { getByText } = renderWithProviders(<SimplePerformancePanel />);
 
-    fireEvent.press(getByText('Clear'));
+    fireEvent.press(getByText('Clear All Data'));
 
     expect(performanceTestInjector.clearData).toHaveBeenCalled();
   });
 
   it('should disable buttons when loading', async () => {
-    (performanceTestInjector.injectCustomData as jest.Mock).mockImplementation(
+    (performanceTestInjector.injectRealTimeData as jest.Mock).mockImplementation(
       () => new Promise((resolve) => setTimeout(resolve, 100))
     );
 
-    // Mock Alert.alert to simulate user pressing OK
+    // Mock Alert.alert to simulate user pressing Start Real-Time
     (Alert.alert as jest.Mock).mockImplementation((_title, _message, buttons) => {
-      const okButton = buttons?.find((b: any) => b.text === 'OK');
-      if (okButton?.onPress) {
-        okButton.onPress();
+      const startButton = buttons?.find((b: any) => b.text === 'Start Real-Time');
+      if (startButton?.onPress) {
+        startButton.onPress();
       }
     });
 
-    const { getByText } = render(<SimplePerformancePanel />);
+    const { getByText } = renderWithProviders(<SimplePerformancePanel />);
 
-    fireEvent.press(getByText('+500'));
+    fireEvent.press(getByText('+500 Live'));
 
     // Wait for loading state to appear after confirmation
     await waitFor(() => {

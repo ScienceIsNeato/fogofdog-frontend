@@ -34,6 +34,11 @@ const createMockStoreWithStats = (statsState: any) => {
           storedLocationCount: 0,
         },
         isTrackingPaused: false,
+        gpsInjectionStatus: {
+          isRunning: false,
+          type: null,
+          message: '',
+        },
       },
       stats: statsState,
     },
@@ -82,7 +87,7 @@ const renderWithMockStore = (component: React.ReactElement, statsState: any) => 
 
 describe('HUDStatsPanel', () => {
   it('should render stats panel with formatted values', () => {
-    const { getByText, getAllByText } = renderWithMockStore(<HUDStatsPanel />, mockStatsState);
+    const { getByText } = renderWithMockStore(<HUDStatsPanel />, mockStatsState);
 
     // Check section headers
     expect(getByText(STATS_LABELS.ALL_TIME_LABEL)).toBeTruthy();
@@ -188,15 +193,15 @@ describe('HUDStatsPanel', () => {
     const { getAllByText } = renderWithMockStore(<HUDStatsPanel />, mockStatsState);
 
     // Should have distance labels (appears once as row header in grid layout)
-    const distanceLabels = getAllByText('Distance');
+    const distanceLabels = getAllByText('Distance\nTravelled');
     expect(distanceLabels.length).toBe(1);
 
     // Should have area labels
-    const areaLabels = getAllByText('Area');
+    const areaLabels = getAllByText('Area\nRevealed');
     expect(areaLabels.length).toBe(1);
 
     // Should have time labels
-    const timeLabels = getAllByText('Time');
+    const timeLabels = getAllByText('Exploration\nTime');
     expect(timeLabels.length).toBe(1);
   });
 

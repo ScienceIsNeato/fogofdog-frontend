@@ -66,22 +66,25 @@ describe('PerformanceTestDataInjector', () => {
     });
   });
 
-  describe('injectCustomData', () => {
-    it('should inject custom test data successfully', async () => {
+  describe('injectRealTimeData', () => {
+    it('should inject real-time test data successfully', async () => {
       // Fast forward timers to trigger the setTimeout calls
       jest.useFakeTimers();
 
-      const injectionPromise = performanceTestInjector.injectCustomData(2, 'REALISTIC_DRIVE');
+      const injectionPromise = performanceTestInjector.injectRealTimeData(2, 'REALISTIC_DRIVE');
 
       // Fast forward to trigger all setTimeout calls
       jest.runAllTimers();
 
       await injectionPromise;
 
-      expect(mockGenerateData).toHaveBeenCalledWith(2, 'realistic_drive', {});
+      expect(mockGenerateData).toHaveBeenCalledWith(2, 'realistic_drive', {
+        intervalSeconds: 1,
+        startTime: 0,
+      });
       expect(mockDeviceEventEmitter.emit).toHaveBeenCalledTimes(2); // One for each point
       expect(mockLogger.info).toHaveBeenCalledWith(
-        '🚀 Starting injection of 2 custom points (REALISTIC_DRIVE) from default location...'
+        '🎯 Starting REAL-TIME injection: 2 points with 1000ms intervals from default location'
       );
 
       jest.useRealTimers();
@@ -92,10 +95,10 @@ describe('PerformanceTestDataInjector', () => {
         throw new Error('Test error');
       });
 
-      await performanceTestInjector.injectCustomData(1);
+      await performanceTestInjector.injectRealTimeData(1);
 
       expect(mockLogger.error).toHaveBeenCalledWith(
-        'Failed to inject custom data',
+        'Failed to inject real-time data',
         expect.any(Error)
       );
     });
@@ -104,10 +107,10 @@ describe('PerformanceTestDataInjector', () => {
       mockGenerateData.mockReturnValue([]);
 
       // Start first injection
-      const firstInjection = performanceTestInjector.injectCustomData(1);
+      const firstInjection = performanceTestInjector.injectRealTimeData(1);
 
       // Try to start second injection while first is running
-      await performanceTestInjector.injectCustomData(1);
+      await performanceTestInjector.injectRealTimeData(1);
 
       expect(mockLogger.warn).toHaveBeenCalledWith('Data injection already in progress');
 
@@ -116,12 +119,26 @@ describe('PerformanceTestDataInjector', () => {
     });
 
     it('should use default parameters when not provided', async () => {
-      await performanceTestInjector.injectCustomData(5);
+      jest.useFakeTimers();
 
-      expect(mockGenerateData).toHaveBeenCalledWith(5, 'random_walk', {});
+      const injectionPromise = performanceTestInjector.injectRealTimeData(5);
+
+      // Fast forward to trigger all setTimeout calls
+      jest.runAllTimers();
+
+      await injectionPromise;
+
+      expect(mockGenerateData).toHaveBeenCalledWith(5, 'realistic_drive', {
+        intervalSeconds: 1,
+        startTime: 0,
+      });
+
+      jest.useRealTimers();
     });
 
     it('should use custom starting location from Redux state', async () => {
+      jest.useFakeTimers();
+
       mockStore.getState = jest.fn(() => ({
         user: { isAuthenticated: false, user: null, isLoading: false, error: null },
         exploration: {
@@ -130,11 +147,20 @@ describe('PerformanceTestDataInjector', () => {
         },
       })) as any;
 
-      await performanceTestInjector.injectCustomData(3, 'REALISTIC_DRIVE');
+      const injectionPromise = performanceTestInjector.injectRealTimeData(3, 'REALISTIC_DRIVE');
+
+      // Fast forward to trigger all setTimeout calls
+      jest.runAllTimers();
+
+      await injectionPromise;
 
       expect(mockGenerateData).toHaveBeenCalledWith(3, 'realistic_drive', {
+        intervalSeconds: 1,
+        startTime: 0,
         startingLocation: { latitude: 45.0, longitude: -122.0 },
       });
+
+      jest.useRealTimers();
     });
   });
 });

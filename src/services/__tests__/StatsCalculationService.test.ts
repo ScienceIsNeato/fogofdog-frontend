@@ -10,8 +10,8 @@ describe('StatsCalculationService', () => {
   // Helper function to create a simple path for testing
   const createTestPath = (): GPSEvent[] => [
     createGPSEvent(40.7128, -74.006, 1000), // NYC
-    createGPSEvent(40.7589, -73.9851, 2000), // Times Square (1 second later)
-    createGPSEvent(40.7614, -73.9776, 3000), // Central Park (1 second later)
+    createGPSEvent(40.7138, -74.005, 31000), // ~150m away, 30 seconds later (walking speed)
+    createGPSEvent(40.7148, -74.004, 61000), // ~150m more, 30 seconds later (walking speed)
   ];
 
   describe('calculateTotalsFromHistory', () => {
@@ -41,27 +41,28 @@ describe('StatsCalculationService', () => {
       expect(result.lastProcessedPoint).toBeNull(); // Fresh session starts with null
     });
 
-    it('should calculate distance correctly for two points', () => {
+    it('should calculate distance correctly for two connected points', () => {
       const twoPoints = [
         createGPSEvent(40.7128, -74.006, 1000), // NYC
-        createGPSEvent(40.7589, -73.9851, 2000), // Times Square
+        createGPSEvent(40.7138, -74.005, 31000), // ~150m away, 30 seconds later (~18 km/h walking speed)
       ];
       const result = StatsCalculationService.calculateTotalsFromHistory(twoPoints);
 
-      // Distance between NYC and Times Square is approximately 5.2km
-      expect(result.total.distance).toBeGreaterThan(5000);
-      expect(result.total.distance).toBeLessThan(6000);
-      expect(result.total.time).toBe(1000); // 1 second between points
+      // Distance should be calculated for connected points (~150m)
+      expect(result.total.distance).toBeGreaterThan(100);
+      expect(result.total.distance).toBeLessThan(200);
+      expect(result.total.time).toBe(30000); // 30 seconds between points
       expect(result.session.distance).toBe(0); // Fresh session
       expect(result.session.time).toBe(0);
     });
 
-    it('should calculate stats for longer path', () => {
+    it('should calculate stats for longer connected path', () => {
       const testPath = createTestPath();
       const result = StatsCalculationService.calculateTotalsFromHistory(testPath);
 
-      expect(result.total.distance).toBeGreaterThan(0);
-      expect(result.total.time).toBe(2000); // 2 seconds total (1000ms + 1000ms)
+      expect(result.total.distance).toBeGreaterThan(250); // ~300m total distance
+      expect(result.total.distance).toBeLessThan(400);
+      expect(result.total.time).toBe(60000); // 60 seconds total (30s + 30s)
       expect(result.total.area).toBeGreaterThan(0); // Should have some area with 3+ points
       expect(result.session.distance).toBe(0); // Fresh session
       expect(result.isInitialized).toBe(true);
@@ -79,15 +80,15 @@ describe('StatsCalculationService', () => {
       expect(result.total.time).toBe(2000); // Time still counts (session duration: 3000-1000 = 2000ms)
     });
 
-    it('should ignore large time gaps', () => {
+    it('should create separate sessions for large time gaps', () => {
       const largeGaps = [
         createGPSEvent(40.7128, -74.006, 1000),
-        createGPSEvent(40.7589, -73.9851, 400000), // 6+ minute gap
+        createGPSEvent(40.7589, -73.9851, 400000), // 6+ minute gap - creates new session
       ];
       const result = StatsCalculationService.calculateTotalsFromHistory(largeGaps);
 
-      expect(result.total.distance).toBeGreaterThan(0); // Distance should still count
-      expect(result.total.time).toBe(399000); // Time counts (session duration: 400000-1000 = 399000ms)
+      expect(result.total.distance).toBe(0); // No distance - points are disconnected
+      expect(result.total.time).toBe(399000); // Time still counts (session duration: 400000-1000 = 399000ms)
     });
 
     it('should handle realistic GPS path with noise', () => {
@@ -137,8 +138,8 @@ describe('StatsCalculationService', () => {
         firstPoint
       );
 
-      // Second point should add distance
-      const secondPoint = createGPSEvent(40.762, -73.977, sessionStartTime + 2000);
+      // Second point should add distance (30 seconds later for realistic walking speed)
+      const secondPoint = createGPSEvent(40.762, -73.977, sessionStartTime + 31000);
       const result = StatsCalculationService.incrementStats(stateWithFirstPoint, secondPoint);
 
       expect(result.total.distance).toBeGreaterThanOrEqual(initializedState.total.distance);
@@ -148,7 +149,7 @@ describe('StatsCalculationService', () => {
       expect(result.lastProcessedPoint).toEqual({
         latitude: 40.762,
         longitude: -73.977,
-        timestamp: sessionStartTime + 2000,
+        timestamp: sessionStartTime + 31000,
       });
     });
 
@@ -309,7 +310,7 @@ describe('StatsCalculationService', () => {
 
       // This would be ~20,000km if not filtered
       const result = StatsCalculationService.calculateTotalsFromHistory(extremePath);
-      
+
       // Distance should be 0 because the 20,000km jump was filtered out
       expect(result.total.distance).toBe(0);
       expect(result.total.time).toBe(1000); // Time should still be calculated
@@ -337,18 +338,18 @@ describe('StatsCalculationService', () => {
       // Create path with a 15-minute gap (should be detected as 2 sessions)
       const pathWithGap = [
         createGPSEvent(40.7128, -74.006, 1000), // Session 1 start
-        createGPSEvent(40.7138, -74.007, 2000), // 1 second later
-        createGPSEvent(40.7148, -74.008, 3000), // Session 1 end (duration: 3000-1000 = 2000ms)
+        createGPSEvent(40.7129, -74.0059, 31000), // 30 seconds later, ~100m (realistic walking)
+        createGPSEvent(40.713, -74.0058, 61000), // Session 1 end (duration: 61000-1000 = 60000ms)
         // 15-minute gap here (900,000ms > 10-minute threshold)
-        createGPSEvent(40.7158, -74.009, 903000), // Session 2 start
-        createGPSEvent(40.7168, -74.01, 904000), // Session 2 end (duration: 904000-903000 = 1000ms)
+        createGPSEvent(40.7131, -74.0057, 961000), // Session 2 start
+        createGPSEvent(40.7132, -74.0056, 991000), // Session 2 end (duration: 991000-961000 = 30000ms)
       ];
 
       const result = StatsCalculationService.calculateTotalsFromHistory(pathWithGap);
 
-      // Should count session durations: Session 1 (2000ms) + Session 2 (1000ms) = 3000ms
-      expect(result.total.time).toBe(3000);
-      expect(result.total.distance).toBeGreaterThan(0);
+      // Should count session durations: Session 1 (60000ms) + Session 2 (30000ms) = 90000ms
+      expect(result.total.time).toBe(90000);
+      expect(result.total.distance).toBeGreaterThan(0); // Should have connected segments within each session
     });
 
     it('should not detect gaps for continuous activity under threshold', () => {
@@ -427,17 +428,18 @@ describe('StatsCalculationService', () => {
 
   describe('integration scenarios', () => {
     it('should handle app startup with existing history', () => {
-      // Simulate existing user with GPS history
+      // Simulate existing user with GPS history (realistic walking path)
       const existingHistory = [
         createGPSEvent(40.7128, -74.006, 1000),
-        createGPSEvent(40.7589, -73.9851, 2000),
-        createGPSEvent(40.7614, -73.9776, 3000),
+        createGPSEvent(40.7138, -74.005, 31000), // 30 seconds later, ~150m (walking speed)
+        createGPSEvent(40.7148, -74.004, 61000), // 30 seconds later, ~150m more
       ];
 
       // App starts up, processes history
       const initialState = StatsCalculationService.calculateTotalsFromHistory(existingHistory);
 
-      expect(initialState.total.distance).toBeGreaterThan(0);
+      expect(initialState.total.distance).toBeGreaterThan(250); // ~300m total
+      expect(initialState.total.distance).toBeLessThan(400);
       expect(initialState.total.time).toBeGreaterThan(0);
       expect(initialState.session.distance).toBe(0); // Fresh session
       expect(initialState.isInitialized).toBe(true);
@@ -447,7 +449,7 @@ describe('StatsCalculationService', () => {
       const firstPoint = createGPSEvent(40.7614, -73.9776, sessionStartTime + 1000); // Baseline point
       const stateAfterFirst = StatsCalculationService.incrementStats(initialState, firstPoint);
 
-      const secondPoint = createGPSEvent(40.762, -73.977, sessionStartTime + 2000); // Movement
+      const secondPoint = createGPSEvent(40.762, -73.977, sessionStartTime + 31000); // Movement (30 seconds later)
       const updated1 = StatsCalculationService.incrementStats(stateAfterFirst, secondPoint);
 
       expect(updated1.session.distance).toBeGreaterThan(0);
@@ -475,7 +477,7 @@ describe('StatsCalculationService', () => {
       const firstPoint = createGPSEvent(40.7614, -73.9776, sessionStartTime + 1000);
       const stateAfterFirst = StatsCalculationService.incrementStats(state, firstPoint);
 
-      const secondPoint = createGPSEvent(40.762, -73.977, sessionStartTime + 2000);
+      const secondPoint = createGPSEvent(40.762, -73.977, sessionStartTime + 31000); // 30 seconds later
       const activeState = StatsCalculationService.incrementStats(stateAfterFirst, secondPoint);
 
       expect(activeState.session.distance).toBeGreaterThan(0);
@@ -494,6 +496,43 @@ describe('StatsCalculationService', () => {
 
       expect(resumedState.session.distance).toBe(0); // Fresh session
       expect(resumedState.total.distance).toBeGreaterThanOrEqual(activeState.total.distance); // Total preserved + increment
+    });
+
+    it('should handle historical data prepending with correct timestamp ordering', () => {
+      // Simulate current GPS data (recent timestamps)
+      const currentTime = Date.now();
+      const currentHistory = [
+        createGPSEvent(40.7128, -74.006, currentTime - 5000), // 5 seconds ago
+        createGPSEvent(40.7589, -73.9851, currentTime - 4000), // 4 seconds ago
+        createGPSEvent(40.7614, -73.9776, currentTime - 3000), // 3 seconds ago
+      ];
+
+      // Simulate historical data (older timestamps) that gets prepended
+      const historicalTime = currentTime - 3600000; // 1 hour ago
+      const historicalData = [
+        createGPSEvent(40.7, -74.01, historicalTime), // 1 hour ago
+        createGPSEvent(40.705, -74.005, historicalTime + 30000), // 59.5 minutes ago
+        createGPSEvent(40.71, -74.0, historicalTime + 60000), // 59 minutes ago
+      ];
+
+      // Simulate prepending (historical data comes first in array, but has older timestamps)
+      const combinedHistory = [...historicalData, ...currentHistory];
+
+      // Calculate totals - should handle timestamp ordering correctly
+      const result = StatsCalculationService.calculateTotalsFromHistory(combinedHistory);
+
+      // Total time should be positive (not negative)
+      expect(result.total.time).toBeGreaterThan(0);
+
+      // Should calculate session time correctly based on chronological order
+      // Historical session: 60 seconds, Current session: 2 seconds, Gap between: ~59 minutes (separate sessions)
+      expect(result.total.time).toBeGreaterThan(60000); // At least the historical session time
+
+      // Distance should be calculated correctly
+      expect(result.total.distance).toBeGreaterThan(0);
+
+      // Should be properly initialized
+      expect(result.isInitialized).toBe(true);
     });
   });
 });

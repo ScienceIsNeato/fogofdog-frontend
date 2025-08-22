@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Alert } from 'react-native';
 import { performanceTestInjector } from '../utils/injectPerformanceTestData';
 import { logger } from '../utils/logger';
+import { useAppDispatch } from '../store/hooks';
+import { startGPSInjection, stopGPSInjection } from '../store/slices/explorationSlice';
 
 interface SimplePerformancePanelProps {
   onCloseModal?: (() => void) | undefined;
@@ -21,7 +23,8 @@ const handleClearData = (updateCount: () => void) => {
   ]);
 };
 
-export const SimplePerformancePanel: React.FC<SimplePerformancePanelProps> = ({ onCloseModal }) => {
+// Hook for managing GPS data count and loading state
+const usePerformanceState = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [currentCount, setCurrentCount] = useState(0);
 
@@ -32,6 +35,49 @@ export const SimplePerformancePanel: React.FC<SimplePerformancePanelProps> = ({ 
   React.useEffect(() => {
     updateCount();
   }, []);
+
+  return {
+    isLoading,
+    setIsLoading,
+    currentCount,
+    updateCount,
+  };
+};
+
+// Hook for real-time GPS injection workflow
+const useRealTimeInjection = (config: {
+  isLoading: boolean;
+  setIsLoading: (loading: boolean) => void;
+  updateCount: () => void;
+  dispatch: ReturnType<typeof useAppDispatch>;
+  onCloseModal?: () => void;
+}) => {
+  const { isLoading, setIsLoading, updateCount, dispatch, onCloseModal } = config;
+  const performRealTimeInjection = async (count: number) => {
+    setIsLoading(true);
+
+    // Start GPS injection indicator
+    dispatch(
+      startGPSInjection({
+        type: 'real-time',
+        message: `Injecting ${count} GPS points in real-time...`,
+      })
+    );
+
+    try {
+      await performanceTestInjector.injectRealTimeData(count, 'REALISTIC_DRIVE', {
+        intervalMs: 1000, // 1 second between points
+      });
+      updateCount();
+    } catch (error) {
+      Alert.alert('Error', 'Failed to inject real-time data');
+      logger.error('Failed to inject real-time data', error);
+    } finally {
+      setIsLoading(false);
+      // Stop GPS injection indicator
+      dispatch(stopGPSInjection());
+    }
+  };
 
   const injectRealTimeData = async (count: number) => {
     if (isLoading) return;
@@ -55,6 +101,44 @@ export const SimplePerformancePanel: React.FC<SimplePerformancePanelProps> = ({ 
         },
       ]
     );
+  };
+
+  return { injectRealTimeData };
+};
+
+// Hook for historical GPS injection workflow
+const useHistoricalInjection = (config: {
+  isLoading: boolean;
+  setIsLoading: (loading: boolean) => void;
+  updateCount: () => void;
+  dispatch: ReturnType<typeof useAppDispatch>;
+  onCloseModal?: () => void;
+}) => {
+  const { isLoading, setIsLoading, updateCount, dispatch, onCloseModal } = config;
+  const performHistoricalInjection = async (count: number) => {
+    setIsLoading(true);
+
+    // Start GPS injection indicator
+    dispatch(
+      startGPSInjection({
+        type: 'historical',
+        message: `Injecting ${count} historical GPS points...`,
+      })
+    );
+
+    try {
+      await performanceTestInjector.prependHistoricalData(count, 'REALISTIC_DRIVE', {
+        sessionDurationHours: 2, // 2-hour historical session
+      });
+      updateCount();
+    } catch (error) {
+      Alert.alert('Error', 'Failed to inject historical data');
+      logger.error('Failed to inject historical data', error);
+    } finally {
+      setIsLoading(false);
+      // Stop GPS injection indicator
+      dispatch(stopGPSInjection());
+    }
   };
 
   const injectHistoricalData = async (count: number) => {
@@ -81,35 +165,26 @@ export const SimplePerformancePanel: React.FC<SimplePerformancePanelProps> = ({ 
     );
   };
 
-  const performRealTimeInjection = async (count: number) => {
-    setIsLoading(true);
-    try {
-      await performanceTestInjector.injectRealTimeData(count, 'REALISTIC_DRIVE', {
-        intervalMs: 1000, // 1 second between points
-      });
-      updateCount();
-    } catch (error) {
-      Alert.alert('Error', 'Failed to inject real-time data');
-      logger.error('Failed to inject real-time data', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  return { injectHistoricalData };
+};
 
-  const performHistoricalInjection = async (count: number) => {
-    setIsLoading(true);
-    try {
-      await performanceTestInjector.prependHistoricalData(count, 'REALISTIC_DRIVE', {
-        sessionDurationHours: 2, // 2-hour historical session
-      });
-      updateCount();
-    } catch (error) {
-      Alert.alert('Error', 'Failed to inject historical data');
-      logger.error('Failed to inject historical data', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+export const SimplePerformancePanel: React.FC<SimplePerformancePanelProps> = ({ onCloseModal }) => {
+  const dispatch = useAppDispatch();
+  const { isLoading, setIsLoading, currentCount, updateCount } = usePerformanceState();
+  const { injectRealTimeData } = useRealTimeInjection({
+    isLoading,
+    setIsLoading,
+    updateCount,
+    dispatch,
+    ...(onCloseModal ? { onCloseModal } : {}),
+  });
+  const { injectHistoricalData } = useHistoricalInjection({
+    isLoading,
+    setIsLoading,
+    updateCount,
+    dispatch,
+    ...(onCloseModal ? { onCloseModal } : {}),
+  });
 
   return (
     <View style={styles.container}>
@@ -137,7 +212,7 @@ export const SimplePerformancePanel: React.FC<SimplePerformancePanelProps> = ({ 
             <Text style={styles.buttonText}>+500 Live</Text>
           </TouchableOpacity>
         </View>
-        
+
         <Text style={styles.sectionLabel}>Historical Data</Text>
         <View style={styles.buttonRow}>
           <TouchableOpacity

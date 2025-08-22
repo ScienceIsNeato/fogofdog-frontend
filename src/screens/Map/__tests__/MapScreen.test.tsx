@@ -800,6 +800,11 @@ describe('MapScreen', () => {
             storedLocationCount: 0,
           },
           isTrackingPaused: false,
+          gpsInjectionStatus: {
+            isRunning: false,
+            type: null,
+            message: '',
+          },
         },
         user: { user: null, isLoading: false, error: null },
       },
@@ -868,6 +873,11 @@ describe('MapScreen', () => {
             storedLocationCount: 0,
           },
           isTrackingPaused: false,
+          gpsInjectionStatus: {
+            isRunning: false,
+            type: null,
+            message: '',
+          },
         },
         user: { user: null, isLoading: false, error: null },
       },
@@ -913,6 +923,11 @@ describe('MapScreen', () => {
             storedLocationCount: 0, // No stored locations
           },
           isTrackingPaused: false,
+          gpsInjectionStatus: {
+            isRunning: false,
+            type: null,
+            message: '',
+          },
         },
         user: { user: null, isLoading: false, error: null },
         stats: {

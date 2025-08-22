@@ -43,6 +43,11 @@ const defaultExplorationState = {
     storedLocationCount: 0,
   },
   isTrackingPaused: false,
+  gpsInjectionStatus: {
+    isRunning: false,
+    type: null,
+    message: '',
+  },
 };
 
 // Default stats state

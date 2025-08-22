@@ -8,7 +8,7 @@ import { calculateMetersPerPixel, geoPointToPixel } from '../utils/mapUtils';
 import { logger } from '../utils/logger';
 import type { Region as MapRegion } from 'react-native-maps';
 import { FOG_CONFIG } from '../config/fogConfig';
-import { PathConnectionFilter } from '../utils/pathConnectionFilter';
+import { GPSConnectionService } from '../services/GPSConnectionService';
 import { GeoPoint } from '../types/user';
 
 interface OptimizedFogOverlayProps {
@@ -150,8 +150,9 @@ const useOptimizedFogCalculations = (
       return path;
     }
 
-    // Use PathConnectionFilter on optimized points only
-    const pathSegments = PathConnectionFilter.filterPathConnections(finalPoints);
+    // Use unified GPS connection logic on optimized points
+    const processedPoints = GPSConnectionService.processGPSPoints(finalPoints);
+    const connectedSegments = GPSConnectionService.getConnectedSegments(processedPoints);
 
     // Build path using pre-calculated pixel coordinates
     const pixelMap = new Map(
@@ -160,7 +161,7 @@ const useOptimizedFogCalculations = (
 
     let lastPoint: { x: number; y: number } | null = null;
 
-    for (const segment of pathSegments) {
+    for (const segment of connectedSegments) {
       const startKey = `${segment.start.latitude}-${segment.start.longitude}`;
       const endKey = `${segment.end.latitude}-${segment.end.longitude}`;
 
