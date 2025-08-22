@@ -2,7 +2,7 @@
   "expo": {
     "name": "FogOfDog",
     "slug": "fogofdog",
-    "version": "1.0.12",
+    "version": "1.0.13",
     "orientation": "portrait",
     "icon": "assets/icon.png",
     "userInterfaceStyle": "light",
@@ -24,7 +24,7 @@
           "location"
         ]
       },
-      "buildNumber": "12"
+      "buildNumber": "13"
     },
     "android": {
       "adaptiveIcon": {
@@ -37,7 +37,7 @@
         "ACCESS_FINE_LOCATION",
         "ACCESS_BACKGROUND_LOCATION"
       ],
-      "versionCode": 12
+      "versionCode": 13
     },
     "web": {
       "favicon": "./assets/favicon.png"
