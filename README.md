@@ -19,9 +19,9 @@
 <div align="center">
 
 ### 🏗️ Build Pipeline
-[![🔨 Build Status](https://img.shields.io/github/actions/workflow/status/your-username/fogofdog-frontend/quality-gate.yml?branch=main&style=flat-square&logo=github-actions&label=Build)](https://github.com/your-username/fogofdog-frontend/actions)
+[![🔨 Build Status](https://img.shields.io/github/actions/workflow/status/ScienceIsNeato/fogofdog-frontend/maintainAIbility-gate.yml?branch=main&style=flat-square&logo=github-actions&label=Build)](https://github.com/ScienceIsNeato/fogofdog-frontend/actions)
 [![📦 EAS Build](https://img.shields.io/badge/EAS%20Build-Ready-brightgreen?style=flat-square&logo=expo&logoColor=white)](https://expo.dev/)
-[![🔄 CI/CD](https://img.shields.io/badge/CI%2FCD-Automated-blue?style=flat-square&logo=github-actions&logoColor=white)](https://github.com/your-username/fogofdog-frontend/actions)
+[![🔄 CI/CD](https://img.shields.io/badge/CI%2FCD-Automated-blue?style=flat-square&logo=github-actions&logoColor=white)](https://github.com/ScienceIsNeato/fogofdog-frontend/actions)
 
 ### 🔍 Code Quality
 [![🧹 ESLint](https://img.shields.io/badge/ESLint-Zero%20Warnings-brightgreen?style=flat-square&logo=eslint&logoColor=white)](https://eslint.org/)
@@ -38,9 +38,9 @@
 [![Duplicated Lines (%)](https://sonarcloud.io/api/project_badges/measure?project=ScienceIsNeato_fogofdog-frontend&metric=duplicated_lines_density)](https://sonarcloud.io/summary/new_code?id=ScienceIsNeato_fogofdog-frontend)
 
 ### 🧪 Testing & Coverage
-[![✅ Tests](https://img.shields.io/badge/Tests-47%2F47%20Passing-brightgreen?style=flat-square&logo=jest&logoColor=white)](https://jestjs.io/)
-[![📈 Coverage](https://img.shields.io/badge/Coverage-72%25-yellow?style=flat-square&logo=jest&logoColor=white)](https://jestjs.io/)
-[![🎯 Test Suites](https://img.shields.io/badge/Test%20Suites-8%2F8-brightgreen?style=flat-square&logo=jest&logoColor=white)](https://jestjs.io/)
+[![✅ Tests](https://img.shields.io/badge/Tests-688%2F688%20Passing-brightgreen?style=flat-square&logo=jest&logoColor=white)](https://jestjs.io/)
+[![📈 Coverage](https://img.shields.io/badge/Coverage-78.32%25-brightgreen?style=flat-square&logo=jest&logoColor=white)](https://jestjs.io/)
+[![🎯 Test Suites](https://img.shields.io/badge/Test%20Suites-57%2F57-brightgreen?style=flat-square&logo=jest&logoColor=white)](https://jestjs.io/)
 [![⚡ Test Speed](https://img.shields.io/badge/Test%20Speed-1.7s-blue?style=flat-square&logo=jest&logoColor=white)](https://jestjs.io/)
 
 ### 🔒 Security & Dependencies
@@ -49,7 +49,7 @@
 [![🧩 Dead Code](https://img.shields.io/badge/Dead%20Code-Monitored-blue?style=flat-square&logo=typescript&logoColor=white)](https://github.com/unimported/unimported)
 
 ### 📊 Code Analysis  
-[![🔄 Duplicates](https://img.shields.io/badge/Code%20Duplication-3.49%25-brightgreen?style=flat-square&logo=codeclimate&logoColor=white)](https://github.com/kucherenko/jscpd)
+[![🔄 Duplicates](https://img.shields.io/badge/Code%20Duplication-0.41%25-brightgreen?style=flat-square&logo=codeclimate&logoColor=white)](https://github.com/kucherenko/jscpd)
 [![🔗 Circular Deps](https://img.shields.io/badge/Circular%20Dependencies-0-brightgreen?style=flat-square&logo=madge&logoColor=white)](https://github.com/pahen/madge)
 [![🧠 Complexity](https://img.shields.io/badge/Cognitive%20Complexity-Managed-orange?style=flat-square&logo=sonarcloud&logoColor=white)](https://github.com/SonarSource/eslint-plugin-sonarjs)
 
@@ -71,7 +71,7 @@
 
 🧪 **Production-Ready Quality**
 - 100% TypeScript with strict mode
-- Comprehensive Jest test suite (47 tests)
+- Comprehensive Jest test suite (688 tests)
 - Zero ESLint warnings enforced in CI
 - Enterprise-level code quality monitoring
 
@@ -93,7 +93,7 @@
 
 ```bash
 # Clone the repository
-git clone https://github.com/your-username/fogofdog-frontend.git
+git clone https://github.com/ScienceIsNeato/fogofdog-frontend.git
 cd fogofdog-frontend
 
 # Install dependencies
@@ -265,8 +265,8 @@ src/
 Our project maintains enterprise-level code quality through automated monitoring:
 
 ### 🎯 Quality Metrics
-- **Code Coverage**: 72% (statements), 69% (branches)
-- **Code Duplication**: 3.49% (excellent - under 5% threshold)
+- **Code Coverage**: 78.32% (above 78% threshold)
+- **Code Duplication**: 0.41% (excellent - well under 3% threshold)
 - **Circular Dependencies**: 0 (clean architecture)
 - **Security Vulnerabilities**: 0 (all dependencies secure)
 - **ESLint Warnings**: 0 (strict enforcement)
@@ -327,8 +327,7 @@ This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) 
 
 **Made with ❤️ and ☕ by the FogOfDog Team**
 
-[![⭐ Star this repo](https://img.shields.io/github/stars/your-username/fogofdog-frontend?style=social)](https://github.com/your-username/fogofdog-frontend)
-[![🐛 Report Bug](https://img.shields.io/badge/Report-Bug-red?style=for-the-badge&logo=github&logoColor=white)](https://github.com/your-username/fogofdog-frontend/issues)
-[![💡 Request Feature](https://img.shields.io/badge/Request-Feature-blue?style=for-the-badge&logo=github&logoColor=white)](https://github.com/your-username/fogofdog-frontend/issues)
+[![🐛 Report Bug](https://img.shields.io/badge/Report-Bug-red?style=for-the-badge&logo=github&logoColor=white)](https://github.com/ScienceIsNeato/fogofdog-frontend/issues)
+[![💡 Request Feature](https://img.shields.io/badge/Request-Feature-blue?style=for-the-badge&logo=github&logoColor=white)](https://github.com/ScienceIsNeato/fogofdog-frontend/issues)
 
 </div>
