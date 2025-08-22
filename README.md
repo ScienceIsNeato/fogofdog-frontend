@@ -80,6 +80,12 @@
 - Optimized bundle size monitoring
 - Fast cold starts and smooth rendering
 
+🔧 **Advanced Development Tools**
+- GPS injection system for testing without walking
+- HUD stats panel for real-time performance monitoring
+- Comprehensive quality gate system (ship_it.py)
+- Parallel quality checks with fail-fast execution
+
 ---
 
 ## 🚀 Quick Start
@@ -139,27 +145,25 @@ npm run android
 
 ### ✅ Quality Gate (Before Committing)
 
-**Use `ship_it.py` for comprehensive quality checks:**
+**Use `ship_it.py` for parallelized quality checks:**
 
 ```bash
-# Full quality gate (recommended)
-python scripts/ship_it.py
-
-# Fast iteration (exit on first failure)
+# Fast parallel execution (recommended)
 python scripts/ship_it.py --fail-fast
+
+# Full quality gate
+python scripts/ship_it.py
 
 # Run specific checks only
 python scripts/ship_it.py --checks tests lint format
-
-# Available checks: format, lint, types, tests, duplication, security, sonar
 ```
 
-**What it runs (in parallel):**
+**Parallel execution includes:**
 - 🎨 Format Check & Auto-Fix (Prettier)
-- 🔍 Lint Check & Auto-Fix (ESLint strict mode)
-- 🔧 Type Check (TypeScript)
-- 🧪 Test Suite & Coverage
-- 🔄 Duplication Check
+- 🔍 Lint Check & Auto-Fix (ESLint strict mode) 
+- 🔧 Type Check (TypeScript strict mode)
+- 🧪 Test Suite & Coverage (78%+ threshold)
+- 🔄 Duplication Check (<3% threshold)
 - 🔒 Security Audit & Auto-Fix
 - 📊 SonarQube Analysis
 
@@ -290,42 +294,19 @@ Our GitHub Actions workflow ensures quality:
 
 ---
 
-## 🤝 Contributing
 
-1. **Fork** the repository
-2. **Create** a feature branch (`git checkout -b feature/amazing-feature`)
-3. **Run** quality checks (`npm run quality:check`)
-4. **Commit** changes (`git commit -m 'Add amazing feature'`)
-5. **Push** to branch (`git push origin feature/amazing-feature`)
-6. **Open** a Pull Request
-
-### 📋 Development Guidelines
-- ✅ All tests must pass (`npm run test:ci`)
-- ✅ Zero ESLint warnings (`npm run lint:strict`)
-- ✅ Code coverage maintained above 70%
-- ✅ TypeScript strict mode compliance
-- ✅ Functions under 80 lines (enforced by ESLint)
-
----
 
 ## 📄 License
 
-This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) file for details.
+This project is proprietary software. All rights reserved.
 
 ---
 
-## 🙏 Acknowledgments
 
-- **React Native Community** for the amazing framework
-- **Expo Team** for the incredible developer experience
-- **SonarSource** for enterprise-quality code analysis tools
-- **Jest Team** for the robust testing framework
-
----
 
 <div align="center">
 
-**Made with ❤️ and ☕ by the FogOfDog Team**
+**FogOfDog - Private GPS Exploration App**
 
 [![🐛 Report Bug](https://img.shields.io/badge/Report-Bug-red?style=for-the-badge&logo=github&logoColor=white)](https://github.com/ScienceIsNeato/fogofdog-frontend/issues)
 [![💡 Request Feature](https://img.shields.io/badge/Request-Feature-blue?style=for-the-badge&logo=github&logoColor=white)](https://github.com/ScienceIsNeato/fogofdog-frontend/issues)
