@@ -5,16 +5,38 @@
 **An interactive location-based exploration app that reveals the world as you walk through it**
 
 [![GitHub Actions](https://github.com/ScienceIsNeato/fogofdog-frontend/workflows/maintainAIbility-gate/badge.svg)](https://github.com/ScienceIsNeato/fogofdog-frontend/actions)
+[![GitHub Issues](https://img.shields.io/github/issues/ScienceIsNeato/fogofdog-frontend)](https://github.com/ScienceIsNeato/fogofdog-frontend/issues)
+[![GitHub Pull Requests](https://img.shields.io/github/issues-pr/ScienceIsNeato/fogofdog-frontend)](https://github.com/ScienceIsNeato/fogofdog-frontend/pulls)
+[![GitHub Last Commit](https://img.shields.io/github/last-commit/ScienceIsNeato/fogofdog-frontend)](https://github.com/ScienceIsNeato/fogofdog-frontend/commits/main)
 
 </div>
 
 ---
 
-## 🚦 Current Status
+## 🚦 Quality & Build Status
 
 <div align="center">
 
-The project uses automated quality gates and CI/CD. Check the [Actions tab](https://github.com/ScienceIsNeato/fogofdog-frontend/actions) for the latest build status and detailed quality reports.
+### 🏗️ Continuous Integration
+[![Build Status](https://github.com/ScienceIsNeato/fogofdog-frontend/workflows/maintainAIbility-gate/badge.svg)](https://github.com/ScienceIsNeato/fogofdog-frontend/actions)
+[![GitHub Workflow Status](https://img.shields.io/github/actions/workflow/status/ScienceIsNeato/fogofdog-frontend/maintainAIbility-gate.yml?branch=main&label=Quality%20Gate)](https://github.com/ScienceIsNeato/fogofdog-frontend/actions)
+
+### 📊 Code Quality Metrics
+[![CodeFactor](https://www.codefactor.io/repository/github/ScienceIsNeato/fogofdog-frontend/badge)](https://www.codefactor.io/repository/github/ScienceIsNeato/fogofdog-frontend)
+[![Maintainability](https://api.codeclimate.com/v1/badges/YOUR_CODECLIMATE_ID/maintainability)](https://codeclimate.com/github/ScienceIsNeato/fogofdog-frontend/maintainability)
+[![Test Coverage](https://api.codeclimate.com/v1/badges/YOUR_CODECLIMATE_ID/test_coverage)](https://codeclimate.com/github/ScienceIsNeato/fogofdog-frontend/test_coverage)
+
+### 🔒 Security & Dependencies  
+[![Known Vulnerabilities](https://snyk.io/test/github/ScienceIsNeato/fogofdog-frontend/badge.svg)](https://snyk.io/test/github/ScienceIsNeato/fogofdog-frontend)
+[![Dependencies](https://img.shields.io/david/ScienceIsNeato/fogofdog-frontend)](https://david-dm.org/ScienceIsNeato/fogofdog-frontend)
+[![DevDependencies](https://img.shields.io/david/dev/ScienceIsNeato/fogofdog-frontend)](https://david-dm.org/ScienceIsNeato/fogofdog-frontend?type=dev)
+
+### 📱 Platform & Framework
+[![Platform](https://img.shields.io/badge/Platform-iOS%20%7C%20Android-blue?logo=react&logoColor=white)](https://reactnative.dev/)
+[![Framework](https://img.shields.io/badge/Built%20with-Expo%20%7C%20React%20Native-000020?logo=expo&logoColor=white)](https://expo.dev/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-Strict%20Mode-blue?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+
+**Quality Gates:** This project enforces strict quality standards with automated testing, linting, type checking, security scanning, and code coverage analysis on every commit.
 
 </div>
 
