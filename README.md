@@ -2,56 +2,19 @@
 
 <div align="center">
 
-![FogOfDog Logo](https://img.shields.io/badge/🗺️-FogOfDog-purple?style=for-the-badge&logoColor=white)
-
 **An interactive location-based exploration app that reveals the world as you walk through it**
 
-[![📱 Platform](https://img.shields.io/badge/Platform-iOS%20%7C%20Android-blue?style=for-the-badge&logo=react&logoColor=white)](https://reactnative.dev/)
-[![⚡ Framework](https://img.shields.io/badge/Built%20with-Expo%20%7C%20React%20Native-000020?style=for-the-badge&logo=expo&logoColor=white)](https://expo.dev/)
-[![🚀 Quality Gate](https://img.shields.io/badge/Quality%20Gate-PASSING-brightgreen?style=for-the-badge&logo=github-actions&logoColor=white)](https://github.com/your-username/fogofdog-frontend/actions)
+[![GitHub Actions](https://github.com/ScienceIsNeato/fogofdog-frontend/workflows/maintainAIbility-gate/badge.svg)](https://github.com/ScienceIsNeato/fogofdog-frontend/actions)
 
 </div>
 
 ---
 
-## 🚦 Build & Quality Status
+## 🚦 Current Status
 
 <div align="center">
 
-### 🏗️ Build Pipeline
-[![🔨 Quality Gate](https://img.shields.io/badge/Quality%20Gate-PASSING-brightgreen?style=flat-square&logo=github-actions&label=Build)](https://github.com/ScienceIsNeato/fogofdog-frontend/actions)
-[![📦 EAS Build](https://img.shields.io/badge/EAS%20Build-Ready-brightgreen?style=flat-square&logo=expo&logoColor=white)](https://expo.dev/)
-[![🔄 CI/CD](https://img.shields.io/badge/CI%2FCD-Automated-blue?style=flat-square&logo=github-actions&logoColor=white)](https://github.com/ScienceIsNeato/fogofdog-frontend/actions)
-
-### 🔍 Code Quality
-[![🧹 ESLint](https://img.shields.io/badge/ESLint-Zero%20Warnings-brightgreen?style=flat-square&logo=eslint&logoColor=white)](https://eslint.org/)
-[![🏗️ SonarJS](https://img.shields.io/badge/SonarJS-Quality%20Rules-orange?style=flat-square&logo=sonarcloud&logoColor=white)](https://github.com/SonarSource/eslint-plugin-sonarjs)
-[![🎨 Prettier](https://img.shields.io/badge/Code%20Style-Prettier-ff69b4?style=flat-square&logo=prettier&logoColor=white)](https://prettier.io/)
-[![📊 CodeClimate](https://img.shields.io/badge/CodeClimate-A%20Grade-brightgreen?style=flat-square&logo=codeclimate&logoColor=white)](https://codeclimate.com/)
-
-### ☁️ Code Quality Analysis
-[![🏆 Quality Gate](https://img.shields.io/badge/Quality%20Gate-PASSING-brightgreen?style=flat-square&logo=sonarcloud&logoColor=white)](https://github.com/ScienceIsNeato/fogofdog-frontend)
-[![🔒 Security](https://img.shields.io/badge/Security%20Rating-A-brightgreen?style=flat-square&logo=sonarcloud&logoColor=white)](https://github.com/ScienceIsNeato/fogofdog-frontend)
-[![🛠️ Reliability](https://img.shields.io/badge/Reliability%20Rating-A-brightgreen?style=flat-square&logo=sonarcloud&logoColor=white)](https://github.com/ScienceIsNeato/fogofdog-frontend)
-[![🧹 Maintainability](https://img.shields.io/badge/Maintainability%20Rating-A-brightgreen?style=flat-square&logo=sonarcloud&logoColor=white)](https://github.com/ScienceIsNeato/fogofdog-frontend)
-[![📊 Coverage](https://img.shields.io/badge/Coverage-Above%20Threshold-brightgreen?style=flat-square&logo=sonarcloud&logoColor=white)](https://github.com/ScienceIsNeato/fogofdog-frontend)
-[![🔄 Duplication](https://img.shields.io/badge/Code%20Duplication-Below%20Threshold-brightgreen?style=flat-square&logo=sonarcloud&logoColor=white)](https://github.com/ScienceIsNeato/fogofdog-frontend)
-
-### 🧪 Testing & Coverage
-[![✅ Tests](https://img.shields.io/badge/Tests-Passing-brightgreen?style=flat-square&logo=jest&logoColor=white)](https://jestjs.io/)
-[![📈 Coverage](https://img.shields.io/badge/Coverage-Above%20Threshold-brightgreen?style=flat-square&logo=jest&logoColor=white)](https://jestjs.io/)
-[![🎯 Test Suites](https://img.shields.io/badge/Test%20Suites-All%20Passing-brightgreen?style=flat-square&logo=jest&logoColor=white)](https://jestjs.io/)
-[![⚡ Test Speed](https://img.shields.io/badge/Test%20Speed-1.7s-blue?style=flat-square&logo=jest&logoColor=white)](https://jestjs.io/)
-
-### 🔒 Security & Dependencies
-[![🛡️ Security](https://img.shields.io/badge/Security-No%20Vulnerabilities-brightgreen?style=flat-square&logo=npm&logoColor=white)](https://npmjs.com/)
-[![📦 Dependencies](https://img.shields.io/badge/Dependencies-Up%20to%20Date-brightgreen?style=flat-square&logo=dependabot&logoColor=white)](https://github.com/dependabot)
-[![🧩 Dead Code](https://img.shields.io/badge/Dead%20Code-Monitored-blue?style=flat-square&logo=typescript&logoColor=white)](https://github.com/unimported/unimported)
-
-### 📊 Code Analysis  
-[![🔄 Duplicates](https://img.shields.io/badge/Code%20Duplication-0.41%25-brightgreen?style=flat-square&logo=codeclimate&logoColor=white)](https://github.com/kucherenko/jscpd)
-[![🔗 Circular Deps](https://img.shields.io/badge/Circular%20Dependencies-0-brightgreen?style=flat-square&logo=madge&logoColor=white)](https://github.com/pahen/madge)
-[![🧠 Complexity](https://img.shields.io/badge/Cognitive%20Complexity-Managed-orange?style=flat-square&logo=sonarcloud&logoColor=white)](https://github.com/SonarSource/eslint-plugin-sonarjs)
+The project uses automated quality gates and CI/CD. Check the [Actions tab](https://github.com/ScienceIsNeato/fogofdog-frontend/actions) for the latest build status and detailed quality reports.
 
 </div>
 
