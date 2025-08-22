@@ -431,15 +431,23 @@ export class StatsCalculationService {
     // Always update last processed point (even if it's the first point)
     updatedStats.lastProcessedPoint = serializablePoint;
 
-    // TODO: Area calculation for incremental updates
-    // For now, area is only calculated during full history processing
-    // This could be improved by periodically recalculating area during active sessions
+    // Calculate session area if we have enough points in current session
+    if (updatedStats.currentSession && !updatedStats.currentSession.endTime) {
+      // Get all GPS points from current session for area calculation
+      // We need to reconstruct the session path from the full path
+      const sessionStartTime = updatedStats.currentSession.startTime;
+      
+      // For now, trigger area recalculation periodically during active sessions
+      // This will be handled by the periodic area recalculation in MapScreen
+      // Session area will be calculated as part of the total area recalculation
+    }
 
     return updatedStats;
   }
 
   /**
    * Recalculate area from serializable GPS points (for periodic updates during active sessions)
+   * Also calculates session area for active sessions
    */
   static recalculateAreaFromSerializablePoints(
     currentStats: StatsState,
@@ -449,13 +457,35 @@ export class StatsCalculationService {
       return currentStats; // Need at least 3 points for area calculation
     }
 
-    const recalculatedArea = this.calculateArea(serializablePoints);
+    const recalculatedTotalArea = this.calculateArea(serializablePoints);
 
-    logger.debug('Recalculated area from serializable GPS points', {
+    // Calculate session area if we have an active session
+    let sessionArea = 0;
+    if (currentStats.currentSession && !currentStats.currentSession.endTime) {
+      const sessionStartTime = currentStats.currentSession.startTime;
+      
+      // Filter points that belong to current session
+      const sessionPoints = serializablePoints.filter(
+        point => point.timestamp >= sessionStartTime
+      );
+
+      if (sessionPoints.length >= 3) {
+        sessionArea = this.calculateArea(sessionPoints);
+        logger.debug('Calculated session area', {
+          component: 'StatsCalculationService',
+          action: 'recalculateAreaFromSerializablePoints',
+          sessionPointsCount: sessionPoints.length,
+          sessionArea: sessionArea.toFixed(2),
+        });
+      }
+    }
+
+    logger.debug('Recalculated areas from serializable GPS points', {
       component: 'StatsCalculationService',
       action: 'recalculateAreaFromSerializablePoints',
       pathLength: serializablePoints.length,
-      recalculatedArea: recalculatedArea.toFixed(2),
+      recalculatedTotalArea: recalculatedTotalArea.toFixed(2),
+      sessionArea: sessionArea.toFixed(2),
       previousTotalArea: currentStats.total.area.toFixed(2),
     });
 
@@ -463,7 +493,11 @@ export class StatsCalculationService {
       ...currentStats,
       total: {
         ...currentStats.total,
-        area: recalculatedArea,
+        area: recalculatedTotalArea,
+      },
+      session: {
+        ...currentStats.session,
+        area: sessionArea,
       },
     };
   }
