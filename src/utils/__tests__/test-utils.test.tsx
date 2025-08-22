@@ -81,6 +81,11 @@ describe('test-utils', () => {
               hasPermission: false,
               storedLocationCount: 0,
             },
+            gpsInjectionStatus: {
+              isRunning: false,
+              type: null,
+              message: '',
+            },
           },
         })),
         dispatch: jest.fn(),

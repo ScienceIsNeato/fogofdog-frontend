@@ -8,12 +8,12 @@ import {
   createMockRoute,
 } from './shared-mocks';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import type { MainStackParamList } from '../../types/navigation';
+import type { MainStackParamList } from '../types/navigation';
 
 // Import screens directly
-import { ProfileScreen } from '../../screens/Profile/Profile';
-import { SignInScreen } from '../../screens/Auth/SignIn';
-import { SignUpScreen } from '../../screens/Auth/SignUp';
+import { ProfileScreen } from '../screens/Profile/Profile';
+import { SignInScreen } from '../screens/Auth/SignIn';
+import { SignUpScreen } from '../screens/Auth/SignUp';
 
 // Generic render function for screens with Redux provider
 export const renderWithProvider = (component: React.ReactElement, store = createMockStore()) => {

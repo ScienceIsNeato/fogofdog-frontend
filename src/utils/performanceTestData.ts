@@ -126,7 +126,7 @@ export const generatePerformanceTestData = (
 ): GeoPoint[] => {
   const {
     radiusKm = 1.0, // 1km radius by default
-    startTime = Date.now() - count * 30 * 1000, // Start in the past (30s per point)
+    startTime = Date.now(), // Start from current time to avoid "forking worms" with real GPS
     intervalSeconds = 30, // 30 second intervals for walking speed
     startingLocation,
   } = options;

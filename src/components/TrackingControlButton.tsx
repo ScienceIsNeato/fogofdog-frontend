@@ -18,9 +18,9 @@ export const TrackingControlButton: React.FC<TrackingControlButtonProps> = ({ st
 
   return (
     <TouchableOpacity
-      style={[styles.button, isTrackingPaused ? styles.resumeButton : styles.pauseButton, style]}
+      style={[styles.button, isTrackingPaused ? styles.playButton : styles.pauseButton, style]}
       onPress={handleToggleTracking}
-      testID={isTrackingPaused ? 'resume-tracking-button' : 'pause-tracking-button'}
+      testID={isTrackingPaused ? 'play-tracking-button' : 'pause-tracking-button'}
     >
       <MaterialIcons
         name={isTrackingPaused ? 'play-arrow' : 'pause'}
@@ -47,14 +47,14 @@ const styles = StyleSheet.create({
     shadowRadius: 2,
     elevation: 2,
   },
-  pauseButton: {
-    backgroundColor: '#F8F9FA',
-    borderWidth: 1,
-    borderColor: '#E9ECEF',
-  },
-  resumeButton: {
+  playButton: {
     backgroundColor: '#E8F5E8',
     borderWidth: 1,
-    borderColor: '#C3E6CB',
+    borderColor: '#C8E6C9',
+  },
+  pauseButton: {
+    backgroundColor: '#F5F5F5',
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
   },
 });

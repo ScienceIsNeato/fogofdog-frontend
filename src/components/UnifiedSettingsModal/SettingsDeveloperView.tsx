@@ -12,6 +12,7 @@ import { SimplePerformancePanel } from '../SimplePerformancePanel';
 
 interface SettingsDeveloperViewProps {
   onBack: () => void;
+  onClose?: () => void;
   styles: any;
 }
 
@@ -123,7 +124,11 @@ const useLoadSettings = (setSettings: React.Dispatch<React.SetStateAction<Develo
   return isLoading;
 };
 
-export const SettingsDeveloperView: React.FC<SettingsDeveloperViewProps> = ({ onBack, styles }) => {
+export const SettingsDeveloperView: React.FC<SettingsDeveloperViewProps> = ({
+  onBack,
+  onClose,
+  styles,
+}) => {
   const [settings, setSettings] = useState<DeveloperSettings>({
     onboardingEnabled: false,
     freshInstallMode: false,
@@ -191,7 +196,7 @@ export const SettingsDeveloperView: React.FC<SettingsDeveloperViewProps> = ({ on
         </View>
 
         {/* Performance Testing Panel */}
-        <SimplePerformancePanel />
+        <SimplePerformancePanel onCloseModal={onClose} />
       </View>
     </>
   );

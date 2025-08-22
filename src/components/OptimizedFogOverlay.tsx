@@ -8,7 +8,7 @@ import { calculateMetersPerPixel, geoPointToPixel } from '../utils/mapUtils';
 import { logger } from '../utils/logger';
 import type { Region as MapRegion } from 'react-native-maps';
 import { FOG_CONFIG } from '../config/fogConfig';
-import { PathConnectionFilter } from '../utils/pathConnectionFilter';
+import { GPSConnectionService } from '../services/GPSConnectionService';
 import { GeoPoint } from '../types/user';
 
 interface OptimizedFogOverlayProps {
@@ -19,7 +19,7 @@ interface OptimizedFogOverlayProps {
 // Performance constants
 const VIEWPORT_BUFFER = 0.5; // Show points 50% outside viewport
 const MIN_VISUAL_DISTANCE_PIXELS = 5; // Skip points closer than 5px visually
-const MAX_POINTS_PER_FRAME = 500; // Limit for performance
+const MAX_POINTS_PER_FRAME = 5000; // Limit for performance
 
 // Viewport culling: Only process points visible on screen + buffer
 const cullPointsToViewport = (
@@ -150,8 +150,9 @@ const useOptimizedFogCalculations = (
       return path;
     }
 
-    // Use PathConnectionFilter on optimized points only
-    const pathSegments = PathConnectionFilter.filterPathConnections(finalPoints);
+    // Use unified GPS connection logic on optimized points
+    const processedPoints = GPSConnectionService.processGPSPoints(finalPoints);
+    const connectedSegments = GPSConnectionService.getConnectedSegments(processedPoints);
 
     // Build path using pre-calculated pixel coordinates
     const pixelMap = new Map(
@@ -160,7 +161,7 @@ const useOptimizedFogCalculations = (
 
     let lastPoint: { x: number; y: number } | null = null;
 
-    for (const segment of pathSegments) {
+    for (const segment of connectedSegments) {
       const startKey = `${segment.start.latitude}-${segment.start.longitude}`;
       const endKey = `${segment.end.latitude}-${segment.end.longitude}`;
 

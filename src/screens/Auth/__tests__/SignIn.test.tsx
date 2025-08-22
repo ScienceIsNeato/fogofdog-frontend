@@ -2,8 +2,8 @@ import React from 'react';
 import { render, fireEvent, act } from '@testing-library/react-native';
 import { Provider } from 'react-redux';
 import { SignInScreen } from '../SignIn';
-import { createMockStore, mockNavigation } from '../../../__tests__/test-helpers/shared-mocks';
-import { renderAuthScreen } from '../../../__tests__/test-helpers/render-utils';
+import { createMockStore, mockNavigation } from '../../../test-helpers/shared-mocks';
+import { renderAuthScreen } from '../../../test-helpers/render-utils';
 
 // Mock AuthPersistenceService
 jest.mock('../../../services/AuthPersistenceService', () => ({

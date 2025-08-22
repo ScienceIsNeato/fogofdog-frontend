@@ -137,6 +137,32 @@ npm run android
 2. Run `./scripts/monitor-metro-logs.sh` in another terminal to watch logs
 3. Develop with real-time log visibility
 
+### ✅ Quality Gate (Before Committing)
+
+**Use `ship_it.py` for comprehensive quality checks:**
+
+```bash
+# Full quality gate (recommended)
+python scripts/ship_it.py
+
+# Fast iteration (exit on first failure)
+python scripts/ship_it.py --fail-fast
+
+# Run specific checks only
+python scripts/ship_it.py --checks tests lint format
+
+# Available checks: format, lint, types, tests, duplication, security, sonar
+```
+
+**What it runs (in parallel):**
+- 🎨 Format Check & Auto-Fix (Prettier)
+- 🔍 Lint Check & Auto-Fix (ESLint strict mode)
+- 🔧 Type Check (TypeScript)
+- 🧪 Test Suite & Coverage
+- 🔄 Duplication Check
+- 🔒 Security Audit & Auto-Fix
+- 📊 SonarQube Analysis
+
 ### 🧪 Testing
 
 #### Unit & Integration Tests (Jest)

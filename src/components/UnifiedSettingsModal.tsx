@@ -73,7 +73,9 @@ const UnifiedSettingsModal: React.FC<UnifiedSettingsModalProps> = ({
       );
     }
 
-    return <SettingsDeveloperView onBack={handleBackToMain} styles={styles} />;
+    return (
+      <SettingsDeveloperView onBack={handleBackToMain} onClose={handleClose} styles={styles} />
+    );
   };
 
   return (

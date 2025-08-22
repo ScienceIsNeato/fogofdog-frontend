@@ -289,16 +289,21 @@ if [[ "$RUN_TESTS" == "true" ]]; then
     if [[ "$COVERAGE_FAILED" != "true" ]]; then
       COVERAGE=$(echo "$COVERAGE_OUTPUT" | grep -o '[0-9]\+\.[0-9]\+%' | head -1 || echo "unknown")
       echo "✅ Coverage: PASSED ($COVERAGE)"
-      add_success "Test Coverage" "Coverage at $COVERAGE (above 80% threshold)"
+      add_success "Test Coverage" "Coverage at $COVERAGE (meets 78% threshold)"
     else
+      # Extract coverage percentage from output
       COVERAGE=$(echo "$COVERAGE_OUTPUT" | grep -o '[0-9]\+\.[0-9]\+%' | head -1 || echo "unknown")
-      echo "❌ Coverage: Analysis failed ($COVERAGE)"
       
-      # Check if this might be a SonarQube new code coverage issue
-      if [[ "$COVERAGE" != "unknown" && $(echo "$COVERAGE" | grep -o '[0-9]\+' | head -1) -gt 80 ]]; then
-        add_failure "Test Coverage" "SonarQube analysis failed despite $COVERAGE overall coverage" "Likely new code lacks test coverage - add tests for recently added/modified functions and run again"
+      # Check if this is a coverage threshold failure (Jest reports coverage but fails threshold)
+      if echo "$COVERAGE_OUTPUT" | grep -q "coverage threshold.*not met"; then
+        echo "❌ Coverage: THRESHOLD NOT MET ($COVERAGE)"
+        add_failure "Test Coverage" "Coverage at $COVERAGE (below 78% threshold)" "Add more unit tests to increase coverage above 78%"
+      elif [[ "$COVERAGE" != "unknown" ]]; then
+        echo "❌ Coverage: ANALYSIS FAILED ($COVERAGE)"
+        add_failure "Test Coverage" "Coverage analysis failed despite $COVERAGE overall coverage" "Check test suite for errors or SonarQube configuration issues"
       else
-        add_failure "Test Coverage" "Coverage analysis failed at $COVERAGE" "May indicate new code lacking coverage - add tests for recent changes"
+        echo "❌ Coverage: ANALYSIS FAILED (unknown coverage)"
+        add_failure "Test Coverage" "Coverage analysis completely failed" "Check test suite configuration and ensure tests can run"
       fi
     fi
   fi

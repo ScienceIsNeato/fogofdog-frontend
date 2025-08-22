@@ -6,6 +6,7 @@ import { configureStore, Store } from '@reduxjs/toolkit';
 import { MapScreen } from '../index';
 import explorationReducer, { updateLocation } from '../../../store/slices/explorationSlice';
 import userReducer from '../../../store/slices/userSlice';
+import statsReducer from '../../../store/slices/statsSlice';
 import type { RootState } from '../../../store';
 import * as Location from 'expo-location';
 import { Region } from 'react-native-maps';
@@ -74,7 +75,7 @@ const renderMapScreen = async (store: Store<RootState>) => {
   );
 
   await act(async () => {
-    jest.runAllTimers();
+    jest.advanceTimersByTime(1000);
     await Promise.resolve();
   });
 
@@ -156,7 +157,7 @@ const simulateRegionChange = async (
   });
 
   await act(async () => {
-    jest.runAllTimers();
+    jest.advanceTimersByTime(1000);
     await Promise.resolve();
   });
 
@@ -387,6 +388,7 @@ describe('MapScreen', () => {
       reducer: {
         exploration: explorationReducer,
         user: userReducer,
+        stats: statsReducer,
       },
     });
     // Use mockImplementation for better type compatibility with Jest mocks
@@ -434,7 +436,7 @@ describe('MapScreen', () => {
     }
 
     await act(async () => {
-      jest.runAllTimers();
+      jest.advanceTimersByTime(1000);
       await Promise.resolve();
     });
 
@@ -457,7 +459,7 @@ describe('MapScreen', () => {
       store.dispatch(updateLocation(mockUpdatedCoords));
     });
     await act(async () => {
-      jest.runAllTimers();
+      jest.advanceTimersByTime(1000);
       await Promise.resolve();
     });
 
@@ -475,7 +477,7 @@ describe('MapScreen', () => {
       mapView.props.onPress();
     });
     await act(async () => {
-      jest.runAllTimers();
+      jest.advanceTimersByTime(1000);
       await Promise.resolve();
     });
 
@@ -507,7 +509,7 @@ describe('MapScreen', () => {
     }
 
     await act(async () => {
-      jest.runAllTimers();
+      jest.advanceTimersByTime(1000);
       await Promise.resolve();
     });
 
@@ -545,7 +547,7 @@ describe('MapScreen', () => {
     await act(async () => {
       if (initialMapViewArgs.onRegionChangeComplete)
         initialMapViewArgs.onRegionChangeComplete(pannedRegion);
-      jest.runAllTimers();
+      jest.advanceTimersByTime(1000);
       await Promise.resolve();
     });
 
@@ -615,7 +617,7 @@ describe('MapScreen', () => {
     });
 
     await act(async () => {
-      jest.runAllTimers();
+      jest.advanceTimersByTime(1000);
       await Promise.resolve();
     });
 
@@ -637,7 +639,7 @@ describe('MapScreen', () => {
     });
 
     await act(async () => {
-      jest.runAllTimers();
+      jest.advanceTimersByTime(1000);
       await Promise.resolve();
     });
 
@@ -668,7 +670,7 @@ describe('MapScreen', () => {
     });
 
     await act(async () => {
-      jest.runAllTimers();
+      jest.advanceTimersByTime(1000);
       await Promise.resolve();
     });
 
@@ -783,7 +785,7 @@ describe('MapScreen', () => {
 
     // Start with no location in store
     const storeWithoutLocation = configureStore({
-      reducer: { exploration: explorationReducer, user: userReducer },
+      reducer: { exploration: explorationReducer, user: userReducer, stats: statsReducer },
       preloadedState: {
         exploration: {
           path: [],
@@ -798,6 +800,11 @@ describe('MapScreen', () => {
             storedLocationCount: 0,
           },
           isTrackingPaused: false,
+          gpsInjectionStatus: {
+            isRunning: false,
+            type: null,
+            message: '',
+          },
         },
         user: { user: null, isLoading: false, error: null },
       },
@@ -810,7 +817,7 @@ describe('MapScreen', () => {
     );
 
     await act(async () => {
-      jest.runAllTimers();
+      jest.advanceTimersByTime(1000);
       await Promise.resolve();
     });
 
@@ -824,7 +831,7 @@ describe('MapScreen', () => {
     });
 
     await act(async () => {
-      jest.runAllTimers();
+      jest.advanceTimersByTime(1000);
       await Promise.resolve();
     });
 
@@ -851,7 +858,7 @@ describe('MapScreen', () => {
 
     // Start with no location in store
     const storeWithoutLocation = configureStore({
-      reducer: { exploration: explorationReducer, user: userReducer },
+      reducer: { exploration: explorationReducer, user: userReducer, stats: statsReducer },
       preloadedState: {
         exploration: {
           path: [],
@@ -866,6 +873,11 @@ describe('MapScreen', () => {
             storedLocationCount: 0,
           },
           isTrackingPaused: false,
+          gpsInjectionStatus: {
+            isRunning: false,
+            type: null,
+            message: '',
+          },
         },
         user: { user: null, isLoading: false, error: null },
       },
@@ -878,7 +890,7 @@ describe('MapScreen', () => {
     );
 
     await act(async () => {
-      jest.runAllTimers();
+      jest.advanceTimersByTime(1000);
       await Promise.resolve();
     });
 
@@ -895,6 +907,7 @@ describe('MapScreen', () => {
       reducer: {
         exploration: explorationReducer,
         user: userReducer,
+        stats: statsReducer,
       },
       preloadedState: {
         exploration: {
@@ -910,8 +923,36 @@ describe('MapScreen', () => {
             storedLocationCount: 0, // No stored locations
           },
           isTrackingPaused: false,
+          gpsInjectionStatus: {
+            isRunning: false,
+            type: null,
+            message: '',
+          },
         },
         user: { user: null, isLoading: false, error: null },
+        stats: {
+          total: { distance: 0, area: 0, time: 0 },
+          session: { distance: 0, area: 0, time: 0 },
+          currentSession: {
+            sessionId: 'test-session',
+            startTime: Date.now(),
+            totalPausedTime: 0,
+            lastActiveTime: Date.now(),
+          },
+          isInitialized: false,
+          lastProcessedPoint: null,
+          isLoading: false,
+          lastError: null,
+          lastSaveTime: null,
+          formattedStats: {
+            totalDistance: '0m',
+            totalArea: '0m²',
+            totalTime: '0m',
+            sessionDistance: '0m',
+            sessionArea: '0m²',
+            sessionTime: '0m',
+          },
+        },
       },
     });
 

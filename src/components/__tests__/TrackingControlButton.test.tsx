@@ -5,6 +5,7 @@ import { configureStore } from '@reduxjs/toolkit';
 import { TrackingControlButton } from '../TrackingControlButton';
 import explorationSlice from '../../store/slices/explorationSlice';
 import userSlice from '../../store/slices/userSlice';
+import statsSlice from '../../store/slices/statsSlice';
 
 describe('TrackingControlButton', () => {
   let store: any;
@@ -14,6 +15,7 @@ describe('TrackingControlButton', () => {
       reducer: {
         exploration: explorationSlice,
         user: userSlice,
+        stats: statsSlice,
       },
     });
   });
@@ -29,7 +31,7 @@ describe('TrackingControlButton', () => {
     // Should show pause icon when tracking is active
   });
 
-  it('renders resume button when tracking is paused', () => {
+  it('renders play button when tracking is paused', () => {
     // Set tracking to paused
     store.dispatch({ type: 'exploration/setTrackingPaused', payload: true });
 
@@ -39,8 +41,8 @@ describe('TrackingControlButton', () => {
       </Provider>
     );
 
-    expect(getByTestId('resume-tracking-button')).toBeTruthy();
-    // Should show play icon when tracking is paused
+    expect(getByTestId('play-tracking-button')).toBeTruthy();
+    // Should show play button when paused
   });
 
   it('toggles tracking state when pressed', () => {
@@ -73,16 +75,38 @@ describe('TrackingControlButton', () => {
     expect(button.props.style).toEqual(expect.objectContaining(customStyle));
   });
 
-  it('shows correct button colors for pause and resume states', () => {
+  it('toggles from paused to active when play button is pressed', () => {
+    // Set tracking to paused first
+    store.dispatch({ type: 'exploration/setTrackingPaused', payload: true });
+
+    const { getByTestId } = render(
+      <Provider store={store}>
+        <TrackingControlButton />
+      </Provider>
+    );
+
+    const playButton = getByTestId('play-tracking-button');
+
+    // Initially tracking should be paused
+    expect(store.getState().exploration.isTrackingPaused).toBe(true);
+
+    // Press the play button
+    fireEvent.press(playButton);
+
+    // Should resume tracking
+    expect(store.getState().exploration.isTrackingPaused).toBe(false);
+  });
+
+  it('shows correct button colors for pause and play states', () => {
     const { getByTestId, rerender } = render(
       <Provider store={store}>
         <TrackingControlButton />
       </Provider>
     );
 
-    // Check pause button color (subtle gray)
+    // Check pause button color (gray)
     let button = getByTestId('pause-tracking-button');
-    expect(button.props.style).toEqual(expect.objectContaining({ backgroundColor: '#F8F9FA' }));
+    expect(button.props.style).toEqual(expect.objectContaining({ backgroundColor: '#F5F5F5' }));
 
     // Set to paused state
     act(() => {
@@ -95,8 +119,8 @@ describe('TrackingControlButton', () => {
       </Provider>
     );
 
-    // Check resume button color (subtle green)
-    button = getByTestId('resume-tracking-button');
+    // Check play button color (green)
+    button = getByTestId('play-tracking-button');
     expect(button.props.style).toEqual(expect.objectContaining({ backgroundColor: '#E8F5E8' }));
   });
 });

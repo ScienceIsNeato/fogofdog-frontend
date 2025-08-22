@@ -88,17 +88,27 @@ const useAppInitialization = (): InitializationHookResult => {
         // Restore exploration state from persistence
         const explorationData = await AuthPersistenceService.getExplorationState();
         if (explorationData && isMounted) {
-          // Convert persisted coordinates to GeoPoints with timestamps
+          // Preserve original timestamps from GPS data - DO NOT overwrite them!
           const currentTimestamp = Date.now();
           const convertedData = {
             ...explorationData,
             currentLocation: explorationData.currentLocation
-              ? { ...explorationData.currentLocation, timestamp: currentTimestamp }
+              ? {
+                  ...explorationData.currentLocation,
+                  // Only update timestamp if it's missing, preserve original GPS timestamps
+                  timestamp: (explorationData.currentLocation as any).timestamp ?? currentTimestamp,
+                }
               : null,
-            path: explorationData.path.map((coord) => ({ ...coord, timestamp: currentTimestamp })),
+            // Preserve original GPS timestamps for accurate time calculations
+            path: explorationData.path.map((coord) => ({
+              ...coord,
+              // Only add timestamp if missing, preserve original GPS timestamps
+              timestamp: (coord as any).timestamp ?? currentTimestamp,
+            })),
             exploredAreas: explorationData.exploredAreas.map((coord) => ({
               ...coord,
-              timestamp: currentTimestamp,
+              // Only add timestamp if missing, preserve original GPS timestamps
+              timestamp: (coord as any).timestamp ?? currentTimestamp,
             })),
           };
           dispatch(restorePersistedState(convertedData));

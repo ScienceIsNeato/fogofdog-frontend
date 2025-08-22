@@ -22,6 +22,13 @@ import {
   setFollowMode,
   processBackgroundLocations,
 } from '../../store/slices/explorationSlice';
+import {
+  processGeoPoint,
+  initializeFromHistory,
+  setLoading,
+  recalculateArea,
+} from '../../store/slices/statsSlice';
+import { StatsPersistenceService } from '../../services/StatsPersistenceService';
 import MapView, { Marker, Region } from 'react-native-maps';
 import * as Location from 'expo-location';
 import * as TaskManager from 'expo-task-manager';
@@ -34,6 +41,8 @@ import { OnboardingOverlay } from '../../components/OnboardingOverlay';
 import { usePermissionVerification } from './hooks/usePermissionVerification';
 import { SettingsButton } from '../../components/SettingsButton';
 import UnifiedSettingsModal from '../../components/UnifiedSettingsModal';
+import { HUDStatsPanel } from '../../components/HUDStatsPanel';
+import { GPSInjectionIndicator } from '../../components/GPSInjectionIndicator';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { logger } from '../../utils/logger';
 
@@ -81,6 +90,8 @@ interface HandleLocationUpdateOptions {
   isMapCenteredOnUser: boolean;
   isFollowModeActive: boolean;
   currentRegion: Region | undefined;
+  explorationPath: GeoPoint[];
+  isSessionActive: boolean;
 }
 
 const handleLocationUpdate = ({
@@ -90,8 +101,32 @@ const handleLocationUpdate = ({
   isMapCenteredOnUser,
   isFollowModeActive,
   currentRegion,
+  explorationPath,
+  isSessionActive,
 }: HandleLocationUpdateOptions) => {
   dispatch(updateLocation(location));
+
+  // Process location for stats tracking
+  dispatch(processGeoPoint({ geoPoint: location }));
+
+  // Trigger immediate session area recalculation for real-time updates
+  // This ensures session area updates immediately when new GPS points are added
+  if (isSessionActive && explorationPath.length >= 3) {
+    const serializableGPSData = explorationPath.map((point) => ({
+      latitude: point.latitude,
+      longitude: point.longitude,
+      timestamp: point.timestamp || Date.now(),
+    }));
+
+    dispatch(recalculateArea(serializableGPSData));
+
+    logger.debug('Triggered real-time area recalculation after GPS point', {
+      component: 'MapScreen',
+      action: 'handleLocationUpdate',
+      pathLength: explorationPath.length,
+      newPoint: `${location.latitude.toFixed(6)}, ${location.longitude.toFixed(6)}`,
+    });
+  }
 
   // Auto-center map if follow mode is active OR if user clicked center once
   const shouldCenterMap = isFollowModeActive || isMapCenteredOnUser;
@@ -260,6 +295,97 @@ async function startLocationUpdates(backgroundGranted: boolean = false) {
   }
 }
 
+// Helper callback for location updates
+const createLocationUpdateCallback = (params: {
+  isActiveRef: { current: boolean };
+  dispatch: ReturnType<typeof useAppDispatch>;
+  mapRef: React.RefObject<MapView>;
+  isMapCenteredOnUser: boolean;
+  isFollowModeActive: boolean;
+  currentRegion: Region | undefined;
+  explorationPath: GeoPoint[];
+  isSessionActive: boolean;
+}) => {
+  return (location: { latitude: number; longitude: number }) => {
+    if (params.isActiveRef.current) {
+      const geoPoint: GeoPoint = {
+        latitude: location.latitude,
+        longitude: location.longitude,
+        timestamp: Date.now(),
+      };
+      handleLocationUpdate({
+        location: geoPoint,
+        dispatch: params.dispatch,
+        mapRef: params.mapRef,
+        isMapCenteredOnUser: params.isMapCenteredOnUser,
+        isFollowModeActive: params.isFollowModeActive,
+        currentRegion: params.currentRegion,
+        explorationPath: params.explorationPath,
+        isSessionActive: params.isSessionActive,
+      });
+    }
+  };
+};
+
+// Helper callback for GPS injection
+const createGPSInjectionCallback = (params: {
+  isActiveRef: { current: boolean };
+  dispatch: ReturnType<typeof useAppDispatch>;
+  mapRef: React.RefObject<MapView>;
+  isMapCenteredOnUser: boolean;
+  isFollowModeActive: boolean;
+  currentRegion: Region | undefined;
+  explorationPath: GeoPoint[];
+  isSessionActive: boolean;
+}) => {
+  return (location: { latitude: number; longitude: number; timestamp?: number }) => {
+    logger.info('🎯 GPS injection event received in MapScreen', {
+      component: 'MapScreen',
+      action: 'gpsInjectionListener',
+      location: `${location.latitude}, ${location.longitude}`,
+      timestamp: location.timestamp ? new Date(location.timestamp).toISOString() : 'current time',
+      isActive: params.isActiveRef.current,
+    });
+
+    if (params.isActiveRef.current) {
+      logger.info('📍 Processing GPS injection - calling handleLocationUpdate', {
+        component: 'MapScreen',
+        action: 'gpsInjectionListener',
+        location: `${location.latitude}, ${location.longitude}`,
+        timestamp: location.timestamp ? new Date(location.timestamp).toISOString() : 'current time',
+      });
+
+      const geoPoint: GeoPoint = {
+        latitude: location.latitude,
+        longitude: location.longitude,
+        // Preserve original timestamp from test data, fallback to current time
+        timestamp: location.timestamp ?? Date.now(),
+      };
+
+      handleLocationUpdate({
+        location: geoPoint,
+        dispatch: params.dispatch,
+        mapRef: params.mapRef,
+        isMapCenteredOnUser: params.isMapCenteredOnUser,
+        isFollowModeActive: params.isFollowModeActive,
+        currentRegion: params.currentRegion,
+        explorationPath: params.explorationPath,
+        isSessionActive: params.isSessionActive,
+      });
+
+      logger.info('✅ GPS injection handleLocationUpdate called', {
+        component: 'MapScreen',
+        action: 'gpsInjectionListener',
+      });
+    } else {
+      logger.warn('❌ GPS injection ignored - MapScreen not active', {
+        component: 'MapScreen',
+        action: 'gpsInjectionListener',
+      });
+    }
+  };
+};
+
 // Helper: setupLocationListeners
 function setupLocationListeners({
   isActiveRef,
@@ -268,6 +394,8 @@ function setupLocationListeners({
   isMapCenteredOnUser,
   isFollowModeActive,
   currentRegion,
+  explorationPath,
+  isSessionActive,
 }: {
   isActiveRef: { current: boolean };
   dispatch: ReturnType<typeof useAppDispatch>;
@@ -275,71 +403,28 @@ function setupLocationListeners({
   isMapCenteredOnUser: boolean;
   isFollowModeActive: boolean;
   currentRegion: Region | undefined;
+  explorationPath: GeoPoint[];
+  isSessionActive: boolean;
 }) {
+  const params = {
+    isActiveRef,
+    dispatch,
+    mapRef,
+    isMapCenteredOnUser,
+    isFollowModeActive,
+    currentRegion,
+    explorationPath,
+    isSessionActive,
+  };
+
   const locationUpdateListener = DeviceEventEmitter.addListener(
     'locationUpdate',
-    (location: { latitude: number; longitude: number }) => {
-      if (isActiveRef.current) {
-        const geoPoint: GeoPoint = {
-          latitude: location.latitude,
-          longitude: location.longitude,
-          timestamp: Date.now(),
-        };
-        handleLocationUpdate({
-          location: geoPoint,
-          dispatch,
-          mapRef,
-          isMapCenteredOnUser,
-          isFollowModeActive,
-          currentRegion,
-        });
-      }
-    }
+    createLocationUpdateCallback(params)
   );
 
   const gpsInjectionListener = DeviceEventEmitter.addListener(
     'GPS_COORDINATES_INJECTED',
-    (location: { latitude: number; longitude: number }) => {
-      logger.info('🎯 GPS injection event received in MapScreen', {
-        component: 'MapScreen',
-        action: 'gpsInjectionListener',
-        location: `${location.latitude}, ${location.longitude}`,
-        isActive: isActiveRef.current,
-      });
-
-      if (isActiveRef.current) {
-        logger.info('📍 Processing GPS injection - calling handleLocationUpdate', {
-          component: 'MapScreen',
-          action: 'gpsInjectionListener',
-          location: `${location.latitude}, ${location.longitude}`,
-        });
-
-        const geoPoint: GeoPoint = {
-          latitude: location.latitude,
-          longitude: location.longitude,
-          timestamp: Date.now(),
-        };
-
-        handleLocationUpdate({
-          location: geoPoint,
-          dispatch,
-          mapRef,
-          isMapCenteredOnUser,
-          isFollowModeActive,
-          currentRegion,
-        });
-
-        logger.info('✅ GPS injection handleLocationUpdate called', {
-          component: 'MapScreen',
-          action: 'gpsInjectionListener',
-        });
-      } else {
-        logger.warn('❌ GPS injection ignored - MapScreen not active', {
-          component: 'MapScreen',
-          action: 'gpsInjectionListener',
-        });
-      }
-    }
+    createGPSInjectionCallback(params)
   );
 
   return { locationUpdateListener, gpsInjectionListener };
@@ -362,6 +447,8 @@ async function getInitialLocation({
   isMapCenteredOnUser,
   isFollowModeActive,
   currentRegion,
+  explorationPath,
+  isSessionActive,
 }: {
   isActiveRef: { current: boolean };
   dispatch: ReturnType<typeof useAppDispatch>;
@@ -369,6 +456,8 @@ async function getInitialLocation({
   isMapCenteredOnUser: boolean;
   isFollowModeActive: boolean;
   currentRegion: Region | undefined;
+  explorationPath: GeoPoint[];
+  isSessionActive: boolean;
 }) {
   try {
     const initialLocation = await Location.getCurrentPositionAsync({
@@ -387,6 +476,8 @@ async function getInitialLocation({
         isMapCenteredOnUser,
         isFollowModeActive,
         currentRegion,
+        explorationPath,
+        isSessionActive,
       });
     }
   } catch (error) {
@@ -462,6 +553,8 @@ const initializeLocationServices = async (
     isMapCenteredOnUser: boolean;
     isFollowModeActive: boolean;
     currentRegion: Region | undefined;
+    explorationPath: GeoPoint[];
+    isSessionActive: boolean;
   }
 ) => {
   // Initialize BackgroundLocationService
@@ -481,15 +574,17 @@ const initializeLocationServices = async (
   await getInitialLocation(locationParams);
 };
 
-// SIMPLIFIED LOCATION SERVICE INITIALIZATION
+// Initialize location services with pre-verified permissions
 // Permissions are already verified by PermissionVerificationService
-const initializeLocationServicesDirectly = async ({
+const initializeLocationServicesWithVerifiedPermissions = async ({
   isActiveRef,
   dispatch,
   mapRef,
   isMapCenteredOnUser,
   isFollowModeActive,
   currentRegion,
+  explorationPath,
+  isSessionActive,
   backgroundGranted = false, // Default to false, must be explicitly passed
 }: {
   isActiveRef: { current: boolean };
@@ -498,12 +593,14 @@ const initializeLocationServicesDirectly = async ({
   isMapCenteredOnUser: boolean;
   isFollowModeActive: boolean;
   currentRegion: Region | undefined;
+  explorationPath: GeoPoint[];
+  isSessionActive: boolean;
   backgroundGranted?: boolean; // Add parameter for actual background permission status
 }) => {
   try {
     logger.info('Initializing location services (permissions already verified)', {
       component: 'MapScreen',
-      action: 'initializeLocationServicesDirectly',
+      action: 'initializeLocationServicesWithVerifiedPermissions',
       backgroundGranted,
     });
 
@@ -515,13 +612,15 @@ const initializeLocationServicesDirectly = async ({
       isMapCenteredOnUser,
       isFollowModeActive,
       currentRegion,
+      explorationPath,
+      isSessionActive,
     });
 
     logger.info('Location services initialized successfully');
   } catch (error) {
     logger.error('Failed to initialize location services', {
       component: 'MapScreen',
-      action: 'initializeLocationServicesDirectly',
+      action: 'initializeLocationServicesWithVerifiedPermissions',
       error: error instanceof Error ? error.message : String(error),
     });
     throw error;
@@ -535,6 +634,8 @@ interface LocationServiceConfig {
   isFollowModeActive: boolean;
   currentRegion: Region | undefined;
   isTrackingPaused: boolean;
+  explorationPath: GeoPoint[];
+  isSessionActive: boolean;
 }
 
 // Comprehensive configuration interface for useUnifiedLocationService
@@ -558,7 +659,14 @@ const createStartLocationServices =
     // eslint-disable-next-line max-params
   ) =>
   async () => {
-    const { mapRef, isMapCenteredOnUser, isFollowModeActive, currentRegion } = config;
+    const {
+      mapRef,
+      isMapCenteredOnUser,
+      isFollowModeActive,
+      currentRegion,
+      explorationPath,
+      isSessionActive,
+    } = config;
 
     try {
       logger.info('Starting location services (tracking resumed)', {
@@ -567,13 +675,15 @@ const createStartLocationServices =
       });
       const isActiveRef = { current: true };
 
-      await initializeLocationServicesDirectly({
+      await initializeLocationServicesWithVerifiedPermissions({
         isActiveRef,
         dispatch,
         mapRef,
         isMapCenteredOnUser,
         isFollowModeActive,
         currentRegion,
+        explorationPath,
+        isSessionActive,
         backgroundGranted, // Pass the actual background permission status
       });
 
@@ -617,8 +727,15 @@ const useUnifiedLocationService = (config: UnifiedLocationServiceConfig) => {
     backgroundGranted = false,
   } = config;
 
-  const { mapRef, isMapCenteredOnUser, isFollowModeActive, currentRegion, isTrackingPaused } =
-    locationConfig;
+  const {
+    mapRef,
+    isMapCenteredOnUser,
+    isFollowModeActive,
+    currentRegion,
+    isTrackingPaused,
+    explorationPath,
+    isSessionActive,
+  } = locationConfig;
   // Track if location services are currently active
   const [isLocationActive, setIsLocationActive] = useState(false);
 
@@ -634,13 +751,23 @@ const useUnifiedLocationService = (config: UnifiedLocationServiceConfig) => {
       isMapCenteredOnUser,
       isFollowModeActive,
       currentRegion,
+      explorationPath,
+      isSessionActive,
     });
 
     return () => {
       isActiveRef.current = false;
       cleanupLocationListeners(listeners);
     };
-  }, [dispatch, mapRef, isMapCenteredOnUser, isFollowModeActive, currentRegion]);
+  }, [
+    dispatch,
+    mapRef,
+    isMapCenteredOnUser,
+    isFollowModeActive,
+    currentRegion,
+    explorationPath,
+    isSessionActive,
+  ]);
 
   // Separate effect to handle start/stop based on pause state
   useEffect(() => {
@@ -1334,6 +1461,8 @@ const refetchLocationAfterClear = async (
     isMapCenteredOnUser: options.isMapCenteredOnUser,
     isFollowModeActive: false, // Don't trigger follow mode after data clear
     currentRegion: options.currentRegion,
+    explorationPath: [], // Empty after data clear
+    isSessionActive: false, // No active session after data clear
   });
 };
 
@@ -1618,6 +1747,11 @@ const useMapScreenServices = (config: MapScreenServicesFullConfig) => {
     explorationState,
   } = servicesConfig;
 
+  // Get session state for real-time area calculation
+  const isSessionActive = useAppSelector(
+    (state) => state.stats.currentSession && !state.stats.currentSession.endTime
+  );
+
   // Only log when location services actually start/stop, not on every render
   // (Removed excessive debug logging that was flooding console)
 
@@ -1630,6 +1764,8 @@ const useMapScreenServices = (config: MapScreenServicesFullConfig) => {
       isFollowModeActive,
       currentRegion,
       isTrackingPaused,
+      explorationPath: explorationState.path,
+      isSessionActive,
     },
     allowLocationRequests,
     ...(setPermissionsGranted && { onPermissionsGranted: setPermissionsGranted }),
@@ -1679,7 +1815,12 @@ const useMapScreenReduxState = () => {
   const isTrackingPaused = useAppSelector((state) => state.exploration.isTrackingPaused);
   const insets = useSafeAreaInsets();
 
-  return { explorationState, isTrackingPaused, insets };
+  return {
+    explorationState,
+    isTrackingPaused,
+    insets,
+    gpsInjectionStatus: explorationState.gpsInjectionStatus,
+  };
 };
 
 // Component for rendering MapScreen UI elements
@@ -1701,6 +1842,11 @@ const MapScreenUI: React.FC<{
   handleSettingsPress: () => void;
   isSettingsModalVisible: boolean;
   setIsSettingsModalVisible: (visible: boolean) => void;
+  gpsInjectionStatus: {
+    isRunning: boolean;
+    type: 'real-time' | 'historical' | null;
+    message: string;
+  };
 }> = ({
   mapRef,
   currentLocation,
@@ -1719,6 +1865,7 @@ const MapScreenUI: React.FC<{
   handleSettingsPress,
   isSettingsModalVisible,
   setIsSettingsModalVisible,
+  gpsInjectionStatus,
 }) => {
   return (
     <>
@@ -1742,9 +1889,18 @@ const MapScreenUI: React.FC<{
       <TrackingControlButton
         style={{
           position: 'absolute',
-          bottom: 160, // Above the data clear button
+          bottom: 180, // Positioned for equal spacing with HUD separator
           alignSelf: 'center',
         }}
+      />
+
+      {/* HUD Stats Panel */}
+      <HUDStatsPanel />
+
+      {/* GPS Injection Indicator */}
+      <GPSInjectionIndicator
+        isVisible={gpsInjectionStatus.isRunning}
+        message={gpsInjectionStatus.message}
       />
 
       {/* Unified Settings Modal */}
@@ -1915,6 +2071,82 @@ const useMapScreenServicesAndHandlers = (config: MapScreenServicesHandlersConfig
   return { dataClearing, navigation, eventHandlers };
 };
 
+// Custom hook for stats initialization and persistence
+const useStatsInitialization = () => {
+  const dispatch = useAppDispatch();
+  const totalStats = useAppSelector((state) => state.stats.total);
+  const explorationState = useAppSelector((state) => state.exploration);
+  const isSessionActive = useAppSelector(
+    (state) => state.stats.currentSession && !state.stats.currentSession.endTime
+  );
+
+  // Initialize stats system
+  useEffect(() => {
+    const initializeStats = async () => {
+      try {
+        dispatch(setLoading(true));
+
+        // Load all GPS history from exploration state and initialize stats from it
+        const explorationState = await AuthPersistenceService.getExplorationState();
+        const gpsHistory = explorationState?.path ?? [];
+        dispatch(initializeFromHistory({ gpsHistory }));
+
+        logger.info('Initialized stats from GPS history', {
+          component: 'MapScreen',
+          action: 'initializeStats',
+          historyLength: gpsHistory.length,
+        });
+      } catch (error) {
+        logger.error('Failed to initialize stats system', {
+          component: 'MapScreen',
+          action: 'initializeStats',
+          errorMessage: error instanceof Error ? error.message : 'Unknown error',
+        });
+        dispatch(setLoading(false));
+      }
+    };
+
+    initializeStats();
+  }, [dispatch]);
+
+  // Periodically recalculate area from current GPS path during active sessions
+  useEffect(() => {
+    if (!isSessionActive || explorationState.path.length < 3) {
+      return; // Need active session and at least 3 points for area calculation
+    }
+
+    const recalculateAreaPeriodically = () => {
+      // Convert GeoPoint[] to serializable GPS data for area calculation
+      const serializableGPSData = explorationState.path.map((point) => ({
+        latitude: point.latitude,
+        longitude: point.longitude,
+        timestamp: point.timestamp || Date.now(),
+      }));
+
+      dispatch(recalculateArea(serializableGPSData));
+
+      logger.debug('Triggered periodic area recalculation', {
+        component: 'MapScreen',
+        action: 'recalculateAreaPeriodically',
+        pathLength: explorationState.path.length,
+      });
+    };
+
+    // Recalculate area every 30 seconds during active sessions
+    const areaRecalcInterval = setInterval(recalculateAreaPeriodically, 30000);
+
+    return () => clearInterval(areaRecalcInterval);
+  }, [dispatch, isSessionActive, explorationState.path]);
+
+  // Save stats periodically
+  useEffect(() => {
+    // Only save if we have meaningful stats data
+    if (totalStats.distance > 0 || totalStats.area > 0 || totalStats.time > 0) {
+      StatsPersistenceService.saveStats(totalStats);
+    }
+  }, [totalStats]);
+};
+
 // Custom hook that combines all map screen logic
 const useMapScreenLogic = (
   permissionsVerified: boolean = false,
@@ -1954,6 +2186,7 @@ const useMapScreenLogic = (
       handleSettingsPress: navigation.handleSettingsPress,
       isSettingsModalVisible: dataClearing.isSettingsModalVisible,
       setIsSettingsModalVisible: dataClearing.setIsSettingsModalVisible,
+      gpsInjectionStatus: reduxState.gpsInjectionStatus,
     },
   };
 };
@@ -1964,6 +2197,9 @@ const useMapScreenLogic = (
 // permission verification and error recovery flows.
 
 export const MapScreen = () => {
+  // Initialize stats system
+  useStatsInitialization();
+
   // Get onboarding state first
   const { showOnboarding, handleOnboardingComplete, handleOnboardingSkip } =
     useMapScreenOnboarding();
@@ -1998,6 +2234,7 @@ export const MapScreen = () => {
   return (
     <>
       <MapScreenUI {...uiProps} />
+      <HUDStatsPanel />
       <OnboardingOverlay
         visible={showOnboarding}
         onComplete={handleOnboardingComplete}

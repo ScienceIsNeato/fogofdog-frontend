@@ -8,7 +8,7 @@ import {
   createMockTaskData,
   setupTaskManagerMocks,
   getTaskCallbackFromMock,
-} from '../../__tests__/test-helpers/background-service-helpers';
+} from '../../test-helpers/background-service-helpers';
 
 // Mock expo modules at the top level
 jest.mock('expo-location', () => ({

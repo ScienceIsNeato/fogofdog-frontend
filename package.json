@@ -29,7 +29,7 @@
     "duplication:strict": "npx jscpd src --min-lines 3 --threshold 2 --reporters console",
     "duplication:ci": "npx jscpd src --min-lines 3 --threshold 3 --reporters console --silent",
     "pre-commit": "npm run format:check && npm run lint:errors-only && npm run type-check && npm run test:coverage && npm run duplication:check && npm run sonar:check",
-    "pre-commit:strict": "npm run format:auto-fix && npm run lint:auto-fix && npm run type-check && npm run test:coverage && npm run duplication:check && npm run audit:auto-fix && npm run sonar:check",
+    "pre-commit:strict": "python3 scripts/ship_it.py --fail-fast",
     "format:auto-fix": "npm run format:fix && npm run format:check",
     "lint:auto-fix": "npm run lint:fix && npm run lint:strict",
     "audit:auto-fix": "npm audit fix && npm run audit:security",

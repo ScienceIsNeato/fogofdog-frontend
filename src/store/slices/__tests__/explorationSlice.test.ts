@@ -50,6 +50,11 @@ describe('exploration slice', () => {
         hasPermission: false,
         storedLocationCount: 0,
       },
+      gpsInjectionStatus: {
+        isRunning: false,
+        type: null,
+        message: '',
+      },
     });
   });
 

@@ -6,7 +6,7 @@ import {
   createMockStore,
   mockNavigation,
   createMockStoreWithUser,
-} from '../../../__tests__/test-helpers/shared-mocks';
+} from '../../../test-helpers/shared-mocks';
 
 // Using shared mock navigation and store utilities
 

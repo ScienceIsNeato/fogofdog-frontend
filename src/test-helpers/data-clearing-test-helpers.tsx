@@ -3,7 +3,7 @@ import { render, waitFor, fireEvent } from '@testing-library/react-native';
 import { Provider } from 'react-redux';
 import { Alert } from 'react-native';
 import { createMockStore } from './shared-mocks';
-import type { DataStats, ClearType } from '../../types/dataClear';
+import type { DataStats, ClearType } from '../types/dataClear';
 
 // Common mock data stats
 export const mockDataStats: DataStats = {
