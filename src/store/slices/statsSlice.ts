@@ -69,10 +69,17 @@ const initialState: StatsState = {
  * Helper function to update formatted stats
  */
 const updateFormattedStats = (state: StatsState): void => {
+  // Calculate total time including current session if active
+  let totalTimeToDisplay = state.total.time;
+  if (state.currentSession && !state.currentSession.endTime) {
+    // Add current session time to total for display consistency with timer
+    totalTimeToDisplay = state.total.time + state.session.time;
+  }
+
   state.formattedStats = {
     totalDistance: StatsCalculationService.formatDistance(state.total.distance),
     totalArea: StatsCalculationService.formatArea(state.total.area),
-    totalTime: StatsCalculationService.formatTimeAsTimer(state.total.time),
+    totalTime: StatsCalculationService.formatTimeAsTimer(totalTimeToDisplay),
     sessionDistance: StatsCalculationService.formatDistance(state.session.distance),
     sessionArea: StatsCalculationService.formatArea(state.session.area),
     sessionTime: StatsCalculationService.formatTimeAsTimer(state.session.time),
