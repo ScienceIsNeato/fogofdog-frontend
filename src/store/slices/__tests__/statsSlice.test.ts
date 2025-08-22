@@ -43,7 +43,7 @@ jest.mock('../../../services/StatsCalculationService', () => ({
       return `${time}ms`;
     }),
     formatTimeAsTimer: jest.fn((time) => {
-      if (time === 0) return ':00'; // Handle 0 time case
+      if (time === 0) return '0 secs'; // Handle 0 time case
 
       const totalSeconds = Math.floor(time / 1000);
       const totalMinutes = Math.floor(totalSeconds / 60);
@@ -55,13 +55,13 @@ jest.mock('../../../services/StatsCalculationService', () => ({
       const hours = totalHours % 24;
 
       if (totalDays > 0) {
-        return `${totalDays} day${totalDays !== 1 ? 's' : ''}, ${hours} hour${hours !== 1 ? 's' : ''}, ${minutes} minute${minutes !== 1 ? 's' : ''} and ${seconds} second${seconds !== 1 ? 's' : ''}`;
+        return `${totalDays}d ${hours}h ${minutes}m ${seconds}s`;
       } else if (totalHours > 0) {
-        return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+        return `${hours}h ${minutes}m ${seconds}s`;
       } else if (totalMinutes > 0) {
-        return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+        return `${minutes} min ${seconds} secs`;
       } else {
-        return `:${seconds.toString().padStart(2, '0')}`;
+        return `${seconds} secs`;
       }
     }),
     incrementStats: jest.fn(),
@@ -117,10 +117,10 @@ describe('statsSlice', () => {
       expect(state.formattedStats).toEqual({
         totalDistance: '0m',
         totalArea: '0m²',
-        totalTime: ':00',
+        totalTime: '0 secs',
         sessionDistance: '0m',
         sessionArea: '0m²',
-        sessionTime: ':00',
+        sessionTime: '0 secs',
       });
     });
   });
@@ -525,7 +525,7 @@ describe('statsSlice', () => {
 
       expect(updatedState.session.time).toBeGreaterThanOrEqual(4900); // ~5 seconds, allowing for timing variance
       expect(updatedState.session.time).toBeLessThanOrEqual(5100);
-      expect(updatedState.formattedStats.sessionTime).toBe(':05'); // < 60s format
+      expect(updatedState.formattedStats.sessionTime).toBe('5 secs'); // < 60s format
     });
 
     it('should exclude paused time from session duration', () => {
@@ -554,7 +554,7 @@ describe('statsSlice', () => {
       // Should be approximately 15 seconds (25 total - 10 paused)
       expect(updatedState.session.time).toBeGreaterThanOrEqual(14900);
       expect(updatedState.session.time).toBeLessThanOrEqual(15100);
-      expect(updatedState.formattedStats.sessionTime).toBe(':15');
+      expect(updatedState.formattedStats.sessionTime).toBe('15 secs');
     });
 
     it('should not update time if no active session', () => {
@@ -604,7 +604,7 @@ describe('statsSlice', () => {
     });
 
     it('should format different time ranges correctly', () => {
-      // Test < 60 seconds - should be :XX format
+      // Test < 60 seconds - should be "XX secs" format
       let initialState: StatsState = {
         ...defaultStatsState,
         currentSession: {
@@ -618,9 +618,9 @@ describe('statsSlice', () => {
 
       let action = updateSessionTimer();
       let updatedState = statsReducer(initialState, action);
-      expect(updatedState.formattedStats.sessionTime).toBe(':30');
+      expect(updatedState.formattedStats.sessionTime).toBe('30 secs');
 
-      // Test 1-60 minutes - should be MM:SS format
+      // Test 1-60 minutes - should be "X min Y secs" format
       initialState = {
         ...defaultStatsState,
         currentSession: {
@@ -634,9 +634,9 @@ describe('statsSlice', () => {
 
       action = updateSessionTimer();
       updatedState = statsReducer(initialState, action);
-      expect(updatedState.formattedStats.sessionTime).toBe('01:30');
+      expect(updatedState.formattedStats.sessionTime).toBe('1 min 30 secs');
 
-      // Test 1+ hours - should be HH:MM:SS format
+      // Test 1+ hours - should be "Xh Ym Zs" format
       initialState = {
         ...defaultStatsState,
         currentSession: {
@@ -650,7 +650,7 @@ describe('statsSlice', () => {
 
       action = updateSessionTimer();
       updatedState = statsReducer(initialState, action);
-      expect(updatedState.formattedStats.sessionTime).toBe('01:05:00');
+      expect(updatedState.formattedStats.sessionTime).toBe('1h 5m 0s');
     });
   });
 });
