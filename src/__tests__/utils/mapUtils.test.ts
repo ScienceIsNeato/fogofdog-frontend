@@ -237,6 +237,4 @@ describe('mapUtils', () => {
       expect(typeof metersToPixels).toBe('function');
     });
   });
-
-
 });
