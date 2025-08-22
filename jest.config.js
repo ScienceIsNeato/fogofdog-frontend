@@ -26,7 +26,9 @@
   collectCoverageFrom: [
     'src/**/*.{js,jsx,ts,tsx}',
     '!src/**/*.d.ts',
-    '!src/__tests__/**',
+    '!src/**/*.test.ts',
+    '!src/**/*.test.tsx',
+    '!src/**/__tests__/**',
     '!src/**/__mocks__/**',
     '!src/**/index.{js,ts}',
   ],

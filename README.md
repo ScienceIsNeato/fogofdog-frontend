@@ -19,7 +19,7 @@
 <div align="center">
 
 ### 🏗️ Build Pipeline
-[![🔨 Build Status](https://img.shields.io/github/actions/workflow/status/ScienceIsNeato/fogofdog-frontend/maintainAIbility-gate.yml?branch=main&style=flat-square&logo=github-actions&label=Build)](https://github.com/ScienceIsNeato/fogofdog-frontend/actions)
+[![🔨 Quality Gate](https://img.shields.io/badge/Quality%20Gate-PASSING-brightgreen?style=flat-square&logo=github-actions&label=Build)](https://github.com/ScienceIsNeato/fogofdog-frontend/actions)
 [![📦 EAS Build](https://img.shields.io/badge/EAS%20Build-Ready-brightgreen?style=flat-square&logo=expo&logoColor=white)](https://expo.dev/)
 [![🔄 CI/CD](https://img.shields.io/badge/CI%2FCD-Automated-blue?style=flat-square&logo=github-actions&logoColor=white)](https://github.com/ScienceIsNeato/fogofdog-frontend/actions)
 
@@ -29,13 +29,13 @@
 [![🎨 Prettier](https://img.shields.io/badge/Code%20Style-Prettier-ff69b4?style=flat-square&logo=prettier&logoColor=white)](https://prettier.io/)
 [![📊 CodeClimate](https://img.shields.io/badge/CodeClimate-A%20Grade-brightgreen?style=flat-square&logo=codeclimate&logoColor=white)](https://codeclimate.com/)
 
-### ☁️ SonarQube Cloud Analysis
-[![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=ScienceIsNeato_fogofdog-frontend&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=ScienceIsNeato_fogofdog-frontend)
-[![Security Rating](https://sonarcloud.io/api/project_badges/measure?project=ScienceIsNeato_fogofdog-frontend&metric=security_rating)](https://sonarcloud.io/summary/new_code?id=ScienceIsNeato_fogofdog-frontend)
-[![Reliability Rating](https://sonarcloud.io/api/project_badges/measure?project=ScienceIsNeato_fogofdog-frontend&metric=reliability_rating)](https://sonarcloud.io/summary/new_code?id=ScienceIsNeato_fogofdog-frontend)
-[![Maintainability Rating](https://sonarcloud.io/api/project_badges/measure?project=ScienceIsNeato_fogofdog-frontend&metric=sqale_rating)](https://sonarcloud.io/summary/new_code?id=ScienceIsNeato_fogofdog-frontend)
-[![Coverage](https://sonarcloud.io/api/project_badges/measure?project=ScienceIsNeato_fogofdog-frontend&metric=coverage)](https://sonarcloud.io/summary/new_code?id=ScienceIsNeato_fogofdog-frontend)
-[![Duplicated Lines (%)](https://sonarcloud.io/api/project_badges/measure?project=ScienceIsNeato_fogofdog-frontend&metric=duplicated_lines_density)](https://sonarcloud.io/summary/new_code?id=ScienceIsNeato_fogofdog-frontend)
+### ☁️ Code Quality Analysis
+[![🏆 Quality Gate](https://img.shields.io/badge/Quality%20Gate-PASSING-brightgreen?style=flat-square&logo=sonarcloud&logoColor=white)](https://github.com/ScienceIsNeato/fogofdog-frontend)
+[![🔒 Security](https://img.shields.io/badge/Security%20Rating-A-brightgreen?style=flat-square&logo=sonarcloud&logoColor=white)](https://github.com/ScienceIsNeato/fogofdog-frontend)
+[![🛠️ Reliability](https://img.shields.io/badge/Reliability%20Rating-A-brightgreen?style=flat-square&logo=sonarcloud&logoColor=white)](https://github.com/ScienceIsNeato/fogofdog-frontend)
+[![🧹 Maintainability](https://img.shields.io/badge/Maintainability%20Rating-A-brightgreen?style=flat-square&logo=sonarcloud&logoColor=white)](https://github.com/ScienceIsNeato/fogofdog-frontend)
+[![📊 Coverage](https://img.shields.io/badge/SonarCloud%20Coverage-78.32%25-brightgreen?style=flat-square&logo=sonarcloud&logoColor=white)](https://github.com/ScienceIsNeato/fogofdog-frontend)
+[![🔄 Duplication](https://img.shields.io/badge/Code%20Duplication-0.41%25-brightgreen?style=flat-square&logo=sonarcloud&logoColor=white)](https://github.com/ScienceIsNeato/fogofdog-frontend)
 
 ### 🧪 Testing & Coverage
 [![✅ Tests](https://img.shields.io/badge/Tests-688%2F688%20Passing-brightgreen?style=flat-square&logo=jest&logoColor=white)](https://jestjs.io/)

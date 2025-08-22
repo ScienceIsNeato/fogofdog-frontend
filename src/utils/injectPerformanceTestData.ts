@@ -116,8 +116,9 @@ export class PerformanceTestDataInjector {
       // Find the earliest point in current history, or use current location
       const earliestPoint =
         currentPath.length > 0
-          ? currentPath.reduce((earliest, point) =>
-              point.timestamp < earliest.timestamp ? point : earliest
+          ? currentPath.reduce(
+              (earliest, point) => (point.timestamp < (earliest?.timestamp ?? Infinity) ? point : earliest),
+              currentPath[0]
             )
           : currentState.exploration.currentLocation;
 
