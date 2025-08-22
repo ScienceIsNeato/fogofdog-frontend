@@ -18,6 +18,6 @@ elif [ -f .env ]; then
   set +a
 fi
 
-# Use the comprehensive maintainability gate with auto-fix
-# This includes all quality checks with auto-fix capabilities
-./scripts/maintainAIbility-gate.sh --full
+# Use the parallelized ship_it.py for faster, fail-fast quality checks
+# This matches the npm run pre-commit:strict command
+python3 scripts/ship_it.py --fail-fast
