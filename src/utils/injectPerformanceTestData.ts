@@ -117,7 +117,8 @@ export class PerformanceTestDataInjector {
       const earliestPoint =
         currentPath.length > 0
           ? currentPath.reduce(
-              (earliest, point) => (point.timestamp < (earliest?.timestamp ?? Infinity) ? point : earliest),
+              (earliest, point) =>
+                point.timestamp < (earliest?.timestamp ?? Infinity) ? point : earliest,
               currentPath[0]
             )
           : currentState.exploration.currentLocation;
