@@ -42,34 +42,33 @@
 
 ---
 
-## ✨ Features
+## 🛠️ Core Functionality
 
-🗺️ **Interactive Map Experience**
-- Real-time location tracking with Expo Location
-- Dynamic fog-of-war reveals explored areas
-- Smooth map interactions with React Native Maps
+**Location-Based Exploration**
+- Real-time GPS tracking via Expo Location API
+- Fog-of-war overlay system using React Native Skia
+- Map integration with React Native Maps
+- Persistent exploration state with Redux
 
-🎨 **Beautiful UI/UX** 
-- Custom Skia-powered fog overlay effects
-- Responsive design with safe area handling
-- Smooth animations and gestures
+**Development & Testing Infrastructure**
+- TypeScript strict mode enforcement
+- Jest unit testing with coverage thresholds
+- Maestro end-to-end testing framework
+- GPS injection system for development testing
 
-🧪 **Production-Ready Quality**
-- 100% TypeScript with strict mode
-- Comprehensive Jest test suite with high coverage
-- Zero ESLint warnings enforced in CI
-- Enterprise-level code quality monitoring
+**Code Quality Automation**
+- ESLint with zero-warning enforcement
+- Prettier code formatting
+- SonarQube static analysis integration
+- Automated security vulnerability scanning
+- Circular dependency detection
+- Code duplication monitoring
 
-⚡ **Performance Optimized**
-- Efficient Redux state management
-- Optimized bundle size monitoring
-- Fast cold starts and smooth rendering
-
-🔧 **Advanced Development Tools**
-- GPS injection system for testing without walking
-- HUD stats panel for real-time performance monitoring
-- Comprehensive quality gate system (ship_it.py)
-- Parallel quality checks with fail-fast execution
+**Advanced Development Tools**
+- GPS coordinate injection for testing
+- Real-time performance monitoring HUD
+- Parallel quality check execution (ship_it.py)
+- Metro bundler management scripts
 
 ---
 
@@ -220,32 +219,58 @@ npx eas build --platform ios --profile production
 
 ---
 
-## 🏗️ Architecture
+## 🏗️ System Architecture
 
-### 📁 Project Structure
+### Technical Stack
+- **Runtime**: React Native 0.74+ with Expo SDK 51+
+- **Language**: TypeScript 5.x with strict mode
+- **State Management**: Redux Toolkit with RTK Query
+- **Navigation**: React Navigation v6 (stack + tab navigation)
+- **Graphics Rendering**: React Native Skia for fog overlay
+- **Geolocation**: Expo Location with background permissions
+- **Map Engine**: React Native Maps (iOS MapKit / Android Google Maps)
+- **Storage**: AsyncStorage for persistence
+- **Testing**: Jest + React Native Testing Library + Maestro
+
+### Application Architecture
 ```
-src/
-├── components/          # Reusable UI components
-│   ├── FogOverlay.tsx  # Skia-powered fog effects
-│   └── LocationButton.tsx
-├── screens/            # Screen components
-│   ├── Auth/          # Authentication screens
-│   └── Map/           # Main map experience
-├── store/             # Redux state management
-│   └── slices/        # Redux toolkit slices
-├── types/             # TypeScript definitions
-└── utils/             # Utility functions
+┌─────────────────────────────────────────────────────────────┐
+│                    Presentation Layer                       │
+├─────────────────────────────────────────────────────────────┤
+│  Screens/          │  Components/       │  Navigation/      │
+│  - MapScreen       │  - OptimizedFog    │  - TabNavigator   │
+│  - AuthScreens     │  - HUDStatsPanel   │  - StackNavigator │
+│  - ProfileScreen   │  - LocationButton  │                   │
+├─────────────────────────────────────────────────────────────┤
+│                     Business Logic Layer                    │
+├─────────────────────────────────────────────────────────────┤
+│  Services/                        │  Store/                │
+│  - BackgroundLocationService     │  - explorationSlice    │
+│  - GPSInjectionService          │  - statsSlice          │
+│  - StatsCalculationService      │  - userSlice           │
+│  - PermissionsOrchestrator       │                        │
+├─────────────────────────────────────────────────────────────┤
+│                      Data Layer                             │
+├─────────────────────────────────────────────────────────────┤
+│  - AsyncStorage (exploration state)                        │
+│  - Expo Location API                                        │
+│  - React Native Maps                                        │
+│  - React Native Skia (fog rendering)                       │
+└─────────────────────────────────────────────────────────────┘
 ```
 
-### 🔧 Tech Stack
-- **Frontend Framework**: React Native + Expo
-- **State Management**: Redux Toolkit
-- **Navigation**: React Navigation v6
-- **Maps**: React Native Maps
-- **Graphics**: React Native Skia
-- **Location**: Expo Location
-- **Testing**: Jest + React Native Testing Library + Maestro E2E
-- **Quality**: ESLint + SonarJS + Prettier
+### Data Flow
+1. **Location Updates**: Expo Location → BackgroundLocationService → Redux Store
+2. **Fog Rendering**: Redux Store → OptimizedFogOverlay → Skia Canvas
+3. **Statistics**: GPS Path → StatsCalculationService → HUD Display
+4. **Persistence**: Redux State ↔ AsyncStorage via middleware
+
+### Key Design Patterns
+- **Service Layer**: Encapsulates external API interactions
+- **Redux Toolkit**: Centralized state with immutable updates
+- **Component Composition**: Reusable UI components with clear interfaces
+- **Dependency Injection**: Services injected via React Context
+- **Error Boundaries**: Graceful error handling at component level
 
 ---
 
