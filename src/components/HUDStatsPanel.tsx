@@ -12,6 +12,7 @@ import {
 } from '../store/slices/statsSlice';
 import { RootState } from '../store';
 import { SessionResetButton } from './SessionResetButton';
+import { STATS_LABELS } from '../config/statsLabels';
 
 /**
  * Custom hook to handle pause/resume state changes
@@ -97,16 +98,16 @@ export const HUDStatsPanel: React.FC = () => {
         {/* Stat Headers Row with Reset Button */}
         <View style={styles.statHeaders}>
           <View style={styles.statColumn}>
-            <MaterialIcons name="pets" size={16} color="#007AFF" />
-            <Text style={styles.statHeaderLabel}>Distance{'\n'}Travelled</Text>
+            <MaterialIcons name={STATS_LABELS.DISTANCE_ICON} size={16} color="#007AFF" />
+            <Text style={styles.statHeaderLabel}>{STATS_LABELS.DISTANCE_HEADER}</Text>
           </View>
           <View style={styles.statColumn}>
-            <MaterialIcons name="map" size={16} color="#007AFF" />
-            <Text style={styles.statHeaderLabel}>Area{'\n'}Revealed</Text>
+            <MaterialIcons name={STATS_LABELS.AREA_ICON} size={16} color="#007AFF" />
+            <Text style={styles.statHeaderLabel}>{STATS_LABELS.AREA_HEADER}</Text>
           </View>
           <View style={styles.statColumn}>
-            <MaterialIcons name="access-time" size={16} color="#007AFF" />
-            <Text style={styles.statHeaderLabel}>Exploration{'\n'}Time</Text>
+            <MaterialIcons name={STATS_LABELS.TIME_ICON} size={16} color="#007AFF" />
+            <Text style={styles.statHeaderLabel}>{STATS_LABELS.TIME_HEADER}</Text>
           </View>
           <View style={styles.resetButtonContainer}>
             <SessionResetButton style={styles.rectangularResetButton} />
@@ -116,8 +117,8 @@ export const HUDStatsPanel: React.FC = () => {
         {/* Data Rows */}
         <View style={styles.dataGrid}>
           <HUDDataRow
-            icon="play-circle-outline"
-            label="Session"
+            icon={STATS_LABELS.SESSION_ICON}
+            label={STATS_LABELS.SESSION_LABEL}
             values={[
               formattedStats.sessionDistance,
               formattedStats.sessionArea,
@@ -125,8 +126,8 @@ export const HUDStatsPanel: React.FC = () => {
             ]}
           />
           <HUDDataRow
-            icon="all-inclusive"
-            label="All Time"
+            icon={STATS_LABELS.ALL_TIME_ICON}
+            label={STATS_LABELS.ALL_TIME_LABEL}
             values={[
               formattedStats.totalDistance,
               formattedStats.totalArea,
@@ -145,7 +146,7 @@ export const HUDStatsPanel: React.FC = () => {
 const HUDLoadingView: React.FC = () => (
   <View style={styles.container}>
     <View style={styles.loadingContainer}>
-      <Text style={styles.loadingText}>Loading stats...</Text>
+      <Text style={styles.loadingText}>{STATS_LABELS.LOADING_MESSAGE}</Text>
     </View>
   </View>
 );

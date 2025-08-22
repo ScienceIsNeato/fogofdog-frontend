@@ -5,6 +5,7 @@ import { configureStore } from '@reduxjs/toolkit';
 import { HUDStatsPanel } from '../HUDStatsPanel';
 import userReducer from '../../store/slices/userSlice';
 import explorationReducer from '../../store/slices/explorationSlice';
+import { STATS_LABELS } from '../../config/statsLabels';
 import statsReducer, { updateSessionTimer } from '../../store/slices/statsSlice';
 
 // Mock timers
@@ -84,13 +85,13 @@ describe('HUDStatsPanel', () => {
     const { getByText, getAllByText } = renderWithMockStore(<HUDStatsPanel />, mockStatsState);
 
     // Check section headers
-    expect(getByText('All Time')).toBeTruthy();
-    expect(getByText('Session')).toBeTruthy();
+    expect(getByText(STATS_LABELS.ALL_TIME_LABEL)).toBeTruthy();
+    expect(getByText(STATS_LABELS.SESSION_LABEL)).toBeTruthy();
 
     // Check labels (appear once as row headers in new grid layout)
-    expect(getByText('Distance\nTravelled')).toBeTruthy();
-    expect(getByText('Area\nRevealed')).toBeTruthy();
-    expect(getByText('Exploration\nTime')).toBeTruthy();
+    expect(getByText(STATS_LABELS.DISTANCE_HEADER)).toBeTruthy();
+    expect(getByText(STATS_LABELS.AREA_HEADER)).toBeTruthy();
+    expect(getByText(STATS_LABELS.TIME_HEADER)).toBeTruthy();
 
     // Check values
     expect(getByText('5.0km')).toBeTruthy();
@@ -108,11 +109,11 @@ describe('HUDStatsPanel', () => {
     );
 
     // Should show loading message
-    expect(getByText('Loading stats...')).toBeTruthy();
+    expect(getByText(STATS_LABELS.LOADING_MESSAGE)).toBeTruthy();
 
     // Should not show stats
-    expect(queryByText('All Time')).toBeNull();
-    expect(queryByText('Today')).toBeNull();
+    expect(queryByText(STATS_LABELS.ALL_TIME_LABEL)).toBeNull();
+    expect(queryByText(STATS_LABELS.SESSION_LABEL)).toBeNull();
   });
 
   it('should render with zero values correctly', () => {
