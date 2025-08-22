@@ -98,15 +98,15 @@ export const HUDStatsPanel: React.FC = () => {
         <View style={styles.statHeaders}>
           <View style={styles.statColumn}>
             <MaterialIcons name="pets" size={16} color="#007AFF" />
-            <Text style={styles.statHeaderLabel}>Distance</Text>
+            <Text style={styles.statHeaderLabel}>Distance{'\n'}Travelled</Text>
           </View>
           <View style={styles.statColumn}>
             <MaterialIcons name="map" size={16} color="#007AFF" />
-            <Text style={styles.statHeaderLabel}>Area</Text>
+            <Text style={styles.statHeaderLabel}>Area{'\n'}Revealed</Text>
           </View>
           <View style={styles.statColumn}>
             <MaterialIcons name="access-time" size={16} color="#007AFF" />
-            <Text style={styles.statHeaderLabel}>Time</Text>
+            <Text style={styles.statHeaderLabel}>Exploration{'\n'}Time</Text>
           </View>
           <View style={styles.resetButtonContainer}>
             <SessionResetButton style={styles.rectangularResetButton} />

@@ -88,9 +88,9 @@ describe('HUDStatsPanel', () => {
     expect(getByText('Session')).toBeTruthy();
 
     // Check labels (appear once as row headers in new grid layout)
-    expect(getAllByText('Distance')).toHaveLength(1);
-    expect(getAllByText('Area')).toHaveLength(1);
-    expect(getAllByText('Time')).toHaveLength(1);
+    expect(getByText('Distance\nTravelled')).toBeTruthy();
+    expect(getByText('Area\nRevealed')).toBeTruthy();
+    expect(getByText('Exploration\nTime')).toBeTruthy();
 
     // Check values
     expect(getByText('5.0km')).toBeTruthy();
