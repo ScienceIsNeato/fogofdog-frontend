@@ -535,4 +535,83 @@ describe('StatsCalculationService', () => {
       expect(result.isInitialized).toBe(true);
     });
   });
+
+  describe('calculateDistance', () => {
+    it('should calculate distance between two points using Haversine formula', () => {
+      const point1 = createGPSEvent(40.7128, -74.006, 1000); // NYC
+      const point2 = createGPSEvent(40.7138, -74.005, 2000); // ~150m away
+      
+      const distance = StatsCalculationService.calculateDistance(point1, point2);
+      
+      // Should be approximately 150 meters (allowing for some precision)
+      expect(distance).toBeGreaterThan(100);
+      expect(distance).toBeLessThan(200);
+    });
+
+    it('should return 0 distance for identical points', () => {
+      const point1 = createGPSEvent(40.7128, -74.006, 1000);
+      const point2 = createGPSEvent(40.7128, -74.006, 2000);
+      
+      const distance = StatsCalculationService.calculateDistance(point1, point2);
+      
+      expect(distance).toBe(0);
+    });
+
+    it('should calculate large distances correctly', () => {
+      const nycPoint = createGPSEvent(40.7128, -74.006, 1000); // NYC
+      const laPoint = createGPSEvent(34.0522, -118.2437, 2000); // LA
+      
+      const distance = StatsCalculationService.calculateDistance(nycPoint, laPoint);
+      
+      // NYC to LA is roughly 3,944 km
+      expect(distance).toBeGreaterThan(3900000); // 3,900 km
+      expect(distance).toBeLessThan(4000000); // 4,000 km
+    });
+  });
+
+  describe('calculateActiveTime', () => {
+    it('should return 0 for empty path', () => {
+      const activeTime = StatsCalculationService.calculateActiveTime([]);
+      expect(activeTime).toBe(0);
+    });
+
+    it('should return 0 for single point', () => {
+      const path = [{ latitude: 40.7128, longitude: -74.006, timestamp: 1000 }];
+      const activeTime = StatsCalculationService.calculateActiveTime(path);
+      expect(activeTime).toBe(0);
+    });
+
+    it('should calculate active time for normal path', () => {
+      const path = [
+        { latitude: 40.7128, longitude: -74.006, timestamp: 1000 },
+        { latitude: 40.7138, longitude: -74.005, timestamp: 31000 }, // 30 seconds later
+        { latitude: 40.7148, longitude: -74.004, timestamp: 61000 }, // 30 seconds later
+      ];
+      
+      const activeTime = StatsCalculationService.calculateActiveTime(path);
+      expect(activeTime).toBe(60000); // 60 seconds total
+    });
+
+    it('should filter out large time gaps', () => {
+      const path = [
+        { latitude: 40.7128, longitude: -74.006, timestamp: 1000 },
+        { latitude: 40.7138, longitude: -74.005, timestamp: 31000 }, // 30 seconds later (normal)
+        { latitude: 40.7148, longitude: -74.004, timestamp: 1831000 }, // 30 minutes later (large gap, should be filtered)
+      ];
+      
+      const activeTime = StatsCalculationService.calculateActiveTime(path);
+      expect(activeTime).toBe(30000); // Only the first 30 seconds should count
+    });
+
+    it('should handle negative time deltas gracefully', () => {
+      const path = [
+        { latitude: 40.7128, longitude: -74.006, timestamp: 61000 },
+        { latitude: 40.7138, longitude: -74.005, timestamp: 31000 }, // Earlier timestamp (negative delta)
+        { latitude: 40.7148, longitude: -74.004, timestamp: 91000 }, // Normal progression
+      ];
+      
+      const activeTime = StatsCalculationService.calculateActiveTime(path);
+      expect(activeTime).toBe(60000); // Only the valid 60-second gap should count
+    });
+  });
 });
