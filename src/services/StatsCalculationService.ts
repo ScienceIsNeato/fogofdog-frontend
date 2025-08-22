@@ -1,6 +1,7 @@
 import { GPSEvent } from '../types/GPSEvent';
 import { GeoPoint } from '../types/user';
 import { logger } from '../utils/logger';
+import { FOG_CONFIG } from '../config/fogConfig';
 
 /**
  * Statistics data structure for both session and total stats
@@ -72,32 +73,32 @@ export class StatsCalculationService {
   }
 
   /**
-   * Calculate area using shoelace formula
+   * Calculate area based on fog revelation (circle area per GPS point)
+   * This directly corresponds to the visual area cleared on the map
    */
   static calculateArea(path: SerializableGPSPoint[]): number {
-    if (path.length < 3) {
-      return 0; // Need at least 3 points to form an area
+    if (path.length === 0) {
+      return 0;
     }
 
-    let area = 0;
-    const n = path.length;
+    // Each GPS point clears a circular area with radius from FOG_CONFIG
+    const circleAreaSquareMeters = Math.PI * FOG_CONFIG.RADIUS_METERS * FOG_CONFIG.RADIUS_METERS;
+    
+    // Total area = number of points × area of each circle
+    // Note: This ignores overlap between nearby circles, but provides
+    // a simple approximation that matches the visual fog clearing
+    const totalArea = path.length * circleAreaSquareMeters;
 
-    for (let i = 0; i < n; i++) {
-      const j = (i + 1) % n;
-      const xi = path[i]!.longitude;
-      const yi = path[i]!.latitude;
-      const xj = path[j]!.longitude;
-      const yj = path[j]!.latitude;
+    logger.debug('Calculated fog-based area', {
+      component: 'StatsCalculationService',
+      action: 'calculateArea',
+      pointCount: path.length,
+      fogRadiusMeters: FOG_CONFIG.RADIUS_METERS,
+      circleAreaSquareMeters: circleAreaSquareMeters.toFixed(0),
+      totalAreaSquareMeters: totalArea.toFixed(0),
+    });
 
-      area += xi * yj - xj * yi;
-    }
-
-    // Convert to square meters (rough approximation)
-    area = Math.abs(area) / 2;
-    const metersPerDegreeLat = 111320;
-    const metersPerDegreeLng = 111320 * Math.cos((path[0]!.latitude * Math.PI) / 180);
-
-    return area * metersPerDegreeLat * metersPerDegreeLng;
+    return totalArea;
   }
 
   /**
