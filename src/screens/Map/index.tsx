@@ -89,6 +89,8 @@ interface HandleLocationUpdateOptions {
   isMapCenteredOnUser: boolean;
   isFollowModeActive: boolean;
   currentRegion: Region | undefined;
+  explorationPath: GeoPoint[];
+  isSessionActive: boolean;
 }
 
 const handleLocationUpdate = ({
@@ -98,11 +100,32 @@ const handleLocationUpdate = ({
   isMapCenteredOnUser,
   isFollowModeActive,
   currentRegion,
+  explorationPath,
+  isSessionActive,
 }: HandleLocationUpdateOptions) => {
   dispatch(updateLocation(location));
 
   // Process location for stats tracking
   dispatch(processGeoPoint({ geoPoint: location }));
+
+  // Trigger immediate session area recalculation for real-time updates
+  // This ensures session area updates immediately when new GPS points are added
+  if (isSessionActive && explorationPath.length >= 3) {
+    const serializableGPSData = explorationPath.map((point) => ({
+      latitude: point.latitude,
+      longitude: point.longitude,
+      timestamp: point.timestamp || Date.now(),
+    }));
+
+    dispatch(recalculateArea(serializableGPSData));
+
+    logger.debug('Triggered real-time area recalculation after GPS point', {
+      component: 'MapScreen',
+      action: 'handleLocationUpdate',
+      pathLength: explorationPath.length,
+      newPoint: `${location.latitude.toFixed(6)}, ${location.longitude.toFixed(6)}`,
+    });
+  }
 
   // Auto-center map if follow mode is active OR if user clicked center once
   const shouldCenterMap = isFollowModeActive || isMapCenteredOnUser;
@@ -279,6 +302,8 @@ function setupLocationListeners({
   isMapCenteredOnUser,
   isFollowModeActive,
   currentRegion,
+  explorationPath,
+  isSessionActive,
 }: {
   isActiveRef: { current: boolean };
   dispatch: ReturnType<typeof useAppDispatch>;
@@ -286,6 +311,8 @@ function setupLocationListeners({
   isMapCenteredOnUser: boolean;
   isFollowModeActive: boolean;
   currentRegion: Region | undefined;
+  explorationPath: GeoPoint[];
+  isSessionActive: boolean;
 }) {
   const locationUpdateListener = DeviceEventEmitter.addListener(
     'locationUpdate',
@@ -303,6 +330,8 @@ function setupLocationListeners({
           isMapCenteredOnUser,
           isFollowModeActive,
           currentRegion,
+          explorationPath,
+          isSessionActive,
         });
       }
     }
@@ -341,6 +370,8 @@ function setupLocationListeners({
           isMapCenteredOnUser,
           isFollowModeActive,
           currentRegion,
+          explorationPath,
+          isSessionActive,
         });
 
         logger.info('✅ GPS injection handleLocationUpdate called', {
@@ -376,6 +407,8 @@ async function getInitialLocation({
   isMapCenteredOnUser,
   isFollowModeActive,
   currentRegion,
+  explorationPath,
+  isSessionActive,
 }: {
   isActiveRef: { current: boolean };
   dispatch: ReturnType<typeof useAppDispatch>;
@@ -383,6 +416,8 @@ async function getInitialLocation({
   isMapCenteredOnUser: boolean;
   isFollowModeActive: boolean;
   currentRegion: Region | undefined;
+  explorationPath: GeoPoint[];
+  isSessionActive: boolean;
 }) {
   try {
     const initialLocation = await Location.getCurrentPositionAsync({
@@ -401,6 +436,8 @@ async function getInitialLocation({
         isMapCenteredOnUser,
         isFollowModeActive,
         currentRegion,
+        explorationPath,
+        isSessionActive,
       });
     }
   } catch (error) {
@@ -476,6 +513,8 @@ const initializeLocationServices = async (
     isMapCenteredOnUser: boolean;
     isFollowModeActive: boolean;
     currentRegion: Region | undefined;
+    explorationPath: GeoPoint[];
+    isSessionActive: boolean;
   }
 ) => {
   // Initialize BackgroundLocationService
@@ -495,15 +534,17 @@ const initializeLocationServices = async (
   await getInitialLocation(locationParams);
 };
 
-// SIMPLIFIED LOCATION SERVICE INITIALIZATION
+// Initialize location services with pre-verified permissions
 // Permissions are already verified by PermissionVerificationService
-const initializeLocationServicesDirectly = async ({
+const initializeLocationServicesWithVerifiedPermissions = async ({
   isActiveRef,
   dispatch,
   mapRef,
   isMapCenteredOnUser,
   isFollowModeActive,
   currentRegion,
+  explorationPath,
+  isSessionActive,
   backgroundGranted = false, // Default to false, must be explicitly passed
 }: {
   isActiveRef: { current: boolean };
@@ -512,12 +553,14 @@ const initializeLocationServicesDirectly = async ({
   isMapCenteredOnUser: boolean;
   isFollowModeActive: boolean;
   currentRegion: Region | undefined;
+  explorationPath: GeoPoint[];
+  isSessionActive: boolean;
   backgroundGranted?: boolean; // Add parameter for actual background permission status
 }) => {
   try {
     logger.info('Initializing location services (permissions already verified)', {
       component: 'MapScreen',
-      action: 'initializeLocationServicesDirectly',
+      action: 'initializeLocationServicesWithVerifiedPermissions',
       backgroundGranted,
     });
 
@@ -529,13 +572,15 @@ const initializeLocationServicesDirectly = async ({
       isMapCenteredOnUser,
       isFollowModeActive,
       currentRegion,
+      explorationPath,
+      isSessionActive,
     });
 
     logger.info('Location services initialized successfully');
   } catch (error) {
     logger.error('Failed to initialize location services', {
       component: 'MapScreen',
-      action: 'initializeLocationServicesDirectly',
+      action: 'initializeLocationServicesWithVerifiedPermissions',
       error: error instanceof Error ? error.message : String(error),
     });
     throw error;
@@ -549,6 +594,8 @@ interface LocationServiceConfig {
   isFollowModeActive: boolean;
   currentRegion: Region | undefined;
   isTrackingPaused: boolean;
+  explorationPath: GeoPoint[];
+  isSessionActive: boolean;
 }
 
 // Comprehensive configuration interface for useUnifiedLocationService
@@ -572,7 +619,7 @@ const createStartLocationServices =
     // eslint-disable-next-line max-params
   ) =>
   async () => {
-    const { mapRef, isMapCenteredOnUser, isFollowModeActive, currentRegion } = config;
+    const { mapRef, isMapCenteredOnUser, isFollowModeActive, currentRegion, explorationPath, isSessionActive } = config;
 
     try {
       logger.info('Starting location services (tracking resumed)', {
@@ -581,13 +628,15 @@ const createStartLocationServices =
       });
       const isActiveRef = { current: true };
 
-      await initializeLocationServicesDirectly({
+      await initializeLocationServicesWithVerifiedPermissions({
         isActiveRef,
         dispatch,
         mapRef,
         isMapCenteredOnUser,
         isFollowModeActive,
         currentRegion,
+        explorationPath,
+        isSessionActive,
         backgroundGranted, // Pass the actual background permission status
       });
 
@@ -631,7 +680,7 @@ const useUnifiedLocationService = (config: UnifiedLocationServiceConfig) => {
     backgroundGranted = false,
   } = config;
 
-  const { mapRef, isMapCenteredOnUser, isFollowModeActive, currentRegion, isTrackingPaused } =
+  const { mapRef, isMapCenteredOnUser, isFollowModeActive, currentRegion, isTrackingPaused, explorationPath, isSessionActive } =
     locationConfig;
   // Track if location services are currently active
   const [isLocationActive, setIsLocationActive] = useState(false);
@@ -648,13 +697,15 @@ const useUnifiedLocationService = (config: UnifiedLocationServiceConfig) => {
       isMapCenteredOnUser,
       isFollowModeActive,
       currentRegion,
+      explorationPath,
+      isSessionActive,
     });
 
     return () => {
       isActiveRef.current = false;
       cleanupLocationListeners(listeners);
     };
-  }, [dispatch, mapRef, isMapCenteredOnUser, isFollowModeActive, currentRegion]);
+  }, [dispatch, mapRef, isMapCenteredOnUser, isFollowModeActive, currentRegion, explorationPath, isSessionActive]);
 
   // Separate effect to handle start/stop based on pause state
   useEffect(() => {
@@ -1348,6 +1399,8 @@ const refetchLocationAfterClear = async (
     isMapCenteredOnUser: options.isMapCenteredOnUser,
     isFollowModeActive: false, // Don't trigger follow mode after data clear
     currentRegion: options.currentRegion,
+    explorationPath: [], // Empty after data clear
+    isSessionActive: false, // No active session after data clear
   });
 };
 
@@ -1632,6 +1685,11 @@ const useMapScreenServices = (config: MapScreenServicesFullConfig) => {
     explorationState,
   } = servicesConfig;
 
+  // Get session state for real-time area calculation
+  const isSessionActive = useAppSelector(
+    (state) => state.stats.currentSession && !state.stats.currentSession.endTime
+  );
+
   // Only log when location services actually start/stop, not on every render
   // (Removed excessive debug logging that was flooding console)
 
@@ -1644,6 +1702,8 @@ const useMapScreenServices = (config: MapScreenServicesFullConfig) => {
       isFollowModeActive,
       currentRegion,
       isTrackingPaused,
+      explorationPath: explorationState.path,
+      isSessionActive,
     },
     allowLocationRequests,
     ...(setPermissionsGranted && { onPermissionsGranted: setPermissionsGranted }),
