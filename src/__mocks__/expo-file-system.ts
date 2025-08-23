@@ -9,11 +9,14 @@ export const getInfoAsync = jest.fn().mockResolvedValue({
 
 export const readAsStringAsync = jest.fn().mockResolvedValue('[]');
 
+export const writeAsStringAsync = jest.fn().mockResolvedValue(undefined);
+
 export const deleteAsync = jest.fn().mockResolvedValue(undefined);
 
 export default {
   documentDirectory,
   getInfoAsync,
   readAsStringAsync,
+  writeAsStringAsync,
   deleteAsync,
 };

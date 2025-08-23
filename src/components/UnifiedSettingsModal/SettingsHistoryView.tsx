@@ -1,7 +1,9 @@
-import React from 'react';
-import { View, Text, TouchableOpacity } from 'react-native';
+/* eslint-disable max-lines-per-function */
+import React, { useState } from 'react';
+import { View, Text, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { DataStats, ClearOption } from '../../types/dataClear';
+import { DataImportExportService } from '../../services/DataImportExportService';
 
 const DATA_CLEAR_OPTIONS: ClearOption[] = [
   {
@@ -27,7 +29,99 @@ interface SettingsHistoryViewProps {
   isClearing: boolean;
   onBackToMain: () => void;
   styles: any;
+  onDataImported?: () => void; // Optional callback when data is imported
 }
+
+// Hook for handling export/import operations
+const useDataImportExport = (onDataImported?: () => void) => {
+  const [isExporting, setIsExporting] = useState(false);
+  const [isImporting, setIsImporting] = useState(false);
+
+  const handleExportData = async () => {
+    if (isExporting || isImporting) return;
+
+    setIsExporting(true);
+    try {
+      const result = await DataImportExportService.exportData();
+
+      if (result.success) {
+        Alert.alert(
+          'Export Successful',
+          'Your exploration data has been saved and can be shared or backed up.',
+          [{ text: 'OK' }]
+        );
+      } else {
+        Alert.alert('Export Failed', result.error ?? 'Failed to export exploration data', [
+          { text: 'OK' },
+        ]);
+      }
+    } catch (_error) {
+      Alert.alert('Export Error', 'An unexpected error occurred while exporting your data.', [
+        { text: 'OK' },
+      ]);
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  const handleImportData = async () => {
+    if (isExporting || isImporting) return;
+
+    // Show warning about overwriting existing data
+    Alert.alert(
+      'Import Exploration Data',
+      'This will replace your current exploration data. Your existing data will be lost. Are you sure you want to continue?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Import',
+          style: 'destructive',
+          onPress: async () => {
+            setIsImporting(true);
+            try {
+              const result = await DataImportExportService.importData();
+
+              if (result.success) {
+                Alert.alert(
+                  'Import Successful',
+                  `Successfully imported ${result.pointsImported ?? 0} data points.`,
+                  [
+                    {
+                      text: 'OK',
+                      onPress: () => {
+                        // Trigger refresh of data stats if callback provided
+                        onDataImported?.();
+                      },
+                    },
+                  ]
+                );
+              } else {
+                Alert.alert('Import Failed', result.error ?? 'Failed to import exploration data', [
+                  { text: 'OK' },
+                ]);
+              }
+            } catch (_error) {
+              Alert.alert(
+                'Import Error',
+                'An unexpected error occurred while importing your data.',
+                [{ text: 'OK' }]
+              );
+            } finally {
+              setIsImporting(false);
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  return {
+    isExporting,
+    isImporting,
+    handleExportData,
+    handleImportData,
+  };
+};
 
 export const SettingsHistoryView: React.FC<SettingsHistoryViewProps> = ({
   dataStats,
@@ -35,7 +129,10 @@ export const SettingsHistoryView: React.FC<SettingsHistoryViewProps> = ({
   isClearing,
   onBackToMain,
   styles,
+  onDataImported,
 }) => {
+  const { isExporting, isImporting, handleExportData, handleImportData } =
+    useDataImportExport(onDataImported);
   const formatDate = (date: Date | null) =>
     date
       ? date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
@@ -73,7 +170,7 @@ export const SettingsHistoryView: React.FC<SettingsHistoryViewProps> = ({
         <TouchableOpacity style={styles.backButton} onPress={onBackToMain} testID="back-button">
           <MaterialIcons name="arrow-back" size={24} color="#007AFF" />
         </TouchableOpacity>
-        <Text style={styles.title}>Clear Exploration Data</Text>
+        <Text style={styles.title}>Exploration Data Management</Text>
         <View style={{ width: 24 }} />
       </View>
 
@@ -85,6 +182,70 @@ export const SettingsHistoryView: React.FC<SettingsHistoryViewProps> = ({
           <Text style={styles.statsText}>Oldest: {formatDate(dataStats.oldestDate)}</Text>
           <Text style={styles.statsText}>Newest: {formatDate(dataStats.newestDate)}</Text>
         </View>
+
+        {/* Data Import/Export Section */}
+        <View style={[styles.statsContainer, { marginBottom: 20 }]}>
+          <Text style={styles.statsTitle}>Data Backup & Restore</Text>
+
+          <TouchableOpacity
+            style={[styles.menuItem, (isExporting || isImporting) && styles.disabledMenuItem]}
+            onPress={handleExportData}
+            disabled={isExporting || isImporting}
+          >
+            <MaterialIcons
+              name="backup"
+              size={20}
+              color={isExporting || isImporting ? '#999' : '#007AFF'}
+            />
+            <View style={styles.menuItemContent}>
+              <Text
+                style={[
+                  styles.menuItemText,
+                  (isExporting || isImporting) && styles.disabledMenuItemText,
+                ]}
+              >
+                Export Data
+              </Text>
+              <Text style={styles.menuItemDescription}>
+                Save your exploration data to a file for backup
+              </Text>
+            </View>
+            {isExporting && (
+              <ActivityIndicator size="small" color="#007AFF" testID="export-loading" />
+            )}
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.menuItem, (isExporting || isImporting) && styles.disabledMenuItem]}
+            onPress={handleImportData}
+            disabled={isExporting || isImporting}
+          >
+            <MaterialIcons
+              name="restore"
+              size={20}
+              color={isExporting || isImporting ? '#999' : '#007AFF'}
+            />
+            <View style={styles.menuItemContent}>
+              <Text
+                style={[
+                  styles.menuItemText,
+                  (isExporting || isImporting) && styles.disabledMenuItemText,
+                ]}
+              >
+                Import Data
+              </Text>
+              <Text style={styles.menuItemDescription}>
+                Restore exploration data from a backup file
+              </Text>
+            </View>
+            {isImporting && (
+              <ActivityIndicator size="small" color="#007AFF" testID="import-loading" />
+            )}
+          </TouchableOpacity>
+        </View>
+
+        {/* Data Clearing Section */}
+        <Text style={styles.sectionHeader}>Clear Data</Text>
 
         {DATA_CLEAR_OPTIONS.map((option) => (
           <TouchableOpacity

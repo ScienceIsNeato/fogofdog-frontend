@@ -15,6 +15,7 @@ interface UnifiedSettingsModalProps {
   dataStats: DataStats;
   onClearData: (type: ClearType) => Promise<void>;
   isClearing: boolean;
+  onRefreshDataStats?: () => void; // Optional callback to refresh data stats after import
 }
 
 const UnifiedSettingsModal: React.FC<UnifiedSettingsModalProps> = ({
@@ -23,6 +24,7 @@ const UnifiedSettingsModal: React.FC<UnifiedSettingsModalProps> = ({
   dataStats,
   onClearData,
   isClearing,
+  onRefreshDataStats,
 }) => {
   const [currentView, setCurrentView] = useState<SettingsView>('main');
 
@@ -69,6 +71,7 @@ const UnifiedSettingsModal: React.FC<UnifiedSettingsModalProps> = ({
           isClearing={isClearing}
           onBackToMain={handleBackToMain}
           styles={styles}
+          onDataImported={onRefreshDataStats}
         />
       );
     }
@@ -182,6 +185,22 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     padding: 12,
     marginBottom: 20,
+  },
+  statsTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 8,
+  },
+  statsText: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 2,
+  },
+  menuItemDescription: {
+    fontSize: 12,
+    color: '#999',
+    marginTop: 2,
   },
   statRow: {
     flexDirection: 'row',

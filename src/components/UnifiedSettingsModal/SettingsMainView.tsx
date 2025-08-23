@@ -37,7 +37,7 @@ export const SettingsMainView: React.FC<SettingsMainViewProps> = ({
 
       <TouchableOpacity style={styles.menuItem} onPress={onHistoryManagement}>
         <MaterialIcons name="history" size={20} color="#007AFF" />
-        <Text style={styles.menuItemText}>Exploration History Management</Text>
+        <Text style={styles.menuItemText}>Data Management</Text>
         <MaterialIcons name="chevron-right" size={20} color="#ccc" />
       </TouchableOpacity>
 
