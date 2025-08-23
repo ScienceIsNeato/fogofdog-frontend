@@ -190,22 +190,15 @@ export class DataImportExportService {
     dateRange: { earliest: number; latest: number };
   }> {
     try {
-      // Get data from Redux store state (via AsyncStorage)
-      const explorationStateData = await AsyncStorage.getItem('persist:exploration');
-      let explorationPath: GeoPoint[] = [];
-      let exploredAreas: GeoPoint[] = [];
+      // Import the store dynamically to get current Redux state
+      const { store } = await import('../store');
+      const currentState = store.getState();
 
-      if (explorationStateData) {
-        const parsedState = JSON.parse(explorationStateData);
-        if (parsedState.path) {
-          explorationPath = JSON.parse(parsedState.path);
-        }
-        if (parsedState.exploredAreas) {
-          exploredAreas = JSON.parse(parsedState.exploredAreas);
-        }
-      }
+      // Get exploration data from Redux store
+      const explorationPath: GeoPoint[] = currentState.exploration.path || [];
+      const exploredAreas: GeoPoint[] = currentState.exploration.exploredAreas || [];
 
-      // Get background locations
+      // Get background locations from AsyncStorage
       const backgroundLocationsData = await AsyncStorage.getItem('background_locations');
       let backgroundLocations: StoredLocationData[] = [];
       if (backgroundLocationsData) {
@@ -224,6 +217,15 @@ export class DataImportExportService {
           latest: Math.max(...timestamps),
         };
       }
+
+      logger.info('Gathered exploration data for export', {
+        component: 'DataImportExportService',
+        action: 'gatherExplorationData',
+        explorationPathPoints: explorationPath.length,
+        exploredAreasPoints: exploredAreas.length,
+        backgroundLocationPoints: backgroundLocations.length,
+        totalPoints,
+      });
 
       return {
         explorationPath,
