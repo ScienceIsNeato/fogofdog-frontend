@@ -64,51 +64,71 @@ const useDataImportExport = (onDataImported?: () => void) => {
     }
   };
 
+  const performImport = async (replaceExisting: boolean) => {
+    setIsImporting(true);
+    try {
+      const result = await DataImportExportService.importData(replaceExisting);
+
+      if (result.success) {
+        const mode = replaceExisting ? 'replaced' : 'merged with';
+        Alert.alert(
+          'Import Successful',
+          `Successfully ${mode} ${result.pointsImported ?? 0} data points.`,
+          [
+            {
+              text: 'OK',
+              onPress: () => {
+                // Trigger refresh of data stats if callback provided
+                onDataImported?.();
+              },
+            },
+          ]
+        );
+      } else {
+        Alert.alert('Import Failed', result.error ?? 'Failed to import exploration data', [
+          { text: 'OK' },
+        ]);
+      }
+    } catch (_error) {
+      Alert.alert(
+        'Import Error',
+        'An unexpected error occurred while importing your data.',
+        [{ text: 'OK' }]
+      );
+    } finally {
+      setIsImporting(false);
+    }
+  };
+
   const handleImportData = async () => {
     if (isExporting || isImporting) return;
 
-    // Show warning about overwriting existing data
+    // Show import mode selection
     Alert.alert(
       'Import Exploration Data',
-      'This will replace your current exploration data. Your existing data will be lost. Are you sure you want to continue?',
+      'Choose how to import the data:',
       [
         { text: 'Cancel', style: 'cancel' },
         {
-          text: 'Import',
+          text: 'Merge with Current Data',
+          onPress: () => performImport(false),
+        },
+        {
+          text: 'Replace All Data',
           style: 'destructive',
-          onPress: async () => {
-            setIsImporting(true);
-            try {
-              const result = await DataImportExportService.importData();
-
-              if (result.success) {
-                Alert.alert(
-                  'Import Successful',
-                  `Successfully imported ${result.pointsImported ?? 0} data points.`,
-                  [
-                    {
-                      text: 'OK',
-                      onPress: () => {
-                        // Trigger refresh of data stats if callback provided
-                        onDataImported?.();
-                      },
-                    },
-                  ]
-                );
-              } else {
-                Alert.alert('Import Failed', result.error ?? 'Failed to import exploration data', [
-                  { text: 'OK' },
-                ]);
-              }
-            } catch (_error) {
-              Alert.alert(
-                'Import Error',
-                'An unexpected error occurred while importing your data.',
-                [{ text: 'OK' }]
-              );
-            } finally {
-              setIsImporting(false);
-            }
+          onPress: () => {
+            Alert.alert(
+              'Confirm Replace',
+              'This will completely replace your current exploration data. Your existing data will be lost. Are you sure?',
+              [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                  text: 'Replace All',
+                  style: 'destructive',
+                  onPress: () => performImport(true),
+                },
+              ]
+            );
           },
         },
       ]

@@ -112,8 +112,9 @@ export class DataImportExportService {
 
   /**
    * Import exploration data from a file
+   * @param replaceExisting - If true, completely replace current data. If false, merge with existing data.
    */
-  static async importData(): Promise<{
+  static async importData(replaceExisting: boolean = false): Promise<{
     success: boolean;
     data?: ExplorationExportData;
     error?: string;
@@ -151,7 +152,7 @@ export class DataImportExportService {
       }
 
       // Store the imported data
-      await this.storeImportedData(importData);
+      await this.storeImportedData(importData, replaceExisting);
 
       logger.info('Successfully imported exploration data', {
         component: 'DataImportExportService',
@@ -253,26 +254,67 @@ export class DataImportExportService {
 
   /**
    * Store imported data back to the appropriate storage locations
+   * @param importData - The data to import
+   * @param replaceExisting - If true, replace all data. If false, merge with existing data.
    */
-  private static async storeImportedData(importData: ExplorationExportData): Promise<void> {
+  private static async storeImportedData(importData: ExplorationExportData, replaceExisting: boolean): Promise<void> {
     try {
-      // Store exploration path and explored areas back to Redux persistence
-      const explorationState = {
-        path: JSON.stringify(importData.explorationPath),
-        exploredAreas: JSON.stringify(importData.exploredAreas),
-      };
-
-      await AsyncStorage.setItem('persist:exploration', JSON.stringify(explorationState));
-
-      // Store background locations
-      await AsyncStorage.setItem(
-        'background_locations',
-        JSON.stringify(importData.backgroundLocations)
-      );
+      // Import the store to update Redux state
+      const { store } = await import('../store');
+      const { addPathPoint, clearAllData } = await import('../store/slices/explorationSlice');
+      
+      if (replaceExisting) {
+        // Clear existing Redux data first
+        store.dispatch(clearAllData());
+        
+        // Replace background locations in AsyncStorage
+        await AsyncStorage.setItem(
+          'background_locations',
+          JSON.stringify(importData.backgroundLocations)
+        );
+        
+        logger.info('Cleared existing data for replacement import', {
+          component: 'DataImportExportService',
+          action: 'storeImportedData',
+          mode: 'replace',
+        });
+      } else {
+        // Merge mode: get existing background locations and combine them
+        const existingBackgroundData = await AsyncStorage.getItem('background_locations');
+        let existingBackgroundLocations: StoredLocationData[] = [];
+        if (existingBackgroundData) {
+          existingBackgroundLocations = JSON.parse(existingBackgroundData);
+        }
+        
+        // Combine existing and imported background locations
+        const combinedBackgroundLocations = [...existingBackgroundLocations, ...importData.backgroundLocations];
+        
+        await AsyncStorage.setItem(
+          'background_locations',
+          JSON.stringify(combinedBackgroundLocations)
+        );
+        
+        logger.info('Merged with existing background locations', {
+          component: 'DataImportExportService',
+          action: 'storeImportedData',
+          mode: 'merge',
+          existingCount: existingBackgroundLocations.length,
+          importedCount: importData.backgroundLocations.length,
+        });
+      }
+      
+      // Add imported path points to Redux store (one by one to maintain proper state updates)
+      for (const point of importData.explorationPath) {
+        store.dispatch(addPathPoint(point));
+      }
+      
+      // Note: exploredAreas are calculated automatically from path points in the slice
+      // so we don't need to manually add them
 
       logger.info('Successfully stored imported exploration data', {
         component: 'DataImportExportService',
         action: 'storeImportedData',
+        mode: replaceExisting ? 'replace' : 'merge',
         pathPoints: importData.explorationPath.length,
         exploredAreas: importData.exploredAreas.length,
         backgroundLocations: importData.backgroundLocations.length,
