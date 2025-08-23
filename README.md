@@ -236,33 +236,6 @@ npx eas build --platform ios --profile production
 └─────────────────────────────────────────────────────────────┘
 ```
 
-### Data Flow
-1. **Location Updates**: Expo Location → BackgroundLocationService → Redux Store
-2. **Fog Rendering**: Redux Store → OptimizedFogOverlay → Skia Canvas
-3. **Statistics**: GPS Path → StatsCalculationService → HUD Display
-4. **Persistence**: Redux State ↔ AsyncStorage via middleware
-
-### Key Design Patterns
-- **Service Layer**: Encapsulates external API interactions
-- **Redux Toolkit**: Centralized state with immutable updates
-- **Component Composition**: Reusable UI components with clear interfaces
-- **Dependency Injection**: Services injected via React Context
-- **Error Boundaries**: Graceful error handling at component level
-
----
-
-## 📊 Quality Tools
-
-The project uses automated quality checks via GitHub Actions:
-
-- **Jest** - Unit testing
-- **ESLint** - Code linting 
-- **TypeScript** - Type checking
-- **Prettier** - Code formatting
-- **SonarQube** - Static analysis
-- **jscpd** - Duplicate detection
-- **npm audit** - Security scanning
-
 View current status: [Quality Gate Workflow](https://github.com/ScienceIsNeato/fogofdog-frontend/actions/workflows/maintainAIbility-gate.yml)
 
 ---
@@ -276,12 +249,3 @@ This project is proprietary software. All rights reserved.
 ---
 
 
-
-<div align="center">
-
-**FogOfDog - Private GPS Exploration App**
-
-[![🐛 Report Bug](https://img.shields.io/badge/Report-Bug-red?style=for-the-badge&logo=github&logoColor=white)](https://github.com/ScienceIsNeato/fogofdog-frontend/issues)
-[![💡 Request Feature](https://img.shields.io/badge/Request-Feature-blue?style=for-the-badge&logo=github&logoColor=white)](https://github.com/ScienceIsNeato/fogofdog-frontend/issues)
-
-</div>

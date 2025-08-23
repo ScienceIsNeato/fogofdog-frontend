@@ -199,14 +199,6 @@ export class GPSConnectionService {
       });
     }
 
-    logger.info('GPS points processed with connection metadata', {
-      component: 'GPSConnectionService',
-      action: 'processGPSPoints',
-      totalPoints: processedPoints.length,
-      connectedPoints: processedPoints.filter((p) => p.connectsToPrevious).length,
-      sessionStarts: processedPoints.filter((p) => p.startsNewSession).length,
-    });
-
     return processedPoints;
   }
 
