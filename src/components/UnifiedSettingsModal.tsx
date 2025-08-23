@@ -71,7 +71,7 @@ const UnifiedSettingsModal: React.FC<UnifiedSettingsModalProps> = ({
           isClearing={isClearing}
           onBackToMain={handleBackToMain}
           styles={styles}
-          onDataImported={onRefreshDataStats}
+          onDataImported={onRefreshDataStats ?? undefined}
         />
       );
     }

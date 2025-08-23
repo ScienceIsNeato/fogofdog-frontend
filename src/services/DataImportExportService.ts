@@ -139,7 +139,7 @@ export class DataImportExportService {
       }
 
       // Read file content
-      const fileContent = await FileSystem.readAsStringAsync(result.assets[0].uri);
+      const fileContent = await FileSystem.readAsStringAsync(result.assets?.[0]?.uri ?? '');
       const importData: ExplorationExportData = JSON.parse(fileContent);
 
       // Validate the import data

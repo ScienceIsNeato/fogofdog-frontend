@@ -20,7 +20,7 @@ const mockAsyncStorage = AsyncStorage as jest.Mocked<typeof AsyncStorage>;
 describe('DataImportExportService', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    mockFileSystem.documentDirectory = '/mock/documents/';
+    (mockFileSystem as any).documentDirectory = '/mock/documents/';
     mockSharing.isAvailableAsync.mockResolvedValue(true);
   });
 
@@ -52,7 +52,7 @@ describe('DataImportExportService', () => {
       });
 
       mockFileSystem.writeAsStringAsync.mockResolvedValue();
-      mockSharing.shareAsync.mockResolvedValue({ action: 'shared' as const });
+      mockSharing.shareAsync.mockResolvedValue({} as any);
 
       const result = await DataImportExportService.exportData();
 

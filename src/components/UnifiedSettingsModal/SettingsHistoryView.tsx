@@ -29,7 +29,7 @@ interface SettingsHistoryViewProps {
   isClearing: boolean;
   onBackToMain: () => void;
   styles: any;
-  onDataImported?: () => void; // Optional callback when data is imported
+  onDataImported?: (() => void) | undefined; // Optional callback when data is imported
 }
 
 // Hook for handling export/import operations
