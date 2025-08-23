@@ -311,6 +311,9 @@ export class DataImportExportService {
       // Note: exploredAreas are calculated automatically from path points in the slice
       // so we don't need to manually add them
 
+      // Recalculate stats from all GPS data after import
+      await this.recalculateStatsAfterImport(replaceExisting);
+
       logger.info('Successfully stored imported exploration data', {
         component: 'DataImportExportService',
         action: 'storeImportedData',
@@ -326,6 +329,71 @@ export class DataImportExportService {
         errorMessage: error instanceof Error ? error.message : UNKNOWN_ERROR_MESSAGE,
       });
       throw error;
+    }
+  }
+
+  /**
+   * Recalculate stats from all GPS data after import
+   * @param replaceExisting - Whether this was a replace or merge operation
+   */
+  private static async recalculateStatsAfterImport(replaceExisting: boolean): Promise<void> {
+    try {
+      const { store } = await import('../store');
+      const { initializeFromHistory } = await import('../store/slices/statsSlice');
+      const { StatsPersistenceService } = await import('./StatsPersistenceService');
+      
+      // Get all GPS data from current Redux state and AsyncStorage
+      const currentState = store.getState();
+      const explorationPath = currentState.exploration.path || [];
+      
+      // Get background locations from AsyncStorage
+      const backgroundLocationsData = await AsyncStorage.getItem('background_locations');
+      let backgroundLocations: StoredLocationData[] = [];
+      if (backgroundLocationsData) {
+        backgroundLocations = JSON.parse(backgroundLocationsData);
+      }
+      
+      // Combine all GPS data for stats calculation
+      const allGPSData = [
+        ...explorationPath,
+        ...backgroundLocations.map(loc => ({
+          latitude: loc.latitude,
+          longitude: loc.longitude,
+          timestamp: loc.timestamp
+        }))
+      ];
+      
+      logger.info('Recalculating stats after import', {
+        component: 'DataImportExportService',
+        action: 'recalculateStatsAfterImport',
+        mode: replaceExisting ? 'replace' : 'merge',
+        totalGPSPoints: allGPSData.length,
+        explorationPathPoints: explorationPath.length,
+        backgroundLocationPoints: backgroundLocations.length,
+      });
+      
+      // Dispatch Redux action to recalculate stats from complete history
+      store.dispatch(initializeFromHistory({ gpsHistory: allGPSData }));
+      
+      // Save the recalculated stats to persistence
+      const updatedState = store.getState();
+      await StatsPersistenceService.saveStatsImmediate(updatedState.stats.total);
+      
+      logger.info('Successfully recalculated stats after import', {
+        component: 'DataImportExportService',
+        action: 'recalculateStatsAfterImport',
+        newTotalDistance: updatedState.stats.total.distance,
+        newTotalArea: updatedState.stats.total.area,
+        newTotalTime: updatedState.stats.total.time,
+      });
+      
+    } catch (error) {
+      logger.error('Failed to recalculate stats after import', {
+        component: 'DataImportExportService',
+        action: 'recalculateStatsAfterImport',
+        errorMessage: error instanceof Error ? error.message : UNKNOWN_ERROR_MESSAGE,
+      });
+      // Don't throw - import should still succeed even if stats calc fails
     }
   }
 
