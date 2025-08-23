@@ -13,32 +13,9 @@
 
 ---
 
-## 🚦 Quality & Build Status
+## 🚦 Build Status
 
-<div align="center">
-
-### 🏗️ Continuous Integration
-[![Build Status](https://github.com/ScienceIsNeato/fogofdog-frontend/workflows/maintainAIbility-gate/badge.svg)](https://github.com/ScienceIsNeato/fogofdog-frontend/actions)
-[![GitHub Workflow Status](https://img.shields.io/github/actions/workflow/status/ScienceIsNeato/fogofdog-frontend/maintainAIbility-gate.yml?branch=main&label=Quality%20Gate)](https://github.com/ScienceIsNeato/fogofdog-frontend/actions)
-
-### 📊 Code Quality Metrics
-[![CodeFactor](https://www.codefactor.io/repository/github/ScienceIsNeato/fogofdog-frontend/badge)](https://www.codefactor.io/repository/github/ScienceIsNeato/fogofdog-frontend)
-[![Maintainability](https://api.codeclimate.com/v1/badges/YOUR_CODECLIMATE_ID/maintainability)](https://codeclimate.com/github/ScienceIsNeato/fogofdog-frontend/maintainability)
-[![Test Coverage](https://api.codeclimate.com/v1/badges/YOUR_CODECLIMATE_ID/test_coverage)](https://codeclimate.com/github/ScienceIsNeato/fogofdog-frontend/test_coverage)
-
-### 🔒 Security & Dependencies  
-[![Known Vulnerabilities](https://snyk.io/test/github/ScienceIsNeato/fogofdog-frontend/badge.svg)](https://snyk.io/test/github/ScienceIsNeato/fogofdog-frontend)
-[![Dependencies](https://img.shields.io/david/ScienceIsNeato/fogofdog-frontend)](https://david-dm.org/ScienceIsNeato/fogofdog-frontend)
-[![DevDependencies](https://img.shields.io/david/dev/ScienceIsNeato/fogofdog-frontend)](https://david-dm.org/ScienceIsNeato/fogofdog-frontend?type=dev)
-
-### 📱 Platform & Framework
-[![Platform](https://img.shields.io/badge/Platform-iOS%20%7C%20Android-blue?logo=react&logoColor=white)](https://reactnative.dev/)
-[![Framework](https://img.shields.io/badge/Built%20with-Expo%20%7C%20React%20Native-000020?logo=expo&logoColor=white)](https://expo.dev/)
-[![TypeScript](https://img.shields.io/badge/TypeScript-Strict%20Mode-blue?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
-
-**Quality Gates:** This project enforces strict quality standards with automated testing, linting, type checking, security scanning, and code coverage analysis on every commit.
-
-</div>
+All quality checks are automated via GitHub Actions. Check the [workflow runs](https://github.com/ScienceIsNeato/fogofdog-frontend/actions/workflows/maintainAIbility-gate.yml) for detailed results.
 
 ---
 
@@ -274,33 +251,19 @@ npx eas build --platform ios --profile production
 
 ---
 
-## 📊 Quality Dashboard
+## 📊 Quality Tools
 
-FogOfDog project maintains enterprise-level code quality through automated monitoring:
+The project uses automated quality checks via GitHub Actions:
 
-### 🎯 Quality Metrics
-- **Code Coverage**: Above threshold with comprehensive test suite
-- **Code Duplication**: Well below threshold (excellent code quality)
-- **Circular Dependencies**: 0 (clean architecture)
-- **Security Vulnerabilities**: 0 (all dependencies secure)
-- **ESLint Warnings**: 0 (strict enforcement)
+- **Jest** - Unit testing
+- **ESLint** - Code linting 
+- **TypeScript** - Type checking
+- **Prettier** - Code formatting
+- **SonarQube** - Static analysis
+- **jscpd** - Duplicate detection
+- **npm audit** - Security scanning
 
-### 🔧 Quality Tools
-- **SonarQube Cloud**: Enterprise-grade static analysis with A ratings across Security, Reliability, and Maintainability
-- **SonarJS**: Same quality rules as SonarCloud Enterprise (integrated via ESLint)
-- **jscpd**: Duplicate code detection
-- **madge**: Circular dependency analysis  
-- **Prettier**: Consistent code formatting
-- **unimported**: Dead code detection
-- **npm audit**: Security vulnerability scanning
-
-### 📈 CI/CD Pipeline
-Our GitHub Actions workflow ensures quality:
-1. **🔒 Security Audit** - High-priority vulnerability scanning
-2. **🧹 Lint Check** - Zero warnings policy
-3. **🔧 TypeScript Check** - Strict type safety
-4. **📊 Test Coverage** - Comprehensive test execution
-5. **🏗️ Build Verification** - Multi-platform export validation
+View current status: [Quality Gate Workflow](https://github.com/ScienceIsNeato/fogofdog-frontend/actions/workflows/maintainAIbility-gate.yml)
 
 ---
 
