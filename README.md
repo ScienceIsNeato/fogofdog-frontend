@@ -4,7 +4,7 @@
 
 **An interactive location-based exploration app that reveals the world as you walk through it**
 
-[![GitHub Actions](https://github.com/ScienceIsNeato/fogofdog-frontend/workflows/maintainAIbility-gate/badge.svg)](https://github.com/ScienceIsNeato/fogofdog-frontend/actions)
+[![GitHub Actions](https://github.com/ScienceIsNeato/fogofdog-frontend/workflows/maintainAIbility-gate/badge.svg)](https://github.com/ScienceIsNeato/fogofdog-frontend/actions/workflows/maintainAIbility-gate.yml)
 [![GitHub Issues](https://img.shields.io/github/issues/ScienceIsNeato/fogofdog-frontend)](https://github.com/ScienceIsNeato/fogofdog-frontend/issues)
 [![GitHub Pull Requests](https://img.shields.io/github/issues-pr/ScienceIsNeato/fogofdog-frontend)](https://github.com/ScienceIsNeato/fogofdog-frontend/pulls)
 [![GitHub Last Commit](https://img.shields.io/github/last-commit/ScienceIsNeato/fogofdog-frontend)](https://github.com/ScienceIsNeato/fogofdog-frontend/commits/main)
@@ -244,18 +244,18 @@ npx eas build --platform ios --profile production
 ├─────────────────────────────────────────────────────────────┤
 │                     Business Logic Layer                    │
 ├─────────────────────────────────────────────────────────────┤
-│  Services/                        │  Store/                │
-│  - BackgroundLocationService     │  - explorationSlice    │
-│  - GPSInjectionService          │  - statsSlice          │
-│  - StatsCalculationService      │  - userSlice           │
-│  - PermissionsOrchestrator       │                        │
+│  Services/                        │  Store/                 │
+│  - BackgroundLocationService      │  - explorationSlice     │
+│  - GPSInjectionService            │  - statsSlice           │
+│  - StatsCalculationService        │  - userSlice            │
+│  - PermissionsOrchestrator        │                         │
 ├─────────────────────────────────────────────────────────────┤
 │                      Data Layer                             │
 ├─────────────────────────────────────────────────────────────┤
-│  - AsyncStorage (exploration state)                        │
+│  - AsyncStorage (exploration state)                         │
 │  - Expo Location API                                        │
 │  - React Native Maps                                        │
-│  - React Native Skia (fog rendering)                       │
+│  - React Native Skia (fog rendering)                        │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -276,7 +276,7 @@ npx eas build --platform ios --profile production
 
 ## 📊 Quality Dashboard
 
-Our project maintains enterprise-level code quality through automated monitoring:
+FogOfDog project maintains enterprise-level code quality through automated monitoring:
 
 ### 🎯 Quality Metrics
 - **Code Coverage**: Above threshold with comprehensive test suite
