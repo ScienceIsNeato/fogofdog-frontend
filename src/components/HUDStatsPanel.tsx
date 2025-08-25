@@ -173,15 +173,16 @@ const HUDDataRow: React.FC<{
 const styles = StyleSheet.create({
   container: {
     position: 'absolute',
-    bottom: 20, // Add breathing room from bottom of screen
+    bottom: 0, // Run all the way to bottom of screen
     left: 0,
     right: 0,
     zIndex: 1000, // Ensure it's above map elements
   },
   panel: {
-    backgroundColor: 'rgba(0, 0, 0, 0.75)', // Slightly more opaque for better readability
+    backgroundColor: 'rgba(0, 0, 0, 0.52)', // Reduced opacity by ~30% (was 0.75, now 0.52)
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingVertical: 16, // Slightly more padding since we're going to bottom
+    paddingBottom: 20, // Extra bottom padding for safe area
     borderTopWidth: 1,
     borderTopColor: 'rgba(255, 255, 255, 0.25)',
   },
@@ -248,9 +249,10 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   loadingContainer: {
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    backgroundColor: 'rgba(0, 0, 0, 0.52)', // Match the main panel opacity
     paddingHorizontal: 16,
     paddingVertical: 20,
+    paddingBottom: 20, // Extra bottom padding for safe area
     alignItems: 'center',
   },
   loadingText: {

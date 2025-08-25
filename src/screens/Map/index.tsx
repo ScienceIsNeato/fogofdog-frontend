@@ -43,6 +43,7 @@ import { SettingsButton } from '../../components/SettingsButton';
 import UnifiedSettingsModal from '../../components/UnifiedSettingsModal';
 import { HUDStatsPanel } from '../../components/HUDStatsPanel';
 import { GPSInjectionIndicator } from '../../components/GPSInjectionIndicator';
+import { MapDistanceScale } from '../../components/MapDistanceScale';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { logger } from '../../utils/logger';
 
@@ -63,6 +64,48 @@ const LOCATION_TASK = 'unified-location-task';
 const DEFAULT_ZOOM_DELTAS = {
   latitudeDelta: 0.0922,
   longitudeDelta: 0.0421,
+};
+
+// Animation constants for cinematic zoom
+const CINEMATIC_ZOOM_DELAY = 800; // ms to show wide view
+const CINEMATIC_ZOOM_DURATION = 1800; // ms for zoom animation
+
+// Calculate region that encompasses exploration path with padding
+export const calculateExplorationBounds = (explorationPath: GeoPoint[]): Region | null => {
+  if (explorationPath.length === 0) return null;
+
+  // Find min/max coordinates
+  const firstPoint = explorationPath[0];
+  if (!firstPoint) return null;
+
+  let minLat = firstPoint.latitude;
+  let maxLat = firstPoint.latitude;
+  let minLng = firstPoint.longitude;
+  let maxLng = firstPoint.longitude;
+
+  explorationPath.forEach((point) => {
+    minLat = Math.min(minLat, point.latitude);
+    maxLat = Math.max(maxLat, point.latitude);
+    minLng = Math.min(minLng, point.longitude);
+    maxLng = Math.max(maxLng, point.longitude);
+  });
+
+  // Calculate center and deltas with padding
+  const centerLat = (minLat + maxLat) / 2;
+  const centerLng = (minLng + maxLng) / 2;
+  const latDelta = (maxLat - minLat) * 1.5; // 50% padding
+  const lngDelta = (maxLng - minLng) * 1.5; // 50% padding
+
+  // Ensure minimum zoom level (don't zoom in too much for small areas)
+  const minLatDelta = DEFAULT_ZOOM_DELTAS.latitudeDelta * 2; // At least 2x normal zoom
+  const minLngDelta = DEFAULT_ZOOM_DELTAS.longitudeDelta * 2;
+
+  return {
+    latitude: centerLat,
+    longitude: centerLng,
+    latitudeDelta: Math.max(latDelta, minLatDelta),
+    longitudeDelta: Math.max(lngDelta, minLngDelta),
+  };
 };
 
 // Define max zoom out deltas (approx 50 mile view diameter / 25 mile radius)
@@ -1234,6 +1277,46 @@ const MapScreenRenderer = ({
   currentFogRegion,
   handleSettingsPress,
 }: MapScreenRendererProps) => {
+  // Get exploration path for cinematic zoom calculation (must be before early return)
+  const explorationPath = useAppSelector((state) => state.exploration.path);
+
+  // Calculate cinematic initial region or fallback to current location (must be before early return)
+  const explorationBounds = useMemo(() => {
+    // Only use cinematic zoom if we have significant GPS history (5+ points)
+    if (explorationPath.length >= 5) {
+      return calculateExplorationBounds(explorationPath);
+    }
+    return null;
+  }, [explorationPath]);
+
+  // Cinematic zoom effect - animate to current location after showing exploration area (must be before early return)
+  useEffect(() => {
+    if (explorationBounds && mapRef.current && currentLocation) {
+      const targetRegion = {
+        latitude: currentLocation.latitude,
+        longitude: currentLocation.longitude,
+        latitudeDelta: DEFAULT_ZOOM_DELTAS.latitudeDelta,
+        longitudeDelta: DEFAULT_ZOOM_DELTAS.longitudeDelta,
+      };
+
+      // Delay then animate to current location
+      const timeoutId = setTimeout(() => {
+        mapRef.current?.animateToRegion(targetRegion, CINEMATIC_ZOOM_DURATION);
+        logger.info('Cinematic zoom animation started', {
+          component: 'MapScreen',
+          action: 'cinematicZoom',
+          from: explorationBounds,
+          to: targetRegion,
+          duration: CINEMATIC_ZOOM_DURATION,
+        });
+      }, CINEMATIC_ZOOM_DELAY);
+
+      return () => clearTimeout(timeoutId);
+    }
+    // No cleanup needed if conditions aren't met
+    return undefined;
+  }, [explorationBounds, currentLocation, mapRef]);
+
   // Don't render map until we have a real location
   if (!currentLocation) {
     return (
@@ -1247,8 +1330,8 @@ const MapScreenRenderer = ({
     );
   }
 
-  // Create initial region from current location
-  const initialRegion = {
+  // Create initial region - use exploration bounds for cinematic effect, or current location
+  const initialRegion = explorationBounds ?? {
     latitude: currentLocation.latitude,
     longitude: currentLocation.longitude,
     latitudeDelta: DEFAULT_ZOOM_DELTAS.latitudeDelta,
@@ -1282,6 +1365,11 @@ const MapScreenRenderer = ({
       {/* Use OptimizedFogOverlay for better performance with many GPS points */}
       {currentFogRegion && (
         <OptimizedFogOverlay mapRegion={currentFogRegion} safeAreaInsets={insets} />
+      )}
+
+      {/* Distance scale legend */}
+      {currentFogRegion && (
+        <MapDistanceScale region={currentFogRegion} mapWidth={currentFogRegion.width} />
       )}
 
       <LocationButton

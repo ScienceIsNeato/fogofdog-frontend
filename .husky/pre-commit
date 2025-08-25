@@ -18,6 +18,6 @@ elif [ -f .env ]; then
   set +a
 fi
 
-# Use the comprehensive maintainability gate with auto-fix
-# This includes all quality checks with auto-fix capabilities
-./scripts/maintainAIbility-gate.sh --full
+# Use the parallelized maintainability gate with fail-fast
+# This includes all quality checks with auto-fix capabilities and stops on first failure
+python3 scripts/ship_it.py --fail-fast

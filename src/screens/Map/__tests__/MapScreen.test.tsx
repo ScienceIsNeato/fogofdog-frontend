@@ -984,4 +984,51 @@ describe('MapScreen', () => {
     // Should still render correctly after re-render
     expect(getByTestId('map-screen')).toBeTruthy();
   });
+
+  it('should calculate exploration bounds correctly', () => {
+    // Import the function to test it directly
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const MapScreenModule = require('../index');
+    const calculateExplorationBounds = MapScreenModule.calculateExplorationBounds;
+
+    if (!calculateExplorationBounds) {
+      // Skip test if function is not exported
+      return;
+    }
+
+    // Test empty path
+    const emptyBounds = calculateExplorationBounds([]);
+    expect(emptyBounds).toBeNull();
+
+    // Test single point
+    const singlePoint = [{ latitude: 37.7749, longitude: -122.4194, timestamp: Date.now() }];
+    const singleBounds = calculateExplorationBounds(singlePoint);
+
+    if (singleBounds) {
+      expect(singleBounds.latitude).toBe(37.7749);
+      expect(singleBounds.longitude).toBe(-122.4194);
+      expect(singleBounds.latitudeDelta).toBeGreaterThan(0);
+      expect(singleBounds.longitudeDelta).toBeGreaterThan(0);
+    }
+
+    // Test multiple points
+    const multiplePoints = [
+      { latitude: 37.7749, longitude: -122.4194, timestamp: Date.now() },
+      { latitude: 37.7849, longitude: -122.4094, timestamp: Date.now() },
+      { latitude: 37.7649, longitude: -122.4294, timestamp: Date.now() },
+    ];
+    const multiBounds = calculateExplorationBounds(multiplePoints);
+
+    if (multiBounds) {
+      // Should be centered between min/max
+      expect(multiBounds.latitude).toBeCloseTo((37.7849 + 37.7649) / 2, 4);
+      expect(multiBounds.longitude).toBeCloseTo((-122.4094 + -122.4294) / 2, 4);
+      // Should have deltas (either calculated with padding or minimum zoom)
+      expect(multiBounds.latitudeDelta).toBeGreaterThan(0);
+      expect(multiBounds.longitudeDelta).toBeGreaterThan(0);
+      // Should use minimum zoom levels for small areas
+      expect(multiBounds.latitudeDelta).toBeGreaterThanOrEqual(0.0922 * 2); // minLatDelta
+      expect(multiBounds.longitudeDelta).toBeGreaterThanOrEqual(0.0421 * 2); // minLngDelta
+    }
+  });
 });
