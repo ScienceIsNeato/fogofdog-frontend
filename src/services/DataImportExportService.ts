@@ -5,6 +5,10 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { GeoPoint } from '../types/user';
 import { StoredLocationData } from './LocationStorageService';
 import { logger } from '../utils/logger';
+import { store } from '../store';
+import { addPathPoint, clearAllData } from '../store/slices/explorationSlice';
+import { initializeFromHistory } from '../store/slices/statsSlice';
+import { StatsPersistenceService } from './StatsPersistenceService';
 
 const UNKNOWN_ERROR_MESSAGE = 'Unknown error';
 
@@ -191,8 +195,7 @@ export class DataImportExportService {
     dateRange: { earliest: number; latest: number };
   }> {
     try {
-      // Import the store dynamically to get current Redux state
-      const { store } = await import('../store');
+      // Get current Redux state
       const currentState = store.getState();
 
       // Get exploration data from Redux store
@@ -257,22 +260,21 @@ export class DataImportExportService {
    * @param importData - The data to import
    * @param replaceExisting - If true, replace all data. If false, merge with existing data.
    */
-  private static async storeImportedData(importData: ExplorationExportData, replaceExisting: boolean): Promise<void> {
+  private static async storeImportedData(
+    importData: ExplorationExportData,
+    replaceExisting: boolean
+  ): Promise<void> {
     try {
-      // Import the store to update Redux state
-      const { store } = await import('../store');
-      const { addPathPoint, clearAllData } = await import('../store/slices/explorationSlice');
-      
       if (replaceExisting) {
         // Clear existing Redux data first
         store.dispatch(clearAllData());
-        
+
         // Replace background locations in AsyncStorage
         await AsyncStorage.setItem(
           'background_locations',
           JSON.stringify(importData.backgroundLocations)
         );
-        
+
         logger.info('Cleared existing data for replacement import', {
           component: 'DataImportExportService',
           action: 'storeImportedData',
@@ -285,15 +287,18 @@ export class DataImportExportService {
         if (existingBackgroundData) {
           existingBackgroundLocations = JSON.parse(existingBackgroundData);
         }
-        
+
         // Combine existing and imported background locations
-        const combinedBackgroundLocations = [...existingBackgroundLocations, ...importData.backgroundLocations];
-        
+        const combinedBackgroundLocations = [
+          ...existingBackgroundLocations,
+          ...importData.backgroundLocations,
+        ];
+
         await AsyncStorage.setItem(
           'background_locations',
           JSON.stringify(combinedBackgroundLocations)
         );
-        
+
         logger.info('Merged with existing background locations', {
           component: 'DataImportExportService',
           action: 'storeImportedData',
@@ -302,12 +307,12 @@ export class DataImportExportService {
           importedCount: importData.backgroundLocations.length,
         });
       }
-      
+
       // Add imported path points to Redux store (one by one to maintain proper state updates)
       for (const point of importData.explorationPath) {
         store.dispatch(addPathPoint(point));
       }
-      
+
       // Note: exploredAreas are calculated automatically from path points in the slice
       // so we don't need to manually add them
 
@@ -338,31 +343,27 @@ export class DataImportExportService {
    */
   private static async recalculateStatsAfterImport(replaceExisting: boolean): Promise<void> {
     try {
-      const { store } = await import('../store');
-      const { initializeFromHistory } = await import('../store/slices/statsSlice');
-      const { StatsPersistenceService } = await import('./StatsPersistenceService');
-      
       // Get all GPS data from current Redux state and AsyncStorage
       const currentState = store.getState();
       const explorationPath = currentState.exploration.path || [];
-      
+
       // Get background locations from AsyncStorage
       const backgroundLocationsData = await AsyncStorage.getItem('background_locations');
       let backgroundLocations: StoredLocationData[] = [];
       if (backgroundLocationsData) {
         backgroundLocations = JSON.parse(backgroundLocationsData);
       }
-      
+
       // Combine all GPS data for stats calculation
       const allGPSData = [
         ...explorationPath,
-        ...backgroundLocations.map(loc => ({
+        ...backgroundLocations.map((loc) => ({
           latitude: loc.latitude,
           longitude: loc.longitude,
-          timestamp: loc.timestamp
-        }))
+          timestamp: loc.timestamp,
+        })),
       ];
-      
+
       logger.info('Recalculating stats after import', {
         component: 'DataImportExportService',
         action: 'recalculateStatsAfterImport',
@@ -371,14 +372,14 @@ export class DataImportExportService {
         explorationPathPoints: explorationPath.length,
         backgroundLocationPoints: backgroundLocations.length,
       });
-      
+
       // Dispatch Redux action to recalculate stats from complete history
       store.dispatch(initializeFromHistory({ gpsHistory: allGPSData }));
-      
+
       // Save the recalculated stats to persistence
       const updatedState = store.getState();
       await StatsPersistenceService.saveStatsImmediate(updatedState.stats.total);
-      
+
       logger.info('Successfully recalculated stats after import', {
         component: 'DataImportExportService',
         action: 'recalculateStatsAfterImport',
@@ -386,7 +387,6 @@ export class DataImportExportService {
         newTotalArea: updatedState.stats.total.area,
         newTotalTime: updatedState.stats.total.time,
       });
-      
     } catch (error) {
       logger.error('Failed to recalculate stats after import', {
         component: 'DataImportExportService',
@@ -448,7 +448,7 @@ export class DataImportExportService {
       point.latitude <= 90 &&
       point.longitude >= -180 &&
       point.longitude <= 180 &&
-      point.timestamp > 0
+      point.timestamp >= 0
     );
   }
 
@@ -469,7 +469,7 @@ export class DataImportExportService {
       point.latitude <= 90 &&
       point.longitude >= -180 &&
       point.longitude <= 180 &&
-      point.timestamp > 0 &&
+      point.timestamp >= 0 &&
       (point.accuracy === undefined || typeof point.accuracy === 'number')
     );
   }

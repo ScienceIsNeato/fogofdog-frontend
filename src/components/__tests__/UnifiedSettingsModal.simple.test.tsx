@@ -120,7 +120,7 @@ describe('UnifiedSettingsModal - Core Functionality', () => {
       // Should navigate to developer view
       expect(queryByText('Testing & Debugging')).toBeTruthy();
       expect(queryByText('Show Onboarding')).toBeTruthy();
-      expect(queryByText('Fresh Install Mode')).toBeTruthy();
+      // Fresh Install Mode was removed - no longer checking for it
     });
   });
 

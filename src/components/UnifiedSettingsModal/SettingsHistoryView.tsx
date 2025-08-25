@@ -90,11 +90,9 @@ const useDataImportExport = (onDataImported?: () => void) => {
         ]);
       }
     } catch (_error) {
-      Alert.alert(
-        'Import Error',
-        'An unexpected error occurred while importing your data.',
-        [{ text: 'OK' }]
-      );
+      Alert.alert('Import Error', 'An unexpected error occurred while importing your data.', [
+        { text: 'OK' },
+      ]);
     } finally {
       setIsImporting(false);
     }
@@ -104,35 +102,31 @@ const useDataImportExport = (onDataImported?: () => void) => {
     if (isExporting || isImporting) return;
 
     // Show import mode selection
-    Alert.alert(
-      'Import Exploration Data',
-      'Choose how to import the data:',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Merge with Current Data',
-          onPress: () => performImport(false),
+    Alert.alert('Import Exploration Data', 'Choose how to import the data:', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Merge with Current Data',
+        onPress: () => performImport(false),
+      },
+      {
+        text: 'Replace All Data',
+        style: 'destructive',
+        onPress: () => {
+          Alert.alert(
+            'Confirm Replace',
+            'This will completely replace your current exploration data. Your existing data will be lost. Are you sure?',
+            [
+              { text: 'Cancel', style: 'cancel' },
+              {
+                text: 'Replace All',
+                style: 'destructive',
+                onPress: () => performImport(true),
+              },
+            ]
+          );
         },
-        {
-          text: 'Replace All Data',
-          style: 'destructive',
-          onPress: () => {
-            Alert.alert(
-              'Confirm Replace',
-              'This will completely replace your current exploration data. Your existing data will be lost. Are you sure?',
-              [
-                { text: 'Cancel', style: 'cancel' },
-                {
-                  text: 'Replace All',
-                  style: 'destructive',
-                  onPress: () => performImport(true),
-                },
-              ]
-            );
-          },
-        },
-      ]
-    );
+      },
+    ]);
   };
 
   return {
