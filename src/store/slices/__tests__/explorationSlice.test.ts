@@ -558,6 +558,56 @@ describe('exploration slice', () => {
       expect(state.isTrackingPaused).toBe(false);
     });
 
+    it('should use last known location from GPS history when currentLocation is null', () => {
+      const persistedStateWithoutCurrentLocation = {
+        currentLocation: null,
+        path: [
+          { latitude: 37.7749, longitude: -122.4194, timestamp: Date.now() },
+          { latitude: 37.775, longitude: -122.4195, timestamp: Date.now() },
+          { latitude: 37.776, longitude: -122.4196, timestamp: Date.now() },
+        ],
+        exploredAreas: [{ latitude: 37.7749, longitude: -122.4194, timestamp: Date.now() }],
+        zoomLevel: 15,
+        isTrackingPaused: false,
+      };
+
+      store.dispatch({
+        type: 'exploration/restorePersistedState',
+        payload: persistedStateWithoutCurrentLocation,
+      });
+      const state = store.getState().exploration;
+
+      // Should use the last point in the path as currentLocation
+      expect(state.currentLocation).toEqual(persistedStateWithoutCurrentLocation.path[2]);
+      expect(state.path).toEqual(persistedStateWithoutCurrentLocation.path);
+      expect(state.exploredAreas).toEqual(persistedStateWithoutCurrentLocation.exploredAreas);
+      expect(state.zoomLevel).toBe(15);
+      expect(state.isTrackingPaused).toBe(false);
+    });
+
+    it('should keep currentLocation null when no GPS history exists', () => {
+      const persistedStateWithoutData = {
+        currentLocation: null,
+        path: [],
+        exploredAreas: [],
+        zoomLevel: 14,
+        isTrackingPaused: false,
+      };
+
+      store.dispatch({
+        type: 'exploration/restorePersistedState',
+        payload: persistedStateWithoutData,
+      });
+      const state = store.getState().exploration;
+
+      // Should remain null when no GPS history exists
+      expect(state.currentLocation).toBeNull();
+      expect(state.path).toEqual([]);
+      expect(state.exploredAreas).toEqual([]);
+      expect(state.zoomLevel).toBe(14);
+      expect(state.isTrackingPaused).toBe(false);
+    });
+
     it('should filter invalid points during restoration', () => {
       const invalidPersistedState = {
         currentLocation: null, // Invalid
@@ -577,7 +627,12 @@ describe('exploration slice', () => {
       store.dispatch({ type: 'exploration/restorePersistedState', payload: invalidPersistedState });
       const state = store.getState().exploration;
 
-      expect(state.currentLocation).toBeNull(); // Should remain null
+      // Should use last valid point as currentLocation since we have valid GPS history
+      expect(state.currentLocation).toEqual({
+        latitude: 37.775,
+        longitude: -122.4195,
+        timestamp: expect.any(Number),
+      });
       expect(state.path).toHaveLength(2); // Only valid points
       expect(state.exploredAreas).toHaveLength(1); // Only valid points
       expect(state.zoomLevel).toBe(14); // Should remain default, not 25

@@ -351,13 +351,26 @@ const explorationSlice = createSlice({
     ) => {
       const { currentLocation, path, exploredAreas, zoomLevel, isTrackingPaused } = action.payload;
 
+      // Validate and restore path points first
+      state.path = path.filter((point) => isValidGeoPoint(point));
+
       // Validate and restore the persisted state
       if (currentLocation && isValidGeoPoint(currentLocation)) {
         state.currentLocation = currentLocation;
+      } else if (state.path.length > 0) {
+        // If no currentLocation but we have GPS history, use the last known location
+        // This prevents the app from showing loading screen when we have GPS history
+        const lastPoint = state.path[state.path.length - 1];
+        if (lastPoint) {
+          state.currentLocation = lastPoint;
+          logger.info('Using last known location from GPS history as currentLocation', {
+            component: 'explorationSlice',
+            action: 'restorePersistedState',
+            lastLocation: `${lastPoint.latitude}, ${lastPoint.longitude}`,
+            pathLength: state.path.length,
+          });
+        }
       }
-
-      // Validate and restore path points
-      state.path = path.filter((point) => isValidGeoPoint(point));
 
       // Validate and restore explored areas
       state.exploredAreas = exploredAreas.filter((point) => isValidGeoPoint(point));
@@ -378,6 +391,8 @@ const explorationSlice = createSlice({
         pathPoints: state.path.length,
         exploredAreas: state.exploredAreas.length,
         hasCurrentLocation: state.currentLocation !== null,
+        usedLastKnownLocation:
+          !currentLocation && state.path.length > 0 && state.currentLocation !== null,
         zoomLevel: state.zoomLevel,
         isTrackingPaused: state.isTrackingPaused,
       });
