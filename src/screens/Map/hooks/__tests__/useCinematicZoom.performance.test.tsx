@@ -34,6 +34,9 @@ const PERFORMANCE_THRESHOLDS = {
   MAX_ANIMATION_DURATION_CONFLICTS: 1, // Should have consistent animation timing
 } as const;
 
+// Animation constants (matching the hook implementation)
+const CINEMATIC_ZOOM_DURATION = 5000; // 5 seconds
+
 // Setup test data
 const currentLocation = {
   latitude: 37.7749,
@@ -147,11 +150,11 @@ describe('useCinematicZoom - Performance & Animation Quality', () => {
     // Should have set the cinematic zoom active flag
     expect(mockMapView._cinematicZoomActive).toBe(true);
 
-    // New approach: Single 5-second animation call
-    // No need to advance through frames - just one call should be made
-    jest.advanceTimersByTime(100); // Small advance to trigger the single call
+    // New approach: Single cinematic pan + zoom (instant positioning + smooth animation)
+    // Advance to trigger both calls
+    jest.advanceTimersByTime(100); // Trigger initial positioning + main animation
 
-    // Should have made exactly one animateToRegion call for the single smooth animation
+    // Should have made exactly 2 animateToRegion calls (instant positioning + main cinematic animation)
     const totalCalls = mockMapView.animateToRegion.mock.calls.length;
 
     // Log the pattern of calls for analysis
@@ -169,27 +172,31 @@ describe('useCinematicZoom - Performance & Animation Quality', () => {
       }))
     );
 
-    // Performance analysis: We've chosen efficiency with single animation call
+    // Performance analysis: Single cinematic pan + zoom animation
     if (totalCalls > PERFORMANCE_THRESHOLDS.MAX_EFFICIENT_ANIMATION_CALLS) {
       console.warn(`PERFORMANCE REGRESSION: ${totalCalls} animateToRegion calls detected`);
       console.warn(
-        `Expected: ≤${PERFORMANCE_THRESHOLDS.MAX_EFFICIENT_ANIMATION_CALLS} calls for single animation approach`
+        `Expected: ≤${PERFORMANCE_THRESHOLDS.MAX_EFFICIENT_ANIMATION_CALLS} calls for single pan + zoom approach`
       );
     }
 
     // Quality metrics for future development
     if (totalCalls <= PERFORMANCE_THRESHOLDS.MAX_EFFICIENT_ANIMATION_CALLS) {
-      console.log('PERFORMANCE EXCELLENT: Efficient single animation pattern detected');
+      console.log('PERFORMANCE EXCELLENT: Efficient single cinematic pan + zoom');
     } else if (totalCalls <= PERFORMANCE_THRESHOLDS.MAX_ACCEPTABLE_ANIMATION_CALLS) {
       console.log('PERFORMANCE ACCEPTABLE: Animation pattern within acceptable limits');
     }
 
-    // Expect exactly 1 call for our new single smooth animation approach
-    expect(totalCalls).toBe(1); // Should be exactly 1 call for single 5-second animation
+    // Should be exactly 2 calls (instant positioning + main cinematic animation)
+    expect(totalCalls).toBe(2); // Two calls: instant positioning + main animation
 
-    // Verify the duration is 5000ms (5 seconds)
-    const animationCall = mockMapView.animateToRegion.mock.calls[0];
-    expect(animationCall[1]).toBe(5000); // Duration should be 5 seconds
+    // Verify the first call is instant positioning (0ms)
+    const positioningCall = mockMapView.animateToRegion.mock.calls[0];
+    expect(positioningCall[1]).toBe(0); // Instant positioning duration
+
+    // Verify the second call is the main cinematic animation (5000ms)
+    const cinematicCall = mockMapView.animateToRegion.mock.calls[1];
+    expect(cinematicCall[1]).toBe(CINEMATIC_ZOOM_DURATION); // Full cinematic duration
   });
 
   it('should prevent animation conflicts during cinematic zoom (quality assurance)', () => {

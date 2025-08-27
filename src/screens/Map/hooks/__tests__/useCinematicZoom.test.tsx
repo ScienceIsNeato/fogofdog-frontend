@@ -95,12 +95,13 @@ describe('useCinematicZoom', () => {
       wrapper: createWrapper(store),
     });
 
-    expect(result.current.initialRegion).toEqual({
-      latitude: 37.7749,
-      longitude: -122.4194,
-      latitudeDelta: 0.0922,
-      longitudeDelta: 0.0421,
-    });
+    // Should return cinematic start position, not current location
+    expect(result.current.initialRegion).toBeDefined();
+    expect(result.current.initialRegion?.latitudeDelta).toBe(0.0922); // 2km zoom level
+    expect(result.current.initialRegion?.longitudeDelta).toBe(0.0421);
+    // Latitude and longitude will be offset from current location for cinematic effect
+    expect(result.current.initialRegion?.latitude).not.toBe(currentLocation.latitude);
+    expect(result.current.initialRegion?.longitude).not.toBe(currentLocation.longitude);
   });
 
   it('should return null initial region when current location is null', () => {
@@ -151,9 +152,9 @@ describe('useCinematicZoom', () => {
     expect(result.current.explorationBounds).toBeDefined();
   });
 
-  it('should not trigger animation when explorationBounds is null', () => {
+  it('should trigger animation even when explorationBounds is null (single point users)', () => {
     const store = createTestStore({
-      exploration: { path: [] }, // Less than 5 points
+      exploration: { path: [] }, // Less than 5 points - but should still animate
     });
 
     renderHook(() => useCinematicZoom({ mapRef: mockMapRef, currentLocation }), {
@@ -161,10 +162,11 @@ describe('useCinematicZoom', () => {
     });
 
     act(() => {
-      jest.advanceTimersByTime(1000);
+      jest.advanceTimersByTime(5100); // Wait for full animation
     });
 
-    expect(mockMapView.animateToRegion).not.toHaveBeenCalled();
+    // Should trigger animation even without explorationBounds (for first-time users)
+    expect(mockMapView.animateToRegion).toHaveBeenCalled();
   });
 
   it('should not trigger animation when mapRef.current is null', () => {
