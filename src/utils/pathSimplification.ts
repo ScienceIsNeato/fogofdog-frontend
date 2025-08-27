@@ -204,7 +204,7 @@ export class PathSimplificationService {
 
       if (!p0 || !p1 || !p2 || !p3) continue;
 
-      const { cp1, cp2 } = this.calculateCatmullRomControlPoints({ p0, p1, p2, p3, tension });
+      const { cp1, cp2 } = this.calculateCatmullRomControlPoints(p0, p1, p2, p3, tension);
       path.cubicTo(cp1.x, cp1.y, cp2.x, cp2.y, p2.x, p2.y);
     }
   }

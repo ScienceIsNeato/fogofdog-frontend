@@ -8,7 +8,6 @@ import {
 } from '../../services/DeveloperSettingsService';
 import { logger } from '../../utils/logger';
 import { SimplePerformancePanel } from '../SimplePerformancePanel';
-import { SettingsStateRecoveryView } from './SettingsStateRecoveryView';
 
 interface SettingsDeveloperViewProps {
   onBack: () => void;
@@ -113,10 +112,6 @@ export const SettingsDeveloperView: React.FC<SettingsDeveloperViewProps> = ({
 
         {/* Performance Testing Panel */}
         <SimplePerformancePanel onCloseModal={onClose} />
-
-        {/* State Recovery Section */}
-        <Text style={[styles.sectionHeader, { marginTop: 24 }]}>State Recovery & Debugging</Text>
-        <SettingsStateRecoveryView />
       </View>
     </>
   );
