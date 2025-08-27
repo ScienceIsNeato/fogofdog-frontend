@@ -223,4 +223,40 @@ describe('useCinematicZoom', () => {
     // Should constrain regions
     expect(mockMapConstraints.constrainRegion).toHaveBeenCalledTimes(2);
   });
+
+  it('should only run cinematic zoom once per session', () => {
+    const mockPath = Array.from({ length: 6 }, (_, i) => ({
+      latitude: 37.7749 + i * 0.001,
+      longitude: -122.4194 + i * 0.001,
+      timestamp: i,
+    }));
+
+    const store = createTestStore({
+      exploration: { path: mockPath },
+    });
+
+    const { rerender } = renderHook(
+      () => useCinematicZoom({ mapRef: mockMapRef, currentLocation }),
+      { wrapper: createWrapper(store) }
+    );
+
+    // First render should trigger cinematic zoom
+    expect(mockMapView._cinematicZoomActive).toBe(true);
+    expect(mockLogger.info).toHaveBeenCalledWith(
+      '[ZOOM_DEBUG] Cinematic zoom flag set - preventing other animations'
+    );
+
+    // Clear mocks and rerender (simulating path updates)
+    jest.clearAllMocks();
+    mockMapView._cinematicZoomActive = false;
+
+    rerender({ mapRef: mockMapRef, currentLocation });
+
+    // Should not trigger again
+    expect(mockMapView._cinematicZoomActive).toBe(false);
+    expect(mockLogger.info).not.toHaveBeenCalledWith(
+      '[ZOOM_DEBUG] Cinematic zoom flag set - preventing other animations'
+    );
+    expect(mockMapZoomUtils.calculateZoomAnimation).not.toHaveBeenCalled();
+  });
 });

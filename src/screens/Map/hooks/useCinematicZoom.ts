@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { useAppSelector } from '../../../store/hooks';
 import { calculateExplorationBounds } from '../index';
 import { logger } from '../../../utils/logger';
@@ -24,6 +24,19 @@ interface UseCinematicZoomProps {
   mapRef: React.RefObject<MapView>;
   currentLocation: GeoPoint | null;
 }
+
+/**
+ * Calculate exploration bounds for cinematic zoom if conditions are met
+ */
+const useExplorationBounds = (explorationPath: GeoPoint[]) => {
+  return useMemo(() => {
+    // Only use cinematic zoom if we have significant GPS history (5+ points)
+    if (explorationPath.length >= 5) {
+      return calculateExplorationBounds(explorationPath);
+    }
+    return null;
+  }, [explorationPath]);
+};
 
 /**
  * Start the Gaussian zoom animation between start and end regions
@@ -89,18 +102,18 @@ export const useCinematicZoom = ({ mapRef, currentLocation }: UseCinematicZoomPr
   // Get exploration path for cinematic zoom calculation
   const explorationPath = useAppSelector((state) => state.exploration.path);
 
+  // Track if cinematic zoom has already run to prevent multiple triggers
+  const hasRunCinematicZoom = useRef(false);
+
   // Calculate cinematic initial region or fallback to current location
-  const explorationBounds = useMemo(() => {
-    // Only use cinematic zoom if we have significant GPS history (5+ points)
-    if (explorationPath.length >= 5) {
-      return calculateExplorationBounds(explorationPath);
-    }
-    return null;
-  }, [explorationPath]);
+  const explorationBounds = useExplorationBounds(explorationPath);
 
   // Cinematic zoom effect - animate from 2km scale to 50m scale with Gaussian easing
   useEffect(() => {
-    if (explorationBounds && mapRef.current && currentLocation) {
+    // Only run cinematic zoom once per app session
+    if (explorationBounds && mapRef.current && currentLocation && !hasRunCinematicZoom.current) {
+      // Mark that cinematic zoom has run
+      hasRunCinematicZoom.current = true;
       // Set a flag to prevent other animations during cinematic zoom
       (mapRef.current as any)._cinematicZoomActive = true;
       logger.info('[ZOOM_DEBUG] Cinematic zoom flag set - preventing other animations');
