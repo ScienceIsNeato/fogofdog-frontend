@@ -169,6 +169,16 @@ const handleLocationUpdate = ({
   const shouldCenterMap = isFollowModeActive || isMapCenteredOnUser;
 
   if (shouldCenterMap && mapRef.current) {
+    // Skip auto-center if cinematic zoom is active to prevent animation conflicts
+    if ((mapRef.current as any)?._cinematicZoomActive) {
+      logger.debug('Skipping GPS auto-center - cinematic zoom active', {
+        component: 'MapScreen',
+        action: 'handleLocationUpdate',
+        reason: 'cinematic_zoom_active',
+      });
+      return;
+    }
+
     const newRegion = {
       latitude: location.latitude,
       longitude: location.longitude,
