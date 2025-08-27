@@ -10,6 +10,11 @@ import type { Region } from 'react-native-maps';
 import type MapView from 'react-native-maps';
 import type { GeoPoint } from '../../../types/user';
 
+// Type-safe interface for MapView with cinematic zoom tracking
+interface MapViewWithCinematicState extends MapView {
+  _cinematicZoomActive?: boolean;
+}
+
 // Animation constants for cinematic zoom
 const CINEMATIC_ZOOM_DELAY = 800; // ms to show wide view
 const CINEMATIC_ZOOM_DURATION = 5000; // ms for extended cinematic zoom animation (5 seconds)
@@ -241,7 +246,7 @@ const startCinematicPanAnimation = (
 ) => {
   // Set the cinematic zoom active flag
   if (mapRef.current) {
-    (mapRef.current as any)._cinematicZoomActive = true;
+    (mapRef.current as MapViewWithCinematicState)._cinematicZoomActive = true;
   }
 
   // Use shared calculation for consistent positioning
@@ -315,7 +320,7 @@ const startCinematicPanAnimation = (
   // Clear the cinematic zoom flag after animation completes
   setTimeout(() => {
     if (mapRef.current) {
-      (mapRef.current as any)._cinematicZoomActive = false;
+      (mapRef.current as MapViewWithCinematicState)._cinematicZoomActive = false;
       logger.info('[ZOOM_DEBUG] Cinematic pan animation completed');
     }
   }, CINEMATIC_ZOOM_DURATION + 100); // Small buffer to ensure animation completes
@@ -343,7 +348,7 @@ export const useCinematicZoom = ({ mapRef, currentLocation }: UseCinematicZoomPr
       // Mark that cinematic zoom has run
       hasRunCinematicZoom.current = true;
       // Set a flag to prevent other animations during cinematic zoom
-      (mapRef.current as any)._cinematicZoomActive = true;
+      (mapRef.current as MapViewWithCinematicState)._cinematicZoomActive = true;
       logger.info('[ZOOM_DEBUG] Cinematic zoom flag set - preventing other animations');
 
       // Calculate end zoom to 50m scale

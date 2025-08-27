@@ -22,6 +22,11 @@ export class PathSimplificationService {
     lineStart: Point2D,
     lineEnd: Point2D
   ): number {
+    // Defensive null checks as recommended by Copilot review
+    if (!point || !lineStart || !lineEnd) {
+      return 0;
+    }
+
     const A = point.x - lineStart.x;
     const B = point.y - lineStart.y;
     const C = lineEnd.x - lineStart.x;
