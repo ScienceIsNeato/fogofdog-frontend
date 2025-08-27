@@ -142,17 +142,27 @@ const useOptimizedFogCalculations = (
     safeAreaInsets
   );
 
-  // Compute the Skia path from optimized points
-  const skiaPath = useMemo(() => {
-    const path = Skia.Path.Make();
-
+  // Memoize GPS connection processing based on actual GPS points, not map region
+  const connectedSegments = useMemo(() => {
     if (finalPoints.length === 0) {
-      return path;
+      return [];
     }
 
     // Use unified GPS connection logic on optimized points
-    const processedPoints = GPSConnectionService.processGPSPoints(finalPoints);
-    const connectedSegments = GPSConnectionService.getConnectedSegments(processedPoints);
+    // Disable logging to prevent spam during map interactions
+    const processedPoints = GPSConnectionService.processGPSPoints(finalPoints, {
+      enableLogging: false,
+    });
+    return GPSConnectionService.getConnectedSegments(processedPoints);
+  }, [finalPoints]);
+
+  // Compute the Skia path from connected segments
+  const skiaPath = useMemo(() => {
+    const path = Skia.Path.Make();
+
+    if (connectedSegments.length === 0) {
+      return path;
+    }
 
     // Build path using pre-calculated pixel coordinates
     const pixelMap = new Map(
@@ -179,7 +189,7 @@ const useOptimizedFogCalculations = (
     }
 
     return path;
-  }, [finalPoints, pixelCoordinates]);
+  }, [connectedSegments, pixelCoordinates]);
 
   // Calculate radius in pixels based on the current zoom level
   const radiusPixels = useMemo(() => {

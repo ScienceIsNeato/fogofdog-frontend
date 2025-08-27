@@ -3,6 +3,9 @@ import { useAppSelector } from '../../../store/hooks';
 import { calculateExplorationBounds } from '../index';
 import { logger } from '../../../utils/logger';
 import { calculateZoomAnimation, gaussianEasing } from '../../../utils/mapZoomUtils';
+
+// Import map constraints from constants
+import { constrainRegion } from '../../../constants/mapConstraints';
 import type { Region } from 'react-native-maps';
 import type MapView from 'react-native-maps';
 import type { GeoPoint } from '../../../types/user';
@@ -21,6 +24,62 @@ interface UseCinematicZoomProps {
   mapRef: React.RefObject<MapView>;
   currentLocation: GeoPoint | null;
 }
+
+/**
+ * Start the Gaussian zoom animation between start and end regions
+ */
+const startGaussianAnimation = (
+  mapRef: React.RefObject<MapView>,
+  startRegion: Region,
+  endRegion: Region,
+  currentLocation: GeoPoint
+) => {
+  const frameInterval = 1000 / ANIMATION_FPS;
+  const totalFrames = Math.floor(CINEMATIC_ZOOM_DURATION / frameInterval);
+  let currentFrame = 0;
+
+  const animationInterval = setInterval(() => {
+    const progress = currentFrame / totalFrames;
+    const easedProgress = gaussianEasing(progress, 2.5);
+
+    const interpolatedRegion: Region = {
+      latitude: currentLocation.latitude,
+      longitude: currentLocation.longitude,
+      latitudeDelta:
+        startRegion.latitudeDelta +
+        (endRegion.latitudeDelta - startRegion.latitudeDelta) * easedProgress,
+      longitudeDelta:
+        startRegion.longitudeDelta +
+        (endRegion.longitudeDelta - startRegion.longitudeDelta) * easedProgress,
+    };
+
+    mapRef.current?.animateToRegion(interpolatedRegion, frameInterval * 0.8);
+
+    currentFrame++;
+    if (currentFrame >= totalFrames) {
+      clearInterval(animationInterval);
+
+      logger.info('[ZOOM_DEBUG] Cinematic zoom ending - final region', {
+        endRegion: {
+          lat: endRegion.latitude.toFixed(6),
+          lng: endRegion.longitude.toFixed(6),
+          latDelta: endRegion.latitudeDelta.toFixed(6),
+          lngDelta: endRegion.longitudeDelta.toFixed(6),
+        },
+        reason: 'cinematic_zoom_end',
+        duration: 100,
+      });
+
+      mapRef.current?.animateToRegion(endRegion, 100);
+      setTimeout(() => {
+        if (mapRef.current) {
+          (mapRef.current as any)._cinematicZoomActive = false;
+          logger.info('[ZOOM_DEBUG] Cinematic zoom flag cleared');
+        }
+      }, 200);
+    }
+  }, frameInterval);
+};
 
 /**
  * Custom hook for cinematic zoom functionality
@@ -42,6 +101,9 @@ export const useCinematicZoom = ({ mapRef, currentLocation }: UseCinematicZoomPr
   // Cinematic zoom effect - animate from 2km scale to 50m scale with Gaussian easing
   useEffect(() => {
     if (explorationBounds && mapRef.current && currentLocation) {
+      // Set a flag to prevent other animations during cinematic zoom
+      (mapRef.current as any)._cinematicZoomActive = true;
+      logger.info('[ZOOM_DEBUG] Cinematic zoom flag set - preventing other animations');
       // Calculate zoom animation from 2km legend to 50m legend
       const zoomParams = calculateZoomAnimation(
         '2km', // Start at 2km scale
@@ -50,47 +112,36 @@ export const useCinematicZoom = ({ mapRef, currentLocation }: UseCinematicZoomPr
         400 // Assume 400px map width
       );
 
-      // Use the calculated start region instead of exploration bounds
-      const startRegion = zoomParams.startRegion;
-      const endRegion = zoomParams.endRegion;
+      // Apply constraints to ensure we never exceed 20km zoom level
+      const startRegion = constrainRegion(zoomParams.startRegion);
+      const endRegion = constrainRegion(zoomParams.endRegion);
 
       // Delay then start Gaussian zoom animation
       const timeoutId = setTimeout(() => {
+        // TEMP DEBUG: Log cinematic zoom start
+        logger.info('[ZOOM_DEBUG] Cinematic zoom starting - initial region', {
+          startRegion: {
+            lat: startRegion.latitude.toFixed(6),
+            lng: startRegion.longitude.toFixed(6),
+            latDelta: startRegion.latitudeDelta.toFixed(6),
+            lngDelta: startRegion.longitudeDelta.toFixed(6),
+          },
+          endRegion: {
+            lat: endRegion.latitude.toFixed(6),
+            lng: endRegion.longitude.toFixed(6),
+            latDelta: endRegion.latitudeDelta.toFixed(6),
+            lngDelta: endRegion.longitudeDelta.toFixed(6),
+          },
+          reason: 'cinematic_zoom_start',
+          duration: 200,
+        });
+
         // Set initial zoom level to 2km scale
         mapRef.current?.animateToRegion(startRegion, 200);
 
         // Start the Gaussian zoom animation after a brief moment
         setTimeout(() => {
-          const frameInterval = 1000 / ANIMATION_FPS;
-          const totalFrames = Math.floor(CINEMATIC_ZOOM_DURATION / frameInterval);
-          let currentFrame = 0;
-
-          const animationInterval = setInterval(() => {
-            const progress = currentFrame / totalFrames;
-            const easedProgress = gaussianEasing(progress, 2.5); // Intensity of 2.5 for nice curve
-
-            // Interpolate between start and end regions
-            const interpolatedRegion: Region = {
-              latitude: currentLocation.latitude,
-              longitude: currentLocation.longitude,
-              latitudeDelta:
-                startRegion.latitudeDelta +
-                (endRegion.latitudeDelta - startRegion.latitudeDelta) * easedProgress,
-              longitudeDelta:
-                startRegion.longitudeDelta +
-                (endRegion.longitudeDelta - startRegion.longitudeDelta) * easedProgress,
-            };
-
-            // Animate to the interpolated region
-            mapRef.current?.animateToRegion(interpolatedRegion, frameInterval * 0.8);
-
-            currentFrame++;
-            if (currentFrame >= totalFrames) {
-              clearInterval(animationInterval);
-              // Ensure we end exactly at the target
-              mapRef.current?.animateToRegion(endRegion, 100);
-            }
-          }, frameInterval);
+          startGaussianAnimation(mapRef, startRegion, endRegion, currentLocation);
 
           logger.info('Gaussian cinematic zoom animation started', {
             component: 'MapScreen',
@@ -109,17 +160,15 @@ export const useCinematicZoom = ({ mapRef, currentLocation }: UseCinematicZoomPr
     return undefined;
   }, [explorationBounds, currentLocation, mapRef]);
 
-  // Create initial region - use exploration bounds for cinematic effect, or current location
-  const initialRegion: Region | null =
-    explorationBounds ??
-    (currentLocation
-      ? {
-          latitude: currentLocation.latitude,
-          longitude: currentLocation.longitude,
-          latitudeDelta: DEFAULT_ZOOM_DELTAS.latitudeDelta,
-          longitudeDelta: DEFAULT_ZOOM_DELTAS.longitudeDelta,
-        }
-      : null);
+  // Create initial region - always use current location with reasonable zoom, never the massive exploration bounds
+  const initialRegion: Region | null = currentLocation
+    ? {
+        latitude: currentLocation.latitude,
+        longitude: currentLocation.longitude,
+        latitudeDelta: DEFAULT_ZOOM_DELTAS.latitudeDelta,
+        longitudeDelta: DEFAULT_ZOOM_DELTAS.longitudeDelta,
+      }
+    : null;
 
   return {
     initialRegion,

@@ -706,7 +706,7 @@ describe('MapScreen', () => {
     const overZoomedRegion: Region = {
       latitude: mockRealLocation.latitude,
       longitude: mockRealLocation.longitude,
-      latitudeDelta: 1.0, // Exceeds MAX_LATITUDE_DELTA (0.75)
+      latitudeDelta: 1.0, // Exceeds MAX_LATITUDE_DELTA (0.18)
       longitudeDelta: 0.5, // Within limits
     };
 
@@ -724,7 +724,7 @@ describe('MapScreen', () => {
       latitude: mockRealLocation.latitude,
       longitude: mockRealLocation.longitude,
       latitudeDelta: 0.5, // Within limits
-      longitudeDelta: 1.5, // Exceeds MAX_LONGITUDE_DELTA (1.0)
+      longitudeDelta: 1.5, // Exceeds MAX_LONGITUDE_DELTA (0.18)
     };
 
     await simulateRegionChange(overZoomedRegion, store);
@@ -740,8 +740,8 @@ describe('MapScreen', () => {
     const overZoomedRegion: Region = {
       latitude: mockRealLocation.latitude,
       longitude: mockRealLocation.longitude,
-      latitudeDelta: 2.0, // Exceeds MAX_LATITUDE_DELTA (0.75)
-      longitudeDelta: 2.0, // Exceeds MAX_LONGITUDE_DELTA (1.0)
+      latitudeDelta: 2.0, // Exceeds MAX_LATITUDE_DELTA (0.18)
+      longitudeDelta: 2.0, // Exceeds MAX_LONGITUDE_DELTA (0.18)
     };
 
     await simulateRegionChange(overZoomedRegion, store);
@@ -757,8 +757,8 @@ describe('MapScreen', () => {
     const acceptableRegion: Region = {
       latitude: mockRealLocation.latitude,
       longitude: mockRealLocation.longitude,
-      latitudeDelta: 0.5, // Within MAX_LATITUDE_DELTA (0.75)
-      longitudeDelta: 0.8, // Within MAX_LONGITUDE_DELTA (1.0)
+      latitudeDelta: 0.1, // Within MAX_LATITUDE_DELTA (0.18)
+      longitudeDelta: 0.1, // Within MAX_LONGITUDE_DELTA (0.18)
     };
 
     await simulateRegionChange(acceptableRegion, store);

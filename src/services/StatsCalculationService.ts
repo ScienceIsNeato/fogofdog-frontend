@@ -229,7 +229,10 @@ export class StatsCalculationService {
     const geoPoints = sortedHistory.map((event) => GPSConnectionService.gpsEventToGeoPoint(event));
 
     // Use unified connection logic to get only connected segments
-    const processedPoints = GPSConnectionService.processGPSPoints(geoPoints);
+    // Disable logging for large datasets to prevent UI blocking
+    const processedPoints = GPSConnectionService.processGPSPoints(geoPoints, {
+      enableLogging: false,
+    });
 
     // Calculate total distance using only connected segments
     const totalDistance = GPSConnectionService.calculateTotalDistance(processedPoints);

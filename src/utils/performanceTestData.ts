@@ -101,6 +101,7 @@ const generateOtherPatternCoordinates = (
       longitude += trailProgress * radiusDegrees * 0.3 + windingFactor * radiusDegrees * 0.5;
       break;
     }
+
     default:
       // RANDOM_WALK and any other patterns use random distribution
       latitude += (Math.random() - 0.5) * radiusDegrees * 2;
