@@ -5,7 +5,7 @@ describe('FOG_CONFIG', () => {
     expect(FOG_CONFIG.COLOR).toBe('black');
     expect(FOG_CONFIG.OPACITY).toBe(1.0);
     expect(FOG_CONFIG.PATH_COLOR).toBe('black');
-    expect(FOG_CONFIG.RADIUS_METERS).toBe(75);
+    expect(FOG_CONFIG.RADIUS_METERS).toBe(37.5);
     expect(FOG_CONFIG.RENDER_THROTTLE_MS).toBe(16);
   });
 

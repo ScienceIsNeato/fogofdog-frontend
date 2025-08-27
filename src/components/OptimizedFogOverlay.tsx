@@ -9,6 +9,7 @@ import { logger } from '../utils/logger';
 import type { Region as MapRegion } from 'react-native-maps';
 import { FOG_CONFIG } from '../config/fogConfig';
 import { GPSConnectionService } from '../services/GPSConnectionService';
+import { PathSimplificationService } from '../utils/pathSimplification';
 import { GeoPoint } from '../types/user';
 
 interface OptimizedFogOverlayProps {
@@ -142,6 +143,12 @@ const useOptimizedFogCalculations = (
     safeAreaInsets
   );
 
+  // Calculate radius in pixels based on the current zoom level (needed for path simplification)
+  const radiusPixels = useMemo(() => {
+    const metersPerPixel = calculateMetersPerPixel(mapRegion);
+    return FOG_CONFIG.RADIUS_METERS / metersPerPixel;
+  }, [mapRegion]);
+
   // Memoize GPS connection processing based on actual GPS points, not map region
   const connectedSegments = useMemo(() => {
     if (finalPoints.length === 0) {
@@ -156,7 +163,7 @@ const useOptimizedFogCalculations = (
     return GPSConnectionService.getConnectedSegments(processedPoints);
   }, [finalPoints]);
 
-  // Compute the Skia path from connected segments
+  // Compute the Skia path from connected segments with smooth Bezier curves
   const skiaPath = useMemo(() => {
     const path = Skia.Path.Make();
 
@@ -169,37 +176,31 @@ const useOptimizedFogCalculations = (
       pixelCoordinates.map((item) => [`${item.point.latitude}-${item.point.longitude}`, item.pixel])
     );
 
-    let lastPoint: { x: number; y: number } | null = null;
+    // Build continuous path chains and simplify them using utility service
+    const segmentData = connectedSegments
+      .map((segment) => ({
+        start: pixelMap.get(`${segment.start.latitude}-${segment.start.longitude}`)!,
+        end: pixelMap.get(`${segment.end.latitude}-${segment.end.longitude}`)!,
+      }))
+      .filter((seg) => seg.start && seg.end);
 
-    for (const segment of connectedSegments) {
-      const startKey = `${segment.start.latitude}-${segment.start.longitude}`;
-      const endKey = `${segment.end.latitude}-${segment.end.longitude}`;
+    const pathChains = PathSimplificationService.buildPathChains(segmentData);
 
-      const startPixel = pixelMap.get(startKey);
-      const endPixel = pixelMap.get(endKey);
+    // Use conservative tolerance for simplification
+    const tolerance = Math.max(1, radiusPixels * 0.05);
+    const simplifiedChains = pathChains.map((chain) =>
+      PathSimplificationService.simplifyPath(chain, tolerance)
+    );
 
-      if (!startPixel || !endPixel) continue;
-
-      if (!lastPoint || lastPoint.x !== startPixel.x || lastPoint.y !== startPixel.y) {
-        path.moveTo(startPixel.x, startPixel.y);
-      }
-
-      path.lineTo(endPixel.x, endPixel.y);
-      lastPoint = endPixel;
-    }
+    // Draw smooth paths using utility service
+    PathSimplificationService.drawSmoothPath(path, simplifiedChains);
 
     return path;
-  }, [connectedSegments, pixelCoordinates]);
+  }, [connectedSegments, pixelCoordinates, radiusPixels]);
 
-  // Calculate radius in pixels based on the current zoom level
-  const radiusPixels = useMemo(() => {
-    const metersPerPixel = calculateMetersPerPixel(mapRegion);
-    return FOG_CONFIG.RADIUS_METERS / metersPerPixel;
-  }, [mapRegion]);
-
-  // Calculate stroke width for path
+  // Calculate stroke width for path - match fog radius for smooth connections
   const strokeWidth = useMemo(() => {
-    return radiusPixels * 1.8;
+    return radiusPixels * 2; // Diameter = radius × 2 for perfect fog hole connections
   }, [radiusPixels]);
 
   return {
