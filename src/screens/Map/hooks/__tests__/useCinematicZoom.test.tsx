@@ -212,16 +212,16 @@ describe('useCinematicZoom', () => {
       '[ZOOM_DEBUG] Cinematic zoom flag set - preventing other animations'
     );
 
-    // Should call calculateZoomAnimation
+    // Should call calculateZoomAnimation for the end region only (50m scale)
     expect(mockMapZoomUtils.calculateZoomAnimation).toHaveBeenCalledWith(
-      '2km',
+      '50m',
       '50m',
       currentLocation,
       400
     );
 
-    // Should constrain regions
-    expect(mockMapConstraints.constrainRegion).toHaveBeenCalledTimes(2);
+    // Should constrain the end region
+    expect(mockMapConstraints.constrainRegion).toHaveBeenCalledTimes(1);
   });
 
   it('should only run cinematic zoom once per session', () => {

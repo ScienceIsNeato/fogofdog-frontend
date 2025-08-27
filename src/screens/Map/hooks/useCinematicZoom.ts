@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef } from 'react';
 import { useAppSelector } from '../../../store/hooks';
 import { calculateExplorationBounds } from '../index';
 import { logger } from '../../../utils/logger';
-import { calculateZoomAnimation, gaussianEasing } from '../../../utils/mapZoomUtils';
+import { calculateZoomAnimation } from '../../../utils/mapZoomUtils';
 
 // Import map constraints from constants
 import { constrainRegion } from '../../../constants/mapConstraints';
@@ -12,8 +12,7 @@ import type { GeoPoint } from '../../../types/user';
 
 // Animation constants for cinematic zoom
 const CINEMATIC_ZOOM_DELAY = 800; // ms to show wide view
-const CINEMATIC_ZOOM_DURATION = 1800; // ms for zoom animation
-const ANIMATION_FPS = 60; // Target frame rate for smooth animation
+const CINEMATIC_ZOOM_DURATION = 5000; // ms for extended cinematic zoom animation (5 seconds)
 
 const DEFAULT_ZOOM_DELTAS = {
   latitudeDelta: 0.0922,
@@ -39,59 +38,38 @@ const useExplorationBounds = (explorationPath: GeoPoint[]) => {
 };
 
 /**
- * Start the Gaussian zoom animation between start and end regions
+ * Start a single smooth 5-second cinematic zoom animation
+ * Uses React Native Maps' built-in smooth animation instead of high-frequency frame sampling
  */
-const startGaussianAnimation = (
+const startSingleSmoothAnimation = (
   mapRef: React.RefObject<MapView>,
   startRegion: Region,
-  endRegion: Region,
-  currentLocation: GeoPoint
+  endRegion: Region
 ) => {
-  const frameInterval = 1000 / ANIMATION_FPS;
-  const totalFrames = Math.floor(CINEMATIC_ZOOM_DURATION / frameInterval);
-  let currentFrame = 0;
+  // Set the cinematic zoom active flag
+  if (mapRef.current) {
+    (mapRef.current as any)._cinematicZoomActive = true;
+  }
 
-  const animationInterval = setInterval(() => {
-    const progress = currentFrame / totalFrames;
-    const easedProgress = gaussianEasing(progress, 2.5);
+  logger.info('[ZOOM_DEBUG] Starting single smooth 5-second cinematic zoom', {
+    totalDuration: `${CINEMATIC_ZOOM_DURATION}ms (5 seconds)`,
+    startRegion: { latDelta: startRegion.latitudeDelta.toFixed(6) },
+    endRegion: { latDelta: endRegion.latitudeDelta.toFixed(6) },
+    approach: 'single_smooth_animation',
+    designReason: 'simplified_single_call_approach',
+  });
 
-    const interpolatedRegion: Region = {
-      latitude: currentLocation.latitude,
-      longitude: currentLocation.longitude,
-      latitudeDelta:
-        startRegion.latitudeDelta +
-        (endRegion.latitudeDelta - startRegion.latitudeDelta) * easedProgress,
-      longitudeDelta:
-        startRegion.longitudeDelta +
-        (endRegion.longitudeDelta - startRegion.longitudeDelta) * easedProgress,
-    };
+  // Use a single animateToRegion call with the full 5-second duration
+  // React Native Maps will handle the smooth interpolation internally
+  mapRef.current?.animateToRegion(endRegion, CINEMATIC_ZOOM_DURATION);
 
-    mapRef.current?.animateToRegion(interpolatedRegion, frameInterval * 0.8);
-
-    currentFrame++;
-    if (currentFrame >= totalFrames) {
-      clearInterval(animationInterval);
-
-      logger.info('[ZOOM_DEBUG] Cinematic zoom ending - final region', {
-        endRegion: {
-          lat: endRegion.latitude.toFixed(6),
-          lng: endRegion.longitude.toFixed(6),
-          latDelta: endRegion.latitudeDelta.toFixed(6),
-          lngDelta: endRegion.longitudeDelta.toFixed(6),
-        },
-        reason: 'cinematic_zoom_end',
-        duration: 100,
-      });
-
-      mapRef.current?.animateToRegion(endRegion, 100);
-      setTimeout(() => {
-        if (mapRef.current) {
-          (mapRef.current as any)._cinematicZoomActive = false;
-          logger.info('[ZOOM_DEBUG] Cinematic zoom flag cleared');
-        }
-      }, 200);
+  // Clear the cinematic zoom flag after animation completes
+  setTimeout(() => {
+    if (mapRef.current) {
+      (mapRef.current as any)._cinematicZoomActive = false;
+      logger.info('[ZOOM_DEBUG] Single smooth zoom completed');
     }
-  }, frameInterval);
+  }, CINEMATIC_ZOOM_DURATION + 100); // Small buffer to ensure animation completes
 };
 
 /**
@@ -117,54 +95,44 @@ export const useCinematicZoom = ({ mapRef, currentLocation }: UseCinematicZoomPr
       // Set a flag to prevent other animations during cinematic zoom
       (mapRef.current as any)._cinematicZoomActive = true;
       logger.info('[ZOOM_DEBUG] Cinematic zoom flag set - preventing other animations');
-      // Calculate zoom animation from 2km legend to 50m legend
-      const zoomParams = calculateZoomAnimation(
-        '2km', // Start at 2km scale
-        '50m', // End at 50m scale
+      // HEURISTIC SOLUTION: Start cinematic zoom from where the mysterious animation ends
+      // This eliminates the disjointed transition by matching heights
+      const heuristicStartRegion: Region = {
+        latitude: currentLocation.latitude,
+        longitude: currentLocation.longitude,
+        latitudeDelta: DEFAULT_ZOOM_DELTAS.latitudeDelta, // Match the mysterious animation's end height
+        longitudeDelta: DEFAULT_ZOOM_DELTAS.longitudeDelta,
+      };
+
+      // Calculate end zoom to 50m scale
+      const endZoomParams = calculateZoomAnimation(
+        '50m', // Only calculate end scale
+        '50m', // Same value to get the region
         currentLocation,
-        400 // Assume 400px map width
+        400
       );
+      const endRegion = constrainRegion(endZoomParams.endRegion);
 
-      // Apply constraints to ensure we never exceed 20km zoom level
-      const startRegion = constrainRegion(zoomParams.startRegion);
-      const endRegion = constrainRegion(zoomParams.endRegion);
+      logger.info('[ZOOM_DEBUG] Heuristic cinematic zoom - matching mysterious animation height', {
+        startHeight: `${DEFAULT_ZOOM_DELTAS.latitudeDelta.toFixed(6)} latDelta`,
+        endHeight: `${endRegion.latitudeDelta.toFixed(6)} latDelta (50m scale)`,
+        strategy: 'match_existing_height',
+      });
 
-      // Delay then start Gaussian zoom animation
+      // Delay then start single smooth zoom animation from the matched height
       const timeoutId = setTimeout(() => {
-        // TEMP DEBUG: Log cinematic zoom start
-        logger.info('[ZOOM_DEBUG] Cinematic zoom starting - initial region', {
-          startRegion: {
-            lat: startRegion.latitude.toFixed(6),
-            lng: startRegion.longitude.toFixed(6),
-            latDelta: startRegion.latitudeDelta.toFixed(6),
-            lngDelta: startRegion.longitudeDelta.toFixed(6),
-          },
-          endRegion: {
-            lat: endRegion.latitude.toFixed(6),
-            lng: endRegion.longitude.toFixed(6),
-            latDelta: endRegion.latitudeDelta.toFixed(6),
-            lngDelta: endRegion.longitudeDelta.toFixed(6),
-          },
-          reason: 'cinematic_zoom_start',
-          duration: 200,
+        // Start the single smooth zoom from current position to 50m scale
+        startSingleSmoothAnimation(mapRef, heuristicStartRegion, endRegion);
+
+        logger.info('5-second single smooth cinematic zoom started from matched height', {
+          component: 'MapScreen',
+          action: 'cinematicZoom',
+          from: `current height (${DEFAULT_ZOOM_DELTAS.latitudeDelta.toFixed(6)} latDelta)`,
+          to: `50m scale`,
+          totalDuration: `${CINEMATIC_ZOOM_DURATION}ms (5 seconds)`,
+          approach: 'single_smooth_animation_call',
+          simplifiedDesign: '1 animateToRegion call with 5-second duration',
         });
-
-        // Set initial zoom level to 2km scale
-        mapRef.current?.animateToRegion(startRegion, 200);
-
-        // Start the Gaussian zoom animation after a brief moment
-        setTimeout(() => {
-          startGaussianAnimation(mapRef, startRegion, endRegion, currentLocation);
-
-          logger.info('Gaussian cinematic zoom animation started', {
-            component: 'MapScreen',
-            action: 'cinematicZoom',
-            from: `${zoomParams.startScale}m scale`,
-            to: `${zoomParams.endScale}m scale`,
-            duration: CINEMATIC_ZOOM_DURATION,
-            easing: 'gaussian',
-          });
-        }, 400); // Brief pause at 2km scale before zooming
       }, CINEMATIC_ZOOM_DELAY);
 
       return () => clearTimeout(timeoutId);

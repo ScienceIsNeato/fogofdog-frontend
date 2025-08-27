@@ -368,17 +368,6 @@ const statsSlice = createSlice({
         const currentTotalTime = state.total.time + activeElapsedTime;
         state.formattedStats.totalTime =
           StatsCalculationService.formatTimeAsTimer(currentTotalTime);
-
-        logger.debug('Updated session timer', {
-          component: 'statsSlice',
-          action: 'updateSessionTimer',
-          totalElapsedTime,
-          totalPausedTime,
-          activeElapsedTime,
-          currentTotalTime,
-          formattedSessionTime: state.formattedStats.sessionTime,
-          formattedTotalTime: state.formattedStats.totalTime,
-        });
       }
     },
   },
