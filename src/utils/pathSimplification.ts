@@ -169,10 +169,14 @@ export class PathSimplificationService {
    * Calculate Catmull-Rom control points for a segment
    */
   private static calculateCatmullRomControlPoints(params: {
-    p0: Point2D; p1: Point2D; p2: Point2D; p3: Point2D; tension: number;
+    p0: Point2D;
+    p1: Point2D;
+    p2: Point2D;
+    p3: Point2D;
+    tension: number;
   }): { cp1: Point2D; cp2: Point2D } {
     const { p0, p1, p2, p3, tension } = params;
-    
+
     // Calculate tangent vectors for smooth curves
     const t1x = tension * (p2.x - p0.x);
     const t1y = tension * (p2.y - p0.y);
