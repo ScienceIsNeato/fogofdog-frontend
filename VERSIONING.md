@@ -105,8 +105,43 @@ Each version bump automatically updates:
 ## Best Practices
 
 ### When to Use Manual Bumps
-- **Minor**: New screens, features, major UI improvements
-- **Major**: Breaking API changes, major refactors, new authentication
+
+#### 🔄 Patch (Automatic - 1.0.0 → 1.0.1)
+- Bug fixes and hotfixes
+- Performance optimizations
+- Internal refactoring with no user-visible changes
+- Dependency updates with no breaking changes
+- Test improvements
+- Documentation updates
+
+#### ✨ Minor (Manual - 1.0.0 → 1.1.0)
+- **New user-facing features**:
+  - New screens or major UI components
+  - New functionality (GPS features, data export, etc.)
+  - Settings or configuration options
+  - Integration with new services
+- **Significant enhancements**:
+  - Major UI/UX improvements
+  - New navigation flows
+  - Performance improvements visible to users
+
+#### 💥 Major (Manual - 1.0.0 → 2.0.0)
+- **Breaking changes**:
+  - API changes that affect data format
+  - Removed features or screens
+  - Changed user workflows
+  - Authentication system changes
+  - Database schema changes requiring migration
+
+### Version Decision Tree
+```
+Did you add new user-facing functionality?
+├─ Yes → Is it a breaking change?
+│  ├─ Yes → MAJOR version bump
+│  └─ No → MINOR version bump
+└─ No → Is it a bug fix or internal improvement?
+   └─ Yes → PATCH version (automatic on PR merge)
+```
 
 ### Version Commit Messages
 Automatic commits include:
@@ -145,9 +180,67 @@ EAS builds use:
 
 All three are managed automatically by the versioning system.
 
+## Current Version Recommendation
+
+**Current State**: `v1.0.13` (13 patch releases since initial 1.0.0)
+
+**Recommendation**: Consider bumping to `v1.1.0` if your recent work includes:
+- New GPS features or enhancements
+- New UI components or screens  
+- Data export/import functionality
+- Significant user-facing improvements
+
+**Why Consider Minor Bump**:
+- 13 patch releases suggest accumulated feature work
+- Minor versions better communicate significant progress to users
+- Provides clean slate for future patch releases
+- Better aligns with semantic versioning principles
+
+**To Bump to v1.1.0**:
+```bash
+npm run version:minor
+```
+
+This will:
+- Update `package.json` and `app.json` to `1.1.0`
+- Reset build numbers appropriately
+- Create `v1.1.0` git tag
+- Prepare for future automatic patch increments (1.1.1, 1.1.2, etc.)
+
 ## Migration Notes
 
 **Before**: All builds were `1.0.0` with auto-incrementing build numbers
 **After**: Semantic versions increment with each PR merge
 
-The first PR merge after implementing this system will bump from `1.0.0` to `1.0.1`. 
+The first PR merge after implementing this system will bump from `1.0.0` to `1.0.1`.
+
+## Logging Strategy
+
+### Production Logging Standards
+
+**Approved Log Types:**
+- **`logger.info()`**: Significant events, service initialization, user actions
+- **`logger.debug()`**: Development-only detailed tracing (disabled in production)  
+- **`logger.warn()`**: Recoverable issues, validation failures
+- **`logger.error()`**: Exceptions, critical failures
+
+**Prohibited Patterns:**
+- Debug tags in info logs: `[ZOOM_DEBUG]`, `[GPS_DEBUG]`, etc.
+- Informal language: "mysterious", "gambit", "heuristic"
+- Excessive detail in production logs
+- Development-only logs using `logger.info()`
+
+**Professional Log Format:**
+```typescript
+// ✅ Good - Professional, structured
+logger.debug('Animation lock enabled', { component: 'useCinematicZoom' });
+
+// ❌ Bad - Debug tag in info log with informal language  
+logger.info('[ZOOM_DEBUG] Heuristic cinematic zoom - matching mysterious animation height');
+```
+
+**Context Requirements:**
+- Always include `component` field
+- Include `action` field for service operations
+- Use structured data over verbose descriptions
+- Keep production logs concise and professional

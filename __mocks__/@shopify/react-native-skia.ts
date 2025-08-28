@@ -7,6 +7,8 @@ export const Skia = {
     Make: jest.fn(() => ({
       moveTo: jest.fn(),
       lineTo: jest.fn(),
+      quadTo: jest.fn(),
+      cubicTo: jest.fn(),
       close: jest.fn(),
       addCircle: jest.fn(),
       addRect: jest.fn(),

@@ -132,7 +132,10 @@ export class GPSConnectionService {
    * Process GPS points and add connection metadata
    * This is the single source of truth for GPS connections
    */
-  static processGPSPoints(points: GeoPoint[]): ProcessedGPSPoint[] {
+  static processGPSPoints(
+    points: GeoPoint[],
+    options: { enableLogging?: boolean } = {}
+  ): ProcessedGPSPoint[] {
     // Filter out invalid points
     const validPoints = points.filter(
       (point): point is GeoPoint =>
@@ -151,6 +154,9 @@ export class GPSConnectionService {
 
     // Sort points by timestamp to ensure chronological order
     const sortedPoints = [...validPoints].sort((a, b) => a.timestamp - b.timestamp);
+
+    // For large datasets, disable verbose logging to prevent UI blocking
+    const enableDebugLogging = options.enableLogging !== false && sortedPoints.length < 100;
 
     const processedPoints: ProcessedGPSPoint[] = [];
 
@@ -173,21 +179,24 @@ export class GPSConnectionService {
           startsNewSession = true;
           disconnectionReason = decision.reason;
 
-          logger.debug('GPS connection broken - new session started', {
-            component: 'GPSConnectionService',
-            action: 'processGPSPoints',
-            reason: decision.reason,
-            previousPoint: {
-              lat: previousPoint.latitude.toFixed(6),
-              lng: previousPoint.longitude.toFixed(6),
-              timestamp: new Date(previousPoint.timestamp).toISOString(),
-            },
-            currentPoint: {
-              lat: currentPoint.latitude.toFixed(6),
-              lng: currentPoint.longitude.toFixed(6),
-              timestamp: new Date(currentPoint.timestamp).toISOString(),
-            },
-          });
+          // Only log for small datasets to prevent UI blocking
+          if (enableDebugLogging) {
+            logger.debug('GPS connection broken - new session started', {
+              component: 'GPSConnectionService',
+              action: 'processGPSPoints',
+              reason: decision.reason,
+              previousPoint: {
+                lat: previousPoint.latitude.toFixed(6),
+                lng: previousPoint.longitude.toFixed(6),
+                timestamp: new Date(previousPoint.timestamp).toISOString(),
+              },
+              currentPoint: {
+                lat: currentPoint.latitude.toFixed(6),
+                lng: currentPoint.longitude.toFixed(6),
+                timestamp: new Date(currentPoint.timestamp).toISOString(),
+              },
+            });
+          }
         }
       }
 
@@ -199,13 +208,16 @@ export class GPSConnectionService {
       });
     }
 
-    logger.info('GPS points processed with connection metadata', {
-      component: 'GPSConnectionService',
-      action: 'processGPSPoints',
-      totalPoints: processedPoints.length,
-      connectedPoints: processedPoints.filter((p) => p.connectsToPrevious).length,
-      sessionStarts: processedPoints.filter((p) => p.startsNewSession).length,
-    });
+    // Only log summary for small datasets or occasionally for large ones to prevent spam
+    if (enableDebugLogging || Math.random() < 0.01) {
+      logger.info('GPS points processed with connection metadata', {
+        component: 'GPSConnectionService',
+        action: 'processGPSPoints',
+        totalPoints: processedPoints.length,
+        connectedPoints: processedPoints.filter((p) => p.connectsToPrevious).length,
+        sessionStarts: processedPoints.filter((p) => p.startsNewSession).length,
+      });
+    }
 
     return processedPoints;
   }

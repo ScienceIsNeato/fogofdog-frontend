@@ -52,7 +52,7 @@ describe('UnifiedSettingsModal - Core Functionality', () => {
       expect(getByText('Settings')).toBeTruthy();
       expect(getByText('User Profile')).toBeTruthy();
       expect(getByText('Coming Soon')).toBeTruthy();
-      expect(getByText('Exploration History Management')).toBeTruthy();
+      expect(getByText('Data Management')).toBeTruthy();
       expect(getByText('Developer Settings')).toBeTruthy();
       expect(getByTestId('close-button')).toBeTruthy();
     });
@@ -120,7 +120,6 @@ describe('UnifiedSettingsModal - Core Functionality', () => {
       // Should navigate to developer view
       expect(queryByText('Testing & Debugging')).toBeTruthy();
       expect(queryByText('Show Onboarding')).toBeTruthy();
-      expect(queryByText('Fresh Install Mode')).toBeTruthy();
     });
   });
 
@@ -130,14 +129,14 @@ describe('UnifiedSettingsModal - Core Functionality', () => {
         <UnifiedSettingsModal {...defaultProps} />
       );
 
-      const historyButton = getByText('Exploration History Management');
+      const historyButton = getByText('Data Management');
 
       await act(async () => {
         fireEvent.press(historyButton);
       });
 
       // Should show history view
-      expect(getByText('Clear Exploration Data')).toBeTruthy();
+      expect(getByText('Exploration Data Management')).toBeTruthy();
       expect(getByText('Current Data')).toBeTruthy();
 
       // Should hide main view
@@ -150,7 +149,7 @@ describe('UnifiedSettingsModal - Core Functionality', () => {
       const { getByText } = renderWithProviders(<UnifiedSettingsModal {...defaultProps} />);
 
       // Navigate to history view
-      const historyButton = getByText('Exploration History Management');
+      const historyButton = getByText('Data Management');
       await act(async () => {
         fireEvent.press(historyButton);
       });
@@ -174,12 +173,12 @@ describe('UnifiedSettingsModal - Core Functionality', () => {
       );
 
       // Navigate to history view
-      const historyButton = getByText('Exploration History Management');
+      const historyButton = getByText('Data Management');
       await act(async () => {
         fireEvent.press(historyButton);
       });
 
-      expect(getByText('Clear Exploration Data')).toBeTruthy();
+      expect(getByText('Exploration Data Management')).toBeTruthy();
 
       // Press back button
       const backButton = getByTestId('back-button');
@@ -189,14 +188,14 @@ describe('UnifiedSettingsModal - Core Functionality', () => {
 
       // Should return to main view
       expect(getByText('Settings')).toBeTruthy();
-      expect(queryByText('Clear Exploration Data')).toBeNull();
+      expect(queryByText('Exploration Data Management')).toBeNull();
     });
 
     it('shows confirmation alert when clear option is pressed', async () => {
       const { getByText } = renderWithProviders(<UnifiedSettingsModal {...defaultProps} />);
 
       // Navigate to history view
-      const historyButton = getByText('Exploration History Management');
+      const historyButton = getByText('Data Management');
       await act(async () => {
         fireEvent.press(historyButton);
       });
@@ -220,7 +219,7 @@ describe('UnifiedSettingsModal - Core Functionality', () => {
       const { getByText } = renderWithProviders(<UnifiedSettingsModal {...defaultProps} />);
 
       // Navigate to history view
-      const historyButton = getByText('Exploration History Management');
+      const historyButton = getByText('Data Management');
       await act(async () => {
         fireEvent.press(historyButton);
       });
@@ -256,7 +255,7 @@ describe('UnifiedSettingsModal - Core Functionality', () => {
       );
 
       // Navigate to history view
-      const historyButton = getByText('Exploration History Management');
+      const historyButton = getByText('Data Management');
       await act(async () => {
         fireEvent.press(historyButton);
       });
@@ -276,7 +275,7 @@ describe('UnifiedSettingsModal - Core Functionality', () => {
       );
 
       // Navigate to history view
-      const historyButton = getByText('Exploration History Management');
+      const historyButton = getByText('Data Management');
       await act(async () => {
         fireEvent.press(historyButton);
       });
@@ -329,7 +328,7 @@ describe('UnifiedSettingsModal - Core Functionality', () => {
       const { getByText } = renderWithProviders(<UnifiedSettingsModal {...propsWithNoDate} />);
 
       // Navigate to history view
-      const historyButton = getByText('Exploration History Management');
+      const historyButton = getByText('Data Management');
       await act(async () => {
         fireEvent.press(historyButton);
       });

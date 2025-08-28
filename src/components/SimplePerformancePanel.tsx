@@ -288,7 +288,7 @@ const styles = StyleSheet.create({
   },
   realTimeButton: {
     flex: 1,
-    backgroundColor: '#28a745', // Green for real-time
+    backgroundColor: '#007AFF', // Use theme blue
     paddingVertical: 8,
     paddingHorizontal: 12,
     borderRadius: 6,
@@ -296,7 +296,7 @@ const styles = StyleSheet.create({
   },
   historicalButton: {
     flex: 1,
-    backgroundColor: '#6f42c1', // Purple for historical
+    backgroundColor: '#007AFF', // Use theme blue
     paddingVertical: 8,
     paddingHorizontal: 12,
     borderRadius: 6,
@@ -305,7 +305,7 @@ const styles = StyleSheet.create({
 
   clearButton: {
     flex: 1,
-    backgroundColor: '#dc3545',
+    backgroundColor: '#FF3B30', // Better red that's less garish
     paddingVertical: 8,
     paddingHorizontal: 12,
     borderRadius: 6,

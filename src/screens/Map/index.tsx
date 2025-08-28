@@ -43,8 +43,10 @@ import { SettingsButton } from '../../components/SettingsButton';
 import UnifiedSettingsModal from '../../components/UnifiedSettingsModal';
 import { HUDStatsPanel } from '../../components/HUDStatsPanel';
 import { GPSInjectionIndicator } from '../../components/GPSInjectionIndicator';
+import { MapDistanceScale } from '../../components/MapDistanceScale';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { logger } from '../../utils/logger';
+import { useCinematicZoom } from './hooks/useCinematicZoom';
 
 import { GPSInjectionService } from '../../services/GPSInjectionService';
 import { BackgroundLocationService } from '../../services/BackgroundLocationService';
@@ -54,6 +56,7 @@ import { DataClearingService } from '../../services/DataClearingService';
 import { DataStats, ClearType } from '../../types/dataClear';
 import { GeoPoint } from '../../types/user';
 import { useOnboardingContext } from '../../contexts/OnboardingContext';
+import { constrainRegion } from '../../constants/mapConstraints';
 // Performance optimizations available via OptimizedFogOverlay component
 
 // Unified location task name
@@ -65,15 +68,49 @@ const DEFAULT_ZOOM_DELTAS = {
   longitudeDelta: 0.0421,
 };
 
-// Define max zoom out deltas (approx 50 mile view diameter / 25 mile radius)
-const MAX_LATITUDE_DELTA = 0.75;
-const MAX_LONGITUDE_DELTA = 1.0;
+// Note: Animation constants are now defined in useCinematicZoom hook
 
-// Types for better type safety
-interface LocationCoordinate {
-  latitude: number;
-  longitude: number;
-}
+// Calculate region that encompasses exploration path with padding
+export const calculateExplorationBounds = (explorationPath: GeoPoint[]): Region | null => {
+  if (explorationPath.length === 0) return null;
+
+  // Find min/max coordinates
+  const firstPoint = explorationPath[0];
+  if (!firstPoint) return null;
+
+  let minLat = firstPoint.latitude;
+  let maxLat = firstPoint.latitude;
+  let minLng = firstPoint.longitude;
+  let maxLng = firstPoint.longitude;
+
+  explorationPath.forEach((point) => {
+    minLat = Math.min(minLat, point.latitude);
+    maxLat = Math.max(maxLat, point.latitude);
+    minLng = Math.min(minLng, point.longitude);
+    maxLng = Math.max(maxLng, point.longitude);
+  });
+
+  // Calculate center and deltas with padding
+  const centerLat = (minLat + maxLat) / 2;
+  const centerLng = (minLng + maxLng) / 2;
+  const latDelta = (maxLat - minLat) * 1.5; // 50% padding
+  const lngDelta = (maxLng - minLng) * 1.5; // 50% padding
+
+  // Ensure minimum zoom level (don't zoom in too much for small areas)
+  const minLatDelta = DEFAULT_ZOOM_DELTAS.latitudeDelta * 2; // At least 2x normal zoom
+  const minLngDelta = DEFAULT_ZOOM_DELTAS.longitudeDelta * 2;
+
+  return {
+    latitude: centerLat,
+    longitude: centerLng,
+    latitudeDelta: Math.max(latDelta, minLatDelta),
+    longitudeDelta: Math.max(lngDelta, minLngDelta),
+  };
+};
+
+// Note: Max zoom constraints are now defined above (20km limit)
+
+// Types for better type safety (using GeoPoint from types/user.ts)
 
 interface SafeAreaInsets {
   top: number;
@@ -131,7 +168,7 @@ const handleLocationUpdate = ({
   // Auto-center map if follow mode is active OR if user clicked center once
   const shouldCenterMap = isFollowModeActive || isMapCenteredOnUser;
 
-  if (shouldCenterMap && mapRef.current) {
+  if (shouldCenterMap && mapRef.current && !(mapRef.current as any)?._cinematicZoomActive) {
     const newRegion = {
       latitude: location.latitude,
       longitude: location.longitude,
@@ -160,10 +197,18 @@ function defineUnifiedLocationTask() {
       if (locations.length > 0) {
         const location = locations[0];
         if (location?.coords) {
-          DeviceEventEmitter.emit('locationUpdate', {
+          const locationUpdate = {
             latitude: location.coords.latitude,
             longitude: location.coords.longitude,
+          };
+
+          logger.debug('Emitting locationUpdate event from background task', {
+            component: 'MapScreen',
+            action: 'defineUnifiedLocationTask',
+            coordinate: `${locationUpdate.latitude.toFixed(6)}, ${locationUpdate.longitude.toFixed(6)}`,
           });
+
+          DeviceEventEmitter.emit('locationUpdate', locationUpdate);
         }
       }
     }
@@ -175,8 +220,8 @@ function defineUnifiedLocationTask() {
 async function startBackgroundLocationUpdates(): Promise<void> {
   const locationOptions: any = {
     accuracy: Location.Accuracy.High,
-    timeInterval: 3000,
-    distanceInterval: 5,
+    timeInterval: 100, // 100ms for immediate response
+    distanceInterval: 0, // Any movement triggers update
     foregroundService: {
       notificationTitle: 'Fog of Dog',
       notificationBody: 'Tracking your location to reveal the map',
@@ -210,15 +255,23 @@ async function startForegroundLocationUpdates(): Promise<void> {
   await Location.watchPositionAsync(
     {
       accuracy: Location.Accuracy.High,
-      timeInterval: 3000,
-      distanceInterval: 5,
+      timeInterval: 100, // 100ms for immediate response
+      distanceInterval: 0, // Any movement triggers update
     },
     (location) => {
       // Emit location update event for foreground tracking
-      DeviceEventEmitter.emit('locationUpdate', {
+      const locationUpdate = {
         latitude: location.coords.latitude,
         longitude: location.coords.longitude,
+      };
+
+      logger.debug('Emitting locationUpdate event from foreground service', {
+        component: 'MapScreen',
+        action: 'startForegroundLocationUpdates',
+        coordinate: `${locationUpdate.latitude.toFixed(6)}, ${locationUpdate.longitude.toFixed(6)}`,
       });
+
+      DeviceEventEmitter.emit('locationUpdate', locationUpdate);
     }
   );
 
@@ -469,6 +522,20 @@ async function getInitialLocation({
         longitude: initialLocation.coords.longitude,
         timestamp: Date.now(),
       };
+
+      // Emit locationUpdate event for cinematic zoom hook
+      logger.debug('Emitting locationUpdate event from initial location', {
+        component: 'MapScreen',
+        action: 'getInitialLocation',
+        coordinate: `${geoPoint.latitude.toFixed(6)}, ${geoPoint.longitude.toFixed(6)}`,
+      });
+
+      DeviceEventEmitter.emit('locationUpdate', {
+        latitude: geoPoint.latitude,
+        longitude: geoPoint.longitude,
+      });
+
+      // Also update Redux state
       handleLocationUpdate({
         location: geoPoint,
         dispatch,
@@ -833,38 +900,7 @@ const useUnifiedLocationService = (config: UnifiedLocationServiceConfig) => {
   }, []);
 };
 
-// Hook for zoom restriction logic
-const useZoomRestriction = (
-  currentRegion: Region | undefined,
-  mapRef: React.RefObject<MapView>
-) => {
-  useEffect(() => {
-    if (currentRegion && mapRef.current) {
-      let clampedLatitudeDelta = currentRegion.latitudeDelta;
-      let clampedLongitudeDelta = currentRegion.longitudeDelta;
-      let needsAdjustment = false;
-
-      if (currentRegion.latitudeDelta > MAX_LATITUDE_DELTA) {
-        clampedLatitudeDelta = MAX_LATITUDE_DELTA;
-        needsAdjustment = true;
-      }
-      if (currentRegion.longitudeDelta > MAX_LONGITUDE_DELTA) {
-        clampedLongitudeDelta = MAX_LONGITUDE_DELTA;
-        needsAdjustment = true;
-      }
-
-      if (needsAdjustment) {
-        const clampedRegion: Region = {
-          latitude: currentRegion.latitude,
-          longitude: currentRegion.longitude,
-          latitudeDelta: clampedLatitudeDelta,
-          longitudeDelta: clampedLongitudeDelta,
-        };
-        mapRef.current.animateToRegion(clampedRegion, 200);
-      }
-    }
-  }, [currentRegion, mapRef]);
-};
+// Note: Zoom restrictions are now handled in handleRegionChangeComplete to prevent oscillation loops
 
 // Individual event handler functions
 const createZoomHandler = (dispatch: ReturnType<typeof useAppDispatch>) => (newZoom: number) => {
@@ -873,7 +909,7 @@ const createZoomHandler = (dispatch: ReturnType<typeof useAppDispatch>) => (newZ
 
 const createCenterOnUserHandler =
   (options: {
-    currentLocation: LocationCoordinate | null;
+    currentLocation: GeoPoint | null;
     currentRegion: Region | undefined;
     mapRef: React.RefObject<MapView>;
     dispatch: ReturnType<typeof useAppDispatch>;
@@ -885,13 +921,20 @@ const createCenterOnUserHandler =
     dispatch(toggleFollowMode());
 
     // If follow mode was OFF and is now ON, center the map immediately
-    if (!isFollowModeActive && currentLocation && mapRef.current) {
+    // But skip if cinematic zoom is active to prevent conflicts
+    if (
+      !isFollowModeActive &&
+      currentLocation &&
+      mapRef.current &&
+      !(mapRef.current as any)?._cinematicZoomActive
+    ) {
       const userRegion = {
         latitude: currentLocation.latitude,
         longitude: currentLocation.longitude,
         latitudeDelta: currentRegion?.latitudeDelta ?? DEFAULT_ZOOM_DELTAS.latitudeDelta,
         longitudeDelta: currentRegion?.longitudeDelta ?? DEFAULT_ZOOM_DELTAS.longitudeDelta,
       };
+
       mapRef.current.animateToRegion(userRegion, 300);
       dispatch(setCenterOnUser(true));
     }
@@ -965,20 +1008,39 @@ function handleRegionChangeComplete({
   region,
   setCurrentRegion,
   handleZoomChange,
+  mapRef,
 }: {
   region: Region;
   setCurrentRegion: (region: Region) => void;
   handleZoomChange: (zoom: number) => void;
+  mapRef: React.RefObject<MapView>;
 }) {
-  setCurrentRegion(region);
-  const zoom = Math.round(Math.log(360 / region.latitudeDelta) / Math.LN2);
+  // Constrain the region to prevent zooming out beyond 20km
+  const constrainedRegion = constrainRegion(region);
+  const zoom = Math.round(Math.log(360 / constrainedRegion.latitudeDelta) / Math.LN2);
+
+  // If the region was constrained, animate back to the constrained region
+  // But skip if cinematic zoom is active to prevent conflicts
+  if (
+    (constrainedRegion.latitudeDelta !== region.latitudeDelta ||
+      constrainedRegion.longitudeDelta !== region.longitudeDelta) &&
+    !(mapRef.current as any)?._cinematicZoomActive
+  ) {
+    logger.debug('Applying zoom constraints', {
+      component: 'MapScreen',
+      reason: 'zoom_constraint_violation',
+    });
+    mapRef.current?.animateToRegion(constrainedRegion, 200);
+  }
+
+  setCurrentRegion(constrainedRegion);
   handleZoomChange(zoom);
 }
 
 // Refactor useMapEventHandlers to use helpers
 const useMapEventHandlers = (options: {
   dispatch: ReturnType<typeof useAppDispatch>;
-  currentLocation: LocationCoordinate | null;
+  currentLocation: GeoPoint | null;
   currentRegion: Region | undefined;
   isMapCenteredOnUser: boolean;
   isFollowModeActive: boolean;
@@ -1036,7 +1098,7 @@ const useMapEventHandlers = (options: {
   const onPanDrag = () => handlePanDrag({ mapRef, dispatch });
 
   const onRegionChangeComplete = (region: Region) =>
-    handleRegionChangeComplete({ region, setCurrentRegion, handleZoomChange });
+    handleRegionChangeComplete({ region, setCurrentRegion, handleZoomChange, mapRef });
 
   return {
     centerOnUserLocation,
@@ -1073,7 +1135,7 @@ const getSettingsButtonStyle = (insets: SafeAreaInsets) => ({
 // Type definition for MapScreenRenderer props
 interface MapScreenRendererProps {
   mapRef: React.RefObject<MapView>;
-  currentLocation: LocationCoordinate | null;
+  currentLocation: GeoPoint | null;
   insets: SafeAreaInsets;
   isMapCenteredOnUser: boolean;
   isFollowModeActive: boolean;
@@ -1084,6 +1146,7 @@ interface MapScreenRendererProps {
   setMapDimensions: (dimensions: { width: number; height: number }) => void;
   currentFogRegion: (Region & { width: number; height: number }) | undefined;
   handleSettingsPress: () => void;
+  canStartCinematicAnimation?: boolean; // Control when cinematic animation can start
   // workletMapRegion?: ReturnType<typeof useWorkletMapRegion>; // Available for future worklet integration
 }
 
@@ -1133,16 +1196,16 @@ const MapLoadingState = ({
  * The fog overlay accounts for safe area insets, but MapView markers use raw coordinates
  */
 const calculateAdjustedMarkerCoordinate = (
-  currentLocation: LocationCoordinate,
+  currentLocation: GeoPoint | null,
   currentRegion: Region | undefined,
   mapDimensions: { width: number; height: number },
   safeAreaInsets?: { top: number; bottom: number; left: number; right: number }
 ): { latitude: number; longitude: number } => {
   // Return original coordinates if we don't have all required data
-  if (!currentRegion || !safeAreaInsets || mapDimensions.height <= 0) {
+  if (!currentLocation || !currentRegion || !safeAreaInsets || mapDimensions.height <= 0) {
     return {
-      latitude: currentLocation.latitude,
-      longitude: currentLocation.longitude,
+      latitude: currentLocation?.latitude ?? 0,
+      longitude: currentLocation?.longitude ?? 0,
     };
   }
 
@@ -1180,7 +1243,7 @@ const MapViewWithMarker = ({
 }: {
   mapRef: React.RefObject<MapView>;
   initialRegion: any;
-  currentLocation: LocationCoordinate;
+  currentLocation: GeoPoint | null;
   currentRegion?: Region | undefined;
   mapDimensions: { width: number; height: number };
   safeAreaInsets?: { top: number; bottom: number; left: number; right: number };
@@ -1188,12 +1251,14 @@ const MapViewWithMarker = ({
   onPanDrag: () => void;
   onRegionChangeComplete: (region: Region) => void;
 }) => {
-  const adjustedCoordinate = calculateAdjustedMarkerCoordinate(
-    currentLocation,
-    currentRegion,
-    mapDimensions,
-    safeAreaInsets
-  );
+  const adjustedCoordinate = currentLocation
+    ? calculateAdjustedMarkerCoordinate(
+        currentLocation,
+        currentRegion,
+        mapDimensions,
+        safeAreaInsets
+      )
+    : null;
 
   return (
     <MapView
@@ -1208,14 +1273,16 @@ const MapViewWithMarker = ({
       rotateEnabled={false}
       pitchEnabled={false}
     >
-      <Marker
-        key={`current-location-marker`}
-        coordinate={adjustedCoordinate}
-        title="Woof!"
-        anchor={{ x: 0.5, y: 0.5 }}
-      >
-        <View style={USER_MARKER_STYLE} />
-      </Marker>
+      {currentLocation && adjustedCoordinate && (
+        <Marker
+          key={`current-location-marker`}
+          coordinate={adjustedCoordinate}
+          title="Woof!"
+          anchor={{ x: 0.5, y: 0.5 }}
+        >
+          <View style={USER_MARKER_STYLE} />
+        </Marker>
+      )}
     </MapView>
   );
 };
@@ -1233,9 +1300,19 @@ const MapScreenRenderer = ({
   setMapDimensions,
   currentFogRegion,
   handleSettingsPress,
+  canStartCinematicAnimation = true, // New prop to control animation timing
 }: MapScreenRendererProps) => {
-  // Don't render map until we have a real location
-  if (!currentLocation) {
+  // Use the new cinematic zoom hook (must be before early return)
+  const { initialRegion } = useCinematicZoom({
+    mapRef,
+    currentLocation,
+    canStartAnimation: canStartCinematicAnimation,
+  });
+
+  // Show map immediately after permissions are granted, even without location
+  // This allows cinematic animation to start while location is being acquired
+  // The cinematic zoom hook provides a fallback region for first-time users
+  if (!initialRegion) {
     return (
       <MapLoadingState
         setMapDimensions={setMapDimensions}
@@ -1247,13 +1324,7 @@ const MapScreenRenderer = ({
     );
   }
 
-  // Create initial region from current location
-  const initialRegion = {
-    latitude: currentLocation.latitude,
-    longitude: currentLocation.longitude,
-    latitudeDelta: DEFAULT_ZOOM_DELTAS.latitudeDelta,
-    longitudeDelta: DEFAULT_ZOOM_DELTAS.longitudeDelta,
-  };
+  // Use initialRegion from cinematic zoom hook (already has proper fallback logic)
 
   return (
     <View
@@ -1282,6 +1353,11 @@ const MapScreenRenderer = ({
       {/* Use OptimizedFogOverlay for better performance with many GPS points */}
       {currentFogRegion && (
         <OptimizedFogOverlay mapRegion={currentFogRegion} safeAreaInsets={insets} />
+      )}
+
+      {/* Distance scale legend */}
+      {currentFogRegion && (
+        <MapDistanceScale region={currentFogRegion} mapWidth={currentFogRegion.width} />
       )}
 
       <LocationButton
@@ -1773,7 +1849,7 @@ const useMapScreenServices = (config: MapScreenServicesFullConfig) => {
     backgroundGranted,
   });
 
-  useZoomRestriction(currentRegion, mapRef);
+  // Note: Zoom restrictions now handled in handleRegionChangeComplete to prevent oscillation
 
   // Persist exploration state whenever it changes
   useExplorationStatePersistence(explorationState);
@@ -1842,6 +1918,7 @@ const MapScreenUI: React.FC<{
   handleSettingsPress: () => void;
   isSettingsModalVisible: boolean;
   setIsSettingsModalVisible: (visible: boolean) => void;
+  canStartCinematicAnimation?: boolean; // Control when cinematic animation can start
   gpsInjectionStatus: {
     isRunning: boolean;
     type: 'real-time' | 'historical' | null;
@@ -1865,6 +1942,7 @@ const MapScreenUI: React.FC<{
   handleSettingsPress,
   isSettingsModalVisible,
   setIsSettingsModalVisible,
+  canStartCinematicAnimation = true,
   gpsInjectionStatus,
 }) => {
   return (
@@ -1882,6 +1960,7 @@ const MapScreenUI: React.FC<{
         setMapDimensions={setMapDimensions}
         currentFogRegion={currentFogRegion}
         handleSettingsPress={handleSettingsPress}
+        canStartCinematicAnimation={canStartCinematicAnimation}
         // workletMapRegion={workletMapRegion} // Available for future worklet integration
       />
 
@@ -2231,9 +2310,12 @@ export const MapScreen = () => {
   // Show "Allow Once" warning if user selected that option
   const showOnceOnlyWarning = isVerified && mode === 'once_only';
 
+  // Only allow cinematic animation when onboarding is complete AND permissions are granted
+  const canStartCinematicAnimation = !showOnboarding && permissionsVerified;
+
   return (
     <>
-      <MapScreenUI {...uiProps} />
+      <MapScreenUI {...uiProps} canStartCinematicAnimation={canStartCinematicAnimation} />
       <HUDStatsPanel />
       <OnboardingOverlay
         visible={showOnboarding}
