@@ -117,13 +117,10 @@ describe('useCinematicZoom', () => {
     expect(result.current.initialRegion).toBeNull();
   });
 
-  it('should return null explorationBounds when path has fewer than 5 points', () => {
+  it('should return null explorationBounds when path is empty', () => {
     const store = createTestStore({
       exploration: {
-        path: [
-          { latitude: 37.7749, longitude: -122.4194, timestamp: 1 },
-          { latitude: 37.775, longitude: -122.4195, timestamp: 2 },
-        ],
+        path: [], // Empty path should return null bounds
       },
     });
 
@@ -134,8 +131,8 @@ describe('useCinematicZoom', () => {
     expect(result.current.explorationBounds).toBeNull();
   });
 
-  it('should calculate bounds when path has 5 or more points', () => {
-    const mockPath = Array.from({ length: 6 }, (_, i) => ({
+  it('should calculate bounds when path has 1 or more points', () => {
+    const mockPath = Array.from({ length: 1 }, (_, i) => ({
       latitude: 37.7749 + i * 0.001,
       longitude: -122.4194 + i * 0.001,
       timestamp: i,

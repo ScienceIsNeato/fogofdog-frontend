@@ -34,8 +34,8 @@ interface UseCinematicZoomProps {
  */
 const useExplorationBounds = (explorationPath: GeoPoint[]) => {
   return useMemo(() => {
-    // Only use cinematic zoom if we have significant GPS history (5+ points)
-    if (explorationPath.length >= 5) {
+    // Calculate exploration bounds if we have at least one GPS point
+    if (explorationPath.length >= 1) {
       return calculateExplorationBounds(explorationPath);
     }
     return null;
