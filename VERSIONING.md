@@ -212,4 +212,35 @@ This will:
 **Before**: All builds were `1.0.0` with auto-incrementing build numbers
 **After**: Semantic versions increment with each PR merge
 
-The first PR merge after implementing this system will bump from `1.0.0` to `1.0.1`. 
+The first PR merge after implementing this system will bump from `1.0.0` to `1.0.1`.
+
+## Logging Strategy
+
+### Production Logging Standards
+
+**Approved Log Types:**
+- **`logger.info()`**: Significant events, service initialization, user actions
+- **`logger.debug()`**: Development-only detailed tracing (disabled in production)  
+- **`logger.warn()`**: Recoverable issues, validation failures
+- **`logger.error()`**: Exceptions, critical failures
+
+**Prohibited Patterns:**
+- Debug tags in info logs: `[ZOOM_DEBUG]`, `[GPS_DEBUG]`, etc.
+- Informal language: "mysterious", "gambit", "heuristic"
+- Excessive detail in production logs
+- Development-only logs using `logger.info()`
+
+**Professional Log Format:**
+```typescript
+// ✅ Good - Professional, structured
+logger.debug('Animation lock enabled', { component: 'useCinematicZoom' });
+
+// ❌ Bad - Debug tag in info log with informal language  
+logger.info('[ZOOM_DEBUG] Heuristic cinematic zoom - matching mysterious animation height');
+```
+
+**Context Requirements:**
+- Always include `component` field
+- Include `action` field for service operations
+- Use structured data over verbose descriptions
+- Keep production logs concise and professional

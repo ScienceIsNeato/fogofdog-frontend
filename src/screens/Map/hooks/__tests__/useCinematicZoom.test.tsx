@@ -104,7 +104,7 @@ describe('useCinematicZoom', () => {
     expect(result.current.initialRegion?.longitude).not.toBe(currentLocation.longitude);
   });
 
-  it('should return null initial region when current location is null', () => {
+  it('should return null when no location is available', () => {
     const store = createTestStore({
       exploration: { path: [] },
     });
@@ -114,6 +114,7 @@ describe('useCinematicZoom', () => {
       { wrapper: createWrapper(store) }
     );
 
+    // Should return null until real location is available
     expect(result.current.initialRegion).toBeNull();
   });
 
@@ -207,20 +208,13 @@ describe('useCinematicZoom', () => {
 
     // Should set the cinematic zoom flag
     expect(mockMapView._cinematicZoomActive).toBe(true);
-    expect(mockLogger.info).toHaveBeenCalledWith(
-      '[ZOOM_DEBUG] Cinematic zoom flag set - preventing other animations'
-    );
+    expect(mockLogger.debug).toHaveBeenCalledWith('Animation lock enabled', {
+      component: 'useCinematicZoom',
+    });
 
-    // Should call calculateZoomAnimation for the end region only (50m scale)
-    expect(mockMapZoomUtils.calculateZoomAnimation).toHaveBeenCalledWith(
-      '50m',
-      '50m',
-      currentLocation,
-      400
-    );
-
-    // Should constrain the end region
-    expect(mockMapConstraints.constrainRegion).toHaveBeenCalledTimes(1);
+    // calculateZoomAnimation and constrainRegion are no longer called in the simplified version
+    expect(mockMapZoomUtils.calculateZoomAnimation).not.toHaveBeenCalled();
+    expect(mockMapConstraints.constrainRegion).not.toHaveBeenCalled();
   });
 
   it('should only run cinematic zoom once per session', () => {
@@ -241,9 +235,9 @@ describe('useCinematicZoom', () => {
 
     // First render should trigger cinematic zoom
     expect(mockMapView._cinematicZoomActive).toBe(true);
-    expect(mockLogger.info).toHaveBeenCalledWith(
-      '[ZOOM_DEBUG] Cinematic zoom flag set - preventing other animations'
-    );
+    expect(mockLogger.debug).toHaveBeenCalledWith('Animation lock enabled', {
+      component: 'useCinematicZoom',
+    });
 
     // Clear mocks and rerender (simulating path updates)
     jest.clearAllMocks();
@@ -253,9 +247,9 @@ describe('useCinematicZoom', () => {
 
     // Should not trigger again
     expect(mockMapView._cinematicZoomActive).toBe(false);
-    expect(mockLogger.info).not.toHaveBeenCalledWith(
-      '[ZOOM_DEBUG] Cinematic zoom flag set - preventing other animations'
-    );
+    expect(mockLogger.debug).not.toHaveBeenCalledWith('Animation lock enabled', {
+      component: 'useCinematicZoom',
+    });
     expect(mockMapZoomUtils.calculateZoomAnimation).not.toHaveBeenCalled();
   });
 });

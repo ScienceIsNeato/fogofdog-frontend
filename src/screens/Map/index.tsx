@@ -197,10 +197,18 @@ function defineUnifiedLocationTask() {
       if (locations.length > 0) {
         const location = locations[0];
         if (location?.coords) {
-          DeviceEventEmitter.emit('locationUpdate', {
+          const locationUpdate = {
             latitude: location.coords.latitude,
             longitude: location.coords.longitude,
+          };
+
+          logger.debug('Emitting locationUpdate event from background task', {
+            component: 'MapScreen',
+            action: 'defineUnifiedLocationTask',
+            coordinate: `${locationUpdate.latitude.toFixed(6)}, ${locationUpdate.longitude.toFixed(6)}`,
           });
+
+          DeviceEventEmitter.emit('locationUpdate', locationUpdate);
         }
       }
     }
@@ -212,8 +220,8 @@ function defineUnifiedLocationTask() {
 async function startBackgroundLocationUpdates(): Promise<void> {
   const locationOptions: any = {
     accuracy: Location.Accuracy.High,
-    timeInterval: 3000,
-    distanceInterval: 5,
+    timeInterval: 100, // 100ms for immediate response
+    distanceInterval: 0, // Any movement triggers update
     foregroundService: {
       notificationTitle: 'Fog of Dog',
       notificationBody: 'Tracking your location to reveal the map',
@@ -247,15 +255,23 @@ async function startForegroundLocationUpdates(): Promise<void> {
   await Location.watchPositionAsync(
     {
       accuracy: Location.Accuracy.High,
-      timeInterval: 3000,
-      distanceInterval: 5,
+      timeInterval: 100, // 100ms for immediate response
+      distanceInterval: 0, // Any movement triggers update
     },
     (location) => {
       // Emit location update event for foreground tracking
-      DeviceEventEmitter.emit('locationUpdate', {
+      const locationUpdate = {
         latitude: location.coords.latitude,
         longitude: location.coords.longitude,
+      };
+
+      logger.debug('Emitting locationUpdate event from foreground service', {
+        component: 'MapScreen',
+        action: 'startForegroundLocationUpdates',
+        coordinate: `${locationUpdate.latitude.toFixed(6)}, ${locationUpdate.longitude.toFixed(6)}`,
       });
+
+      DeviceEventEmitter.emit('locationUpdate', locationUpdate);
     }
   );
 
@@ -506,6 +522,20 @@ async function getInitialLocation({
         longitude: initialLocation.coords.longitude,
         timestamp: Date.now(),
       };
+
+      // Emit locationUpdate event for cinematic zoom hook
+      logger.debug('Emitting locationUpdate event from initial location', {
+        component: 'MapScreen',
+        action: 'getInitialLocation',
+        coordinate: `${geoPoint.latitude.toFixed(6)}, ${geoPoint.longitude.toFixed(6)}`,
+      });
+
+      DeviceEventEmitter.emit('locationUpdate', {
+        latitude: geoPoint.latitude,
+        longitude: geoPoint.longitude,
+      });
+
+      // Also update Redux state
       handleLocationUpdate({
         location: geoPoint,
         dispatch,
@@ -905,19 +935,6 @@ const createCenterOnUserHandler =
         longitudeDelta: currentRegion?.longitudeDelta ?? DEFAULT_ZOOM_DELTAS.longitudeDelta,
       };
 
-      // TEMP DEBUG: Log center on user animations
-      logger.info('[ZOOM_DEBUG] Center on user animation triggered', {
-        userRegion: {
-          lat: userRegion.latitude.toFixed(6),
-          lng: userRegion.longitude.toFixed(6),
-          latDelta: userRegion.latitudeDelta.toFixed(6),
-          lngDelta: userRegion.longitudeDelta.toFixed(6),
-        },
-        reason: 'follow_mode_activated',
-        duration: 300,
-        cinematicZoomActive: (mapRef.current as any)?._cinematicZoomActive,
-      });
-
       mapRef.current.animateToRegion(userRegion, 300);
       dispatch(setCenterOnUser(true));
     }
@@ -1002,27 +1019,6 @@ function handleRegionChangeComplete({
   const constrainedRegion = constrainRegion(region);
   const zoom = Math.round(Math.log(360 / constrainedRegion.latitudeDelta) / Math.LN2);
 
-  // TEMP DEBUG: Log all region changes with detailed info
-  logger.info('[ZOOM_DEBUG] Region change complete', {
-    originalRegion: {
-      lat: region.latitude.toFixed(6),
-      lng: region.longitude.toFixed(6),
-      latDelta: region.latitudeDelta.toFixed(6),
-      lngDelta: region.longitudeDelta.toFixed(6),
-    },
-    constrainedRegion: {
-      lat: constrainedRegion.latitude.toFixed(6),
-      lng: constrainedRegion.longitude.toFixed(6),
-      latDelta: constrainedRegion.latitudeDelta.toFixed(6),
-      lngDelta: constrainedRegion.longitudeDelta.toFixed(6),
-    },
-    zoom: zoom,
-    cinematicZoomActive: (mapRef.current as any)?._cinematicZoomActive,
-    wasConstrained:
-      constrainedRegion.latitudeDelta !== region.latitudeDelta ||
-      constrainedRegion.longitudeDelta !== region.longitudeDelta,
-  });
-
   // If the region was constrained, animate back to the constrained region
   // But skip if cinematic zoom is active to prevent conflicts
   if (
@@ -1030,11 +1026,9 @@ function handleRegionChangeComplete({
       constrainedRegion.longitudeDelta !== region.longitudeDelta) &&
     !(mapRef.current as any)?._cinematicZoomActive
   ) {
-    logger.info('[ZOOM_DEBUG] Animating to constrained region', {
+    logger.debug('Applying zoom constraints', {
+      component: 'MapScreen',
       reason: 'zoom_constraint_violation',
-      duration: 200,
-      latDeltaDiff: (region.latitudeDelta - constrainedRegion.latitudeDelta).toFixed(6),
-      lngDeltaDiff: (region.longitudeDelta - constrainedRegion.longitudeDelta).toFixed(6),
     });
     mapRef.current?.animateToRegion(constrainedRegion, 200);
   }
@@ -1152,6 +1146,7 @@ interface MapScreenRendererProps {
   setMapDimensions: (dimensions: { width: number; height: number }) => void;
   currentFogRegion: (Region & { width: number; height: number }) | undefined;
   handleSettingsPress: () => void;
+  canStartCinematicAnimation?: boolean; // Control when cinematic animation can start
   // workletMapRegion?: ReturnType<typeof useWorkletMapRegion>; // Available for future worklet integration
 }
 
@@ -1201,16 +1196,16 @@ const MapLoadingState = ({
  * The fog overlay accounts for safe area insets, but MapView markers use raw coordinates
  */
 const calculateAdjustedMarkerCoordinate = (
-  currentLocation: GeoPoint,
+  currentLocation: GeoPoint | null,
   currentRegion: Region | undefined,
   mapDimensions: { width: number; height: number },
   safeAreaInsets?: { top: number; bottom: number; left: number; right: number }
 ): { latitude: number; longitude: number } => {
   // Return original coordinates if we don't have all required data
-  if (!currentRegion || !safeAreaInsets || mapDimensions.height <= 0) {
+  if (!currentLocation || !currentRegion || !safeAreaInsets || mapDimensions.height <= 0) {
     return {
-      latitude: currentLocation.latitude,
-      longitude: currentLocation.longitude,
+      latitude: currentLocation?.latitude ?? 0,
+      longitude: currentLocation?.longitude ?? 0,
     };
   }
 
@@ -1248,7 +1243,7 @@ const MapViewWithMarker = ({
 }: {
   mapRef: React.RefObject<MapView>;
   initialRegion: any;
-  currentLocation: GeoPoint;
+  currentLocation: GeoPoint | null;
   currentRegion?: Region | undefined;
   mapDimensions: { width: number; height: number };
   safeAreaInsets?: { top: number; bottom: number; left: number; right: number };
@@ -1256,12 +1251,14 @@ const MapViewWithMarker = ({
   onPanDrag: () => void;
   onRegionChangeComplete: (region: Region) => void;
 }) => {
-  const adjustedCoordinate = calculateAdjustedMarkerCoordinate(
-    currentLocation,
-    currentRegion,
-    mapDimensions,
-    safeAreaInsets
-  );
+  const adjustedCoordinate = currentLocation
+    ? calculateAdjustedMarkerCoordinate(
+        currentLocation,
+        currentRegion,
+        mapDimensions,
+        safeAreaInsets
+      )
+    : null;
 
   return (
     <MapView
@@ -1276,14 +1273,16 @@ const MapViewWithMarker = ({
       rotateEnabled={false}
       pitchEnabled={false}
     >
-      <Marker
-        key={`current-location-marker`}
-        coordinate={adjustedCoordinate}
-        title="Woof!"
-        anchor={{ x: 0.5, y: 0.5 }}
-      >
-        <View style={USER_MARKER_STYLE} />
-      </Marker>
+      {currentLocation && adjustedCoordinate && (
+        <Marker
+          key={`current-location-marker`}
+          coordinate={adjustedCoordinate}
+          title="Woof!"
+          anchor={{ x: 0.5, y: 0.5 }}
+        >
+          <View style={USER_MARKER_STYLE} />
+        </Marker>
+      )}
     </MapView>
   );
 };
@@ -1301,12 +1300,19 @@ const MapScreenRenderer = ({
   setMapDimensions,
   currentFogRegion,
   handleSettingsPress,
+  canStartCinematicAnimation = true, // New prop to control animation timing
 }: MapScreenRendererProps) => {
   // Use the new cinematic zoom hook (must be before early return)
-  const { initialRegion } = useCinematicZoom({ mapRef, currentLocation });
+  const { initialRegion } = useCinematicZoom({
+    mapRef,
+    currentLocation,
+    canStartAnimation: canStartCinematicAnimation,
+  });
 
-  // Don't render map until we have a real location
-  if (!currentLocation) {
+  // Show map immediately after permissions are granted, even without location
+  // This allows cinematic animation to start while location is being acquired
+  // The cinematic zoom hook provides a fallback region for first-time users
+  if (!initialRegion) {
     return (
       <MapLoadingState
         setMapDimensions={setMapDimensions}
@@ -1912,6 +1918,7 @@ const MapScreenUI: React.FC<{
   handleSettingsPress: () => void;
   isSettingsModalVisible: boolean;
   setIsSettingsModalVisible: (visible: boolean) => void;
+  canStartCinematicAnimation?: boolean; // Control when cinematic animation can start
   gpsInjectionStatus: {
     isRunning: boolean;
     type: 'real-time' | 'historical' | null;
@@ -1935,6 +1942,7 @@ const MapScreenUI: React.FC<{
   handleSettingsPress,
   isSettingsModalVisible,
   setIsSettingsModalVisible,
+  canStartCinematicAnimation = true,
   gpsInjectionStatus,
 }) => {
   return (
@@ -1952,6 +1960,7 @@ const MapScreenUI: React.FC<{
         setMapDimensions={setMapDimensions}
         currentFogRegion={currentFogRegion}
         handleSettingsPress={handleSettingsPress}
+        canStartCinematicAnimation={canStartCinematicAnimation}
         // workletMapRegion={workletMapRegion} // Available for future worklet integration
       />
 
@@ -2301,9 +2310,12 @@ export const MapScreen = () => {
   // Show "Allow Once" warning if user selected that option
   const showOnceOnlyWarning = isVerified && mode === 'once_only';
 
+  // Only allow cinematic animation when onboarding is complete AND permissions are granted
+  const canStartCinematicAnimation = !showOnboarding && permissionsVerified;
+
   return (
     <>
-      <MapScreenUI {...uiProps} />
+      <MapScreenUI {...uiProps} canStartCinematicAnimation={canStartCinematicAnimation} />
       <HUDStatsPanel />
       <OnboardingOverlay
         visible={showOnboarding}

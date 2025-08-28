@@ -2,10 +2,7 @@ import { useEffect, useMemo, useRef } from 'react';
 import { useAppSelector } from '../../../store/hooks';
 import { calculateExplorationBounds } from '../index';
 import { logger } from '../../../utils/logger';
-import { calculateZoomAnimation } from '../../../utils/mapZoomUtils';
 
-// Import map constraints from constants
-import { constrainRegion } from '../../../constants/mapConstraints';
 import type { Region } from 'react-native-maps';
 import type MapView from 'react-native-maps';
 import type { GeoPoint } from '../../../types/user';
@@ -16,7 +13,7 @@ interface MapViewWithCinematicState extends MapView {
 }
 
 // Animation constants for cinematic zoom
-const CINEMATIC_ZOOM_DELAY = 800; // ms to show wide view
+const CINEMATIC_ZOOM_DELAY = 50; // ms to show wide view - minimal delay
 const CINEMATIC_ZOOM_DURATION = 5000; // ms for extended cinematic zoom animation (5 seconds)
 
 const DEFAULT_ZOOM_DELTAS = {
@@ -27,6 +24,7 @@ const DEFAULT_ZOOM_DELTAS = {
 interface UseCinematicZoomProps {
   mapRef: React.RefObject<MapView>;
   currentLocation: GeoPoint | null;
+  canStartAnimation?: boolean; // Only start animation when onboarding + permissions complete
 }
 
 /**
@@ -255,10 +253,10 @@ const startCinematicPanAnimation = (
   const hasValidPathDirection = pathDistance > 10;
 
   if (!hasValidPathDirection) {
-    logger.info('[ZOOM_DEBUG] Using random direction for cinematic pan', {
+    logger.debug('Using random direction for cinematic animation', {
+      component: 'useCinematicZoom',
       reason: 'insufficient_path_distance',
       pathDistance: `${pathDistance.toFixed(0)}m`,
-      note: 'Ensures first-time users get cinematic experience',
     });
   }
 
@@ -270,31 +268,11 @@ const startCinematicPanAnimation = (
     longitudeDelta: 0.001,
   };
 
-  logger.info('[ZOOM_DEBUG] Starting smooth path-inspired cinematic animation', {
-    totalDuration: `${CINEMATIC_ZOOM_DURATION}ms (5 seconds)`,
-    pathDistance: `${pathDistance.toFixed(0)}m`,
-    startRegion: {
-      lat: cinematicStartRegion.latitude.toFixed(6),
-      lng: cinematicStartRegion.longitude.toFixed(6),
-      latDelta: cinematicStartRegion.latitudeDelta.toFixed(6),
-    },
-    endRegion: {
-      lat: endRegion.latitude.toFixed(6),
-      lng: endRegion.longitude.toFixed(6),
-      latDelta: endRegion.latitudeDelta.toFixed(6),
-    },
-    approach: 'full_zoom_gambit_pan',
-    cinematicDesign: 'Single smooth animation: Intelligent start (2km) → Current location (50m)',
+  logger.debug('Starting cinematic map animation', {
+    component: 'useCinematicZoom',
+    duration: CINEMATIC_ZOOM_DURATION,
+    pathDistance: pathDistance.toFixed(0),
   });
-
-  // Calculate target distance for logging
-  const frameLatDelta = DEFAULT_ZOOM_DELTAS.latitudeDelta;
-  const edgeDistanceLat = frameLatDelta * 0.4;
-  const edgeDistanceLng = DEFAULT_ZOOM_DELTAS.longitudeDelta * 0.4;
-  const targetDistanceDegrees = Math.sqrt(
-    edgeDistanceLat * edgeDistanceLat + edgeDistanceLng * edgeDistanceLng
-  );
-  const targetDistance = targetDistanceDegrees * 111000; // ~4km at this scale
 
   // Single smooth cinematic animation - map rendering delayed until animation starts
   // This eliminates the "jerk" since user never sees the jump to start position
@@ -307,21 +285,17 @@ const startCinematicPanAnimation = (
     }
   }, 50); // Tiny delay to ensure initial positioning
 
-  logger.info('[ZOOM_DEBUG] Single smooth cinematic pan + zoom started', {
-    duration: `${CINEMATIC_ZOOM_DURATION}ms (5s)`,
-    originalPathDistance: `${pathDistance.toFixed(0)}m`,
-    framePositionedDistance: `${targetDistance.toFixed(0)}m (~4km to edge)`,
-    directionType: hasValidPathDirection ? 'intelligent_path' : 'random_fallback',
-    from: `intelligent start at 2km level (${cinematicStartRegion.latitudeDelta.toFixed(6)} latDelta)`,
-    to: `current location at 50m level (${endRegion.latitudeDelta.toFixed(6)} latDelta)`,
-    note: 'Map rendering delayed until animation starts - eliminates visible jump to start position',
+  logger.debug('Cinematic pan animation executing', {
+    component: 'useCinematicZoom',
+    duration: CINEMATIC_ZOOM_DURATION,
+    pathDistance: pathDistance.toFixed(0),
   });
 
   // Clear the cinematic zoom flag after animation completes
   setTimeout(() => {
     if (mapRef.current) {
       (mapRef.current as MapViewWithCinematicState)._cinematicZoomActive = false;
-      logger.info('[ZOOM_DEBUG] Cinematic pan animation completed');
+      logger.debug('Cinematic animation completed', { component: 'useCinematicZoom' });
     }
   }, CINEMATIC_ZOOM_DURATION + 100); // Small buffer to ensure animation completes
 };
@@ -330,7 +304,11 @@ const startCinematicPanAnimation = (
  * Custom hook for cinematic zoom functionality
  * Calculates exploration bounds and handles zoom animation
  */
-export const useCinematicZoom = ({ mapRef, currentLocation }: UseCinematicZoomProps) => {
+export const useCinematicZoom = ({
+  mapRef,
+  currentLocation,
+  canStartAnimation = true,
+}: UseCinematicZoomProps) => {
   // Get exploration path for cinematic zoom calculation
   const explorationPath = useAppSelector((state) => state.exploration.path);
 
@@ -340,30 +318,19 @@ export const useCinematicZoom = ({ mapRef, currentLocation }: UseCinematicZoomPr
   // Calculate cinematic initial region or fallback to current location
   const explorationBounds = useExplorationBounds(explorationPath);
 
-  // Cinematic zoom effect - animate from 2km scale to 50m scale with Gaussian easing
+  // Simple Redux-based trigger - but ONLY after onboarding + permissions complete
   useEffect(() => {
-    // Only run cinematic zoom once per app session
-    // Trigger for any user with current location (not just those with explorationBounds)
-    if (mapRef.current && currentLocation && !hasRunCinematicZoom.current) {
+    // Only run if we haven't already triggered AND have location AND can start animation
+    if (mapRef.current && currentLocation && !hasRunCinematicZoom.current && canStartAnimation) {
       // Mark that cinematic zoom has run
       hasRunCinematicZoom.current = true;
       // Set a flag to prevent other animations during cinematic zoom
       (mapRef.current as MapViewWithCinematicState)._cinematicZoomActive = true;
-      logger.info('[ZOOM_DEBUG] Cinematic zoom flag set - preventing other animations');
+      logger.debug('Animation lock enabled', { component: 'useCinematicZoom' });
 
-      // Calculate end zoom to 50m scale
-      const endZoomParams = calculateZoomAnimation(
-        '50m', // Only calculate end scale
-        '50m', // Same value to get the region
-        currentLocation,
-        400
-      );
-      const endRegion = constrainRegion(endZoomParams.endRegion);
-
-      logger.info('[ZOOM_DEBUG] Heuristic cinematic zoom - matching mysterious animation height', {
-        startHeight: `${DEFAULT_ZOOM_DELTAS.latitudeDelta.toFixed(6)} latDelta`,
-        endHeight: `${endRegion.latitudeDelta.toFixed(6)} latDelta (50m scale)`,
-        strategy: 'match_existing_height',
+      logger.debug('Cinematic zoom animation configured', {
+        component: 'useCinematicZoom',
+        strategy: 'redux_fallback_trigger',
       });
 
       // Delay then start path-following animation
@@ -371,13 +338,9 @@ export const useCinematicZoom = ({ mapRef, currentLocation }: UseCinematicZoomPr
         // Start the cinematic pan animation
         startCinematicPanAnimation(mapRef, explorationPath, currentLocation);
 
-        logger.info('5-second single cinematic pan started', {
-          component: 'MapScreen',
-          action: 'cinematicZoom',
+        logger.debug('Cinematic animation sequence initiated', {
+          component: 'useCinematicZoom',
           pathLength: explorationPath.length,
-          totalDuration: `${CINEMATIC_ZOOM_DURATION}ms (5 seconds)`,
-          approach: 'single_cinematic_pan',
-          cinematicDesign: 'single smooth pan from intelligent path start to current location',
         });
       }, CINEMATIC_ZOOM_DELAY);
 
@@ -385,11 +348,13 @@ export const useCinematicZoom = ({ mapRef, currentLocation }: UseCinematicZoomPr
     }
     // No cleanup needed if conditions aren't met
     return undefined;
-  }, [currentLocation, mapRef, explorationPath]);
+  }, [currentLocation, mapRef, explorationPath, canStartAnimation]);
 
   // Create initial region - use cinematic start position to eliminate jump
   const initialRegion: Region | null = useMemo(() => {
-    if (!currentLocation) return null;
+    if (!currentLocation) {
+      return null; // Wait for real location
+    }
     return calculateCinematicStartRegion(explorationPath, currentLocation);
   }, [currentLocation, explorationPath]);
 
