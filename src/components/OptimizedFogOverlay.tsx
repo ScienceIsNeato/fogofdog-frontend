@@ -187,7 +187,7 @@ const useOptimizedFogCalculations = (
     const pathChains = PathSimplificationService.buildPathChains(segmentData);
 
     // Use conservative tolerance for simplification
-    const tolerance = Math.max(1, radiusPixels * 0.05);
+    const tolerance = Math.max(1, radiusPixels * FOG_CONFIG.SIMPLIFICATION_TOLERANCE_FACTOR);
     const simplifiedChains = pathChains.map((chain) =>
       PathSimplificationService.simplifyPath(chain, tolerance)
     );

@@ -4,6 +4,7 @@ import { View, Text, TouchableOpacity, Alert, ActivityIndicator } from 'react-na
 import { MaterialIcons } from '@expo/vector-icons';
 import { DataStats, ClearOption } from '../../types/dataClear';
 import { DataImportExportService } from '../../services/DataImportExportService';
+import { ALERT_TEXT } from '../../constants/alertText';
 
 const DATA_CLEAR_OPTIONS: ClearOption[] = [
   {
@@ -45,19 +46,19 @@ const useDataImportExport = (onDataImported?: () => void) => {
       const result = await DataImportExportService.exportData();
 
       if (result.success) {
-        Alert.alert(
-          'Export Successful',
-          'Your exploration data has been saved and can be shared or backed up.',
-          [{ text: 'OK' }]
-        );
-      } else {
-        Alert.alert('Export Failed', result.error ?? 'Failed to export exploration data', [
-          { text: 'OK' },
+        Alert.alert(ALERT_TEXT.EXPORT.SUCCESS_TITLE, ALERT_TEXT.EXPORT.SUCCESS_MESSAGE, [
+          { text: ALERT_TEXT.BUTTONS.OK },
         ]);
+      } else {
+        Alert.alert(
+          ALERT_TEXT.EXPORT.FAILED_TITLE,
+          result.error ?? 'Failed to export exploration data',
+          [{ text: ALERT_TEXT.BUTTONS.OK }]
+        );
       }
     } catch (_error) {
-      Alert.alert('Export Error', 'An unexpected error occurred while exporting your data.', [
-        { text: 'OK' },
+      Alert.alert(ALERT_TEXT.EXPORT.ERROR_TITLE, ALERT_TEXT.EXPORT.ERROR_MESSAGE, [
+        { text: ALERT_TEXT.BUTTONS.OK },
       ]);
     } finally {
       setIsExporting(false);

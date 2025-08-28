@@ -13,10 +13,13 @@ export const FOG_CONFIG = {
 
   // Path/hole appearance
   PATH_COLOR: 'black', // Black areas in mask create transparency
-  RADIUS_METERS: 37.5, // Radius in meters for cleared areas around path points
+  RADIUS_METERS: 35, // Radius in meters for cleared areas around path points
 
   // Performance
   RENDER_THROTTLE_MS: 16, // Throttle to ~60fps
+
+  // Path simplification
+  SIMPLIFICATION_TOLERANCE_FACTOR: 0.05, // 5% of fog radius for Douglas-Peucker tolerance
 } as const;
 
 /**

@@ -230,6 +230,29 @@ const explorationSlice = createSlice({
         });
       }
     },
+    addPathPoints: (state, action: PayloadAction<GeoPoint[]>) => {
+      const points = action.payload;
+      const validPoints = points.filter(isValidGeoPoint);
+
+      if (validPoints.length > 0) {
+        logger.debug(`Batch adding ${validPoints.length} path points`, {
+          component: 'explorationSlice',
+          action: 'addPathPoints',
+          totalPoints: validPoints.length,
+          invalidPoints: points.length - validPoints.length,
+        });
+        state.path.push(...validPoints.map((point) => ({ ...point })));
+      }
+
+      if (validPoints.length !== points.length) {
+        logger.warn(`Skipped ${points.length - validPoints.length} invalid points in batch`, {
+          component: 'explorationSlice',
+          action: 'addPathPoints',
+          validPoints: validPoints.length,
+          totalPoints: points.length,
+        });
+      }
+    },
     setCenterOnUser: (state, action: PayloadAction<boolean>) => {
       state.isMapCenteredOnUser = action.payload;
     },

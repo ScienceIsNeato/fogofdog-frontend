@@ -179,7 +179,7 @@ const styles = StyleSheet.create({
     zIndex: 1000, // Ensure it's above map elements
   },
   panel: {
-    backgroundColor: 'rgba(0, 0, 0, 0.52)', // Reduced opacity by ~30% (was 0.75, now 0.52)
+    backgroundColor: 'rgba(0, 0, 0, 0.5)', // 50% opacity
     paddingHorizontal: 16,
     paddingVertical: 16, // Slightly more padding since we're going to bottom
     paddingBottom: 20, // Extra bottom padding for safe area
@@ -249,7 +249,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   loadingContainer: {
-    backgroundColor: 'rgba(0, 0, 0, 0.52)', // Match the main panel opacity
+    backgroundColor: 'rgba(0, 0, 0, 0.5)', // Match the main panel opacity
     paddingHorizontal: 16,
     paddingVertical: 20,
     paddingBottom: 20, // Extra bottom padding for safe area

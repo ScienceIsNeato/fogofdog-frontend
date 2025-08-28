@@ -1,6 +1,8 @@
 import React, { useMemo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import type { Region } from 'react-native-maps';
+import { MAP_DISPLAY_CONFIG } from '../constants/mapDisplay';
+import { logger } from '../utils/logger';
 
 interface MapDistanceScaleProps {
   region: Region;
@@ -34,14 +36,14 @@ const calculateScaleInfo = (region: Region, mapWidth: number) => {
   }
 
   // Calculate meters per pixel at this zoom level
-  const metersPerDegree = 111320; // Approximate meters per degree of latitude
+  const metersPerDegree = MAP_DISPLAY_CONFIG.METERS_PER_DEGREE_LATITUDE;
   const mapWidthInDegrees = region.longitudeDelta;
   const totalMapWidthInMeters =
     mapWidthInDegrees * metersPerDegree * Math.cos((region.latitude * Math.PI) / 180);
   const metersPerPixel = totalMapWidthInMeters / mapWidth;
 
-  // Choose appropriate scale bar length (aim for ~120px)
-  const targetPixelWidth = 120;
+  // Choose appropriate scale bar length (aim for target width)
+  const targetPixelWidth = MAP_DISPLAY_CONFIG.TARGET_SCALE_PIXEL_WIDTH;
   const targetMeters = metersPerPixel * targetPixelWidth;
 
   // Find the appropriate scale configuration
@@ -51,9 +53,22 @@ const calculateScaleInfo = (region: Region, mapWidth: number) => {
 
   if (!config) {
     // Fallback if somehow no config is found
+    logger.warn('No distance scale config found for target meters', {
+      component: 'MapDistanceScale',
+      targetMeters: targetMeters.toFixed(2),
+      metersPerPixel: metersPerPixel.toFixed(6),
+      region: {
+        lat: region.latitude.toFixed(6),
+        lng: region.longitude.toFixed(6),
+        latDelta: region.latitudeDelta.toFixed(6),
+        lngDelta: region.longitudeDelta.toFixed(6),
+      },
+      mapWidth,
+    });
+
     return {
-      pixelWidth: 100,
-      label: '100m',
+      pixelWidth: MAP_DISPLAY_CONFIG.FALLBACK_SCALE_PIXEL_WIDTH,
+      label: MAP_DISPLAY_CONFIG.FALLBACK_SCALE_LABEL,
     };
   }
 
