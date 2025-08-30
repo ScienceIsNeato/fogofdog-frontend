@@ -43,30 +43,6 @@ const usePermissionState = () => {
 };
 
 /**
- * Hook for handling permission verification timeout
- */
-const usePermissionTimeout = () => {
-  const createTimeoutPromise = useCallback((timeoutMs: number = 30000) => {
-    return new Promise((_, reject) => {
-      setTimeout(() => {
-        reject(new Error(`Permission verification timeout after ${timeoutMs / 1000} seconds`));
-      }, timeoutMs);
-    });
-  }, []);
-
-  const handleTimeoutError = useCallback((error: unknown): string => {
-    const errorMessage = error instanceof Error ? error.message : 'Permission verification failed';
-    const isTimeout = errorMessage.includes('timeout');
-
-    return isTimeout
-      ? 'Permission request timed out. Please try again or check your location settings.'
-      : errorMessage;
-  }, []);
-
-  return { createTimeoutPromise, handleTimeoutError };
-};
-
-/**
  * Hook for managing PermissionsOrchestrator cleanup
  */
 const usePermissionCleanup = () => {
@@ -85,8 +61,6 @@ const usePermissionVerificationFlow = (
   state: PermissionVerificationState,
   updateState: (updates: Partial<PermissionVerificationState>) => void
 ) => {
-  const { createTimeoutPromise, handleTimeoutError } = usePermissionTimeout();
-
   const startVerification = useCallback(async () => {
     if (!shouldVerify || state.isVerifying || state.isVerified) {
       return;
@@ -103,10 +77,9 @@ const usePermissionVerificationFlow = (
     });
 
     try {
-      const result = (await Promise.race([
-        PermissionsOrchestrator.completePermissionVerification(),
-        createTimeoutPromise(),
-      ])) as Awaited<ReturnType<typeof PermissionsOrchestrator.completePermissionVerification>>;
+      // Wait for permission verification without timeout
+      // Users should be able to take as long as they need on permission dialogs
+      const result = await PermissionsOrchestrator.completePermissionVerification();
 
       updateState({
         isVerifying: false,
@@ -117,12 +90,20 @@ const usePermissionVerificationFlow = (
         error: result.error ?? null,
       });
 
-      logger.info('Permission verification completed', {
-        component: 'usePermissionVerification',
-        result,
-      });
+      logger.info(
+        '🔑 PERMISSION_DEBUG: Verification completed - transitioning to GPS initialization',
+        {
+          component: 'usePermissionVerification',
+          result,
+          canProceed: result.canProceed,
+          backgroundGranted: result.backgroundGranted,
+          mode: result.mode,
+          timestamp: new Date().toISOString(),
+        }
+      );
     } catch (error) {
-      const userFriendlyMessage = handleTimeoutError(error);
+      const errorMessage =
+        error instanceof Error ? error.message : 'Permission verification failed';
 
       updateState({
         isVerifying: false,
@@ -130,23 +111,15 @@ const usePermissionVerificationFlow = (
         hasPermissions: false,
         backgroundGranted: false,
         mode: 'denied',
-        error: userFriendlyMessage,
+        error: errorMessage,
       });
 
       logger.error('Permission verification failed', {
         component: 'usePermissionVerification',
-        error: userFriendlyMessage,
-        isTimeout: userFriendlyMessage.includes('timeout'),
+        error: errorMessage,
       });
     }
-  }, [
-    shouldVerify,
-    state.isVerifying,
-    state.isVerified,
-    updateState,
-    createTimeoutPromise,
-    handleTimeoutError,
-  ]);
+  }, [shouldVerify, state.isVerifying, state.isVerified, updateState]);
 
   // Start verification when conditions are met
   useEffect(() => {

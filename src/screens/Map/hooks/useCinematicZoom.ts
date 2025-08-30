@@ -301,6 +301,37 @@ const startCinematicPanAnimation = (
 };
 
 /**
+ * Hook to handle cinematic animation state resets
+ */
+const useCinematicAnimationReset = (
+  hasRunCinematicZoom: React.MutableRefObject<boolean>,
+  lastSessionId: React.MutableRefObject<string | null>,
+  currentSessionId: string | undefined
+) => {
+  // Reset cinematic animation flag when a new session starts
+  useEffect(() => {
+    if (currentSessionId && currentSessionId !== lastSessionId.current) {
+      logger.debug('New session detected - resetting cinematic animation flag', {
+        component: 'useCinematicZoom',
+        previousSessionId: lastSessionId.current,
+        newSessionId: currentSessionId,
+      });
+      hasRunCinematicZoom.current = false;
+      lastSessionId.current = currentSessionId;
+    }
+  }, [currentSessionId, hasRunCinematicZoom, lastSessionId]);
+
+  // Reset cinematic animation flag on component mount (app reload)
+  useEffect(() => {
+    logger.debug('Cinematic zoom hook mounted - resetting animation flag', {
+      component: 'useCinematicZoom',
+      action: 'mount_reset',
+    });
+    hasRunCinematicZoom.current = false;
+  }, [hasRunCinematicZoom]); // Empty dependency array = runs only on mount
+};
+
+/**
  * Custom hook for cinematic zoom functionality
  * Calculates exploration bounds and handles zoom animation
  */
@@ -312,8 +343,15 @@ export const useCinematicZoom = ({
   // Get exploration path for cinematic zoom calculation
   const explorationPath = useAppSelector((state) => state.exploration.path);
 
+  // Get session ID to detect when a new session starts
+  const currentSessionId = useAppSelector((state) => state.stats.currentSession?.sessionId);
+
   // Track if cinematic zoom has already run to prevent multiple triggers
   const hasRunCinematicZoom = useRef(false);
+  const lastSessionId = useRef<string | null>(null);
+
+  // Handle animation state resets
+  useCinematicAnimationReset(hasRunCinematicZoom, lastSessionId, currentSessionId);
 
   // Calculate cinematic initial region or fallback to current location
   const explorationBounds = useExplorationBounds(explorationPath);
@@ -352,11 +390,38 @@ export const useCinematicZoom = ({
 
   // Create initial region - use cinematic start position to eliminate jump
   const initialRegion: Region | null = useMemo(() => {
+    logger.info('🎬 CINEMATIC_DEBUG: Computing initial region', {
+      component: 'useCinematicZoom',
+      hasCurrentLocation: !!currentLocation,
+      currentLocation: currentLocation
+        ? `${currentLocation.latitude.toFixed(6)}, ${currentLocation.longitude.toFixed(6)}`
+        : null,
+      canStartAnimation,
+      explorationPathLength: explorationPath.length,
+      timestamp: new Date().toISOString(),
+    });
+
     if (!currentLocation) {
+      logger.info(
+        '🎬 CINEMATIC_DEBUG: No currentLocation - returning null (will show loading state)',
+        {
+          component: 'useCinematicZoom',
+          reason: 'waiting_for_gps_location',
+        }
+      );
       return null; // Wait for real location
     }
-    return calculateCinematicStartRegion(explorationPath, currentLocation);
-  }, [currentLocation, explorationPath]);
+
+    const region = calculateCinematicStartRegion(explorationPath, currentLocation);
+
+    logger.info('🎬 CINEMATIC_DEBUG: Returning region based on currentLocation', {
+      component: 'useCinematicZoom',
+      region: `${region.latitude.toFixed(6)}, ${region.longitude.toFixed(6)}`,
+      deltas: `${region.latitudeDelta.toFixed(6)}, ${region.longitudeDelta.toFixed(6)}`,
+    });
+
+    return region;
+  }, [currentLocation, explorationPath, canStartAnimation]);
 
   return {
     initialRegion,

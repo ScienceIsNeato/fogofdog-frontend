@@ -180,18 +180,30 @@ else
     }
 fi
 
+# Record deployment type for E2E script reference
+echo "development" > .currently_deployed_type
+echo "$(date '+%Y-%m-%d %H:%M:%S') - Development build deployed to $TARGET_SIMULATOR" >> .deployment_history
+
 echo ""
 echo -e "${GREEN}✅ Deployment completed successfully!${NC}"
 echo -e "${GREEN}📱 FogOfDog should now be running on $TARGET_SIMULATOR${NC}"
+echo -e "${BLUE}📝 Deployment type recorded: development${NC}"
 
-# Start persistent Metro development server with live logging
-LIVE_LOG_FILE="/tmp/fog_of_dog_expo_simulator_live.log"
-echo -e "${BLUE}🚀 Starting persistent Metro development server with live logging...${NC}"
-echo "$(date '+%Y-%m-%d %H:%M:%S') - FogOfDog Metro Server Started for $TARGET_SIMULATOR" > "$LIVE_LOG_FILE"
+# Check if Metro is already running
+if pgrep -f "expo start" > /dev/null; then
+  echo -e "${GREEN}✅ Metro server already running - skipping startup${NC}"
+  METRO_SERVER_PID=$(pgrep -f "expo start" | head -1)
+  LIVE_LOG_FILE=$(cat /tmp/METRO_CURRENT_LOG_FILENAME.txt 2>/dev/null || echo "/tmp/fog_of_dog_expo_simulator_live.log")
+else
+  # Start persistent Metro development server with live logging
+  LIVE_LOG_FILE="/tmp/fog_of_dog_expo_simulator_live.log"
+  echo -e "${BLUE}🚀 Starting persistent Metro development server with live logging...${NC}"
+  echo "$(date '+%Y-%m-%d %H:%M:%S') - FogOfDog Metro Server Started for $TARGET_SIMULATOR" > "$LIVE_LOG_FILE"
 
-# Start Metro server in background with live logging
-nohup npx expo start --dev-client 2>&1 | tee -a "$LIVE_LOG_FILE" > /dev/null &
-METRO_SERVER_PID=$!
+  # Start Metro server in background with live logging
+  nohup npx expo start --dev-client 2>&1 | tee -a "$LIVE_LOG_FILE" > /dev/null &
+  METRO_SERVER_PID=$!
+fi
 
 echo -e "${GREEN}🔥 Metro development server running in background (PID: $METRO_SERVER_PID)${NC}"
 echo -e "${BLUE}📋 Live logs available at: $LIVE_LOG_FILE${NC}"

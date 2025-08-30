@@ -35,6 +35,21 @@ jest.mock('../../../services/GPSInjectionService', () => ({
   },
 }));
 
+// Mock onboarding context to simulate completed onboarding in tests
+jest.mock('../../../contexts/OnboardingContext', () => ({
+  useOnboardingContext: () => ({
+    isFirstTimeUser: false, // Simulate onboarding already completed
+  }),
+}));
+
+// Mock OnboardingService to simulate completed onboarding
+jest.mock('../../../services/OnboardingService', () => ({
+  OnboardingService: {
+    isFirstTimeUser: jest.fn(() => Promise.resolve(false)),
+    markOnboardingCompleted: jest.fn(() => Promise.resolve()),
+  },
+}));
+
 // Mock real location coordinates (Iowa location for testing)
 const mockRealLocation = {
   latitude: 41.5868,

@@ -132,7 +132,13 @@ class QualityGateExecutor:
                     
                     # Fail-fast: exit immediately on first failure
                     if fail_fast and result.status == CheckStatus.FAILED:
-                        print(f"\n🚨 FAIL-FAST: {result.name} failed, terminating immediately...")
+                        # Enhanced error reporting for test failures
+                        if "Test Suite" in result.name:
+                            failure_reason = self._extract_test_failure_reason(result.output)
+                            print(f"\n🚨 FAIL-FAST: {result.name} failed, terminating immediately...")
+                            print(f"   Reason: {failure_reason}")
+                        else:
+                            print(f"\n🚨 FAIL-FAST: {result.name} failed, terminating immediately...")
                         # Force shutdown executor to kill running processes
                         executor.shutdown(wait=False, cancel_futures=True)
                         # Exit immediately without waiting
@@ -223,6 +229,39 @@ class QualityGateExecutor:
                 lines.append(f"   • {result.name}: ./scripts/maintainAIbility-gate.sh --{check_flag}")
         
         return lines
+    
+    def _extract_test_failure_reason(self, output: str) -> str:
+        """Extract specific failure reason from test output."""
+        if not output:
+            return "Unknown test failure"
+        
+        # Check for coverage threshold failure
+        if "coverage threshold" in output.lower() and "not met" in output.lower():
+            # Extract coverage percentage
+            import re
+            coverage_match = re.search(r'(\d+\.?\d*)%.*not met.*(\d+\.?\d*)%', output)
+            if coverage_match:
+                actual, threshold = coverage_match.groups()
+                return f"Coverage threshold not met: {actual}% < {threshold}%"
+            else:
+                return "Coverage threshold not met"
+        
+        # Check for test failures
+        if "failed" in output.lower() and ("test" in output.lower() or "spec" in output.lower()):
+            # Extract number of failed tests
+            import re
+            failed_match = re.search(r'(\d+)\s+failed', output)
+            if failed_match:
+                failed_count = failed_match.group(1)
+                return f"Test failures: {failed_count} test(s) failed"
+            else:
+                return "Test execution failures detected"
+        
+        # Check for compilation/syntax errors
+        if "error" in output.lower() and ("syntax" in output.lower() or "compile" in output.lower()):
+            return "Compilation or syntax errors"
+        
+        return "Test suite execution failed"
     
     def format_results(self, results: List[CheckResult], total_duration: float) -> str:
         """Format the results into a comprehensive report."""
