@@ -146,7 +146,8 @@ appId: com.fogofdog.app
 
 # CRITICAL: Verify actual map content is rendered (fog overlay should be present)
 # The map should show actual geographic content, not just a loading state
-- waitForAnimationToEnd
+- waitForAnimationToEnd:
+    timeout: 2000
 - assertVisible:
     id: "map-screen"
 

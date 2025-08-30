@@ -47,7 +47,7 @@ import { MapDistanceScale } from '../../components/MapDistanceScale';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { logger } from '../../utils/logger';
 import { useCinematicZoom } from './hooks/useCinematicZoom';
-import { useAggressiveGPS } from './hooks/useAggressiveGPS';
+import { useGPSAcquisition } from './hooks/useGPSAcquisition';
 import { useMapScreenOnboarding } from './hooks/useMapScreenOnboarding';
 
 import { GPSInjectionService } from '../../services/GPSInjectionService';
@@ -2240,7 +2240,7 @@ export const MapScreen = () => {
   useStatsInitialization();
 
   // Start immediate GPS acquisition on app load
-  useAggressiveGPS();
+  useGPSAcquisition();
 
   // Get onboarding state first
   const onboardingHookState = useMapScreenOnboarding();

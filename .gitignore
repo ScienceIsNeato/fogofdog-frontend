@@ -72,6 +72,10 @@ coverage/
 current-location.json
 gps-injection.json
 
+# Deployment tracking files
+.currently_deployed_type
+.deployment_history
+
 # Cursor IDE specific files
 .cursorignore
 .cursorpaths.json
