@@ -7,18 +7,19 @@ import { logger } from '../../../utils/logger';
 import { GeoPoint } from '../../../types/user';
 
 /**
- * Hook for aggressive GPS acquisition on app start.
+ * Hook for GPS acquisition on app start.
  * Continuously retries until first location is acquired.
  * Skips in test environment to avoid interfering with test scenarios.
  */
-export const useAggressiveGPS = (): void => {
+export const useGPSAcquisition = (): void => {
   const dispatch = useAppDispatch();
 
   useEffect(() => {
-    // Skip aggressive GPS in test environment
+    // Skip GPS acquisition in test environment
     if (process.env.NODE_ENV === 'test') {
       return;
     }
+
     let isActive = true;
     let retryIntervalId: NodeJS.Timeout | null = null;
 
@@ -35,8 +36,8 @@ export const useAggressiveGPS = (): void => {
             timestamp: Date.now(),
           };
 
-          logger.info('🎯 GPS: First location acquired on app start', {
-            component: 'useAggressiveGPS',
+          logger.info('GPS: First location acquired on app start', {
+            component: 'useGPSAcquisition',
             coordinate: `${geoPoint.latitude.toFixed(6)}, ${geoPoint.longitude.toFixed(6)}`,
           });
 

@@ -3,7 +3,7 @@ import { renderHook } from '@testing-library/react-native';
 import { Provider } from 'react-redux';
 import { configureStore } from '@reduxjs/toolkit';
 import React from 'react';
-import { useAggressiveGPS } from '../useAggressiveGPS';
+import { useGPSAcquisition } from '../useGPSAcquisition';
 import explorationReducer from '../../../../store/slices/explorationSlice';
 import statsReducer from '../../../../store/slices/statsSlice';
 import userReducer from '../../../../store/slices/userSlice';
@@ -31,7 +31,7 @@ jest.mock('../../../../utils/logger', () => ({
   },
 }));
 
-describe('useAggressiveGPS', () => {
+describe('useGPSAcquisition', () => {
   let store: any;
 
   const createTestStore = () => {
@@ -48,7 +48,7 @@ describe('useAggressiveGPS', () => {
     const wrapper = ({ children }: { children: React.ReactNode }) => (
       <Provider store={store}>{children}</Provider>
     );
-    return renderHook(() => useAggressiveGPS(), { wrapper });
+    return renderHook(() => useGPSAcquisition(), { wrapper });
   };
 
   beforeEach(() => {
