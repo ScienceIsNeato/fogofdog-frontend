@@ -11,6 +11,8 @@ import explorationReducer, {
   updateBackgroundLocationStatus,
   toggleFollowMode,
   setFollowMode,
+  startGPSInjection,
+  stopGPSInjection,
 } from '../explorationSlice';
 import type { StoredLocationData } from '../../../services/LocationStorageService';
 
@@ -78,14 +80,14 @@ describe('exploration slice', () => {
     expect(store.getState().exploration.zoomLevel).toBe(16);
   });
 
-  it('should accumulate path points when far enough apart', () => {
+  it('should store all path points (filtering happens at render time)', () => {
     const locations = [
       { latitude: 41.6867, longitude: -91.5802, timestamp: Date.now() },
-      // This point is far enough away to be added
+      // All points stored regardless of distance (filtering at render time)
       { latitude: 41.6877, longitude: -91.5812, timestamp: Date.now() + 1000 },
-      // This point is too close to the previous one and should be skipped
+      // Close point - now stored (was previously filtered out)
       { latitude: 41.6878, longitude: -91.5813, timestamp: Date.now() + 2000 },
-      // This point is far enough from the last added point
+      // Distant point - always stored
       { latitude: 41.689, longitude: -91.5825, timestamp: Date.now() + 3000 },
     ];
 
@@ -94,11 +96,12 @@ describe('exploration slice', () => {
     });
 
     const state = store.getState().exploration;
-    // Should only have 3 points (not 4) because one was too close
-    expect(state.path).toHaveLength(3);
+    // Should have all 4 points (store all, filter at render time)
+    expect(state.path).toHaveLength(4);
     expect(state.path[0]).toEqual(locations[0]);
     expect(state.path[1]).toEqual(locations[1]);
-    expect(state.path[2]).toEqual(locations[3]); // Skipped locations[2]
+    expect(state.path[2]).toEqual(locations[2]);
+    expect(state.path[3]).toEqual(locations[3]);
   });
 
   it('should handle setCenterOnUser', () => {
@@ -315,16 +318,7 @@ describe('exploration slice', () => {
       );
     });
 
-    it('should handle distance calculation errors', () => {
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const { logger } = require('../../../utils/logger');
-
-      // Mock haversineDistance to throw an error
-      const originalMath = Math.sqrt;
-      Math.sqrt = jest.fn(() => {
-        throw new Error('Math error');
-      });
-
+    it('should store all valid background locations', () => {
       const backgroundLocations: StoredLocationData[] = [
         {
           latitude: 41.6867,
@@ -340,17 +334,13 @@ describe('exploration slice', () => {
 
       store.dispatch(processBackgroundLocations(backgroundLocations));
 
-      expect(logger.error).toHaveBeenCalledWith(
-        expect.stringContaining('Error calculating distance for background location'),
-        expect.any(Error),
-        expect.objectContaining({
-          component: 'explorationSlice',
-          action: 'processBackgroundLocations',
-        })
-      );
-
-      // Restore Math.sqrt
-      Math.sqrt = originalMath;
+      const state = store.getState().exploration;
+      expect(state.path).toHaveLength(2); // All valid points stored
+      expect(state.currentLocation).toEqual({
+        latitude: 41.6877,
+        longitude: -91.5812,
+        timestamp: 1640995260000,
+      });
     });
   });
 
@@ -389,40 +379,25 @@ describe('exploration slice', () => {
     });
   });
 
-  describe('distance calculation error handling', () => {
-    it('should handle error in updateLocation distance calculation', () => {
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const { logger } = require('../../../utils/logger');
-
+  describe('GPS point storage', () => {
+    it('should store all valid GPS points without distance filtering', () => {
       // Add first point
       store.dispatch(
         updateLocation({ latitude: 41.6867, longitude: -91.5802, timestamp: Date.now() })
       );
 
-      // Mock Math.sqrt to throw an error for the second point
-      const originalMath = Math.sqrt;
-      Math.sqrt = jest.fn(() => {
-        throw new Error('Distance calculation error');
-      });
-
-      // Try to add second point
+      // Add second point (very close to first)
       store.dispatch(
-        updateLocation({ latitude: 41.6877, longitude: -91.5812, timestamp: Date.now() + 1000 })
+        updateLocation({ latitude: 41.6868, longitude: -91.5803, timestamp: Date.now() + 1000 })
       );
 
       const state = store.getState().exploration;
-      expect(state.path).toHaveLength(1); // Second point not added due to error
-      expect(logger.error).toHaveBeenCalledWith(
-        expect.stringContaining('Error calculating distance'),
-        expect.any(Error),
-        expect.objectContaining({
-          component: 'explorationSlice',
-          action: 'updateLocation',
-        })
-      );
-
-      // Restore Math.sqrt
-      Math.sqrt = originalMath;
+      expect(state.path).toHaveLength(2); // Both points stored (no distance filtering)
+      expect(state.currentLocation).toEqual({
+        latitude: 41.6868,
+        longitude: -91.5803,
+        timestamp: expect.any(Number),
+      });
     });
   });
 
@@ -693,6 +668,79 @@ describe('exploration slice', () => {
       const state = store.getState().exploration;
       expect(state.path).toHaveLength(initialState.path.length);
       expect(state.exploredAreas).toHaveLength(initialState.exploredAreas.length);
+    });
+  });
+
+  describe('GPS Injection Status', () => {
+    it('should initialize with GPS injection inactive', () => {
+      const state = store.getState().exploration;
+      expect(state.gpsInjectionStatus.isRunning).toBe(false);
+      expect(state.gpsInjectionStatus.type).toBeNull();
+      expect(state.gpsInjectionStatus.message).toBe('');
+    });
+
+    it('should start GPS injection with real-time type', () => {
+      store.dispatch(
+        startGPSInjection({
+          type: 'real-time',
+          message: 'Injecting 100 points over 5 minutes',
+        })
+      );
+
+      const state = store.getState().exploration;
+      expect(state.gpsInjectionStatus.isRunning).toBe(true);
+      expect(state.gpsInjectionStatus.type).toBe('real-time');
+      expect(state.gpsInjectionStatus.message).toBe('Injecting 100 points over 5 minutes');
+    });
+
+    it('should start GPS injection with historical type', () => {
+      store.dispatch(
+        startGPSInjection({
+          type: 'historical',
+          message: 'Injecting 500 points over 25 minutes',
+        })
+      );
+
+      const state = store.getState().exploration;
+      expect(state.gpsInjectionStatus.isRunning).toBe(true);
+      expect(state.gpsInjectionStatus.type).toBe('historical');
+      expect(state.gpsInjectionStatus.message).toBe('Injecting 500 points over 25 minutes');
+    });
+
+    it('should stop GPS injection and clear status', () => {
+      // Start injection first
+      store.dispatch(
+        startGPSInjection({
+          type: 'real-time',
+          message: 'Injecting points',
+        })
+      );
+
+      // Stop injection
+      store.dispatch(stopGPSInjection());
+
+      const state = store.getState().exploration;
+      expect(state.gpsInjectionStatus.isRunning).toBe(false);
+      expect(state.gpsInjectionStatus.type).toBeNull();
+      expect(state.gpsInjectionStatus.message).toBe('');
+    });
+
+    it('should reset GPS injection status on slice reset', () => {
+      // Start injection
+      store.dispatch(
+        startGPSInjection({
+          type: 'historical',
+          message: 'Test injection',
+        })
+      );
+
+      // Reset slice
+      store.dispatch(reset());
+
+      const state = store.getState().exploration;
+      expect(state.gpsInjectionStatus.isRunning).toBe(false);
+      expect(state.gpsInjectionStatus.type).toBeNull();
+      expect(state.gpsInjectionStatus.message).toBe('');
     });
   });
 });

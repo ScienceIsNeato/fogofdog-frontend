@@ -109,9 +109,9 @@ fi
 for TEST_FILE in "${TEST_FILES[@]}"; do
     if [[ "$TEST_FILE" == *"/data-clearing-test.yaml" ]]; then
         log "💉 Injecting historical data for data clearing test..."
-        node ./tools/gps-injector-direct.js --mode absolute --lat 37.7749 --lon -122.4194 --time-delta-hours -2
-        node ./tools/gps-injector-direct.js --mode absolute --lat 37.7759 --lon -122.4294 --time-delta-hours -25
-        node ./tools/gps-injector-direct.js --mode absolute --lat 37.7769 --lon -122.4394 --time-delta-hours -50
+        node ./scripts/gps/gps-injector-direct.js --mode absolute --lat 37.7749 --lon -122.4194 --time-delta-hours -2
+        node ./scripts/gps/gps-injector-direct.js --mode absolute --lat 37.7759 --lon -122.4294 --time-delta-hours -25
+        node ./scripts/gps/gps-injector-direct.js --mode absolute --lat 37.7769 --lon -122.4394 --time-delta-hours -50
         log "✅ Historical data injected."
     fi
 done

@@ -49,7 +49,7 @@ describe('SimplePerformancePanel', () => {
 
     expect(Alert.alert).toHaveBeenCalledWith(
       'Real-Time GPS Injection',
-      'This will inject 500 GPS points in real-time with current timestamps. The GPS beacon will act as the "head" of the worm. This will take about 8 minutes.',
+      'This will inject 500 GPS points in real-time with current timestamps. The GPS beacon will act as the "head" of the worm. This will take about 25 minutes.',
       expect.arrayContaining([
         { text: 'Cancel', style: 'cancel' },
         expect.objectContaining({
@@ -78,7 +78,7 @@ describe('SimplePerformancePanel', () => {
       expect(performanceTestInjector.injectRealTimeData).toHaveBeenCalledWith(
         500,
         'REALISTIC_DRIVE',
-        { intervalMs: 1000 }
+        { intervalMs: 3000 }
       );
     });
   });
@@ -105,7 +105,7 @@ describe('SimplePerformancePanel', () => {
       expect(performanceTestInjector.injectRealTimeData).toHaveBeenCalledWith(
         500,
         'REALISTIC_DRIVE',
-        { intervalMs: 1000 }
+        { intervalMs: 3000 }
       );
     });
 
@@ -164,7 +164,7 @@ describe('SimplePerformancePanel', () => {
     // Verify the confirmation dialog was shown
     expect(Alert.alert).toHaveBeenCalledWith(
       'Real-Time GPS Injection',
-      'This will inject 500 GPS points in real-time with current timestamps. The GPS beacon will act as the "head" of the worm. This will take about 8 minutes.',
+      'This will inject 500 GPS points in real-time with current timestamps. The GPS beacon will act as the "head" of the worm. This will take about 25 minutes.',
       expect.arrayContaining([
         { text: 'Cancel', style: 'cancel' },
         expect.objectContaining({ text: 'Start Real-Time' }),
@@ -198,7 +198,7 @@ describe('SimplePerformancePanel', () => {
       expect(performanceTestInjector.injectRealTimeData).toHaveBeenCalledWith(
         500,
         'REALISTIC_DRIVE',
-        { intervalMs: 1000 }
+        { intervalMs: 3000 }
       );
     });
   });

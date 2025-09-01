@@ -25,20 +25,7 @@ interface ExplorationState {
   };
 }
 
-// Helper function to calculate distance between two geo-points (Haversine formula)
-const haversineDistance = (coords1: GeoPoint, coords2: GeoPoint): number => {
-  const R = 6371e3; // Earth radius in meters
-  const lat1 = (coords1.latitude * Math.PI) / 180;
-  const lat2 = (coords2.latitude * Math.PI) / 180;
-  const deltaLat = ((coords2.latitude - coords1.latitude) * Math.PI) / 180;
-  const deltaLon = ((coords2.longitude - coords1.longitude) * Math.PI) / 180;
-
-  const a =
-    Math.sin(deltaLat / 2) * Math.sin(deltaLat / 2) +
-    Math.cos(lat1) * Math.cos(lat2) * Math.sin(deltaLon / 2) * Math.sin(deltaLon / 2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  return R * c; // Distance in meters
-};
+// Removed haversineDistance - no longer needed since we store all GPS points
 
 // Helper function to validate a GeoPoint
 const isValidGeoPoint = (point: GeoPoint): boolean => {
@@ -54,33 +41,13 @@ const isValidGeoPoint = (point: GeoPoint): boolean => {
   );
 };
 
-// Reduced minimum distance to ensure more regular fog holes
-const MIN_DISTANCE_FOR_NEW_AREA = 20; // Only add new circle if current point is this far from an existing center
+// Store all GPS points - filtering happens at render time for optimal flexibility
+// This follows GPS tracking app best practices: preserve raw data, filter during visualization
 
 // Helper function to process a single background location
-const processLocationForPath = (
-  geoPoint: GeoPoint,
-  currentPath: GeoPoint[]
-): { shouldAdd: boolean; distance?: number } => {
-  const lastPoint = currentPath.length > 0 ? currentPath[currentPath.length - 1] : null;
-
-  if (!lastPoint) {
-    return { shouldAdd: true };
-  }
-
-  try {
-    const distance = haversineDistance(geoPoint, lastPoint);
-    return {
-      shouldAdd: distance >= MIN_DISTANCE_FOR_NEW_AREA,
-      distance,
-    };
-  } catch (error) {
-    logger.error(`Error calculating distance for background location: ${error}`, error, {
-      component: 'explorationSlice',
-      action: 'processBackgroundLocations',
-    });
-    return { shouldAdd: false };
-  }
+// Store all valid GPS points - filtering happens at render time for optimal flexibility
+const processLocationForPath = (): { shouldAdd: boolean } => {
+  return { shouldAdd: true };
 };
 
 // Helper function to convert and validate stored location
@@ -182,34 +149,16 @@ const explorationSlice = createSlice({
         return;
       }
 
-      try {
-        const distance = haversineDistance(newPoint, lastPoint);
-
-        if (distance >= MIN_DISTANCE_FOR_NEW_AREA) {
-          state.path.push({ ...newPoint });
-          logger.debug(
-            `Added new path point at: ${newPoint.latitude}, ${newPoint.longitude}. Distance: ${distance.toFixed(2)}m. Total points: ${state.path.length}`,
-            {
-              component: 'explorationSlice',
-              action: 'updateLocation',
-            }
-          );
-        } else {
-          // Log once, but don't spam logs for the same location
-          logger.debug(
-            `New point is too close to last point (${distance.toFixed(2)}m). Not adding to path. Total points: ${state.path.length}`,
-            {
-              component: 'explorationSlice',
-              action: 'updateLocation',
-            }
-          );
-        }
-      } catch (error) {
-        logger.error(`Error calculating distance: ${error}. Not adding to path.`, error, {
+      // Store all GPS points - filtering happens at render time for optimal flexibility
+      // This follows GPS tracking app best practices: preserve raw data, filter during visualization
+      state.path.push({ ...newPoint });
+      logger.debug(
+        `Added path point at: ${newPoint.latitude}, ${newPoint.longitude}. Total points: ${state.path.length}`,
+        {
           component: 'explorationSlice',
           action: 'updateLocation',
-        });
-      }
+        }
+      );
     },
     updateZoom: (state, action: PayloadAction<number>) => {
       state.zoomLevel = action.payload;
@@ -307,8 +256,8 @@ const explorationSlice = createSlice({
         // Track the most recent valid location
         latestValidLocation = geoPoint;
 
-        // Check if we should add this point to the path
-        const pathResult = processLocationForPath(geoPoint, state.path);
+        // Store all valid GPS points (filtering happens at render time)
+        const pathResult = processLocationForPath();
 
         if (pathResult.shouldAdd) {
           state.path.push({ ...geoPoint });
