@@ -9,14 +9,14 @@ import {
 describe('appConstants', () => {
   describe('GPS_CONSTANTS', () => {
     it('should have expected GPS constants', () => {
-      expect(GPS_CONSTANTS.MIN_MOVEMENT_THRESHOLD_METERS).toBe(5);
+      expect(GPS_CONSTANTS.MIN_MOVEMENT_THRESHOLD_METERS).toBe(3);
       expect(GPS_CONSTANTS.EARTH_RADIUS_METERS).toBe(6371000);
       expect(GPS_CONSTANTS.MAX_TIME_GAP_MS).toBe(300000);
       expect(GPS_CONSTANTS.SESSION_GAP_THRESHOLD_MS).toBe(10 * 60 * 1000);
       expect(GPS_CONSTANTS.DEDUPLICATION_DISTANCE_METERS).toBe(10);
       expect(GPS_CONSTANTS.DEDUPLICATION_TIME_WINDOW_MS).toBe(30 * 1000);
       expect(GPS_CONSTANTS.DEFAULT_GPS_INTERVAL_SECONDS).toBe(30);
-      expect(GPS_CONSTANTS.REAL_TIME_INJECTION_INTERVAL_MS).toBe(1000);
+      expect(GPS_CONSTANTS.REAL_TIME_INJECTION_INTERVAL_MS).toBe(3000);
     });
 
     it('should be readonly object', () => {
@@ -86,7 +86,7 @@ describe('appConstants', () => {
       });
 
       it('should return false for movement below threshold', () => {
-        expect(VALIDATION.isSignificantMovement(4)).toBe(false);
+        expect(VALIDATION.isSignificantMovement(2)).toBe(false);
         expect(VALIDATION.isSignificantMovement(1)).toBe(false);
         expect(VALIDATION.isSignificantMovement(0)).toBe(false);
       });

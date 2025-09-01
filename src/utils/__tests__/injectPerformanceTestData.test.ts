@@ -84,7 +84,7 @@ describe('PerformanceTestDataInjector', () => {
       });
       expect(mockDeviceEventEmitter.emit).toHaveBeenCalledTimes(2); // One for each point
       expect(mockLogger.info).toHaveBeenCalledWith(
-        '🎯 Starting REAL-TIME injection: 2 points with 1000ms intervals from default location'
+        '🎯 Starting REAL-TIME injection: 2 points with 3000ms intervals from default location'
       );
 
       jest.useRealTimers();

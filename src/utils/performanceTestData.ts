@@ -24,7 +24,8 @@ export const TestPatterns = {
 export type TestPattern = (typeof TestPatterns)[keyof typeof TestPatterns];
 
 /**
- * Generate realistic drive coordinates for walking speed paths with swirls
+ * Generate realistic movement coordinates with natural path variations
+ * Designed for walking/jogging speeds with organic direction changes
  */
 const generateRealisticDriveCoordinates = (
   i: number,
@@ -53,8 +54,8 @@ const generateRealisticDriveCoordinates = (
   const directionChange = (Math.random() - 0.5) * Math.PI * 0.5;
   const newDirection = prevDirection + directionChange;
 
-  // Walking speed distance: 25-75m
-  const distanceMeters = 25 + Math.random() * 50;
+  // Realistic movement distance: 8-20m per step (ensures visibility above 3m threshold)
+  const distanceMeters = 8 + Math.random() * 12;
   const distanceDegrees = distanceMeters / 111000;
 
   return {
@@ -126,7 +127,7 @@ export const generatePerformanceTestData = (
   } = {}
 ): GeoPoint[] => {
   const {
-    radiusKm = 1.0, // 1km radius by default
+    radiusKm = 0.05, // 50m radius for realistic walking speed
     startTime = Date.now(), // Start from current time to avoid "forking worms" with real GPS
     intervalSeconds = 30, // 30 second intervals for walking speed
     startingLocation,

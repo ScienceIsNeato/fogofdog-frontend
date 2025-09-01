@@ -14,7 +14,7 @@ jsEngine: graaljs  # REQUIRED for modern JavaScript
 
 ### Development Testing (Manual)
 ```bash
-node tools/gps-injector-direct.js --mode relative --angle 90 --distance 1000
+node scripts/gps/gps-inject-relative.js --angle 90 --distance 1000
 ```
 
 ---
@@ -82,13 +82,13 @@ jsEngine: graaljs
 
 ```bash
 # Quick movements
-node tools/gps-injector-direct.js --mode relative --angle 0 --distance 1000    # East
-node tools/gps-injector-direct.js --mode relative --angle 90 --distance 1000   # North
-node tools/gps-injector-direct.js --mode relative --angle 180 --distance 1000  # West
-node tools/gps-injector-direct.js --mode relative --angle 270 --distance 1000  # South
+node scripts/gps/gps-inject-relative.js --angle 0 --distance 1000    # East
+node scripts/gps/gps-inject-relative.js --angle 90 --distance 1000   # North
+node scripts/gps/gps-inject-relative.js --angle 180 --distance 1000  # West
+node scripts/gps/gps-inject-relative.js --angle 270 --distance 1000  # South
 
 # Absolute positioning
-node tools/gps-injector-direct.js --mode absolute --lat 37.7749 --lon -122.4194
+node scripts/gps/gps-injector-direct.js --mode absolute --lat 37.7749 --lon -122.4194
 ```
 
 **Angles**: `0°`=East, `90°`=North, `180°`=West, `270°`=South

@@ -20,6 +20,7 @@ import concurrent.futures
 import subprocess
 import sys
 import time
+import re
 from typing import List, Tuple, Optional
 from dataclasses import dataclass
 from enum import Enum
@@ -235,27 +236,29 @@ class QualityGateExecutor:
         if not output:
             return "Unknown test failure"
         
-        # Check for coverage threshold failure
-        if "coverage threshold" in output.lower() and "not met" in output.lower():
-            # Extract coverage percentage
-            import re
-            coverage_match = re.search(r'(\d+\.?\d*)%.*not met.*(\d+\.?\d*)%', output)
+        # Check for actual test failures first (highest priority)
+
+        failed_match = re.search(r'(\d+)\s+failed', output)
+        if failed_match:
+            failed_count = failed_match.group(1)
+            return f"Test failures: {failed_count} test(s) failed"
+        
+        # Check for coverage threshold failure (when tests pass but coverage is low)
+        if "coverage" in output.lower() and ("threshold" in output.lower() or "below" in output.lower()):
+            # Extract coverage percentage - try multiple patterns
+            coverage_match = re.search(r'(\d+\.?\d*)%.*(?:not met|below).*(\d+\.?\d*)%', output)
+            if not coverage_match:
+                coverage_match = re.search(r'Coverage at (\d+\.?\d*)%.*below (\d+\.?\d*)%', output)
+            
             if coverage_match:
                 actual, threshold = coverage_match.groups()
                 return f"Coverage threshold not met: {actual}% < {threshold}%"
             else:
                 return "Coverage threshold not met"
         
-        # Check for test failures
+        # Check for other test execution issues
         if "failed" in output.lower() and ("test" in output.lower() or "spec" in output.lower()):
-            # Extract number of failed tests
-            import re
-            failed_match = re.search(r'(\d+)\s+failed', output)
-            if failed_match:
-                failed_count = failed_match.group(1)
-                return f"Test failures: {failed_count} test(s) failed"
-            else:
-                return "Test execution failures detected"
+            return "Test execution failures detected"
         
         # Check for compilation/syntax errors
         if "error" in output.lower() and ("syntax" in output.lower() or "compile" in output.lower()):

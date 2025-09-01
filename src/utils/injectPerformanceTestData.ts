@@ -51,7 +51,7 @@ export class PerformanceTestDataInjector {
     this.isInjecting = true;
 
     try {
-      const { intervalMs = 1000, ...generateOptions } = options ?? {}; // 1 second between points
+      const { intervalMs = 3000, ...generateOptions } = options ?? {}; // 3 seconds between points for realistic speed
 
       // Get current location from store to start path from there
       const currentState = store.getState();

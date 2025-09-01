@@ -48,6 +48,7 @@ const createWrapper = (store: any) => {
 describe('useCinematicZoom', () => {
   let mockMapRef: React.RefObject<any>;
   let currentLocation: GeoPoint;
+  let mockGeoPoint: GeoPoint;
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -58,6 +59,11 @@ describe('useCinematicZoom', () => {
       latitude: 37.7749,
       longitude: -122.4194,
       timestamp: Date.now(),
+    };
+    mockGeoPoint = {
+      latitude: 37.7849,
+      longitude: -122.4094,
+      timestamp: Date.now() - 1000,
     };
 
     // Setup default mocks
@@ -251,5 +257,169 @@ describe('useCinematicZoom', () => {
       component: 'useCinematicZoom',
     });
     expect(mockMapZoomUtils.calculateZoomAnimation).not.toHaveBeenCalled();
+  });
+
+  it('should not trigger cinematic zoom during GPS injection', () => {
+    const store = createTestStore({
+      exploration: {
+        path: [mockGeoPoint],
+        gpsInjectionStatus: {
+          isRunning: true,
+          type: 'real-time',
+          message: 'Injecting GPS data...',
+        },
+      },
+    });
+
+    renderHook(() => useCinematicZoom({ mapRef: mockMapRef, currentLocation }), {
+      wrapper: createWrapper(store),
+    });
+
+    act(() => {
+      jest.advanceTimersByTime(1000);
+    });
+
+    // Should not trigger animation during GPS injection
+    expect(mockMapView.animateToRegion).not.toHaveBeenCalled();
+    expect(mockMapView._cinematicZoomActive).toBe(false);
+  });
+
+  it('should trigger cinematic zoom when GPS injection stops', () => {
+    const store = createTestStore({
+      exploration: {
+        path: [mockGeoPoint],
+        gpsInjectionStatus: {
+          isRunning: false,
+          type: null,
+          message: '',
+        },
+      },
+    });
+
+    renderHook(() => useCinematicZoom({ mapRef: mockMapRef, currentLocation }), {
+      wrapper: createWrapper(store),
+    });
+
+    act(() => {
+      jest.advanceTimersByTime(1000);
+    });
+
+    // Should trigger animation when GPS injection is not running
+    expect(mockMapView.animateToRegion).toHaveBeenCalledTimes(2);
+    expect(mockMapView._cinematicZoomActive).toBe(true);
+  });
+
+  it('should not trigger multiple animations simultaneously', () => {
+    const store = createTestStore({
+      exploration: { path: [mockGeoPoint] },
+    });
+
+    const { rerender } = renderHook(
+      () => useCinematicZoom({ mapRef: mockMapRef, currentLocation }),
+      {
+        wrapper: createWrapper(store),
+      }
+    );
+
+    // First render starts animation
+    act(() => {
+      jest.advanceTimersByTime(100); // Start animation but don't complete it
+    });
+
+    expect(mockMapView.animateToRegion).toHaveBeenCalledTimes(2);
+    jest.clearAllMocks();
+
+    // Immediate re-render should not start another animation (already in progress)
+    rerender({ mapRef: mockMapRef, currentLocation });
+
+    act(() => {
+      jest.advanceTimersByTime(100);
+    });
+
+    // Should not trigger another animation while first is in progress
+    expect(mockMapView.animateToRegion).not.toHaveBeenCalled();
+  });
+
+  it('should handle edge case with single point in path', () => {
+    const store = createTestStore({
+      exploration: { path: [mockGeoPoint] }, // Only 1 point
+    });
+
+    const { result } = renderHook(() => useCinematicZoom({ mapRef: mockMapRef, currentLocation }), {
+      wrapper: createWrapper(store),
+    });
+
+    // Should return valid initial region (may use cinematic calculation or fallback)
+    expect(result.current.initialRegion).toBeDefined();
+    expect(result.current.initialRegion?.latitude).toBeCloseTo(currentLocation.latitude, 1);
+    expect(result.current.initialRegion?.longitude).toBeCloseTo(currentLocation.longitude, 1);
+    expect(result.current.initialRegion?.latitudeDelta).toBeDefined();
+  });
+
+  it('should complete full animation lifecycle including cleanup', () => {
+    const store = createTestStore({
+      exploration: { path: [mockGeoPoint] },
+    });
+
+    renderHook(() => useCinematicZoom({ mapRef: mockMapRef, currentLocation }), {
+      wrapper: createWrapper(store),
+    });
+
+    // Start animation
+    act(() => {
+      jest.advanceTimersByTime(1000); // CINEMATIC_ZOOM_DELAY
+    });
+
+    expect(mockMapView._cinematicZoomActive).toBe(true);
+
+    // Complete full animation including cleanup
+    act(() => {
+      jest.advanceTimersByTime(5200); // CINEMATIC_ZOOM_DURATION + 200 cleanup
+    });
+
+    // Animation should be cleaned up
+    expect(mockMapView.animateToRegion).toHaveBeenCalledTimes(2);
+  });
+
+  it('should handle path with multiple points for travel direction calculation', () => {
+    const multiPointPath = [
+      { latitude: 44.052, longitude: -123.0867 },
+      { latitude: 44.0521, longitude: -123.0866 },
+      { latitude: 44.0522, longitude: -123.0865 },
+      { latitude: 44.0523, longitude: -123.0864 },
+    ];
+
+    const store = createTestStore({
+      exploration: { path: multiPointPath },
+    });
+
+    const { result } = renderHook(() => useCinematicZoom({ mapRef: mockMapRef, currentLocation }), {
+      wrapper: createWrapper(store),
+    });
+
+    // Should calculate start region using travel direction
+    expect(result.current.initialRegion).toBeDefined();
+    expect(result.current.initialRegion?.latitude).toBeDefined();
+    expect(result.current.initialRegion?.longitude).toBeDefined();
+  });
+
+  it('should handle fallback direction when no clear travel direction exists', () => {
+    // Create path with very small movements (below direction threshold)
+    const smallMovementPath = [
+      { latitude: 44.052, longitude: -123.0867 },
+      { latitude: 44.052, longitude: -123.0867 }, // Same location
+    ];
+
+    const store = createTestStore({
+      exploration: { path: smallMovementPath },
+    });
+
+    const { result } = renderHook(() => useCinematicZoom({ mapRef: mockMapRef, currentLocation }), {
+      wrapper: createWrapper(store),
+    });
+
+    // Should still provide valid start region with fallback logic
+    expect(result.current.initialRegion).toBeDefined();
+    expect(result.current.initialRegion?.latitudeDelta).toBeGreaterThan(0);
   });
 });

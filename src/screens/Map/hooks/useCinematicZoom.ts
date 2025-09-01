@@ -3,6 +3,8 @@ import { useAppSelector } from '../../../store/hooks';
 import { calculateExplorationBounds } from '../index';
 import { logger } from '../../../utils/logger';
 
+// Module loaded successfully
+
 import type { Region } from 'react-native-maps';
 import type MapView from 'react-native-maps';
 import type { GeoPoint } from '../../../types/user';
@@ -99,6 +101,49 @@ const extractRecentPathSegment = (
 };
 
 /**
+ * Calculate travel direction from recent path points
+ */
+const calculateTravelDirection = (
+  pathSegment: GeoPoint[]
+): { directionLat: number; directionLng: number } => {
+  const recentPoints = pathSegment.slice(-Math.min(5, pathSegment.length));
+  let directionLat = 0;
+  let directionLng = 0;
+
+  if (recentPoints.length >= 2) {
+    // Calculate average direction vector from recent movement
+    for (let i = 1; i < recentPoints.length; i++) {
+      const prev = recentPoints[i - 1];
+      const curr = recentPoints[i];
+      if (prev && curr) {
+        directionLat += curr.latitude - prev.latitude;
+        directionLng += curr.longitude - prev.longitude;
+      }
+    }
+    // Normalize by number of segments
+    directionLat /= recentPoints.length - 1;
+    directionLng /= recentPoints.length - 1;
+  }
+
+  return { directionLat, directionLng };
+};
+
+/**
+ * Calculate total distance of a path segment
+ */
+const calculatePathDistance = (pathSegment: GeoPoint[]): number => {
+  let totalDistance = 0;
+  for (let i = 1; i < pathSegment.length; i++) {
+    const prevPoint = pathSegment[i - 1];
+    const currPoint = pathSegment[i];
+    if (prevPoint && currPoint) {
+      totalDistance += calculateDistance(prevPoint, currPoint);
+    }
+  }
+  return totalDistance;
+};
+
+/**
  * Calculate an intelligent cinematic start point based on recent path
  * Uses path analysis to create a dramatic reveal of the user's journey
  */
@@ -138,34 +183,48 @@ const calculateCinematicStartPoint = (
   }
 
   const pathEnd = currentLocation;
+  const totalDistance = calculatePathDistance(pathSegment);
 
-  // Calculate total distance of path segment
-  let totalDistance = 0;
-  for (let i = 1; i < pathSegment.length; i++) {
-    const prevPoint = pathSegment[i - 1];
-    const currPoint = pathSegment[i];
-    if (prevPoint && currPoint) {
-      totalDistance += calculateDistance(prevPoint, currPoint);
-    }
+  // Field Goal Kicker Algorithm: Start from behind user's travel direction
+  const gpsMarkerLat = pathEnd.latitude;
+  const gpsMarkerLng = pathEnd.longitude;
+
+  // Calculate travel direction vector from recent points
+  let { directionLat, directionLng } = calculateTravelDirection(pathSegment);
+
+  // Fallback if no clear direction: use start-to-end vector
+  if (Math.abs(directionLat) < 0.0001 && Math.abs(directionLng) < 0.0001) {
+    directionLat = pathEnd.latitude - pathStart.latitude;
+    directionLng = pathEnd.longitude - pathStart.longitude;
   }
 
-  // Calculate center point of the journey for dramatic framing
-  const centerLat = (pathStart.latitude + pathEnd.latitude) / 2;
-  const centerLng = (pathStart.longitude + pathEnd.longitude) / 2;
+  // Step 3: Determine zoom level and calculate starting position
+  const journeySpan = Math.max(
+    Math.abs(pathEnd.latitude - pathStart.latitude),
+    Math.abs(pathEnd.longitude - pathStart.longitude)
+  );
+  const zoomDelta = Math.max(journeySpan * 1.8, 0.006); // Cinematic zoom with min 600m view
 
-  // Calculate span of the journey
-  const latSpan = Math.abs(pathEnd.latitude - pathStart.latitude);
-  const lngSpan = Math.abs(pathEnd.longitude - pathStart.longitude);
+  // Calculate how far to walk backwards (GPS marker should be at 10% from edge)
+  const bufferRatio = 0.1; // 10% buffer from screen edge
+  const distanceFromCenter = zoomDelta * (0.5 - bufferRatio); // Distance from center to near-edge
 
-  // Create cinematic wide shot that encompasses the journey with padding
-  const cinematicPadding = 1.8; // 80% padding for dramatic effect
-  const startLatDelta = Math.max(latSpan * cinematicPadding, 0.005); // Min 500m view
-  const startLngDelta = Math.max(lngSpan * cinematicPadding, 0.005);
+  // Normalize direction vector
+  const directionMagnitude = Math.sqrt(directionLat * directionLat + directionLng * directionLng);
+  const normalizedDirLat = directionMagnitude > 0 ? directionLat / directionMagnitude : 0;
+  const normalizedDirLng = directionMagnitude > 0 ? directionLng / directionMagnitude : 0;
+
+  // Walk backwards from GPS marker position to find starting point
+  const startLat = gpsMarkerLat - normalizedDirLat * distanceFromCenter;
+  const startLng = gpsMarkerLng - normalizedDirLng * distanceFromCenter;
+
+  const startLatDelta = zoomDelta;
+  const startLngDelta = zoomDelta;
 
   return {
     startRegion: {
-      latitude: centerLat,
-      longitude: centerLng,
+      latitude: startLat,
+      longitude: startLng,
       latitudeDelta: startLatDelta,
       longitudeDelta: startLngDelta,
     },
@@ -301,74 +360,88 @@ const startCinematicPanAnimation = (
 };
 
 /**
- * Hook to handle cinematic animation state resets
+ * Determine if cinematic zoom should be shown based on current conditions
  */
-const useCinematicAnimationReset = (
-  hasRunCinematicZoom: React.MutableRefObject<boolean>,
-  lastSessionId: React.MutableRefObject<string | null>,
-  currentSessionId: string | undefined
-) => {
-  // Reset cinematic animation flag when a new session starts
-  useEffect(() => {
-    if (currentSessionId && currentSessionId !== lastSessionId.current) {
-      logger.debug('New session detected - resetting cinematic animation flag', {
-        component: 'useCinematicZoom',
-        previousSessionId: lastSessionId.current,
-        newSessionId: currentSessionId,
-      });
-      hasRunCinematicZoom.current = false;
-      lastSessionId.current = currentSessionId;
-    }
-  }, [currentSessionId, hasRunCinematicZoom, lastSessionId]);
-
-  // Reset cinematic animation flag on component mount (app reload)
-  useEffect(() => {
-    logger.debug('Cinematic zoom hook mounted - resetting animation flag', {
-      component: 'useCinematicZoom',
-      action: 'mount_reset',
-    });
-    hasRunCinematicZoom.current = false;
-  }, [hasRunCinematicZoom]); // Empty dependency array = runs only on mount
+const shouldShowCinematicZoom = (
+  currentLocation: GeoPoint | null,
+  canStartAnimation: boolean,
+  isGPSInjectionRunning: boolean
+): boolean => {
+  return currentLocation !== null && canStartAnimation && !isGPSInjectionRunning;
 };
 
 /**
  * Custom hook for cinematic zoom functionality
  * Calculates exploration bounds and handles zoom animation
  */
+// eslint-disable-next-line max-lines-per-function
 export const useCinematicZoom = ({
   mapRef,
   currentLocation,
   canStartAnimation = true,
 }: UseCinematicZoomProps) => {
+  // Hook called with proper parameters
+
   // Get exploration path for cinematic zoom calculation
   const explorationPath = useAppSelector((state) => state.exploration.path);
 
-  // Get session ID to detect when a new session starts
-  const currentSessionId = useAppSelector((state) => state.stats.currentSession?.sessionId);
+  // Default GPS injection status to prevent selector warnings
+  const defaultGpsInjectionStatus = useMemo(
+    () => ({ isRunning: false, type: null, message: '' }),
+    []
+  );
 
-  // Track if cinematic zoom has already run to prevent multiple triggers
-  const hasRunCinematicZoom = useRef(false);
-  const lastSessionId = useRef<string | null>(null);
+  // Get GPS injection status to prevent animation during live injection
+  const gpsInjectionStatus = useAppSelector(
+    (state) => state.exploration.gpsInjectionStatus || defaultGpsInjectionStatus
+  );
 
-  // Handle animation state resets
-  useCinematicAnimationReset(hasRunCinematicZoom, lastSessionId, currentSessionId);
+  // Track last animation location to prevent unnecessary repeats
+  const lastAnimationLocation = useRef<GeoPoint | null>(null);
+  const isAnimationInProgress = useRef(false);
 
-  // Calculate cinematic initial region or fallback to current location
   const explorationBounds = useExplorationBounds(explorationPath);
 
-  // Simple Redux-based trigger - but ONLY after onboarding + permissions complete
+  // Mount-based trigger - run on mount and evaluate conditions
   useEffect(() => {
-    // Only run if we haven't already triggered AND have location AND can start animation
-    if (mapRef.current && currentLocation && !hasRunCinematicZoom.current && canStartAnimation) {
-      // Mark that cinematic zoom has run
-      hasRunCinematicZoom.current = true;
+    // Skip if animation already in progress
+    if (isAnimationInProgress.current) {
+      return;
+    }
+
+    // Evaluate if we should show the animation
+    const shouldShow = shouldShowCinematicZoom(
+      currentLocation,
+      canStartAnimation,
+      gpsInjectionStatus.isRunning
+    );
+
+    // Evaluation completed
+
+    logger.debug('Cinematic zoom evaluation', {
+      component: 'useCinematicZoom',
+      shouldShow,
+      pathLength: explorationPath.length,
+      hasCurrentLocation: !!currentLocation,
+      canStartAnimation,
+      lastAnimationLocation: lastAnimationLocation.current,
+      currentLocation: currentLocation
+        ? `${currentLocation.latitude.toFixed(6)}, ${currentLocation.longitude.toFixed(6)}`
+        : null,
+    });
+
+    if (shouldShow && mapRef.current && currentLocation) {
+      // Mark animation in progress and store current location
+      isAnimationInProgress.current = true;
+      lastAnimationLocation.current = currentLocation;
+
       // Set a flag to prevent other animations during cinematic zoom
       (mapRef.current as MapViewWithCinematicState)._cinematicZoomActive = true;
       logger.debug('Animation lock enabled', { component: 'useCinematicZoom' });
 
       logger.debug('Cinematic zoom animation configured', {
         component: 'useCinematicZoom',
-        strategy: 'redux_fallback_trigger',
+        strategy: 'mount_based_trigger',
       });
 
       // Delay then start path-following animation
@@ -380,13 +453,66 @@ export const useCinematicZoom = ({
           component: 'useCinematicZoom',
           pathLength: explorationPath.length,
         });
+
+        // Clear animation in progress flag after animation completes
+        setTimeout(() => {
+          isAnimationInProgress.current = false;
+        }, CINEMATIC_ZOOM_DURATION + 200);
       }, CINEMATIC_ZOOM_DELAY);
 
       return () => clearTimeout(timeoutId);
     }
     // No cleanup needed if conditions aren't met
     return undefined;
-  }, [currentLocation, mapRef, explorationPath, canStartAnimation]);
+  }, [canStartAnimation, currentLocation, explorationPath, gpsInjectionStatus.isRunning, mapRef]); // Include all dependencies
+
+  // Also watch for changes in key conditions and re-evaluate
+  useEffect(() => {
+    // Skip if animation already in progress
+    if (isAnimationInProgress.current) {
+      return;
+    }
+
+    // Only re-evaluate if we have all required conditions
+    if (currentLocation && canStartAnimation && mapRef.current) {
+      const shouldShow = shouldShowCinematicZoom(
+        currentLocation,
+        canStartAnimation,
+        gpsInjectionStatus.isRunning
+      );
+
+      if (shouldShow) {
+        // Mark animation in progress and store current location
+        isAnimationInProgress.current = true;
+        lastAnimationLocation.current = currentLocation;
+
+        // Set a flag to prevent other animations during cinematic zoom
+        (mapRef.current as MapViewWithCinematicState)._cinematicZoomActive = true;
+        logger.debug('Animation lock enabled', { component: 'useCinematicZoom' });
+
+        logger.debug('Cinematic zoom animation configured', {
+          component: 'useCinematicZoom',
+          strategy: 'condition_change_trigger',
+        });
+
+        // Delay then start path-following animation
+        setTimeout(() => {
+          // Start the cinematic pan animation
+          startCinematicPanAnimation(mapRef, explorationPath, currentLocation);
+
+          logger.debug('Cinematic animation sequence initiated', {
+            component: 'useCinematicZoom',
+            pathLength: explorationPath.length,
+          });
+
+          // Clear animation in progress flag after animation completes
+          setTimeout(() => {
+            isAnimationInProgress.current = false;
+          }, CINEMATIC_ZOOM_DURATION + 200);
+        }, CINEMATIC_ZOOM_DELAY);
+      }
+    }
+  }, [currentLocation, canStartAnimation, explorationPath, gpsInjectionStatus.isRunning, mapRef]);
 
   // Create initial region - use cinematic start position to eliminate jump
   const initialRegion: Region | null = useMemo(() => {

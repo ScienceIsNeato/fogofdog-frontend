@@ -104,4 +104,30 @@ describe('useGPSAcquisition', () => {
     // Restore environment
     process.env.NODE_ENV = originalEnv;
   });
+
+  it('should handle successful GPS acquisition', () => {
+    const mockLocation = {
+      coords: {
+        latitude: 37.7749,
+        longitude: -122.4194,
+        accuracy: 10,
+        altitude: 0,
+        altitudeAccuracy: -1,
+        heading: -1,
+        speed: -1,
+      },
+      timestamp: Date.now(),
+    };
+
+    mockGetCurrentPositionAsync.mockResolvedValue(mockLocation);
+
+    // Temporarily set environment to production to trigger GPS logic
+    const originalEnv = process.env.NODE_ENV;
+    process.env.NODE_ENV = 'production';
+
+    expect(() => renderHookWithStore()).not.toThrow();
+
+    // Restore environment
+    process.env.NODE_ENV = originalEnv;
+  });
 });

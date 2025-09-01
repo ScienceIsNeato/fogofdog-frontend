@@ -1,6 +1,23 @@
-# Development Testing Tools
+# GPS Development Tools
 
 This directory contains tools for testing GPS coordinate processing, permission flows, and fog clearing functionality in FogOfDog.
+
+## GPS Injection System
+
+### Quick Start
+
+1. Start the GPS injection server:
+   ```bash
+   ./scripts/gps/start-injection-server.sh
+   ```
+
+2. Inject relative movements:
+   ```bash
+   node scripts/gps/gps-inject-relative.js --angle 90 --distance 30   # 30m North
+   node scripts/gps/gps-inject-relative.js --angle 45 --distance 50   # 50m Northeast
+   ```
+
+The system uses a standalone HTTP server that communicates with the app via file-based GPS injection, eliminating the need for manual DeviceEventEmitter commands.
 
 ## Permission Reset Script
 
