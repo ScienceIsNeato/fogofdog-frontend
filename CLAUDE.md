@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with th
 
 ```bash
 # Essential commands for immediate productivity
-cd /Users/pacey/Documents/SourceCode/fogofdog-frontend
+cd ${AGENT_HOME}
 
 # Start development
 npm start                    # Start Expo dev server
@@ -32,7 +32,7 @@ This project uses comprehensive cursor-rules from the cursor-rules directory. Th
 If cursor-rules are present, they take precedence and should be followed alongside these guidelines.
 
 ### Path Requirements  
-**CRITICAL**: Always use absolute paths in commands. Always use full paths like `cd /Users/pacey/Documents/SourceCode/fogofdog-frontend`.
+**CRITICAL**: Always use absolute paths in commands. Always use full paths like `cd ${AGENT_HOME}`.
 
 ### Current Status
 ✅ **Production Ready**: Successfully deployed to TestFlight (v1.0.1)
@@ -176,7 +176,7 @@ fogofdog-frontend/
 
 1. **Start Development Server**:
    ```bash
-   cd /Users/pacey/Documents/SourceCode/fogofdog-frontend
+   cd ${AGENT_HOME}
    npx expo start
    ```
 
@@ -311,7 +311,7 @@ fogofdog-frontend/
 ### Before Making Changes
 1. **Read STATUS.md** - Always check current project status first
 2. **Run baseline tests** - `npm test` to verify current state
-3. **Use absolute paths** - Always use `/Users/pacey/Documents/SourceCode/fogofdog-frontend`
+3. **Use absolute paths** - Always use `${AGENT_HOME}`
 4. **Check current quality** - Run `npm run quality:check`
 
 ### After Making Changes  
