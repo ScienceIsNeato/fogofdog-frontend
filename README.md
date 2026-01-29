@@ -310,7 +310,7 @@ Our GitHub Actions workflow ensures quality:
 
 ## 📄 License
 
-This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) file for details.
+© 2024-2026 William Martin. All rights reserved. See [LICENSE](LICENSE) for details.
 
 ---
 
