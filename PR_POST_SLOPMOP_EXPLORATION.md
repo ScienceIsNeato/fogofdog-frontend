@@ -32,6 +32,7 @@ When `Location.getCurrentPositionAsync` fails for any reason, the catch block si
 **Files:** `src/screens/Map/index.tsx` (`getInitialLocation`) and `src/screens/Map/hooks/useGPSAcquisition.ts`
 
 The PR adds `useGPSAcquisition()` as a new hook that polls `getCurrentPositionAsync` every 500ms at `Accuracy.Lowest`. Meanwhile, `getInitialLocation` (called via `initializeLocationServices`) also calls `getCurrentPositionAsync` at `Accuracy.High`. Both dispatch to the same Redux slice. There is no coordination. The race can result in:
+
 - The low-accuracy fix overwriting a high-accuracy fix
 - The high-accuracy path failing and triggering Bug 1's hardcoded fallback, overwriting a valid low-accuracy fix
 - The same coordinate being double-dispatched through two independent channels

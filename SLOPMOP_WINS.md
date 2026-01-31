@@ -45,6 +45,7 @@
 **(a) slop-mop bug:** The duplication check's pass condition was `total_percentage <= threshold AND not duplicates`. This meant ANY clone detected would fail the gate regardless of whether the overall percentage was below threshold. This is a semantic bug — the threshold exists precisely to allow some duplication. Fix submitted as [slop-mop PR #4](https://github.com/ScienceIsNeato/slop-mop/pull/4).
 
 **(b) Project duplication at 4.6%:** The project has 129 clone pairs, concentrated in:
+
 - `useCinematicZoom.test.tsx` — repeated test setup blocks for animation scenarios (the test file sets up the same mock state 4 times with minor variations)
 - `explorationSlice.test.ts` — repeated GeoPoint creation patterns (11 clone pairs, 16.9% duplication within this file)
 - `PermissionDeniedScreen.test.tsx` ↔ `PermissionLoadingScreen.test.tsx` — nearly identical test structures for sister components
@@ -59,15 +60,15 @@
 
 ## Structural Improvements Over ship-it
 
-| Capability | ship-it | slop-mop |
-|---|---|---|
-| Dependency ordering | None (all parallel) | Explicit `depends_on` graph |
-| Threshold reporting | Ambiguous (pass/fail only) | Exact percentage + threshold |
-| Auto-fix atomicity | Fix then check (can drift) | Single atomic fix+check |
-| Coverage exclusions | Hardcoded in `.jscpd.json` | Config-driven, extensible |
-| Gate skip on dep failure | N/A | Automatic skip with explanation |
-| CI integration | Custom bash wrappers | `sm validate <profile>` |
-| Pre-commit hook | Husky + `ship_it.py` | `sm commit-hooks install commit` |
+| Capability               | ship-it                    | slop-mop                         |
+| ------------------------ | -------------------------- | -------------------------------- |
+| Dependency ordering      | None (all parallel)        | Explicit `depends_on` graph      |
+| Threshold reporting      | Ambiguous (pass/fail only) | Exact percentage + threshold     |
+| Auto-fix atomicity       | Fix then check (can drift) | Single atomic fix+check          |
+| Coverage exclusions      | Hardcoded in `.jscpd.json` | Config-driven, extensible        |
+| Gate skip on dep failure | N/A                        | Automatic skip with explanation  |
+| CI integration           | Custom bash wrappers       | `sm validate <profile>`          |
+| Pre-commit hook          | Husky + `ship_it.py`       | `sm commit-hooks install commit` |
 
 ---
 

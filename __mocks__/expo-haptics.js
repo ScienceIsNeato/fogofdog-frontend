@@ -13,4 +13,4 @@ export const NotificationFeedbackType = {
   Success: 'success',
   Warning: 'warning',
   Error: 'error',
-}; 
+};

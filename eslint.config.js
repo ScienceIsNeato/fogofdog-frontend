@@ -1,25 +1,25 @@
 // https://docs.expo.dev/guides/using-eslint/
-const expoConfig = require("eslint-config-expo/flat");
+const expoConfig = require('eslint-config-expo/flat');
 
 module.exports = [
   ...expoConfig,
   {
     ignores: [
-      "dist/*", 
-      "coverage/*", 
-      "reports/*", // Auto-generated coverage/duplication reports
-      ".expo/*", 
-      "ios/*", 
-      "android/*",
-      "jest.setup.js",
-      "cursor-rules/**/*",
-      "node_modules/**/*",
-      "artifacts/**/*",
-      "**/*.d.ts",
-      "e2e/**/*",
-      ".venv/**/*",
-      ".git/**/*",
-      "build/**/*"
+      'dist/*',
+      'coverage/*',
+      'reports/*', // Auto-generated coverage/duplication reports
+      '.expo/*',
+      'ios/*',
+      'android/*',
+      'jest.setup.js',
+      'cursor-rules/**/*',
+      'node_modules/**/*',
+      'artifacts/**/*',
+      '**/*.d.ts',
+      'e2e/**/*',
+      '.venv/**/*',
+      '.git/**/*',
+      'build/**/*',
     ],
   },
   {
@@ -42,7 +42,7 @@ module.exports = [
     rules: {
       // ===== SONARJS COMPREHENSIVE RULES =====
       // These mirror SonarQube's JavaScript/TypeScript analyzer
-      
+
       // Bug Detection
       'sonarjs/no-all-duplicated-branches': 'error',
       'sonarjs/no-element-overwrite': 'error',
@@ -54,8 +54,8 @@ module.exports = [
       'sonarjs/no-one-iteration-loop': 'error',
       'sonarjs/no-use-of-empty-return-value': 'error',
       'sonarjs/non-existent-operator': 'error',
-      
-      // Code Smell Detection  
+
+      // Code Smell Detection
       'sonarjs/cognitive-complexity': ['warn', 20],
       'sonarjs/max-switch-cases': ['warn', 30],
       'sonarjs/no-collapsible-if': 'warn',
@@ -77,49 +77,55 @@ module.exports = [
       'sonarjs/prefer-object-literal': 'warn',
       'sonarjs/prefer-single-boolean-return': 'warn',
       'sonarjs/prefer-while': 'warn',
-      
+
       // ===== TYPESCRIPT-ESLINT RULES (matching SonarCube detections) =====
       // Optional chain expressions (typescript:S6582) - requires type info
       '@typescript-eslint/prefer-optional-chain': 'warn',
-      
+
       // Nullish coalescing preference (typescript:S6606)
       '@typescript-eslint/prefer-nullish-coalescing': 'warn',
-      
+
       // Unused variables and parameters (typescript:S6767)
-      '@typescript-eslint/no-unused-vars': ['warn', { 
-        args: 'all',
-        argsIgnorePattern: '^_',
-        vars: 'all',
-        varsIgnorePattern: '^_',
-        caughtErrorsIgnorePattern: '^_',
-        destructuredArrayIgnorePattern: '^_',
-        ignoreRestSiblings: false
-      }],
-      
+      '@typescript-eslint/no-unused-vars': [
+        'warn',
+        {
+          args: 'all',
+          argsIgnorePattern: '^_',
+          vars: 'all',
+          varsIgnorePattern: '^_',
+          caughtErrorsIgnorePattern: '^_',
+          destructuredArrayIgnorePattern: '^_',
+          ignoreRestSiblings: false,
+        },
+      ],
+
       // Parameter ordering (typescript:S1788) - doesn't require type info
       '@typescript-eslint/default-param-last': 'error',
-      
+
       // Union type issues (typescript:S6571)
       '@typescript-eslint/no-redundant-type-constituents': 'warn',
-      
+
       // Deprecated usage detection (typescript:S1874)
       '@typescript-eslint/no-deprecated': 'warn',
-      
+
       // Basic TypeScript rules that don't require type information
       '@typescript-eslint/prefer-ts-expect-error': 'warn',
-      '@typescript-eslint/ban-ts-comment': ['warn', { 
-        'ts-expect-error': 'allow-with-description',
-        'ts-ignore': true,
-        'ts-nocheck': true,
-        'ts-check': false,
-      }],
-      
+      '@typescript-eslint/ban-ts-comment': [
+        'warn',
+        {
+          'ts-expect-error': 'allow-with-description',
+          'ts-ignore': true,
+          'ts-nocheck': true,
+          'ts-check': false,
+        },
+      ],
+
       // ===== REACT/JSX RULES =====
       // React/JSX Rules (typescript:S6479 - Array index in keys)
       'react/no-array-index-key': 'error',
-      
+
       // Additional Code Quality Rules
-      'complexity': ['warn', 20],
+      complexity: ['warn', 20],
       'max-depth': ['warn', 4],
       'max-lines-per-function': ['warn', { max: 80, skipBlankLines: true }],
       'max-params': ['warn', 4],
@@ -150,10 +156,10 @@ module.exports = [
       'sonarjs/cognitive-complexity': 'off',
       'sonarjs/no-duplicate-string': 'off',
       'sonarjs/no-identical-functions': 'off',
-      'complexity': 'off',
+      complexity: 'off',
       'max-lines-per-function': 'off',
       'no-console': 'off',
-      
+
       // But keep important ones for test quality
       'react/no-array-index-key': 'warn',
       '@typescript-eslint/prefer-optional-chain': 'warn',
@@ -164,4 +170,4 @@ module.exports = [
       '@typescript-eslint/no-deprecated': 'warn',
     },
   },
-]; 
+];
