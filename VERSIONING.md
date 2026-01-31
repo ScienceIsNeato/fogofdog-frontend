@@ -9,16 +9,19 @@ FogOfDog uses **semantic versioning** (SemVer) with automated patch version incr
 ## Version Types
 
 ### 🔄 Patch Versions (1.0.0 → 1.0.1)
+
 - **Automated** via GitHub Actions on PR merge
 - Bug fixes, small improvements, internal changes
 - **No manual action required**
 
 ### ✨ Minor Versions (1.0.0 → 1.1.0)
+
 - **Manual** for new features
 - New functionality that's backward compatible
 - Use: `npm run version:minor`
 
 ### 💥 Major Versions (1.0.0 → 2.0.0)
+
 - **Manual** for breaking changes
 - API changes, major architectural shifts
 - Use: `npm run version:major`
@@ -26,6 +29,7 @@ FogOfDog uses **semantic versioning** (SemVer) with automated patch version incr
 ## How It Works
 
 ### Automatic (PR Merge)
+
 1. PR is merged to `main`
 2. GitHub Action triggers
 3. Patch version increments automatically
@@ -35,6 +39,7 @@ FogOfDog uses **semantic versioning** (SemVer) with automated patch version incr
 7. Build numbers incremented for App Store
 
 ### Manual (Major/Minor)
+
 ```bash
 # For new features (backward compatible)
 npm run version:minor
@@ -51,6 +56,7 @@ npm run version:check
 Each version bump automatically updates:
 
 ### `package.json`
+
 ```json
 {
   "version": "1.0.1"
@@ -58,6 +64,7 @@ Each version bump automatically updates:
 ```
 
 ### `app.json`
+
 ```json
 {
   "expo": {
@@ -87,10 +94,11 @@ Each version bump automatically updates:
 ## Examples
 
 ### Typical Development Flow
+
 ```
 1.0.0  ← Initial release
 1.0.1  ← PR: Fix map rendering bug
-1.0.2  ← PR: Update dependencies  
+1.0.2  ← PR: Update dependencies
 1.0.3  ← PR: Improve error handling
 1.1.0  ← Manual: Add dark mode feature
 1.1.1  ← PR: Fix dark mode edge case
@@ -98,6 +106,7 @@ Each version bump automatically updates:
 ```
 
 ### Build Numbers vs Versions
+
 - **Version**: `1.1.0` (user-facing, semantic)
 - **iOS Build**: `15` (App Store requirement)
 - **Android Version Code**: `15` (Play Store requirement)
@@ -107,6 +116,7 @@ Each version bump automatically updates:
 ### When to Use Manual Bumps
 
 #### 🔄 Patch (Automatic - 1.0.0 → 1.0.1)
+
 - Bug fixes and hotfixes
 - Performance optimizations
 - Internal refactoring with no user-visible changes
@@ -115,6 +125,7 @@ Each version bump automatically updates:
 - Documentation updates
 
 #### ✨ Minor (Manual - 1.0.0 → 1.1.0)
+
 - **New user-facing features**:
   - New screens or major UI components
   - New functionality (GPS features, data export, etc.)
@@ -126,6 +137,7 @@ Each version bump automatically updates:
   - Performance improvements visible to users
 
 #### 💥 Major (Manual - 1.0.0 → 2.0.0)
+
 - **Breaking changes**:
   - API changes that affect data format
   - Removed features or screens
@@ -134,6 +146,7 @@ Each version bump automatically updates:
   - Database schema changes requiring migration
 
 ### Version Decision Tree
+
 ```
 Did you add new user-facing functionality?
 ├─ Yes → Is it a breaking change?
@@ -144,13 +157,17 @@ Did you add new user-facing functionality?
 ```
 
 ### Version Commit Messages
+
 Automatic commits include:
+
 - PR number and author
 - Change summary
 - Version transition (1.0.0 → 1.0.1)
 
 ### Release Notes
+
 GitHub releases automatically include:
+
 - PR title and author
 - Direct link to merged PR
 - Version bump details
@@ -158,6 +175,7 @@ GitHub releases automatically include:
 ## Troubleshooting
 
 ### Version Out of Sync
+
 ```bash
 # Check current versions
 npm run version:check
@@ -168,12 +186,15 @@ node scripts/version-bump.js patch
 ```
 
 ### GitHub Action Failed
+
 1. Check workflow logs in GitHub Actions
 2. Ensure `GITHUB_TOKEN` has write permissions
 3. Verify no merge conflicts in version files
 
 ### Build Number Issues
+
 EAS builds use:
+
 - `expo.version` for user-facing version
 - `expo.ios.buildNumber` for App Store
 - `expo.android.versionCode` for Play Store
@@ -185,23 +206,27 @@ All three are managed automatically by the versioning system.
 **Current State**: `v1.0.13` (13 patch releases since initial 1.0.0)
 
 **Recommendation**: Consider bumping to `v1.1.0` if your recent work includes:
+
 - New GPS features or enhancements
-- New UI components or screens  
+- New UI components or screens
 - Data export/import functionality
 - Significant user-facing improvements
 
 **Why Consider Minor Bump**:
+
 - 13 patch releases suggest accumulated feature work
 - Minor versions better communicate significant progress to users
 - Provides clean slate for future patch releases
 - Better aligns with semantic versioning principles
 
 **To Bump to v1.1.0**:
+
 ```bash
 npm run version:minor
 ```
 
 This will:
+
 - Update `package.json` and `app.json` to `1.1.0`
 - Reset build numbers appropriately
 - Create `v1.1.0` git tag
@@ -219,27 +244,31 @@ The first PR merge after implementing this system will bump from `1.0.0` to `1.0
 ### Production Logging Standards
 
 **Approved Log Types:**
+
 - **`logger.info()`**: Significant events, service initialization, user actions
-- **`logger.debug()`**: Development-only detailed tracing (disabled in production)  
+- **`logger.debug()`**: Development-only detailed tracing (disabled in production)
 - **`logger.warn()`**: Recoverable issues, validation failures
 - **`logger.error()`**: Exceptions, critical failures
 
 **Prohibited Patterns:**
+
 - Debug tags in info logs: `[ZOOM_DEBUG]`, `[GPS_DEBUG]`, etc.
 - Informal language: "mysterious", "gambit", "heuristic"
 - Excessive detail in production logs
 - Development-only logs using `logger.info()`
 
 **Professional Log Format:**
+
 ```typescript
 // ✅ Good - Professional, structured
 logger.debug('Animation lock enabled', { component: 'useCinematicZoom' });
 
-// ❌ Bad - Debug tag in info log with informal language  
+// ❌ Bad - Debug tag in info log with informal language
 logger.info('[ZOOM_DEBUG] Heuristic cinematic zoom - matching mysterious animation height');
 ```
 
 **Context Requirements:**
+
 - Always include `component` field
 - Include `action` field for service operations
 - Use structured data over verbose descriptions

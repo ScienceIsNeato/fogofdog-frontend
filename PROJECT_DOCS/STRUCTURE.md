@@ -105,27 +105,32 @@ src/
 ### Key Implementation Files
 
 #### State Management
+
 - `src/store/slices/explorationSlice.ts`: Redux slice managing user's explored areas and GPS path
 - `src/store/slices/userSlice.ts`: User authentication and profile state
 - `src/store/index.ts`: Root store configuration with Redux Toolkit
 
 #### Map and Fog Rendering
+
 - `src/screens/Map/index.tsx`: Main map screen integrating React Native Maps with fog overlay
 - `src/components/FogOverlay.tsx`: React Native Skia canvas component for fog rendering
 - `src/utils/mapUtils.ts`: Coordinate conversion and geographic calculations
 
 #### Navigation
+
 - `src/navigation/AppNavigator.tsx`: React Navigation setup with authenticated and unauthenticated flows
 - `src/types/navigation.ts`: TypeScript types for navigation parameters
 
 ## Testing Structure
 
 ### Unit and Integration Tests
+
 - Tests are co-located with source files in `__tests__/` directories
 - Uses Jest and React Native Testing Library
 - Mock files for external dependencies in `__mocks__/` directories
 
 ### End-to-End Tests
+
 ```
 e2e/
 ├── actions/
@@ -138,17 +143,20 @@ e2e/
 ```
 
 ### Coverage Reports
+
 - Generated in `coverage/` directory
 - HTML reports available in `coverage/lcov-report/`
 
 ## Build and Deployment
 
 ### EAS Build Configuration
+
 - **testflight**: Store distribution for TestFlight deployment
-- **device**: Internal distribution for development testing  
+- **device**: Internal distribution for development testing
 - **development**: Development client with simulator support
 
 ### iOS Native Files
+
 ```
 ios/
 ├── FogOfDog/
@@ -160,6 +168,7 @@ ios/
 ```
 
 ### Android Native Files
+
 ```
 android/
 ├── app/
@@ -173,6 +182,7 @@ android/
 ## Dependencies and Package Management
 
 ### Production Dependencies
+
 - **React Native**: Core framework
 - **Expo**: Development platform and SDK
 - **React Navigation**: Navigation library
@@ -182,6 +192,7 @@ android/
 - **Expo Location**: GPS and location services
 
 ### Development Dependencies
+
 - **TypeScript**: Type checking
 - **Jest**: Unit testing framework
 - **Detox**: E2E testing framework
@@ -189,6 +200,7 @@ android/
 - **React Native Testing Library**: Component testing utilities
 
 ### Build Tools
+
 - **EAS Build**: Cloud build service
 - **Metro**: JavaScript bundler
 - **Babel**: JavaScript transpilation
@@ -196,24 +208,28 @@ android/
 ## Code Style and Standards
 
 ### TypeScript Guidelines
+
 - Strict TypeScript configuration enabled
 - Prefer interfaces over type aliases for object shapes
 - Use explicit return types for functions
 - Leverage type inference where appropriate
 
 ### React/React Native Patterns
+
 - Functional components with hooks
 - Custom hooks for shared logic
 - Component composition over inheritance
 - Props interfaces defined per component
 
 ### Redux Patterns
+
 - Redux Toolkit for all state management
 - Separate slices for different domains (user, exploration, etc.)
 - Async thunks for side effects
 - Immer for immutable state updates
 
 ### File Organization
+
 - Index files for clean imports
 - Co-located tests with source files
 - Consistent naming conventions (PascalCase for components, camelCase for utilities)
@@ -222,18 +238,21 @@ android/
 ## Development Workflow
 
 ### Local Development
+
 1. **Start Metro**: `npx expo start`
 2. **Test on Device**: Use Expo Go app
 3. **Run Tests**: `npm test`
 4. **Lint Code**: `npm run lint`
 
 ### Testing Workflow
+
 1. **Unit Tests**: Test individual components and utilities
 2. **Integration Tests**: Test component interactions
 3. **E2E Tests**: Test complete user flows
 4. **Visual Testing**: Screenshot comparison for UI regression
 
 ### Build Process
+
 1. **Development Builds**: Use Expo Go for rapid iteration
 2. **Internal Testing**: EAS device profile for ad-hoc builds
 3. **Production**: EAS testflight profile for App Store distribution
@@ -241,17 +260,20 @@ android/
 ## Performance Considerations
 
 ### Bundle Size
+
 - Tree shaking enabled via Metro
 - Asset optimization for images
 - Code splitting where appropriate
 
 ### Runtime Performance
+
 - React Native Skia for GPU-accelerated fog rendering
 - Memoization for expensive calculations
 - Efficient Redux selectors
 - Geographic coordinate caching
 
 ### Memory Management
+
 - Proper cleanup of location listeners
 - Canvas memory management for fog overlay
 - Image cache optimization
@@ -259,11 +281,13 @@ android/
 ## Security and Privacy
 
 ### Location Data
+
 - Location permissions properly requested
 - GPS data stored locally in Redux store
 - No persistent storage of location data (currently)
 
 ### Build Security
+
 - Signed builds via EAS Build
 - Proper certificate management
 - No sensitive data in bundle
@@ -271,13 +295,15 @@ android/
 ## Future Extensibility
 
 ### Architecture Patterns
+
 - Modular component design for feature additions
 - Redux slice pattern allows easy state domain expansion
 - Navigation structure supports new screen additions
 - Testing patterns established for new features
 
 ### Scalability Considerations
+
 - Geographic data can be optimized with spatial indexing
 - Redux state can be persisted if needed
 - Component library patterns established
-- Build pipeline supports multiple environments 
+- Build pipeline supports multiple environments

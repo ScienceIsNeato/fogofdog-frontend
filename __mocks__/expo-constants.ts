@@ -8,23 +8,21 @@ export default {
   splash: {
     image: './assets/splash.png',
     resizeMode: 'contain',
-    backgroundColor: '#ffffff'
+    backgroundColor: '#ffffff',
   },
-  assetBundlePatterns: [
-    '**/*'
-  ],
+  assetBundlePatterns: ['**/*'],
   ios: {
-    supportsTablet: true
+    supportsTablet: true,
   },
   android: {
     adaptiveIcon: {
       foregroundImage: './assets/adaptive-icon.png',
-      backgroundColor: '#FFFFFF'
-    }
+      backgroundColor: '#FFFFFF',
+    },
   },
   web: {
-    favicon: './assets/favicon.png'
-  }
+    favicon: './assets/favicon.png',
+  },
 };
 
 export const Constants = {
@@ -37,21 +35,19 @@ export const Constants = {
   splash: {
     image: './assets/splash.png',
     resizeMode: 'contain',
-    backgroundColor: '#ffffff'
+    backgroundColor: '#ffffff',
   },
-  assetBundlePatterns: [
-    '**/*'
-  ],
+  assetBundlePatterns: ['**/*'],
   ios: {
-    supportsTablet: true
+    supportsTablet: true,
   },
   android: {
     adaptiveIcon: {
       foregroundImage: './assets/adaptive-icon.png',
-      backgroundColor: '#FFFFFF'
-    }
+      backgroundColor: '#FFFFFF',
+    },
   },
   web: {
-    favicon: './assets/favicon.png'
-  }
+    favicon: './assets/favicon.png',
+  },
 };

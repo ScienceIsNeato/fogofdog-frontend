@@ -21,8 +21,9 @@ For rapid development of permission flows, use the permission reset script:
 ```
 
 This script is especially useful when testing:
+
 - Permission dialog flows
-- Onboarding sequences  
+- Onboarding sequences
 - Location service initialization
 - Permission denial/grant scenarios
 
@@ -35,12 +36,14 @@ The GPS injector allows you to inject specific GPS coordinates for testing backg
 ### Usage
 
 #### Absolute Coordinates
+
 ```bash
 # Add a specific GPS coordinate
 node tools/gps-injector-simple.js --mode absolute --lat 37.7749 --lon -122.4194
 ```
 
-#### Relative Coordinates  
+#### Relative Coordinates
+
 ```bash
 # Move relative to current position
 node tools/gps-injector-simple.js --mode relative --angle 45 --distance 100
@@ -53,7 +56,7 @@ node tools/gps-injector-simple.js --mode relative --angle 0 --distance 50 --coun
 
 - `--mode`: Either `absolute` or `relative`
 - `--lat`: Latitude (absolute mode only)
-- `--lon`: Longitude (absolute mode only) 
+- `--lon`: Longitude (absolute mode only)
 - `--angle`: Direction in degrees (relative mode) - 0°=East, 90°=North, 180°=West, 270°=South
 - `--distance`: Distance in meters (relative mode)
 - `--count`: Number of points to generate (optional, default: 1)
@@ -61,8 +64,9 @@ node tools/gps-injector-simple.js --mode relative --angle 0 --distance 50 --coun
 ### Coordinate System
 
 For relative mode, angles follow standard mathematical convention:
+
 - **0°**: East (positive longitude direction)
-- **90°**: North (positive latitude direction) 
+- **90°**: North (positive latitude direction)
 - **180°**: West (negative longitude direction)
 - **270°**: South (negative latitude direction)
 
@@ -77,8 +81,9 @@ For relative mode, angles follow standard mathematical convention:
 5. **Verify**: Check that new fog holes appear at the injected coordinates
 
 Example complete workflow:
+
 ```bash
-# Generate coordinates moving northeast 
+# Generate coordinates moving northeast
 node tools/gps-injector-simple.js --mode relative --angle 45 --distance 100 --count 3
 
 # Copy the generated AsyncStorage commands to React Native debugger console
@@ -104,7 +109,7 @@ For Maestro tests, you can use the GPS injector to create deterministic test sce
 After GPS injection and app foregrounding, verify:
 
 1. **Redux State**: New coordinates added to `exploration.path`
-2. **Fog Overlay**: Clear circular areas (~75m radius) at injected coordinates  
+2. **Fog Overlay**: Clear circular areas (~75m radius) at injected coordinates
 3. **Visual Confirmation**: Screenshots show fog holes at expected locations
 4. **Map Interaction**: Fog overlay moves correctly during pan/zoom
 
@@ -115,7 +120,7 @@ After GPS injection and app foregrounding, verify:
 1. GPS coordinates injected → AsyncStorage (`gps_injection_data`)
 2. App foreground → `GPSInjectionService.processInjectedGPS()`
 3. Coordinates processed → `processBackgroundLocations()` Redux action
-4. Path updated → `explorationSlice.path` 
+4. Path updated → `explorationSlice.path`
 5. Fog re-rendered → `FogOverlay` with new cleared areas
 
 ### Fog Clearing Specifications
@@ -176,6 +181,7 @@ current-location.json            # Tracks last coordinate for relative positioni
 ## Examples
 
 ### Create a Square Path
+
 ```bash
 # Start at center point
 node tools/gps-injector-simple.js --mode absolute --lat 37.7849 --lon -122.4294
@@ -183,7 +189,7 @@ node tools/gps-injector-simple.js --mode absolute --lat 37.7849 --lon -122.4294
 # Move north 100m
 node tools/gps-injector-simple.js --mode relative --angle 90 --distance 100
 
-# Move east 100m  
+# Move east 100m
 node tools/gps-injector-simple.js --mode relative --angle 0 --distance 100
 
 # Move south 100m
@@ -194,10 +200,11 @@ node tools/gps-injector-simple.js --mode relative --angle 180 --distance 100
 ```
 
 ### Simulate Walking Path
+
 ```bash
 # Irregular walking pattern with varying distances
 node tools/gps-injector-simple.js --mode relative --angle 30 --distance 75
-node tools/gps-injector-simple.js --mode relative --angle 120 --distance 50  
+node tools/gps-injector-simple.js --mode relative --angle 120 --distance 50
 node tools/gps-injector-simple.js --mode relative --angle 200 --distance 125
 node tools/gps-injector-simple.js --mode relative --angle 350 --distance 80
 ```
@@ -211,26 +218,30 @@ Sets a default location in the iOS Simulator for development. This prevents the 
 **Location**: `scripts/setup-simulator-location.sh`
 
 **Usage**:
+
 ```bash
 # Set default development location (Eugene, Oregon South Hills)
 ./scripts/setup-simulator-location.sh
 ```
 
 **What it does**:
+
 - Checks if iOS Simulator is running
 - Sets the simulator location to Eugene, Oregon South Hills (44.0248, -123.1044)
 - Provides instructions for setting custom locations
 
 **When to use**:
+
 - After setting up a new development environment
 - When the simulator location gets cleared (after iOS updates, etc.)
 - When starting work on location-dependent features
 
 **Manual alternative**:
+
 ```bash
 # Set custom location
 xcrun simctl location booted set <latitude>,<longitude>
 
 # Clear location
 xcrun simctl location booted clear
-``` 
+```

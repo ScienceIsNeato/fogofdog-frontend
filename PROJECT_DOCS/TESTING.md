@@ -5,16 +5,19 @@ This document covers the comprehensive testing strategy for FogOfDog frontend, i
 ## 💰 CI Cost Awareness (Updated June 22, 2025)
 
 **GitHub Actions Pricing** (current rates):
+
 - **Linux runners**: $0.008/minute
 - **macOS runners**: $0.08/minute (10x more expensive!)
 - **Storage**: $0.000336/GB-month
 
 **Current Usage** (June 2025):
+
 - Actions Linux: 921 min = $7.37
 - Actions macOS: 107.9 min = $8.63
 - Actions storage: 1.91 GB-hr = <$0.01
 
 **Cost Control Measures**:
+
 - Maestro integration tests run **manual trigger only** (not on every PR)
 - Use `workflow_dispatch` for expensive macOS tests
 - Monitor usage via GitHub billing dashboard
@@ -23,8 +26,9 @@ This document covers the comprehensive testing strategy for FogOfDog frontend, i
 ## 📋 Testing Strategy
 
 Our testing approach follows a pyramid structure:
+
 1. **Unit Tests** (Jest) - Fast, isolated component and utility testing
-2. **Integration Tests** (Jest) - Testing component interactions and Redux integration  
+2. **Integration Tests** (Jest) - Testing component interactions and Redux integration
 3. **End-to-End Tests** (Maestro) - Complete user flow validation
 
 ---
@@ -32,6 +36,7 @@ Our testing approach follows a pyramid structure:
 ## 🎯 Unit & Integration Testing (Jest)
 
 ### Quick Commands
+
 ```bash
 # Run all tests
 npm test
@@ -53,6 +58,7 @@ npm test -- --testNamePattern="should render"
 ```
 
 ### Test Structure
+
 ```
 src/
 ├── __tests__/           # Utility and shared test files
@@ -69,6 +75,7 @@ src/
 ```
 
 ### Coverage Targets
+
 - **Statements**: 92%+ (currently 91.78%)
 - **Branches**: 84%+ (currently 84.16%)
 - **Functions**: 92%+ (currently 92.3%)
@@ -79,7 +86,9 @@ src/
 ## 🚀 End-to-End Testing (Maestro)
 
 ### Why Maestro?
+
 We switched from Detox to Maestro for E2E testing because:
+
 - ✅ **Simpler Setup**: No complex native dependencies
 - ✅ **Better Reliability**: More stable test execution
 - ✅ **Faster Execution**: Significantly faster than Detox
@@ -89,6 +98,7 @@ We switched from Detox to Maestro for E2E testing because:
 ### Prerequisites
 
 #### Install Maestro CLI
+
 ```bash
 # Install Maestro (one-time setup)
 curl -Ls "https://get.maestro.mobile.dev" | bash
@@ -101,6 +111,7 @@ maestro -v
 ```
 
 #### iOS Setup (Optional - for better integration)
+
 ```bash
 # Install IDB (iOS debugging bridge) for enhanced iOS support
 brew tap facebook/fb
@@ -112,6 +123,7 @@ brew install facebook/fb/idb-companion
 Maestro requires a **standalone app build** with the JavaScript bundle embedded. This differs from development builds that depend on Metro server.
 
 #### Create Release Build
+
 ```bash
 # Build standalone release version for iOS
 npm run ios -- --configuration Release
@@ -134,6 +146,7 @@ Our Maestro tests are located in `.maestro/` directory:
 ### Running Tests
 
 #### Basic Test Execution
+
 ```bash
 # Run all Maestro tests
 maestro test .maestro/
@@ -146,6 +159,7 @@ maestro test .maestro/login-to-map-test.yaml --debug
 ```
 
 #### Test Recording & Debugging
+
 ```bash
 # Record test execution (creates MP4 video)
 maestro record .maestro/login-to-map-test.yaml
@@ -155,7 +169,9 @@ maestro record .maestro/login-to-map-test.yaml
 ```
 
 #### Test Artifacts
+
 Maestro automatically saves test artifacts to `~/.maestro/tests/[timestamp]/`:
+
 - **HTML Report**: `ai-report-[test-name].html` - Visual test summary
 - **JSON Metadata**: `ai-[test-name].json` - Execution data
 - **Command Log**: `commands-[test-name].yaml` - Step-by-step log
@@ -174,26 +190,26 @@ appId: com.fogofdog.app
     clearState: true
 
 # 2. Verify we're on login screen
-- assertVisible: 
-    text: "Sign In"
 - assertVisible:
-    id: "signInButton"
+    text: 'Sign In'
+- assertVisible:
+    id: 'signInButton'
 
 # 3. Perform authentication
 - tapOn:
-    id: "signInButton"
+    id: 'signInButton'
 
 # 4. Handle location permissions (if prompted)
 - runFlow:
     when:
-      visible: "Allow"
+      visible: 'Allow'
     commands:
-      - tapOn: "Allow While Using App"
+      - tapOn: 'Allow While Using App'
 
 # 5. Verify navigation to map screen
 - waitForAnimationToEnd
 - assertVisible:
-    id: "map-screen"
+    id: 'map-screen'
 ```
 
 ### GPS Location Injection for Testing
@@ -205,26 +221,28 @@ For complete GPS injection documentation including coordinates, commands, and tr
 ### Writing New Tests
 
 #### Test Flow Structure
+
 ```yaml
 # App identifier (must match app.json)
 appId: com.fogofdog.app
-jsEngine: graaljs  # REQUIRED for JavaScript features
+jsEngine: graaljs # REQUIRED for JavaScript features
 ---
 # Test steps go here
 - launchApp:
     appId: com.fogofdog.app
     clearState: true
-    
+
 - assertVisible:
-    text: "Expected Text"
-    
+    text: 'Expected Text'
+
 - tapOn:
-    id: "button-test-id"
-    
+    id: 'button-test-id'
+
 - waitForAnimationToEnd
 ```
 
 #### Common Maestro Commands
+
 - `launchApp`: Start the application
 - `assertVisible`: Verify element is visible
 - `tapOn`: Tap on element (by text, id, or coordinates)
@@ -234,23 +252,25 @@ jsEngine: graaljs  # REQUIRED for JavaScript features
 - `runFlow`: Conditional execution
 
 #### Element Selection
+
 ```yaml
 # By test ID (preferred)
 - tapOn:
-    id: "signInButton"
+    id: 'signInButton'
 
 # By visible text
 - tapOn:
-    text: "Sign In"
+    text: 'Sign In'
 
 # By coordinates (last resort)
 - tapOn:
-    point: "50%,25%"
+    point: '50%,25%'
 ```
 
 ### Best Practices
 
 #### Test Design
+
 - ✅ **Use testID attributes** in React components for reliable element selection
 - ✅ **Start with clean state** using `clearState: true`
 - ✅ **Handle optional dialogs** with conditional `runFlow` blocks
@@ -258,6 +278,7 @@ jsEngine: graaljs  # REQUIRED for JavaScript features
 - ✅ **Test realistic user flows** rather than isolated interactions
 
 #### Element Identification
+
 ```tsx
 // React Native component with testID
 <TouchableOpacity testID="signInButton" onPress={handleSignIn}>
@@ -266,6 +287,7 @@ jsEngine: graaljs  # REQUIRED for JavaScript features
 ```
 
 #### Error Handling
+
 - Use `runFlow` with `when` conditions for optional dialogs
 - Add `waitForAnimationToEnd` before critical assertions
 - Include fallback strategies for flaky elements
@@ -273,22 +295,25 @@ jsEngine: graaljs  # REQUIRED for JavaScript features
 ### CI/CD Integration
 
 #### GitHub Actions (Future)
+
 ```yaml
 # Example CI step for Maestro (not yet implemented)
 - name: Run Maestro E2E Tests
   run: |
     # Build release app
     npm run ios -- --configuration Release
-    
+
     # Run Maestro tests
     maestro test .maestro/
-    
+
     # Upload test artifacts
     # (artifacts automatically saved in ~/.maestro/tests/)
 ```
 
 #### Debugging CI Failures
+
 When Maestro tests fail in CI:
+
 1. **Check artifacts** in `~/.maestro/tests/[timestamp]/`
 2. **Review maestro.log** for detailed execution
 3. **Use recording locally** to reproduce issues
@@ -299,16 +324,20 @@ When Maestro tests fail in CI:
 ## 🔧 Test Configuration
 
 ### Jest Configuration
+
 Located in `jest.config.js`:
+
 - Custom test environment setup
 - Mock configurations for React Native modules
 - Coverage thresholds and reporting
 - Transform and module resolution
 
 ### Maestro Configuration
+
 Maestro uses simple YAML files with no complex configuration needed.
 
 **App Requirements**:
+
 - Bundle ID: `com.fogofdog.app` (defined in `app.json`)
 - Standalone build with embedded JS bundle
 - TestID attributes on interactive elements
@@ -318,13 +347,16 @@ Maestro uses simple YAML files with no complex configuration needed.
 ## 📊 Quality Metrics
 
 ### Current Test Status
+
 - **Jest Tests**: 186 tests passing
-- **Test Suites**: 16 suites passing  
+- **Test Suites**: 16 suites passing
 - **Maestro Tests**: 1 complete user flow (6 test steps)
 - **Coverage**: 91.78% statements, 84.16% branches
 
 ### Quality Gates
+
 All tests must pass before merge:
+
 1. ✅ Jest unit/integration tests
 2. ✅ ESLint with zero warnings
 3. ✅ TypeScript compilation
@@ -338,6 +370,7 @@ All tests must pass before merge:
 ### Common Issues
 
 #### Jest Tests
+
 ```bash
 # Clear Jest cache
 npm test -- --clearCache
@@ -350,6 +383,7 @@ npm test -- --verbose ComponentName.test.tsx
 ```
 
 #### Maestro Tests
+
 ```bash
 # Verify app is installed
 maestro test .maestro/login-to-map-test.yaml --debug
@@ -362,6 +396,7 @@ xcrun simctl erase all
 ```
 
 #### Build Issues
+
 ```bash
 # Clean iOS build
 cd ios && xcodebuild clean && cd ..
@@ -372,6 +407,7 @@ npm run ios -- --configuration Release
 ```
 
 ### Getting Help
+
 - **Jest Issues**: Check React Native Testing Library docs
 - **Maestro Issues**: Check [Maestro documentation](https://maestro.mobile.dev/)
 - **Build Issues**: Verify Expo and React Native setup
@@ -381,16 +417,18 @@ npm run ios -- --configuration Release
 ## 📚 Resources
 
 ### Documentation
+
 - [Jest Documentation](https://jestjs.io/docs/getting-started)
 - [React Native Testing Library](https://callstack.github.io/react-native-testing-library/)
 - [Maestro Documentation](https://maestro.mobile.dev/)
 - [Expo Testing Guide](https://docs.expo.dev/guides/testing/)
 
 ### Tools
+
 - [Maestro Studio](https://maestro.mobile.dev/studio) - Visual test creation
 - [Maestro Cloud](https://maestro.mobile.dev/cloud) - Cloud testing platform
 - [React Native Debugger](https://github.com/jhen0409/react-native-debugger)
 
 ---
 
-*Last Updated: January 2025* 
+_Last Updated: January 2025_

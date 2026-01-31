@@ -18,6 +18,6 @@ elif [ -f .env ]; then
   set +a
 fi
 
-# Use the parallelized maintainability gate with fail-fast
-# This includes all quality checks with auto-fix capabilities and stops on first failure
-python3 scripts/ship_it.py --fail-fast
+# Use slop-mop based validation (replaces ship_it.py)
+# This includes JavaScript lint/format, tests, coverage, TypeScript, and duplication checks
+./scripts/validate.sh
