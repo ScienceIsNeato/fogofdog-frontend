@@ -8,7 +8,6 @@ import { calculateMetersPerPixel, geoPointToPixel } from '../utils/mapUtils';
 import { logger } from '../utils/logger';
 import type { Region as MapRegion } from 'react-native-maps';
 import { FOG_CONFIG } from '../config/fogConfig';
-import { GPSConnectionService } from '../services/GPSConnectionService';
 import { PathSimplificationService } from '../utils/pathSimplification';
 import { GeoPoint } from '../types/user';
 
@@ -19,8 +18,22 @@ interface OptimizedFogOverlayProps {
 
 // Performance constants
 const VIEWPORT_BUFFER = 0.5; // Show points 50% outside viewport
-const MIN_VISUAL_DISTANCE_PIXELS = 5; // Skip points closer than 5px visually
 const MAX_POINTS_PER_FRAME = 5000; // Limit for performance
+
+// Distance threshold for breaking path segments (in meters)
+// If two consecutive points are further apart than this, break the path
+const MAX_SEGMENT_DISTANCE_METERS = 500; // 500m - any jump larger is a "teleport"
+
+// Calculate distance between two GPS points in meters (Haversine formula)
+const calculateGeoDistance = (p1: GeoPoint, p2: GeoPoint): number => {
+  const R = 6371e3; // Earth's radius in meters
+  const φ1 = (p1.latitude * Math.PI) / 180;
+  const φ2 = (p2.latitude * Math.PI) / 180;
+  const Δφ = ((p2.latitude - p1.latitude) * Math.PI) / 180;
+  const Δλ = ((p2.longitude - p1.longitude) * Math.PI) / 180;
+  const a = Math.sin(Δφ / 2) ** 2 + Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+};
 
 // Viewport culling: Only process points visible on screen + buffer
 const cullPointsToViewport = (
@@ -29,104 +42,73 @@ const cullPointsToViewport = (
 ): GeoPoint[] => {
   const latBuffer = mapRegion.latitudeDelta * VIEWPORT_BUFFER;
   const lngBuffer = mapRegion.longitudeDelta * VIEWPORT_BUFFER;
-
   const bounds = {
     north: mapRegion.latitude + mapRegion.latitudeDelta / 2 + latBuffer,
     south: mapRegion.latitude - mapRegion.latitudeDelta / 2 - latBuffer,
     east: mapRegion.longitude + mapRegion.longitudeDelta / 2 + lngBuffer,
     west: mapRegion.longitude - mapRegion.longitudeDelta / 2 - lngBuffer,
   };
-
   return points.filter(
-    (point) =>
-      point.latitude <= bounds.north &&
-      point.latitude >= bounds.south &&
-      point.longitude <= bounds.east &&
-      point.longitude >= bounds.west
+    (p) =>
+      p.latitude <= bounds.north &&
+      p.latitude >= bounds.south &&
+      p.longitude <= bounds.east &&
+      p.longitude >= bounds.west
   );
 };
 
-// Visual density reduction: Skip points too close together on screen
-const reduceVisualDensity = (
-  points: GeoPoint[],
-  mapRegion: MapRegion & { width: number; height: number },
-  minDistancePixels: number,
-  safeAreaInsets?: { top: number; bottom: number; left: number; right: number }
-): GeoPoint[] => {
-  if (points.length === 0) return points;
-
-  const firstPoint = points[0];
-  if (!firstPoint) return points;
-
-  const result: GeoPoint[] = [firstPoint]; // Always include first point
-  let lastPixel = geoPointToPixel(firstPoint, mapRegion, safeAreaInsets);
-
-  for (let i = 1; i < points.length; i++) {
-    const currentPoint = points[i];
-    if (!currentPoint) continue;
-
-    const currentPixel = geoPointToPixel(currentPoint, mapRegion, safeAreaInsets);
-    const distance = Math.sqrt(
-      Math.pow(currentPixel.x - lastPixel.x, 2) + Math.pow(currentPixel.y - lastPixel.y, 2)
-    );
-
-    if (distance >= minDistancePixels) {
-      result.push(currentPoint);
-      lastPixel = currentPixel;
-    }
-  }
-
-  return result;
-};
-
-// Memoized coordinate conversion with region change detection
+// Memoized coordinate conversion - simplified, no density reduction (was causing wiggle)
 const useOptimizedCoordinates = (
   points: GeoPoint[],
   mapRegion: MapRegion & { width: number; height: number },
   safeAreaInsets?: { top: number; bottom: number; left: number; right: number }
 ) => {
   return useMemo(() => {
-    const startTime = performance.now();
-
-    // Step 1: Viewport culling
+    // Step 1: Viewport culling only (no density reduction - was causing wiggle on zoom)
     const viewportPoints = cullPointsToViewport(points, mapRegion);
 
-    // Step 2: Visual density reduction
-    const densityReducedPoints = reduceVisualDensity(
-      viewportPoints,
-      mapRegion,
-      MIN_VISUAL_DISTANCE_PIXELS,
-      safeAreaInsets
-    );
+    // Step 2: Limit total points for performance
+    const finalPoints = viewportPoints.slice(0, MAX_POINTS_PER_FRAME);
 
-    // Step 3: Limit total points for performance
-    const finalPoints = densityReducedPoints.slice(0, MAX_POINTS_PER_FRAME);
-
-    // Step 4: Convert to pixel coordinates once
+    // Step 3: Convert to pixel coordinates
     const pixelCoordinates = finalPoints.map((point) => ({
       point,
       pixel: geoPointToPixel(point, mapRegion, safeAreaInsets),
     }));
 
-    const processingTime = performance.now() - startTime;
-
-    // Only log processing details when there's significant work or performance issues
-    if (processingTime > 10) {
-      logger.debug(
-        `OptimizedFogOverlay: processed ${points.length} → ${viewportPoints.length} → ${densityReducedPoints.length} → ${finalPoints.length} points in ${processingTime.toFixed(2)}ms`,
-        {
-          component: 'OptimizedFogOverlay',
-          originalPoints: points.length,
-          viewportPoints: viewportPoints.length,
-          densityReducedPoints: densityReducedPoints.length,
-          finalPoints: finalPoints.length,
-          processingTimeMs: processingTime,
-        }
-      );
-    }
-
     return { finalPoints, pixelCoordinates };
   }, [points, mapRegion, safeAreaInsets]);
+};
+
+// Split points into segments at teleportation jumps (large distance gaps)
+type PixelCoord = { point: GeoPoint; pixel: { x: number; y: number } };
+const splitAtTeleportations = (coords: PixelCoord[], maxDistance: number): PixelCoord[][] => {
+  const segments: PixelCoord[][] = [];
+  let current: PixelCoord[] = [];
+
+  for (const coord of coords) {
+    const prev = current[current.length - 1];
+    if (!prev || calculateGeoDistance(prev.point, coord.point) <= maxDistance) {
+      current.push(coord);
+    } else {
+      if (current.length > 0) segments.push(current);
+      current = [coord];
+    }
+  }
+  if (current.length > 0) segments.push(current);
+  return segments;
+};
+
+// Draw a simplified segment to the Skia path
+const drawSegmentToPath = (path: SkPath, pixels: { x: number; y: number }[]): void => {
+  if (pixels.length === 0) return;
+  const first = pixels[0];
+  if (!first) return;
+  path.moveTo(first.x, first.y);
+  for (let i = 1; i < pixels.length; i++) {
+    const p = pixels[i];
+    if (p) path.lineTo(p.x, p.y);
+  }
 };
 
 // Hook for calculating optimized fog rendering properties
@@ -149,54 +131,24 @@ const useOptimizedFogCalculations = (
     return FOG_CONFIG.RADIUS_METERS / metersPerPixel;
   }, [mapRegion]);
 
-  // Memoize GPS connection processing based on actual GPS points, not map region
-  const connectedSegments = useMemo(() => {
-    if (finalPoints.length === 0) {
-      return [];
-    }
-
-    // Use unified GPS connection logic on optimized points
-    // Disable logging to prevent spam during map interactions
-    const processedPoints = GPSConnectionService.processGPSPoints(finalPoints, {
-      enableLogging: false,
-    });
-    return GPSConnectionService.getConnectedSegments(processedPoints);
-  }, [finalPoints]);
-
-  // Compute the Skia path from connected segments with smooth Bezier curves
+  // Build path with teleportation detection - break path at large distance jumps
   const skiaPath = useMemo(() => {
     const path = Skia.Path.Make();
+    if (pixelCoordinates.length === 0) return path;
 
-    if (connectedSegments.length === 0) {
-      return path;
+    // Split into continuous segments (break at teleportation jumps > 500m)
+    const segments = splitAtTeleportations(pixelCoordinates, MAX_SEGMENT_DISTANCE_METERS);
+
+    // Simplify and draw each segment
+    const tolerance = Math.max(1, radiusPixels * FOG_CONFIG.SIMPLIFICATION_TOLERANCE_FACTOR);
+    for (const segment of segments) {
+      const pixels = segment.map(({ pixel }) => pixel);
+      const simplified = PathSimplificationService.simplifyPath(pixels, tolerance);
+      drawSegmentToPath(path, simplified);
     }
 
-    // Build path using pre-calculated pixel coordinates
-    const pixelMap = new Map(
-      pixelCoordinates.map((item) => [`${item.point.latitude}-${item.point.longitude}`, item.pixel])
-    );
-
-    // Build continuous path chains and simplify them using utility service
-    const segmentData = connectedSegments
-      .map((segment) => ({
-        start: pixelMap.get(`${segment.start.latitude}-${segment.start.longitude}`)!,
-        end: pixelMap.get(`${segment.end.latitude}-${segment.end.longitude}`)!,
-      }))
-      .filter((seg) => seg.start && seg.end);
-
-    const pathChains = PathSimplificationService.buildPathChains(segmentData);
-
-    // Use conservative tolerance for simplification
-    const tolerance = Math.max(1, radiusPixels * FOG_CONFIG.SIMPLIFICATION_TOLERANCE_FACTOR);
-    const simplifiedChains = pathChains.map((chain) =>
-      PathSimplificationService.simplifyPath(chain, tolerance)
-    );
-
-    // Draw smooth paths using utility service
-    PathSimplificationService.drawSmoothPath(path, simplifiedChains);
-
     return path;
-  }, [connectedSegments, pixelCoordinates, radiusPixels]);
+  }, [pixelCoordinates, radiusPixels]);
 
   // Calculate stroke width for path - match fog radius for smooth connections
   const strokeWidth = useMemo(() => {
@@ -213,46 +165,22 @@ const useOptimizedFogCalculations = (
   };
 };
 
-// Optimized batch circle rendering using a single path
-const createBatchedCirclePath = (
-  pixelCoordinates: { point: GeoPoint; pixel: { x: number; y: number } }[],
-  radiusPixels: number
-): SkPath => {
-  const path = Skia.Path.Make();
-
-  for (const { pixel } of pixelCoordinates) {
-    // Add circle to path
-    path.addCircle(pixel.x, pixel.y, radiusPixels);
-  }
-
-  return path;
-};
-
 /**
- * OptimizedFogMask component with performance optimizations
+ * OptimizedFogMask component - uses thick stroke path only
+ * No individual circles - the thick stroke with round caps covers everything
  */
 const OptimizedFogMask: React.FC<{
   pixelCoordinates: { point: GeoPoint; pixel: { x: number; y: number } }[];
-  radiusPixels: number;
   skiaPath: SkPath;
   strokeWidth: number;
-}> = ({ pixelCoordinates, radiusPixels, skiaPath, strokeWidth }) => {
-  // Create batched circle path for better performance
-  const batchedCirclePath = useMemo(
-    () => createBatchedCirclePath(pixelCoordinates, radiusPixels),
-    [pixelCoordinates, radiusPixels]
-  );
-
-  const maskContent = (
-    <>
+}> = ({ pixelCoordinates, skiaPath, strokeWidth }) => {
+  return (
+    <Group>
       {/* Start with all-white mask (showing fog everywhere) */}
       <Fill color="white" />
 
-      {/* Batch render all circles in a single path - much faster */}
-      <Path path={batchedCirclePath} color={FOG_CONFIG.PATH_COLOR} style="fill" />
-
-      {/* Draw the connecting path */}
-      {pixelCoordinates.length > 1 && (
+      {/* Draw the stroke path - thick line with round caps reveals the fog */}
+      {pixelCoordinates.length > 0 && (
         <Path
           path={skiaPath}
           color={FOG_CONFIG.PATH_COLOR}
@@ -262,10 +190,8 @@ const OptimizedFogMask: React.FC<{
           strokeJoin="round"
         />
       )}
-    </>
+    </Group>
   );
-
-  return <Group>{maskContent}</Group>;
 };
 
 /**
@@ -298,7 +224,6 @@ const OptimizedFogOverlay: React.FC<OptimizedFogOverlayProps> = ({ mapRegion, sa
         mask={
           <OptimizedFogMask
             pixelCoordinates={pixelCoordinates}
-            radiusPixels={radiusPixels}
             skiaPath={skiaPath}
             strokeWidth={strokeWidth}
           />

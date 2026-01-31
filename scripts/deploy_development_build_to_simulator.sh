@@ -197,28 +197,10 @@ echo -e "${GREEN}🔥 Metro development server running in background (PID: $METR
 echo -e "${BLUE}📋 Live logs available at: $LIVE_LOG_FILE${NC}"
 echo ""
 echo -e "${YELLOW}💡 Tips:${NC}"
-## Usage Tips
-
-### �� Simulator Control
-  * Use Cmd+R in simulator to reload
-  * Use Cmd+D to open developer menu
-  * Set SIMULATOR_NAME environment variable to use different simulator
-  * Example: SIMULATOR_NAME=\"iPhone 14\" ./scripts/deploy_to_simulator.sh
-
-### 📋 Log Monitoring
-  * Monitor live logs: ./scripts/monitor-metro-logs.sh
-  * Direct log access: tail -f $LIVE_LOG_FILE
-  * Logs persist across deployments and terminals
-
-### 🔄 Metro Server Management
-  * Kill Metro server: pkill -f "expo start" 
-  * Restart Metro: ./scripts/refresh-metro.sh
-  * Fresh deployment: ./scripts/deploy_development_build_to_simulator.sh --fresh
-
-### 🌍 Location Setup
-  * Default location (Eugene, Oregon) is set automatically
-  * Manual location setup: ./scripts/setup-simulator-location.sh
-  * Custom location: xcrun simctl location booted set <lat>,<lon>
+echo "  • Use Cmd+R in simulator to reload"
+echo "  • Use Cmd+D to open developer menu"
+echo "  • Kill Metro: pkill -f 'expo start'"
+echo "  • Monitor logs: tail -f $LIVE_LOG_FILE"
 
 # Fresh install specific tips
 if [ "$FRESH_INSTALL" = true ]; then

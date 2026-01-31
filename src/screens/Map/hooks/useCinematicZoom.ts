@@ -300,9 +300,20 @@ const startCinematicPanAnimation = (
   }, CINEMATIC_ZOOM_DURATION + 100); // Small buffer to ensure animation completes
 };
 
+// Default fallback location (San Francisco) - used when GPS not yet available
+const DEFAULT_FALLBACK_LOCATION = {
+  latitude: 37.7749,
+  longitude: -122.4194,
+};
+
 /**
  * Custom hook for cinematic zoom functionality
  * Calculates exploration bounds and handles zoom animation
+ *
+ * IMPORTANT: This hook now provides a fallback initial region so the map
+ * renders immediately after permissions are granted, rather than blocking
+ * on GPS acquisition. The cinematic animation will only trigger once
+ * actual GPS location is available.
  */
 export const useCinematicZoom = ({
   mapRef,
@@ -315,10 +326,13 @@ export const useCinematicZoom = ({
   // Track if cinematic zoom has already run to prevent multiple triggers
   const hasRunCinematicZoom = useRef(false);
 
+  // Track if we're waiting for GPS (for UI feedback)
+  const isWaitingForGPS = !currentLocation && canStartAnimation;
+
   // Calculate cinematic initial region or fallback to current location
   const explorationBounds = useExplorationBounds(explorationPath);
 
-  // Simple Redux-based trigger - but ONLY after onboarding + permissions complete
+  // Simple Redux-based trigger - but ONLY after onboarding + permissions complete AND GPS available
   useEffect(() => {
     // Only run if we haven't already triggered AND have location AND can start animation
     if (mapRef.current && currentLocation && !hasRunCinematicZoom.current && canStartAnimation) {
@@ -350,16 +364,31 @@ export const useCinematicZoom = ({
     return undefined;
   }, [currentLocation, mapRef, explorationPath, canStartAnimation]);
 
-  // Create initial region - use cinematic start position to eliminate jump
-  const initialRegion: Region | null = useMemo(() => {
-    if (!currentLocation) {
-      return null; // Wait for real location
+  // Create initial region - ALWAYS provide a region so map renders immediately
+  // This allows the map to be visible as background during onboarding/tutorials
+  // The cinematic animation will only trigger once canStartAnimation is true AND GPS is acquired
+  const initialRegion: Region = useMemo(() => {
+    // If we have a real location, use cinematic start position
+    if (currentLocation) {
+      return calculateCinematicStartRegion(explorationPath, currentLocation);
     }
-    return calculateCinematicStartRegion(explorationPath, currentLocation);
+
+    // Always provide a fallback region so map renders (even during onboarding)
+    // Use last known location from exploration path if available
+    const lastKnownLocation = explorationPath[explorationPath.length - 1];
+    const fallbackCenter = lastKnownLocation ?? DEFAULT_FALLBACK_LOCATION;
+
+    return {
+      latitude: fallbackCenter.latitude,
+      longitude: fallbackCenter.longitude,
+      latitudeDelta: DEFAULT_ZOOM_DELTAS.latitudeDelta,
+      longitudeDelta: DEFAULT_ZOOM_DELTAS.longitudeDelta,
+    };
   }, [currentLocation, explorationPath]);
 
   return {
-    initialRegion,
+    initialRegion, // Always non-null - map renders immediately
     explorationBounds,
+    isWaitingForGPS, // Expose this for UI feedback
   };
 };

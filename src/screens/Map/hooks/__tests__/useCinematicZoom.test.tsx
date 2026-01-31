@@ -104,18 +104,40 @@ describe('useCinematicZoom', () => {
     expect(result.current.initialRegion?.longitude).not.toBe(currentLocation.longitude);
   });
 
-  it('should return null when no location is available', () => {
+  it('should always return a fallback region even during onboarding (map visible as background)', () => {
     const store = createTestStore({
       exploration: { path: [] },
     });
 
     const { result } = renderHook(
-      () => useCinematicZoom({ mapRef: mockMapRef, currentLocation: null }),
+      () =>
+        useCinematicZoom({ mapRef: mockMapRef, currentLocation: null, canStartAnimation: false }),
       { wrapper: createWrapper(store) }
     );
 
-    // Should return null until real location is available
-    expect(result.current.initialRegion).toBeNull();
+    // Map should always render - even during onboarding (as background)
+    // Animation won't start until canStartAnimation is true, but map is visible
+    expect(result.current.initialRegion).not.toBeNull();
+    expect(result.current.initialRegion.latitude).toBe(37.7749);
+    expect(result.current.initialRegion.longitude).toBe(-122.4194);
+  });
+
+  it('should return fallback region when location is null but animation can start', () => {
+    const store = createTestStore({
+      exploration: { path: [] },
+    });
+
+    const { result } = renderHook(
+      () =>
+        useCinematicZoom({ mapRef: mockMapRef, currentLocation: null, canStartAnimation: true }),
+      { wrapper: createWrapper(store) }
+    );
+
+    // Should return a fallback region so map renders immediately after permissions
+    expect(result.current.initialRegion).not.toBeNull();
+    // Uses default San Francisco fallback location
+    expect(result.current.initialRegion.latitude).toBe(37.7749);
+    expect(result.current.initialRegion.longitude).toBe(-122.4194);
   });
 
   it('should return null explorationBounds when path is empty', () => {

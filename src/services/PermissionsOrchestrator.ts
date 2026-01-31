@@ -115,44 +115,41 @@ export class PermissionsOrchestrator {
   };
 
   /**
+   * Handle E2E test mode permission bypass
+   * Returns permissions result if in E2E mode, null otherwise
+   */
+  private static async handleE2ETestMode(): Promise<PermissionResult | null> {
+    if (!isE2ETestMode()) return null;
+
+    logger.info('E2E test mode: bypassing permission dialogs', {
+      component: 'PermissionsOrchestrator',
+      action: 'handleE2ETestMode',
+    });
+
+    const result = await this.checkFinalPermissionState();
+    if (result.canProceed) {
+      logger.info('E2E test mode: using pre-granted permissions', { result });
+      return result;
+    }
+
+    logger.warn('E2E test mode: permissions not pre-granted, using mock full access');
+    return { canProceed: true, hasBackgroundPermission: true, mode: 'full' };
+  }
+
+  /**
    * Execute the complete permission flow
    *
    * Note: This function is necessarily complex as it handles multiple permission states,
    * persistence, validation, and iOS dialog coordination. Breaking it down would lose
    * the critical flow control needed for proper permission handling.
    */
-
   static async requestPermissions(): Promise<PermissionResult> {
     await this.initialize();
-
     logger.info('Starting orchestrated permission flow');
 
-    // In E2E test mode, skip permission dialogs and return full access
-    // The simulator should have permissions pre-granted via xcrun simctl
-    if (isE2ETestMode()) {
-      logger.info('E2E test mode: bypassing permission dialogs', {
-        component: 'PermissionsOrchestrator',
-        action: 'requestPermissions',
-      });
-
-      // Check actual permission state (should be pre-granted on simulator)
-      const result = await this.checkFinalPermissionState();
-
-      // If permissions are already granted, use that result
-      if (result.canProceed) {
-        logger.info('E2E test mode: using pre-granted permissions', { result });
-        return result;
-      }
-
-      // If not pre-granted, return a mock full permission for testing
-      // This allows tests to proceed even without actual permissions
-      logger.warn('E2E test mode: permissions not pre-granted, using mock full access');
-      return {
-        canProceed: true,
-        hasBackgroundPermission: true,
-        mode: 'full',
-      };
-    }
+    // Handle E2E test mode bypass
+    const e2eResult = await this.handleE2ETestMode();
+    if (e2eResult) return e2eResult;
 
     // First, check if we have stored permission state from previous runs
     const validatedStoredResult = await this.validateStoredPermissionState();
@@ -168,77 +165,68 @@ export class PermissionsOrchestrator {
 
     return new Promise((resolve) => {
       this.currentResolver = resolve;
+      this.executePermissionDialogFlow(resolve);
+    });
+  }
 
-      const executePermissionFlow = async () => {
-        try {
-          // Condition 1: Dialog 1 - Request foreground permission
-          logger.info('Condition 1: Requesting foreground permission');
-          const foregroundResult = await Location.requestForegroundPermissionsAsync();
+  /**
+   * Execute the permission dialog flow (foreground + background)
+   */
+  private static async executePermissionDialogFlow(
+    resolve: (result: PermissionResult) => void
+  ): Promise<void> {
+    try {
+      // Condition 1: Request foreground permission
+      logger.info('Condition 1: Requesting foreground permission');
+      const foregroundResult = await Location.requestForegroundPermissionsAsync();
+      logger.info('Foreground permission result', {
+        granted: foregroundResult.granted,
+        status: foregroundResult.status,
+        canAskAgain: foregroundResult.canAskAgain,
+      });
 
-          logger.info('Foreground permission result', {
-            granted: foregroundResult.granted,
-            status: foregroundResult.status,
-            canAskAgain: foregroundResult.canAskAgain,
-          });
-
-          if (!foregroundResult.granted) {
-            logger.error(
-              'CRITICAL: Foreground location permission denied - FogOfDog cannot function without GPS access',
-              {
-                component: 'PermissionsOrchestrator',
-                action: 'requestPermissions',
-                foregroundStatus: foregroundResult.status,
-                canAskAgain: foregroundResult.canAskAgain,
-                severity: 'critical',
-              }
-            );
-            const result = {
-              canProceed: false,
-              hasBackgroundPermission: false,
-              mode: 'denied' as const,
-              error:
-                'Location permission is required for FogOfDog to function. Please enable location access in Settings.',
-            };
-            await this.saveStateAndResolve(result, resolve);
-            return;
-          }
-
-          // Check if user selected "Allow Once" - this is problematic for the app
-          if (foregroundResult.status === 'granted' && foregroundResult.canAskAgain === false) {
-            logger.warn('User selected "Allow Once" - app functionality will be severely limited');
-            const result = {
-              canProceed: false,
-              hasBackgroundPermission: false,
-              mode: 'once_only' as const, // Special mode for "Allow Once"
-            };
-            await this.saveStateAndResolve(result, resolve);
-            return;
-          }
-
-          logger.info('Condition 1 met: Foreground permission granted with sufficient scope');
-
-          // Condition 2: Dialog 2 - Request background permission (if iOS shows dialog)
-          logger.info('Condition 2: Requesting background permission');
-          await Location.requestBackgroundPermissionsAsync();
-
-          logger.info('Condition 2 initiated: Background permission requested');
-          logger.info('Waiting for Condition 3: App state change indicating dialog completion');
-
-          // Condition 3 will be handled by the app state listener
-          // No timeout - user can take as long as they need to make permission decisions
-        } catch (error) {
-          logger.error('Permission flow error', { error });
-          const result = {
+      if (!foregroundResult.granted) {
+        logger.error('CRITICAL: Foreground location permission denied', {
+          component: 'PermissionsOrchestrator',
+          foregroundStatus: foregroundResult.status,
+          severity: 'critical',
+        });
+        await this.saveStateAndResolve(
+          {
             canProceed: false,
             hasBackgroundPermission: false,
             mode: 'denied' as const,
-          };
-          await this.saveStateAndResolve(result, resolve);
-        }
-      };
+            error: 'Location permission is required. Please enable location access in Settings.',
+          },
+          resolve
+        );
+        return;
+      }
 
-      executePermissionFlow();
-    });
+      // Check if user selected "Allow Once"
+      if (foregroundResult.status === 'granted' && foregroundResult.canAskAgain === false) {
+        logger.warn('User selected "Allow Once" - app functionality will be limited');
+        await this.saveStateAndResolve(
+          { canProceed: false, hasBackgroundPermission: false, mode: 'once_only' as const },
+          resolve
+        );
+        return;
+      }
+
+      logger.info('Condition 1 met: Foreground permission granted');
+
+      // Condition 2: Request background permission
+      logger.info('Condition 2: Requesting background permission');
+      await Location.requestBackgroundPermissionsAsync();
+      logger.info('Condition 2 initiated: Waiting for Condition 3 (app state change)');
+      // Condition 3 handled by app state listener
+    } catch (error) {
+      logger.error('Permission flow error', { error });
+      await this.saveStateAndResolve(
+        { canProceed: false, hasBackgroundPermission: false, mode: 'denied' as const },
+        resolve
+      );
+    }
   }
 
   /**

@@ -1150,46 +1150,6 @@ interface MapScreenRendererProps {
   // workletMapRegion?: ReturnType<typeof useWorkletMapRegion>; // Available for future worklet integration
 }
 
-// Loading state component
-const MapLoadingState = ({
-  setMapDimensions,
-  centerOnUserLocation,
-  isMapCenteredOnUser,
-  isFollowModeActive,
-  insets,
-}: {
-  setMapDimensions: (dimensions: { width: number; height: number }) => void;
-  centerOnUserLocation: () => void;
-  isMapCenteredOnUser: boolean;
-  isFollowModeActive: boolean;
-  insets: SafeAreaInsets;
-}) => (
-  <View
-    style={styles.container}
-    testID="map-screen"
-    onLayout={(event) => {
-      const { width, height } = event.nativeEvent.layout;
-      setMapDimensions({ width, height });
-    }}
-  >
-    <View style={styles.loadingContainer}>
-      <Text style={styles.loadingText}>Getting your location...</Text>
-    </View>
-    <LocationButton
-      onPress={centerOnUserLocation}
-      isCentered={isMapCenteredOnUser}
-      isFollowModeActive={isFollowModeActive}
-      style={getLocationButtonStyle(insets)}
-    />
-    <SettingsButton
-      onPress={() => {
-        logger.info('Settings button pressed during loading state');
-      }}
-      style={getSettingsButtonStyle(insets)}
-    />
-  </View>
-);
-
 // Render component for the map view and overlays
 /**
  * Calculate adjusted marker coordinate to align with safe area compensated fog overlay
@@ -1287,6 +1247,19 @@ const MapViewWithMarker = ({
   );
 };
 
+// GPS Acquisition Overlay - extracted for cleaner code
+const GPSAcquisitionOverlay = ({ visible }: { visible: boolean }) =>
+  visible ? (
+    <View style={styles.gpsAcquisitionOverlay}>
+      <View style={styles.gpsAcquisitionBox}>
+        <Text style={styles.gpsAcquisitionText}>Acquiring GPS signal...</Text>
+        <Text style={styles.gpsAcquisitionSubtext}>
+          The map will animate to your location once GPS is ready
+        </Text>
+      </View>
+    </View>
+  ) : null;
+
 const MapScreenRenderer = ({
   mapRef,
   currentLocation,
@@ -1300,40 +1273,23 @@ const MapScreenRenderer = ({
   setMapDimensions,
   currentFogRegion,
   handleSettingsPress,
-  canStartCinematicAnimation = true, // New prop to control animation timing
+  canStartCinematicAnimation = true,
 }: MapScreenRendererProps) => {
-  // Use the new cinematic zoom hook (must be before early return)
-  const { initialRegion } = useCinematicZoom({
+  const { initialRegion, isWaitingForGPS } = useCinematicZoom({
     mapRef,
     currentLocation,
     canStartAnimation: canStartCinematicAnimation,
   });
 
-  // Show map immediately after permissions are granted, even without location
-  // This allows cinematic animation to start while location is being acquired
-  // The cinematic zoom hook provides a fallback region for first-time users
-  if (!initialRegion) {
-    return (
-      <MapLoadingState
-        setMapDimensions={setMapDimensions}
-        centerOnUserLocation={centerOnUserLocation}
-        isMapCenteredOnUser={isMapCenteredOnUser}
-        isFollowModeActive={isFollowModeActive}
-        insets={insets}
-      />
-    );
-  }
-
-  // Use initialRegion from cinematic zoom hook (already has proper fallback logic)
-
+  // Map always renders now - initialRegion is always provided (with fallback if needed)
+  // This allows the map to be visible as background during onboarding/tutorials
   return (
     <View
       style={styles.container}
       testID="map-screen"
-      onLayout={(event) => {
-        const { width, height } = event.nativeEvent.layout;
-        setMapDimensions({ width, height });
-      }}
+      onLayout={(e) =>
+        setMapDimensions({ width: e.nativeEvent.layout.width, height: e.nativeEvent.layout.height })
+      }
     >
       <MapViewWithMarker
         mapRef={mapRef}
@@ -1349,17 +1305,13 @@ const MapScreenRenderer = ({
         onPanDrag={onPanDrag}
         onRegionChangeComplete={onRegionChangeComplete}
       />
-
-      {/* Use OptimizedFogOverlay for better performance with many GPS points */}
       {currentFogRegion && (
         <OptimizedFogOverlay mapRegion={currentFogRegion} safeAreaInsets={insets} />
       )}
-
-      {/* Distance scale legend */}
       {currentFogRegion && (
         <MapDistanceScale region={currentFogRegion} mapWidth={currentFogRegion.width} />
       )}
-
+      <GPSAcquisitionOverlay visible={isWaitingForGPS} />
       <LocationButton
         onPress={centerOnUserLocation}
         isCentered={isMapCenteredOnUser}
@@ -2497,5 +2449,33 @@ const styles = StyleSheet.create({
     color: '#666',
     fontSize: 16,
     fontWeight: '600',
+  },
+  // GPS Acquisition overlay styles
+  gpsAcquisitionOverlay: {
+    position: 'absolute',
+    top: 100,
+    left: 20,
+    right: 20,
+    alignItems: 'center',
+    zIndex: 100,
+  },
+  gpsAcquisitionBox: {
+    backgroundColor: 'rgba(0, 0, 0, 0.75)',
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  gpsAcquisitionText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  gpsAcquisitionSubtext: {
+    color: 'rgba(255, 255, 255, 0.8)',
+    fontSize: 12,
+    marginTop: 4,
+    textAlign: 'center',
   },
 });
