@@ -1,14 +1,33 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import Constants from 'expo-constants';
 import { logger } from '../utils/logger';
 
 const ONBOARDING_STORAGE_KEY = '@fogofdog_onboarding_completed';
+
+/**
+ * Check if E2E test mode is enabled via app config
+ * When enabled, onboarding is automatically skipped for automated testing
+ */
+const isE2ETestMode = (): boolean => {
+  return Constants.expoConfig?.extra?.e2eTestMode === true;
+};
 
 export class OnboardingService {
   /**
    * Check if this is a first-time user (onboarding not completed)
    * Returns true for first-time users, false for returning users
+   * In E2E test mode, always returns false (skip onboarding)
    */
   static async isFirstTimeUser(): Promise<boolean> {
+    // Skip onboarding in E2E test mode for automated testing
+    if (isE2ETestMode()) {
+      logger.info('E2E test mode: skipping onboarding', {
+        component: 'OnboardingService',
+        action: 'isFirstTimeUser',
+      });
+      return false;
+    }
+
     try {
       const completionStatus = await AsyncStorage.getItem(ONBOARDING_STORAGE_KEY);
 

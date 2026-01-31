@@ -1,7 +1,16 @@
 import * as Location from 'expo-location';
 import { AppState } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import Constants from 'expo-constants';
 import { logger } from '../utils/logger';
+
+/**
+ * Check if E2E test mode is enabled via app config
+ * When enabled, permission dialogs are bypassed for automated testing
+ */
+const isE2ETestMode = (): boolean => {
+  return Constants.expoConfig?.extra?.e2eTestMode === true;
+};
 
 export type PermissionMode = 'full' | 'limited' | 'denied' | 'once_only';
 
@@ -117,6 +126,33 @@ export class PermissionsOrchestrator {
     await this.initialize();
 
     logger.info('Starting orchestrated permission flow');
+
+    // In E2E test mode, skip permission dialogs and return full access
+    // The simulator should have permissions pre-granted via xcrun simctl
+    if (isE2ETestMode()) {
+      logger.info('E2E test mode: bypassing permission dialogs', {
+        component: 'PermissionsOrchestrator',
+        action: 'requestPermissions',
+      });
+
+      // Check actual permission state (should be pre-granted on simulator)
+      const result = await this.checkFinalPermissionState();
+
+      // If permissions are already granted, use that result
+      if (result.canProceed) {
+        logger.info('E2E test mode: using pre-granted permissions', { result });
+        return result;
+      }
+
+      // If not pre-granted, return a mock full permission for testing
+      // This allows tests to proceed even without actual permissions
+      logger.warn('E2E test mode: permissions not pre-granted, using mock full access');
+      return {
+        canProceed: true,
+        hasBackgroundPermission: true,
+        mode: 'full',
+      };
+    }
 
     // First, check if we have stored permission state from previous runs
     const validatedStoredResult = await this.validateStoredPermissionState();
