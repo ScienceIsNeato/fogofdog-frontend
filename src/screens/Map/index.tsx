@@ -47,7 +47,6 @@ import { MapDistanceScale } from '../../components/MapDistanceScale';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { logger } from '../../utils/logger';
 import { useCinematicZoom } from './hooks/useCinematicZoom';
-import { useGPSAcquisition } from './hooks/useGPSAcquisition';
 import { useMapScreenOnboarding } from './hooks/useMapScreenOnboarding';
 
 import { GPSInjectionService } from '../../services/GPSInjectionService';
@@ -545,27 +544,11 @@ async function getInitialLocation({
         isSessionActive,
       });
     }
-  } catch (_error) {
-    // Only use fallback in production (tests should respect mocked errors)
-    if (process.env.NODE_ENV !== 'test' && isActiveRef.current) {
-      const fallbackLocation: GeoPoint = {
-        latitude: 44.0248,
-        longitude: -123.1044,
-        timestamp: Date.now(),
-      };
-
-      DeviceEventEmitter.emit('locationUpdate', fallbackLocation);
-      handleLocationUpdate({
-        location: fallbackLocation,
-        dispatch,
-        mapRef,
-        isMapCenteredOnUser,
-        isFollowModeActive,
-        currentRegion,
-        explorationPath,
-        isSessionActive,
-      });
-    }
+  } catch (error) {
+    logger.warn('GPS acquisition failed in getInitialLocation — waiting for retry loop', {
+      component: 'getInitialLocation',
+      errorMessage: error instanceof Error ? error.message : String(error),
+    });
   }
 }
 
@@ -2238,9 +2221,6 @@ const useMapScreenLogic = (
 export const MapScreen = () => {
   // Initialize stats system
   useStatsInitialization();
-
-  // Start immediate GPS acquisition on app load
-  useGPSAcquisition();
 
   // Get onboarding state first
   const onboardingHookState = useMapScreenOnboarding();

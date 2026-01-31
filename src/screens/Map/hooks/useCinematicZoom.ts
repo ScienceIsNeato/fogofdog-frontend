@@ -466,54 +466,6 @@ export const useCinematicZoom = ({
     return undefined;
   }, [canStartAnimation, currentLocation, explorationPath, gpsInjectionStatus.isRunning, mapRef]); // Include all dependencies
 
-  // Also watch for changes in key conditions and re-evaluate
-  useEffect(() => {
-    // Skip if animation already in progress
-    if (isAnimationInProgress.current) {
-      return;
-    }
-
-    // Only re-evaluate if we have all required conditions
-    if (currentLocation && canStartAnimation && mapRef.current) {
-      const shouldShow = shouldShowCinematicZoom(
-        currentLocation,
-        canStartAnimation,
-        gpsInjectionStatus.isRunning
-      );
-
-      if (shouldShow) {
-        // Mark animation in progress and store current location
-        isAnimationInProgress.current = true;
-        lastAnimationLocation.current = currentLocation;
-
-        // Set a flag to prevent other animations during cinematic zoom
-        (mapRef.current as MapViewWithCinematicState)._cinematicZoomActive = true;
-        logger.debug('Animation lock enabled', { component: 'useCinematicZoom' });
-
-        logger.debug('Cinematic zoom animation configured', {
-          component: 'useCinematicZoom',
-          strategy: 'condition_change_trigger',
-        });
-
-        // Delay then start path-following animation
-        setTimeout(() => {
-          // Start the cinematic pan animation
-          startCinematicPanAnimation(mapRef, explorationPath, currentLocation);
-
-          logger.debug('Cinematic animation sequence initiated', {
-            component: 'useCinematicZoom',
-            pathLength: explorationPath.length,
-          });
-
-          // Clear animation in progress flag after animation completes
-          setTimeout(() => {
-            isAnimationInProgress.current = false;
-          }, CINEMATIC_ZOOM_DURATION + 200);
-        }, CINEMATIC_ZOOM_DELAY);
-      }
-    }
-  }, [currentLocation, canStartAnimation, explorationPath, gpsInjectionStatus.isRunning, mapRef]);
-
   // Create initial region - use cinematic start position to eliminate jump
   const initialRegion: Region | null = useMemo(() => {
     logger.info('🎬 CINEMATIC_DEBUG: Computing initial region', {
@@ -547,7 +499,7 @@ export const useCinematicZoom = ({
     });
 
     return region;
-  }, [currentLocation, explorationPath, canStartAnimation]);
+  }, [currentLocation, explorationPath]);
 
   return {
     initialRegion,

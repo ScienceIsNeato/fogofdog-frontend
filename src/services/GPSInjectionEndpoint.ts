@@ -10,6 +10,7 @@ import { DeviceEventEmitter } from 'react-native';
  */
 export class GPSInjectionEndpoint {
   private static isListening = false;
+  private static relativeMovementSubscription: { remove(): void } | null = null;
 
   /**
    * Start listening for GPS injection commands (development only)
@@ -21,7 +22,10 @@ export class GPSInjectionEndpoint {
 
     try {
       // Listen for relative GPS movement commands via DeviceEventEmitter
-      DeviceEventEmitter.addListener('GPS_INJECT_RELATIVE', this.handleRelativeMovement);
+      this.relativeMovementSubscription = DeviceEventEmitter.addListener(
+        'GPS_INJECT_RELATIVE',
+        this.handleRelativeMovement
+      );
 
       this.isListening = true;
       logger.info('GPS injection API started - listening for relative movement commands', {
@@ -41,7 +45,8 @@ export class GPSInjectionEndpoint {
    */
   static stopServer(): void {
     if (this.isListening) {
-      DeviceEventEmitter.removeAllListeners('GPS_INJECT_RELATIVE');
+      this.relativeMovementSubscription?.remove();
+      this.relativeMovementSubscription = null;
       this.isListening = false;
       logger.info('GPS injection API stopped', {
         component: 'GPSInjectionEndpoint',

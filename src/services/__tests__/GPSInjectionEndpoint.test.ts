@@ -14,10 +14,10 @@ jest.mock('../../utils/logger', () => ({
 }));
 
 // Mock DeviceEventEmitter
+const mockSubscriptionRemove = jest.fn();
 jest.mock('react-native', () => ({
   DeviceEventEmitter: {
-    addListener: jest.fn(),
-    removeAllListeners: jest.fn(),
+    addListener: jest.fn(() => ({ remove: mockSubscriptionRemove })),
     emit: jest.fn(),
   },
 }));
@@ -105,24 +105,26 @@ describe('GPSInjectionEndpoint', () => {
   });
 
   describe('stopServer', () => {
-    it('should stop server and remove listeners when server is running', async () => {
+    it('should stop server and remove subscription when server is running', async () => {
       // Start server first
       await GPSInjectionEndpoint.startServer();
-      jest.clearAllMocks(); // Clear the start server calls
+      mockSubscriptionRemove.mockClear();
 
       GPSInjectionEndpoint.stopServer();
 
-      expect(DeviceEventEmitter.removeAllListeners).toHaveBeenCalledWith('GPS_INJECT_RELATIVE');
+      expect(mockSubscriptionRemove).toHaveBeenCalled();
       expect(logger.info).toHaveBeenCalledWith('GPS injection API stopped', {
         component: 'GPSInjectionEndpoint',
         action: 'stopServer',
       });
     });
 
-    it('should not call removeAllListeners when server is not running', () => {
+    it('should not call remove when server is not running', () => {
+      mockSubscriptionRemove.mockClear();
+
       GPSInjectionEndpoint.stopServer();
 
-      expect(DeviceEventEmitter.removeAllListeners).not.toHaveBeenCalled();
+      expect(mockSubscriptionRemove).not.toHaveBeenCalled();
       expect(logger.info).not.toHaveBeenCalled();
     });
   });
