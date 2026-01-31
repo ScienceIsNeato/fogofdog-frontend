@@ -7,6 +7,7 @@ This directory contains tools for testing GPS coordinate processing, permission 
 ### Quick Start
 
 1. Start the GPS injection server:
+
    ```bash
    ./scripts/gps/start-injection-server.sh
    ```

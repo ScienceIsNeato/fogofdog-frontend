@@ -19,8 +19,10 @@ const path = require('path');
 
 // Constants for coordinate calculations
 const METERS_PER_DEGREE_LAT = 111320;
+const DEFAULT_LOCATION = { latitude: 44.0248, longitude: -123.1044 }; // Eugene, Oregon
 
 // Track last location set in this session (no file persistence)
+// eslint-disable-next-line no-unused-vars
 let sessionLastLocation = null;
 
 /**
@@ -62,11 +64,26 @@ async function getCurrentLocation() {
     // Method 1: Query simulator directly for current location
     const simulatorLocation = await getSimulatorCurrentLocation();
     if (simulatorLocation) {
-      console.log(`📍 Using simulator current location: ${simulatorLocation.latitude}, ${simulatorLocation.longitude}`);
+      console.log(
+        `📍 Using simulator current location: ${simulatorLocation.latitude}, ${simulatorLocation.longitude}`
+      );
       return simulatorLocation;
     }
   } catch (_error) {
-    console.warn(`⚠️  Could not get simulator location: ${__error.message}`);
+    console.warn(`⚠️  Could not get simulator location: ${_error.message}`);
+  }
+
+  try {
+    // Method 2: Try to read from app's GPS data file
+    const appLocation = await getAppCurrentLocation();
+    if (appLocation) {
+      console.log(
+        `📍 Using app current location: ${appLocation.latitude}, ${appLocation.longitude}`
+      );
+      return appLocation;
+    }
+  } catch (_error) {
+    console.warn(`⚠️  Could not get app location: ${_error.message}`);
   }
 
   console.log(
@@ -83,14 +100,14 @@ async function getSimulatorCurrentLocation() {
     // Get the current simulator device UDID
     const devices = execSync('xcrun simctl list devices booted --json', { encoding: 'utf8' });
     const deviceData = JSON.parse(devices);
-    
+
     let bootedDevice = null;
     for (const runtime in deviceData.devices) {
       const runtimeDevices = deviceData.devices[runtime];
-      bootedDevice = runtimeDevices.find(device => device.state === 'Booted');
+      bootedDevice = runtimeDevices.find((device) => device.state === 'Booted');
       if (bootedDevice) break;
     }
-    
+
     if (!bootedDevice) {
       throw new Error('No booted simulator found');
     }
@@ -115,7 +132,7 @@ async function getAppCurrentLocation() {
     if (fs.existsSync(injectionFile)) {
       const data = fs.readFileSync(injectionFile, 'utf8');
       const gpsData = JSON.parse(data);
-      
+
       // Handle both array format and object format with coordinates array
       let coordinates = [];
       if (Array.isArray(gpsData)) {
@@ -123,14 +140,14 @@ async function getAppCurrentLocation() {
       } else if (gpsData.coordinates && Array.isArray(gpsData.coordinates)) {
         coordinates = gpsData.coordinates;
       }
-      
+
       if (coordinates.length > 0) {
         // Get the most recent GPS point that's not in the future
         const now = Date.now();
         const validPoints = coordinates
-          .filter(point => point.timestamp <= now)
+          .filter((point) => point.timestamp <= now)
           .sort((a, b) => b.timestamp - a.timestamp);
-          
+
         if (validPoints.length > 0) {
           const lastPoint = validPoints[0];
           console.log(`📍 Found recent GPS data: ${lastPoint.latitude}, ${lastPoint.longitude}`);
@@ -138,7 +155,7 @@ async function getAppCurrentLocation() {
         }
       }
     }
-    
+
     // Method 2: Could implement AsyncStorage reading here in the future
     // For now, return null to use fallback
     return null;
