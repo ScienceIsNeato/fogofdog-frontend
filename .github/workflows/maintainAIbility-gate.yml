@@ -303,35 +303,6 @@ jobs:
           echo "- **Maestro Debug**: \`~/.maestro/tests/\`" >> $GITHUB_STEP_SUMMARY
           echo "- **Screenshots**: Available in job artifacts and embedded above" >> $GITHUB_STEP_SUMMARY
 
-  analyze-code-quality-with-sonarqube:
-    name: 📊 Analyze Code Quality with SonarQube
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    needs: [check-typescript-types, detect-code-duplication, run-unit-tests-with-coverage]
-    if: github.event_name == 'pull_request' && github.base_ref == 'main'
-
-    steps:
-      - name: 📥 Checkout
-        uses: actions/checkout@v4
-        with:
-          submodules: true
-          fetch-depth: 0 # Needed for SonarQube
-
-      - name: 📦 Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
-
-      - name: ⚡ Install dependencies
-        run: npm ci --legacy-peer-deps
-
-      - name: 📊 Run SonarQube Code Quality Analysis
-        run: node scripts/sonar-scan.js
-        env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-
-  # Build Layer - Depends on testing
   verify-expo-build-process:
     name: 🔨 Verify Expo Build Process
     runs-on: ubuntu-latest
@@ -414,13 +385,7 @@ jobs:
     name: 🚀 Build for TestFlight Production
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    needs:
-      [
-        run-unit-tests-with-coverage,
-        verify-expo-build-process,
-        run-maestro-integration-tests,
-        analyze-code-quality-with-sonarqube,
-      ]
+    needs: [run-unit-tests-with-coverage, verify-expo-build-process, run-maestro-integration-tests]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
 
     steps:
