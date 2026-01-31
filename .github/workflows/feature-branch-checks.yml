@@ -2,7 +2,7 @@ name: 🚀 Feature Branch Quality Checks
 
 on:
   push:
-    branches-ignore: [main, develop] # Run on all branches except main/develop (handled by maintainAIbility-gate)
+    branches-ignore: [main, develop] # Run on all branches except main/develop (handled by quality-gate)
     # This triggers on direct pushes to feature branches, NOT on PR creation/updates
 
 env:

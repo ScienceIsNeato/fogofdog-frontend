@@ -1,4 +1,4 @@
-name: 🤖 maintainAIbility-gate
+name: 🧹 Quality Gate
 
 on:
   push:
