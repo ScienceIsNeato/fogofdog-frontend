@@ -19,17 +19,20 @@
 <div align="center">
 
 ### 🏗️ Build Pipeline
+
 [![🔨 Build Status](https://img.shields.io/github/actions/workflow/status/your-username/fogofdog-frontend/quality-gate.yml?branch=main&style=flat-square&logo=github-actions&label=Build)](https://github.com/your-username/fogofdog-frontend/actions)
 [![📦 EAS Build](https://img.shields.io/badge/EAS%20Build-Ready-brightgreen?style=flat-square&logo=expo&logoColor=white)](https://expo.dev/)
 [![🔄 CI/CD](https://img.shields.io/badge/CI%2FCD-Automated-blue?style=flat-square&logo=github-actions&logoColor=white)](https://github.com/your-username/fogofdog-frontend/actions)
 
 ### 🔍 Code Quality
+
 [![🧹 ESLint](https://img.shields.io/badge/ESLint-Zero%20Warnings-brightgreen?style=flat-square&logo=eslint&logoColor=white)](https://eslint.org/)
 [![🏗️ SonarJS](https://img.shields.io/badge/SonarJS-Quality%20Rules-orange?style=flat-square&logo=sonarcloud&logoColor=white)](https://github.com/SonarSource/eslint-plugin-sonarjs)
 [![🎨 Prettier](https://img.shields.io/badge/Code%20Style-Prettier-ff69b4?style=flat-square&logo=prettier&logoColor=white)](https://prettier.io/)
 [![📊 CodeClimate](https://img.shields.io/badge/CodeClimate-A%20Grade-brightgreen?style=flat-square&logo=codeclimate&logoColor=white)](https://codeclimate.com/)
 
 ### ☁️ SonarQube Cloud Analysis
+
 [![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=ScienceIsNeato_fogofdog-frontend&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=ScienceIsNeato_fogofdog-frontend)
 [![Security Rating](https://sonarcloud.io/api/project_badges/measure?project=ScienceIsNeato_fogofdog-frontend&metric=security_rating)](https://sonarcloud.io/summary/new_code?id=ScienceIsNeato_fogofdog-frontend)
 [![Reliability Rating](https://sonarcloud.io/api/project_badges/measure?project=ScienceIsNeato_fogofdog-frontend&metric=reliability_rating)](https://sonarcloud.io/summary/new_code?id=ScienceIsNeato_fogofdog-frontend)
@@ -38,17 +41,20 @@
 [![Duplicated Lines (%)](https://sonarcloud.io/api/project_badges/measure?project=ScienceIsNeato_fogofdog-frontend&metric=duplicated_lines_density)](https://sonarcloud.io/summary/new_code?id=ScienceIsNeato_fogofdog-frontend)
 
 ### 🧪 Testing & Coverage
+
 [![✅ Tests](https://img.shields.io/badge/Tests-47%2F47%20Passing-brightgreen?style=flat-square&logo=jest&logoColor=white)](https://jestjs.io/)
 [![📈 Coverage](https://img.shields.io/badge/Coverage-72%25-yellow?style=flat-square&logo=jest&logoColor=white)](https://jestjs.io/)
 [![🎯 Test Suites](https://img.shields.io/badge/Test%20Suites-8%2F8-brightgreen?style=flat-square&logo=jest&logoColor=white)](https://jestjs.io/)
 [![⚡ Test Speed](https://img.shields.io/badge/Test%20Speed-1.7s-blue?style=flat-square&logo=jest&logoColor=white)](https://jestjs.io/)
 
 ### 🔒 Security & Dependencies
+
 [![🛡️ Security](https://img.shields.io/badge/Security-No%20Vulnerabilities-brightgreen?style=flat-square&logo=npm&logoColor=white)](https://npmjs.com/)
 [![📦 Dependencies](https://img.shields.io/badge/Dependencies-Up%20to%20Date-brightgreen?style=flat-square&logo=dependabot&logoColor=white)](https://github.com/dependabot)
 [![🧩 Dead Code](https://img.shields.io/badge/Dead%20Code-Monitored-blue?style=flat-square&logo=typescript&logoColor=white)](https://github.com/unimported/unimported)
 
-### 📊 Code Analysis  
+### 📊 Code Analysis
+
 [![🔄 Duplicates](https://img.shields.io/badge/Code%20Duplication-3.49%25-brightgreen?style=flat-square&logo=codeclimate&logoColor=white)](https://github.com/kucherenko/jscpd)
 [![🔗 Circular Deps](https://img.shields.io/badge/Circular%20Dependencies-0-brightgreen?style=flat-square&logo=madge&logoColor=white)](https://github.com/pahen/madge)
 [![🧠 Complexity](https://img.shields.io/badge/Cognitive%20Complexity-Managed-orange?style=flat-square&logo=sonarcloud&logoColor=white)](https://github.com/SonarSource/eslint-plugin-sonarjs)
@@ -60,22 +66,26 @@
 ## ✨ Features
 
 🗺️ **Interactive Map Experience**
+
 - Real-time location tracking with Expo Location
 - Dynamic fog-of-war reveals explored areas
 - Smooth map interactions with React Native Maps
 
-🎨 **Beautiful UI/UX** 
+🎨 **Beautiful UI/UX**
+
 - Custom Skia-powered fog overlay effects
 - Responsive design with safe area handling
 - Smooth animations and gestures
 
 🧪 **Production-Ready Quality**
+
 - 100% TypeScript with strict mode
 - Comprehensive Jest test suite (47 tests)
 - Zero ESLint warnings enforced in CI
 - Enterprise-level code quality monitoring
 
 ⚡ **Performance Optimized**
+
 - Efficient Redux state management
 - Optimized bundle size monitoring
 - Fast cold starts and smooth rendering
@@ -85,7 +95,8 @@
 ## 🚀 Quick Start
 
 ### Prerequisites
-- **Node.js** 20+ 
+
+- **Node.js** 20+
 - **Expo CLI** (`npm install -g @expo/cli`)
 - **iOS Simulator** or **Android Emulator**
 
@@ -105,7 +116,7 @@ npm start
 # Run on iOS simulator
 npm run ios
 
-# Run on Android emulator  
+# Run on Android emulator
 npm run android
 ```
 
@@ -126,6 +137,7 @@ npm run android
 ```
 
 **Benefits:**
+
 - 📁 Persistent logs saved to timestamped files in `/tmp/`
 - 📍 Current log tracker at `/tmp/METRO_CURRENT_LOG_FILENAME.txt`
 - 🔄 Programmatic app reload to connect to Metro
@@ -133,6 +145,7 @@ npm run android
 - 📡 Can monitor from any directory
 
 **Workflow:**
+
 1. Run `./scripts/refresh-metro.sh` (kills old Metro, starts new one, reloads app)
 2. Run `./scripts/monitor-metro-logs.sh` in another terminal to watch logs
 3. Develop with real-time log visibility
@@ -155,6 +168,7 @@ python scripts/ship_it.py --checks tests lint format
 ```
 
 **What it runs (in parallel):**
+
 - 🎨 Format Check & Auto-Fix (Prettier)
 - 🔍 Lint Check & Auto-Fix (ESLint strict mode)
 - 🔧 Type Check (TypeScript)
@@ -166,6 +180,7 @@ python scripts/ship_it.py --checks tests lint format
 ### 🧪 Testing
 
 #### Unit & Integration Tests (Jest)
+
 ```bash
 # Run all tests
 npm test
@@ -178,6 +193,7 @@ npm run test:coverage
 ```
 
 #### End-to-End Testing (Maestro)
+
 ```bash
 # Install Maestro CLI (one-time setup)
 curl -Ls "https://get.maestro.mobile.dev" | bash
@@ -203,6 +219,7 @@ maestro record .maestro/login-to-map-test.yaml
 ```
 
 ### 🔍 Code Quality
+
 ```bash
 # Check code quality (full pipeline)
 npm run quality:check
@@ -218,6 +235,7 @@ npm run audit:security
 ```
 
 ### 🏗️ Building
+
 ```bash
 # Build for production
 npm run build:verify
@@ -234,6 +252,7 @@ npx eas build --platform ios --profile production
 ## 🏗️ Architecture
 
 ### 📁 Project Structure
+
 ```
 src/
 ├── components/          # Reusable UI components
@@ -249,6 +268,7 @@ src/
 ```
 
 ### 🔧 Tech Stack
+
 - **Frontend Framework**: React Native + Expo
 - **State Management**: Redux Toolkit
 - **Navigation**: React Navigation v6
@@ -265,6 +285,7 @@ src/
 Our project maintains enterprise-level code quality through automated monitoring:
 
 ### 🎯 Quality Metrics
+
 - **Code Coverage**: 72% (statements), 69% (branches)
 - **Code Duplication**: 3.49% (excellent - under 5% threshold)
 - **Circular Dependencies**: 0 (clean architecture)
@@ -272,16 +293,19 @@ Our project maintains enterprise-level code quality through automated monitoring
 - **ESLint Warnings**: 0 (strict enforcement)
 
 ### 🔧 Quality Tools
+
 - **SonarQube Cloud**: Enterprise-grade static analysis with A ratings across Security, Reliability, and Maintainability
 - **SonarJS**: Same quality rules as SonarCloud Enterprise (integrated via ESLint)
 - **jscpd**: Duplicate code detection
-- **madge**: Circular dependency analysis  
+- **madge**: Circular dependency analysis
 - **Prettier**: Consistent code formatting
 - **unimported**: Dead code detection
 - **npm audit**: Security vulnerability scanning
 
 ### 📈 CI/CD Pipeline
+
 Our GitHub Actions workflow ensures quality:
+
 1. **🔒 Security Audit** - High-priority vulnerability scanning
 2. **🧹 Lint Check** - Zero warnings policy
 3. **🔧 TypeScript Check** - Strict type safety
@@ -300,6 +324,7 @@ Our GitHub Actions workflow ensures quality:
 6. **Open** a Pull Request
 
 ### 📋 Development Guidelines
+
 - ✅ All tests must pass (`npm run test:ci`)
 - ✅ Zero ESLint warnings (`npm run lint:strict`)
 - ✅ Code coverage maintained above 70%

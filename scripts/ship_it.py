@@ -20,10 +20,9 @@ import concurrent.futures
 import subprocess
 import sys
 import time
-import re
-from typing import List, Tuple, Optional
 from dataclasses import dataclass
 from enum import Enum
+from typing import List, Optional, Tuple
 
 
 class CheckStatus(Enum):

@@ -25,33 +25,33 @@ appId: com.fogofdog.app
     file: shared/handle-onboarding.yaml
 
 # Verify login screen
-- assertVisible: 
-    text: "Sign In"
 - assertVisible:
-    id: "signInButton"
+    text: 'Sign In'
+- assertVisible:
+    id: 'signInButton'
 
 # Login
 - tapOn:
-    id: "signInButton"
+    id: 'signInButton'
 
 # Handle location permission if needed
 - runFlow:
     when:
-      visible: "Allow"
+      visible: 'Allow'
     commands:
-      - tapOn: "Allow While Using App"
+      - tapOn: 'Allow While Using App'
 
 # Verify map loads
 - waitForAnimationToEnd:
     timeout: 3000
 - assertVisible:
-    id: "map-screen"
+    id: 'map-screen'
 - assertVisible:
-    text: "Woof!"
+    text: 'Woof!'
 
 # Test location button works
 - tapOn:
-    id: "location-button"
+    id: 'location-button'
 - waitForAnimationToEnd:
     timeout: 500
 
@@ -62,10 +62,9 @@ appId: com.fogofdog.app
 - waitForAnimationToEnd:
     timeout: 800
 - tapOn:
-    id: "location-button"
+    id: 'location-button'
 - waitForAnimationToEnd:
     timeout: 500
 - assertVisible:
-    text: "Woof!"
-
-# Smoke test complete - basic functionality verified 
+    text: 'Woof!'
+# Smoke test complete - basic functionality verified

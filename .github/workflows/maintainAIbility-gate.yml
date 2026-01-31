@@ -2,10 +2,10 @@ name: 🤖 maintainAIbility-gate
 
 on:
   push:
-    branches: [main, develop]  # Only run on push to main/develop (not feature branches)
+    branches: [main, develop] # Only run on push to main/develop (not feature branches)
   pull_request:
-    branches: [main]  # Run on PRs to main
-  workflow_dispatch:  # Allow manual triggering for expensive macOS tests
+    branches: [main] # Run on PRs to main
+  workflow_dispatch: # Allow manual triggering for expensive macOS tests
     inputs:
       run_integration_tests:
         description: 'Run expensive Maestro integration tests ($0.08/min)'
@@ -22,20 +22,20 @@ jobs:
     name: 📝 Format Code
     runs-on: ubuntu-latest
     timeout-minutes: 3
-    
+
     steps:
       - name: 📥 Checkout
         uses: actions/checkout@v4
-        
+
       - name: 📦 Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: 'npm'
-          
+
       - name: ⚡ Install dependencies
         run: npm ci --legacy-peer-deps
-        
+
       - name: 📝 Run Prettier Code Formatting
         run: ./scripts/maintainAIbility-gate.sh --format
 
@@ -43,20 +43,20 @@ jobs:
     name: 🔍 Lint TypeScript
     runs-on: ubuntu-latest
     timeout-minutes: 3
-    
+
     steps:
       - name: 📥 Checkout
         uses: actions/checkout@v4
-        
+
       - name: 📦 Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: 'npm'
-          
+
       - name: ⚡ Install dependencies
         run: npm ci --legacy-peer-deps
-        
+
       - name: 🔍 Run ESLint TypeScript Linting
         run: ./scripts/maintainAIbility-gate.sh --lint
 
@@ -66,20 +66,20 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 4
     needs: [format-code, lint-typescript]
-    
+
     steps:
       - name: 📥 Checkout
         uses: actions/checkout@v4
-        
+
       - name: 📦 Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: 'npm'
-          
+
       - name: ⚡ Install dependencies
         run: npm ci --legacy-peer-deps
-        
+
       - name: 🏗️ Run TypeScript Compiler
         run: ./scripts/maintainAIbility-gate.sh --types
 
@@ -88,20 +88,20 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 3
     needs: [format-code, lint-typescript]
-    
+
     steps:
       - name: 📥 Checkout
         uses: actions/checkout@v4
-        
+
       - name: 📦 Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: 'npm'
-          
+
       - name: ⚡ Install dependencies
         run: npm ci --legacy-peer-deps
-        
+
       - name: 🔄 Run JSCPD Duplication Detection
         run: ./scripts/maintainAIbility-gate.sh --duplication
 
@@ -109,20 +109,20 @@ jobs:
     name: 🔒 Audit Security Vulnerabilities
     runs-on: ubuntu-latest
     timeout-minutes: 3
-    
+
     steps:
       - name: 📥 Checkout
         uses: actions/checkout@v4
-        
+
       - name: 📦 Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: 'npm'
-          
+
       - name: ⚡ Install dependencies
         run: npm ci --legacy-peer-deps
-        
+
       - name: 🔒 Run NPM Security Audit
         run: npm audit --audit-level high
         continue-on-error: true
@@ -133,20 +133,20 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 8
     needs: [check-typescript-types, detect-code-duplication]
-    
+
     steps:
       - name: 📥 Checkout
         uses: actions/checkout@v4
-        
+
       - name: 📦 Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: 'npm'
-          
+
       - name: ⚡ Install dependencies
         run: npm ci --legacy-peer-deps
-        
+
       - name: 🧪 Run Jest Unit Tests with Coverage Reports
         run: ./scripts/maintainAIbility-gate.sh --tests
 
@@ -156,27 +156,27 @@ jobs:
     runs-on: macos-latest
     timeout-minutes: 60
     needs: run-unit-tests-with-coverage
-    if: github.event_name == 'workflow_dispatch' && github.event.inputs.run_integration_tests == 'true'  # Manual trigger only - macOS runners are expensive ($0.08/min)
-    
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.run_integration_tests == 'true' # Manual trigger only - macOS runners are expensive ($0.08/min)
+
     steps:
       - name: 📥 Checkout
         uses: actions/checkout@v4
-        
+
       - name: 📦 Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: 'npm'
-          
+
       - name: ⚡ Install dependencies
         run: npm ci --legacy-peer-deps
-        
+
       - name: 🔧 Setup EAS CLI
         uses: expo/expo-github-action@v8
         with:
           eas-version: latest
           token: ${{ secrets.EXPO_TOKEN }}
-        
+
       - name: 🔍 Debug Environment
         run: |
           echo "🔍 Environment debugging..."
@@ -188,15 +188,15 @@ jobs:
             echo "EAS version: $(eas --version)"
           fi
           echo "EXPO_TOKEN set: ${{ secrets.EXPO_TOKEN != '' }}"
-        
+
       - name: 🎭 Execute Maestro Integration Test Suite
         run: ./scripts/run_integration_tests.sh
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
-          
+
       - name: 📸 Upload Test Screenshots and Artifacts
         uses: actions/upload-artifact@v4
-        if: always()  # Always upload artifacts, even on failure
+        if: always() # Always upload artifacts, even on failure
         with:
           name: maestro-test-artifacts
           path: |
@@ -204,13 +204,13 @@ jobs:
             ~/.maestro/tests/
           retention-days: 365
           if-no-files-found: warn
-          
+
       - name: 🖼️ Display Test Screenshots in Job Summary
-        if: always()  # Always run, even on failure
+        if: always() # Always run, even on failure
         run: |
           echo "# 📸 Test Screenshots and Results" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          
+
           # Function to convert image to base64 and embed
           embed_image() {
             local image_path="$1"
@@ -226,7 +226,7 @@ jobs:
               echo "" >> $GITHUB_STEP_SUMMARY
             fi
           }
-          
+
           # Find and display screenshots from test artifacts
           if [ -d "test_artifacts/ci" ]; then
             echo "## 🔍 Test Failure Screenshots" >> $GITHUB_STEP_SUMMARY
@@ -248,7 +248,7 @@ jobs:
               fi
             done
           fi
-          
+
           # Find and display screenshots from Maestro debug output
           if [ -d "$HOME/.maestro/tests" ]; then
             echo "## 🎭 Maestro Debug Output" >> $GITHUB_STEP_SUMMARY
@@ -286,7 +286,7 @@ jobs:
               fi
             done
           fi
-          
+
           # Summary of test results
           echo "## 📊 Test Summary" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
@@ -300,22 +300,22 @@ jobs:
     timeout-minutes: 5
     needs: [check-typescript-types, detect-code-duplication, run-unit-tests-with-coverage]
     if: github.event_name == 'pull_request' && github.base_ref == 'main'
-    
+
     steps:
       - name: 📥 Checkout
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # Needed for SonarQube
-        
+          fetch-depth: 0 # Needed for SonarQube
+
       - name: 📦 Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: 'npm'
-          
+
       - name: ⚡ Install dependencies
         run: npm ci --legacy-peer-deps
-        
+
       - name: 📊 Run SonarQube Code Quality Analysis
         run: ./scripts/maintainAIbility-gate.sh --sonar
         env:
@@ -328,20 +328,20 @@ jobs:
     timeout-minutes: 8
     needs: run-unit-tests-with-coverage
     if: github.event_name == 'pull_request' && github.base_ref == 'main'
-    
+
     steps:
       - name: 📥 Checkout
         uses: actions/checkout@v4
-        
+
       - name: 📦 Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: 'npm'
-          
+
       - name: ⚡ Install dependencies
         run: npm ci --legacy-peer-deps
-        
+
       - name: 🏗️ Test Expo Export for iOS and Android
         run: |
           echo "🔍 Verifying iOS export..."
@@ -349,7 +349,7 @@ jobs:
           echo "🔍 Verifying Android export..."
           npx expo export --platform android
           echo "✅ Export verification complete"
-        
+
       - name: 📱 Test EAS Build Configuration
         run: |
           if [ -z "${{ env.EXPO_TOKEN }}" ]; then
@@ -366,20 +366,20 @@ jobs:
     timeout-minutes: 5
     continue-on-error: true
     if: github.event_name == 'pull_request'
-    
+
     steps:
       - name: 📥 Checkout
         uses: actions/checkout@v4
-        
+
       - name: 📦 Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: 'npm'
-          
+
       - name: ⚡ Install dependencies
         run: npm ci --legacy-peer-deps
-        
+
       - name: 📦 Check for Outdated Dependencies
         run: |
           echo "🔍 Checking for outdated dependencies..."
@@ -387,7 +387,7 @@ jobs:
           echo "🔍 Checking for unused dependencies..."
           npx depcheck || true
         continue-on-error: true
-        
+
       - name: 📊 Measure Bundle Size
         run: |
           echo "📊 Analyzing bundle size..."
@@ -400,28 +400,34 @@ jobs:
     name: 🚀 Build for TestFlight Production
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    needs: [run-unit-tests-with-coverage, verify-expo-build-process, run-maestro-integration-tests, analyze-code-quality-with-sonarqube]
+    needs:
+      [
+        run-unit-tests-with-coverage,
+        verify-expo-build-process,
+        run-maestro-integration-tests,
+        analyze-code-quality-with-sonarqube,
+      ]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-    
+
     steps:
       - name: 📥 Checkout
         uses: actions/checkout@v4
-        
+
       - name: 📦 Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: 'npm'
-          
+
       - name: ⚡ Install dependencies
         run: npm ci --legacy-peer-deps
-        
+
       - name: 🔧 Setup EAS CLI
         uses: expo/expo-github-action@v8
         with:
           eas-version: latest
           token: ${{ secrets.EXPO_TOKEN }}
-        
+
       - name: 🔍 Verify Production Build Configuration
         run: |
           if [ -z "$EXPO_TOKEN" ]; then
@@ -432,4 +438,4 @@ jobs:
           echo "Note: This only validates configuration - actual build/submission happens in EAS Build workflow"
           eas build --platform ios --profile testflight --dry-run
         env:
-          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }} 
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}

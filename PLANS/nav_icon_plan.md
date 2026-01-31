@@ -7,19 +7,21 @@ This document outlines the plan to add a "center on user location" button to the
 ## Design Requirements
 
 ### Visual Design
+
 - **Position**: Upper right corner of the screen, with appropriate padding from edges
 - **Icon**: Use a standard "location" icon that users will recognize:
   - Primary option: Crosshair/target icon (⊕ or similar)
   - Alternative: Arrow pointing to dot (common in Google Maps/Apple Maps)
 - **Size**: 44x44 points minimum (Apple HIG recommendation for touch targets)
-- **Style**: 
+- **Style**:
   - White icon on semi-transparent dark background (for visibility over any map style)
   - Circular button with subtle shadow for depth
   - Visual feedback on press (opacity change or scale animation)
 
 ### Behavior
+
 - **Tap Action**: Centers map on user's current GPS location with smooth animation
-- **State Indication**: 
+- **State Indication**:
   - Normal state: Icon visible when user location is available
   - Disabled state: Grayed out if location not available
   - Active state: Different appearance when map is already centered on user
@@ -43,12 +45,14 @@ interface LocationButtonProps {
 ### 2. Icon Selection
 
 We'll use react-native-vector-icons (already likely in the project) or Expo's vector icons:
+
 - Primary choice: `MaterialIcons.my-location` (crosshair icon)
 - Fallback: `Ionicons.locate` or `FontAwesome.location-arrow`
 
 ### 3. Integration with MapScreen
 
 The MapScreen will need to:
+
 1. Track whether the map is currently centered on user location
 2. Provide a method to center the map on current location
 3. Position the LocationButton appropriately
@@ -56,27 +60,32 @@ The MapScreen will need to:
 ### 4. State Management
 
 Add to Redux exploration slice:
+
 - `isMapCenteredOnUser: boolean` - tracks if map is following user
 - Action: `setCenterOnUser(boolean)` - updates centering state
 
 ### 5. Implementation Steps
 
 #### Step 1: Create LocationButton Component
+
 - Implement the visual component with proper styling
 - Add touch feedback (TouchableOpacity or Pressable)
 - Handle disabled/active states visually
 
 #### Step 2: Add Map Centering Logic
+
 - Create `centerOnUserLocation` method in MapScreen
 - Use MapView's `animateToRegion` for smooth transition
 - Calculate appropriate zoom level (maintain current or default to reasonable level)
 
 #### Step 3: Track Centering State
+
 - Monitor map region changes to detect when user manually pans away
 - Update `isMapCenteredOnUser` accordingly
 - Reset state when user manually interacts with map
 
 #### Step 4: Position Button on Screen
+
 - Use absolute positioning within MapScreen
 - Account for safe area insets (notch, status bar)
 - Ensure button doesn't overlap with other UI elements
@@ -86,18 +95,21 @@ Add to Redux exploration slice:
 ### 1. Unit Tests
 
 **LocationButton Component Tests** (`LocationButton.test.tsx`):
+
 - Renders correctly in all states (normal, disabled, active)
 - Calls onPress when tapped (if not disabled)
 - Applies correct styles based on props
 - Shows correct icon based on state
 
 **Redux State Tests** (update `explorationSlice.test.ts`):
+
 - `setCenterOnUser` action updates state correctly
 - State initializes with correct default
 
 ### 2. Integration Tests
 
 **MapScreen Integration Tests** (`MapScreen.test.tsx`):
+
 - LocationButton appears when location is available
 - Button is disabled when location is unavailable
 - Tapping button calls map centering logic
@@ -107,6 +119,7 @@ Add to Redux exploration slice:
 ### 3. E2E Tests
 
 **New E2E Test** (`e2e/mapNavigation.test.js`):
+
 ```javascript
 describe('Map Navigation', () => {
   it('should center map on user location when button is tapped', async () => {
@@ -173,9 +186,9 @@ describe('Map Navigation', () => {
 ## Estimated Timeline
 
 - Component creation and unit tests: 1-2 hours
-- MapScreen integration: 1-2 hours  
+- MapScreen integration: 1-2 hours
 - State management and tracking: 1 hour
 - E2E tests: 1 hour
 - Testing and refinement: 1 hour
 
-Total: 5-7 hours of focused development 
+Total: 5-7 hours of focused development
