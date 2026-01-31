@@ -445,6 +445,7 @@ export const useCinematicZoom = ({
       });
 
       // Delay then start path-following animation
+      let innerTimeoutId: ReturnType<typeof setTimeout> | null = null;
       const timeoutId = setTimeout(() => {
         // Start the cinematic pan animation
         startCinematicPanAnimation(mapRef, explorationPath, currentLocation);
@@ -455,12 +456,18 @@ export const useCinematicZoom = ({
         });
 
         // Clear animation in progress flag after animation completes
-        setTimeout(() => {
+        innerTimeoutId = setTimeout(() => {
           isAnimationInProgress.current = false;
         }, CINEMATIC_ZOOM_DURATION + 200);
       }, CINEMATIC_ZOOM_DELAY);
 
-      return () => clearTimeout(timeoutId);
+      return () => {
+        clearTimeout(timeoutId);
+        if (innerTimeoutId !== null) {
+          clearTimeout(innerTimeoutId);
+        }
+        isAnimationInProgress.current = false;
+      };
     }
     // No cleanup needed if conditions aren't met
     return undefined;

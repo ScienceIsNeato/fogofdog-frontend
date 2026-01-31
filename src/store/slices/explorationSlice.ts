@@ -41,15 +41,6 @@ const isValidGeoPoint = (point: GeoPoint): boolean => {
   );
 };
 
-// Store all GPS points - filtering happens at render time for optimal flexibility
-// This follows GPS tracking app best practices: preserve raw data, filter during visualization
-
-// Helper function to process a single background location
-// Store all valid GPS points - filtering happens at render time for optimal flexibility
-const processLocationForPath = (): { shouldAdd: boolean } => {
-  return { shouldAdd: true };
-};
-
 // Helper function to convert and validate stored location
 const convertStoredLocation = (storedLocation: StoredLocationData): GeoPoint | null => {
   const geoPoint: GeoPoint = {
@@ -256,12 +247,7 @@ const explorationSlice = createSlice({
         // Track the most recent valid location
         latestValidLocation = geoPoint;
 
-        // Store all valid GPS points (filtering happens at render time)
-        const pathResult = processLocationForPath();
-
-        if (pathResult.shouldAdd) {
-          state.path.push({ ...geoPoint });
-        }
+        state.path.push({ ...geoPoint });
       }
 
       // Update current location to the most recent valid location
