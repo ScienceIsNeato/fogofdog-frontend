@@ -76,7 +76,7 @@ jobs:
         run: npm ci --legacy-peer-deps
 
       - name: 🏗️ Run TypeScript Compiler
-        run: ./scripts/maintainAIbility-gate.sh --types
+        run: pip install -e ./slop-mop --quiet && sm validate --quality-gates javascript:types
 
   detect-code-duplication:
     name: 🔄 Detect Code Duplication
