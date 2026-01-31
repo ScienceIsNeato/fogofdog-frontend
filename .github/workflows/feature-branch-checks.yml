@@ -2,7 +2,7 @@ name: 🚀 Feature Branch Quality Checks
 
 on:
   push:
-    branches-ignore: [main, develop]  # Run on all branches except main/develop (handled by maintainAIbility-gate)
+    branches-ignore: [main, develop] # Run on all branches except main/develop (handled by maintainAIbility-gate)
     # This triggers on direct pushes to feature branches, NOT on PR creation/updates
 
 env:
@@ -14,25 +14,34 @@ jobs:
     name: 🎯 Feature Branch Quality Gate
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    
+
     steps:
       - name: 📥 Checkout
         uses: actions/checkout@v4
-        
+
       - name: 📦 Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: 'npm'
-          
+
       - name: ⚡ Install dependencies
         run: npm ci --legacy-peer-deps
-        
-      - name: 🎯 Run Full maintainAIbility Gate
-        run: ./scripts/maintainAIbility-gate.sh
-        
+
+      - name: 🧹 Install slop-mop
+        run: pip3 install -e ./slop-mop --break-system-packages --quiet
+
+      - name: 🎯 Run slop-mop JavaScript Quality Gates
+        run: sm validate javascript
+
+      - name: 🎯 Run slop-mop Duplication Gate
+        run: sm validate --quality-gates quality:duplication
+
+      - name: 🏗️ TypeScript Type Check
+        run: npm run type-check
+
       - name: 📊 Upload Quality Reports
-        if: always()  # Upload even if checks fail
+        if: always() # Upload even if checks fail
         uses: actions/upload-artifact@v4
         with:
           name: quality-reports-${{ github.sha }}
@@ -40,4 +49,4 @@ jobs:
             quality-reports/
             reports/
             coverage/
-          retention-days: 30 
+          retention-days: 30
