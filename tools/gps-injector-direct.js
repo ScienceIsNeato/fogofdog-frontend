@@ -4,10 +4,10 @@
 
 /**
  * Direct GPS Coordinate Injector for iOS Simulator
- * 
+ *
  * This tool directly injects GPS coordinates into the iOS Simulator
  * using simulator commands, triggering the app's location services.
- * 
+ *
  * Usage:
  *   Absolute mode: node tools/gps-injector-direct.js --mode absolute --lat 37.7749 --lon -122.4194
  *   Relative mode: node tools/gps-injector-direct.js --mode relative --angle 45 --distance 100
@@ -29,17 +29,17 @@ const CURRENT_LOCATION_FILE = path.join(__dirname, '..', 'current-location.json'
  */
 function calculateRelativeCoordinates(currentLat, currentLon, angleDegrees, distanceMeters) {
   const angleRad = (angleDegrees * Math.PI) / 180;
-  
+
   // Calculate latitude delta
   const deltaLat = (distanceMeters * Math.sin(angleRad)) / METERS_PER_DEGREE_LAT;
-  
+
   // Calculate longitude delta (adjust for latitude)
-  const metersPerDegreeLon = METERS_PER_DEGREE_LAT * Math.cos(currentLat * Math.PI / 180);
+  const metersPerDegreeLon = METERS_PER_DEGREE_LAT * Math.cos((currentLat * Math.PI) / 180);
   const deltaLon = (distanceMeters * Math.cos(angleRad)) / metersPerDegreeLon;
-  
+
   return {
     latitude: currentLat + deltaLat,
-    longitude: currentLon + deltaLon
+    longitude: currentLon + deltaLon,
   };
 }
 
@@ -69,8 +69,10 @@ function getCurrentLocation() {
   } catch (error) {
     console.warn(`⚠️  Could not read current location file: ${error.message}`);
   }
-  
-  console.log(`📍 Using default location: ${DEFAULT_LOCATION.latitude}, ${DEFAULT_LOCATION.longitude}`);
+
+  console.log(
+    `📍 Using default location: ${DEFAULT_LOCATION.latitude}, ${DEFAULT_LOCATION.longitude}`
+  );
   return DEFAULT_LOCATION;
 }
 
@@ -95,30 +97,32 @@ async function setSimulatorLocation(lat, lon, timeDeltaHours = 0) {
     // Get the current simulator device UDID
     const devices = execSync('xcrun simctl list devices booted --json', { encoding: 'utf8' });
     const deviceData = JSON.parse(devices);
-    
+
     let deviceUDID = null;
     for (const runtime in deviceData.devices) {
-      const bootedDevices = deviceData.devices[runtime].filter(device => device.state === 'Booted');
+      const bootedDevices = deviceData.devices[runtime].filter(
+        (device) => device.state === 'Booted'
+      );
       if (bootedDevices.length > 0) {
         deviceUDID = bootedDevices[0].udid;
         console.log(`📱 Found booted simulator: ${bootedDevices[0].name} (${deviceUDID})`);
         break;
       }
     }
-    
+
     if (!deviceUDID) {
       throw new Error('No booted iOS simulator found. Please start the simulator first.');
     }
-    
+
     // Set the location on the simulator
     const locationCommand = `xcrun simctl location ${deviceUDID} set ${lat},${lon}`;
     console.log(`🌍 Setting simulator location: ${lat}, ${lon}`);
-    
+
     execSync(locationCommand, { stdio: 'inherit' });
-    
+
     console.log(`✅ Successfully set simulator location to: ${lat}, ${lon}`);
     console.log(`🎯 The app should now receive this new location through its location services`);
-    
+
     // Store coordinates directly in AsyncStorage format that the service expects
     try {
       console.log(`💾 Storing GPS injection data for React Native...`);
@@ -127,20 +131,24 @@ async function setSimulatorLocation(lat, lon, timeDeltaHours = 0) {
       const now = new Date();
       const timestamp = new Date(now.getTime() + timeDeltaHours * 60 * 60 * 1000);
 
-      console.log(`🕒 Injecting with timestamp: ${timestamp.toISOString()} (${timeDeltaHours} hours delta)`);
+      console.log(
+        `🕒 Injecting with timestamp: ${timestamp.toISOString()} (${timeDeltaHours} hours delta)`
+      );
 
       // Create data in the format GPSInjectionService expects (direct array, not wrapped)
-      const coordinatesArray = [{
-        latitude: lat,
-        longitude: lon,
-        timestamp: timestamp.getTime(), // Use timestamp in milliseconds
-        accuracy: 5.0,
-        altitude: 0,
-        altitudeAccuracy: -1,
-        heading: -1,
-        speed: -1,
-      }];
-      
+      const coordinatesArray = [
+        {
+          latitude: lat,
+          longitude: lon,
+          timestamp: timestamp.getTime(), // Use timestamp in milliseconds
+          accuracy: 5.0,
+          altitude: 0,
+          altitudeAccuracy: -1,
+          heading: -1,
+          speed: -1,
+        },
+      ];
+
       // Write both file (for debugging) and AsyncStorage command
       const gpsInjectionFile = path.join(__dirname, '..', 'gps-injection.json');
       const fileData = {
@@ -148,21 +156,23 @@ async function setSimulatorLocation(lat, lon, timeDeltaHours = 0) {
         processed: false,
         injectedAt: new Date().toISOString(),
       };
-      
+
       fs.writeFileSync(gpsInjectionFile, JSON.stringify(fileData, null, 2));
-      
+
       // Generate AsyncStorage command for React Native debugger
       const asyncStorageData = JSON.stringify(coordinatesArray);
-      
+
       console.log(`✅ Stored GPS injection data in file: ${gpsInjectionFile}`);
       console.log(`🎯 To inject via AsyncStorage, run this in React Native debugger:`);
-      console.log(`AsyncStorage.setItem('@fogofdog:gps_injection_data', '${asyncStorageData.replace(/'/g, "\\'")}');`);
+      console.log(
+        `AsyncStorage.setItem('@fogofdog:gps_injection_data', '${asyncStorageData.replace(/'/g, "\\'")}');`
+      );
     } catch (storageError) {
       console.log(`⚠️ Could not store injection data: ${storageError.message}`);
     }
-    
+
     console.log(`🎯 GPS injection complete! App should update automatically.`);
-    
+
     return true;
   } catch (error) {
     console.error(`❌ Failed to set simulator location: ${error.message}`);
@@ -189,7 +199,7 @@ function parseArgs() {
     // Command line arguments
     const args = process.argv.slice(2);
     const parsed = {};
-    
+
     for (let i = 0; i < args.length; i += 2) {
       const key = args[i]?.replace('--', '');
       const value = args[i + 1];
@@ -197,7 +207,7 @@ function parseArgs() {
         parsed[key] = value;
       }
     }
-    
+
     return parsed;
   }
 }
@@ -251,19 +261,19 @@ Requirements:
  */
 async function main() {
   const args = parseArgs();
-  
+
   if (!args.mode || (args.mode !== 'absolute' && args.mode !== 'relative')) {
     showUsage();
     process.exit(1);
   }
-  
+
   let targetLat, targetLon;
   let timeDeltaHours = parseFloat(args.timeDeltaHours || '0');
   if (Number.isNaN(timeDeltaHours)) {
     console.error('❌ Invalid value for timeDeltaHours. It must be a valid number.');
     process.exit(1);
   }
-  
+
   try {
     if (args.mode === 'absolute') {
       // Absolute mode
@@ -272,14 +282,13 @@ async function main() {
         showUsage();
         process.exit(1);
       }
-      
+
       targetLat = parseFloat(args.lat);
       targetLon = parseFloat(args.lon);
-      
+
       validateCoordinates(targetLat, targetLon);
-      
+
       console.log(`📍 Target coordinate: ${targetLat}, ${targetLon}`);
-      
     } else if (args.mode === 'relative') {
       // Relative mode
       if (!args.angle || !args.distance) {
@@ -287,20 +296,22 @@ async function main() {
         showUsage();
         process.exit(1);
       }
-      
+
       const { latitude, longitude } = getCurrentLocation();
-      
+
       const angle = parseFloat(args.angle);
       const distance = parseFloat(args.distance);
-      
+
       const newCoords = calculateRelativeCoordinates(latitude, longitude, angle, distance);
       targetLat = newCoords.latitude;
       targetLon = newCoords.longitude;
-      
-      console.log(`🏃 Moving from ${latitude.toFixed(6)}, ${longitude.toFixed(6)} by ${distance}m at ${angle}°`);
+
+      console.log(
+        `🏃 Moving from ${latitude.toFixed(6)}, ${longitude.toFixed(6)} by ${distance}m at ${angle}°`
+      );
       console.log(`🎯 New target coordinate: ${targetLat.toFixed(6)}, ${targetLon.toFixed(6)}`);
     }
-    
+
     // Set location and save for next relative calculation
     const success = await setSimulatorLocation(targetLat, targetLon, timeDeltaHours);
     if (success) {
@@ -308,11 +319,10 @@ async function main() {
     } else {
       process.exit(1);
     }
-    
   } catch (error) {
     console.error(`❌ An error occurred: ${error.message}`);
     process.exit(1);
   }
 }
 
-main(); 
+main();

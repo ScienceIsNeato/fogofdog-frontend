@@ -4,10 +4,10 @@ jsEngine: graaljs
 # Enhanced Background GPS Test: Long Sequence Pattern with Animation Validation
 # This test validates background GPS tracking while app is backgrounded and ensures
 # no unwanted replay animations occur when returning to foreground.
-# 
+#
 # KEY VALIDATION: After backgrounding with many GPS points, the app should show
 # the final state immediately without step-by-step replay animation.
-# 
+#
 # ENHANCED FEATURES:
 # - Starts with 120 previous GPS points from a nearby path (simulates real usage)
 # - Tests replay animation bug with substantial existing data
@@ -37,7 +37,7 @@ jsEngine: graaljs
 - runFlow:
     file: robust-login.yaml
 - assertVisible:
-    text: "Woof!" # Point 1: Default login location visible
+    text: 'Woof!' # Point 1: Default login location visible
 
 # 3. Move to Point 2 (1000m South) BEFORE backgrounding the app
 - setLocation:
@@ -46,11 +46,11 @@ jsEngine: graaljs
 - waitForAnimationToEnd:
     timeout: 800
 - tapOn:
-    id: "location-button"
+    id: 'location-button'
 - waitForAnimationToEnd:
     timeout: 500
 - assertVisible:
-    text: "Woof!" # Point 2: 1000m South location confirmed
+    text: 'Woof!' # Point 2: 1000m South location confirmed
 
 # 4. Background the app (simulates real-world background GPS scenario)
 - pressKey: Home
@@ -61,42 +61,42 @@ jsEngine: graaljs
 # This creates a substantial path that would create noticeable step-by-step animation if buggy
 - setLocation:
     latitude: 37.779266
-    longitude: -122.409572  # Point A: 2000m East
+    longitude: -122.409572 # Point A: 2000m East
 - waitForAnimationToEnd:
     timeout: 600
 - setLocation:
     latitude: 37.785266
-    longitude: -122.415572  # Point B: NE zigzag
+    longitude: -122.415572 # Point B: NE zigzag
 - waitForAnimationToEnd:
     timeout: 600
 - setLocation:
     latitude: 37.779266
-    longitude: -122.421572  # Point C: SE zigzag
+    longitude: -122.421572 # Point C: SE zigzag
 - waitForAnimationToEnd:
     timeout: 600
 - setLocation:
     latitude: 37.785266
-    longitude: -122.427572  # Point D: NE zigzag
+    longitude: -122.427572 # Point D: NE zigzag
 - waitForAnimationToEnd:
     timeout: 600
 - setLocation:
     latitude: 37.781266
-    longitude: -122.433572  # Point E: Continue pattern
+    longitude: -122.433572 # Point E: Continue pattern
 - waitForAnimationToEnd:
     timeout: 600
 - setLocation:
     latitude: 37.787266
-    longitude: -122.439572  # Point F: More distance
+    longitude: -122.439572 # Point F: More distance
 - waitForAnimationToEnd:
     timeout: 600
 - setLocation:
     latitude: 37.783266
-    longitude: -122.445572  # Point G: Complex path
+    longitude: -122.445572 # Point G: Complex path
 - waitForAnimationToEnd:
     timeout: 600
 - setLocation:
     latitude: 37.789266
-    longitude: -122.451572  # Point H: Final background point
+    longitude: -122.451572 # Point H: Final background point
 - waitForAnimationToEnd:
     timeout: 600
 
@@ -106,23 +106,23 @@ jsEngine: graaljs
 # 7. Foreground the app and verify immediate response (no animation delay)
 - launchApp:
     appId: com.fogofdog.app
-    clearState: false  # Explicitly preserve login state
+    clearState: false # Explicitly preserve login state
 
 # ANIMATION BUG VALIDATION: App should respond immediately, not replay coordinates
 # If the bug existed, we'd see step-by-step animation of all 8 background points
 - waitForAnimationToEnd:
-    timeout: 1000  # Short timeout - should be immediate
+    timeout: 1000 # Short timeout - should be immediate
 - assertVisible:
-    id: "map-screen"
+    id: 'map-screen'
 
 # CRITICAL TEST: Verify immediate location button response (no animation delay)
 # If coordinates were replaying step-by-step, this would fail due to animation interference
 - tapOn:
-    id: "location-button"
+    id: 'location-button'
 - waitForAnimationToEnd:
-    timeout: 800  # Should respond quickly without waiting for coordinate replay
+    timeout: 800 # Should respond quickly without waiting for coordinate replay
 - assertVisible:
-    text: "Woof!" # Final background location should be immediately visible
+    text: 'Woof!' # Final background location should be immediately visible
 
 # 8. Additional validation: Quick location changes should work immediately
 # This would fail if step-by-step animation was still happening
@@ -130,29 +130,29 @@ jsEngine: graaljs
     latitude: 37.792742
     longitude: -122.409572
 - waitForAnimationToEnd:
-    timeout: 500  # Quick response expected
+    timeout: 500 # Quick response expected
 - tapOn:
-    id: "location-button"
+    id: 'location-button'
 - waitForAnimationToEnd:
     timeout: 500
 - assertVisible:
-    text: "Woof!" # Should respond immediately
+    text: 'Woof!' # Should respond immediately
 
 # 9. Final validation sequence - Background path should have cleared fog immediately
 - waitForAnimationToEnd:
-    timeout: 500  # Short wait - no lengthy animations expected
+    timeout: 500 # Short wait - no lengthy animations expected
 
 # Validate the map shows cleared areas from the 8-point background sequence
 - assertVisible:
-    text: "Woof!"
-    
+    text: 'Woof!'
+
 # Validate that the fog system is working properly
 - assertVisible:
-    id: "map-screen"
+    id: 'map-screen'
 
 # Confirm no loading or animation states persist
 - assertNotVisible:
-    text: "Loading location"
+    text: 'Loading location'
     optional: true
 
 # 10. Validation: Move to distant point - Should be in fog (not part of background sequence)
@@ -162,15 +162,15 @@ jsEngine: graaljs
 - waitForAnimationToEnd:
     timeout: 800
 - tapOn:
-    id: "location-button"
+    id: 'location-button'
 - waitForAnimationToEnd:
     timeout: 500
 
 # This distant point should still be in fog since it wasn't part of our background sequence
 - assertVisible:
-    text: "Woof!" # Location marker appears even in fog
+    text: 'Woof!' # Location marker appears even in fog
 - assertVisible:
-    id: "map-screen" # Map is still functional
+    id: 'map-screen' # Map is still functional
 
 # SUCCESS CRITERIA:
 # ✅ 120 starting GPS points injected and processed without replay animation

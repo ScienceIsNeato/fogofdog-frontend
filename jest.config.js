@@ -1,15 +1,12 @@
- module.exports = {
+module.exports = {
   preset: 'react-native',
   roots: ['<rootDir>/src'],
   testMatch: [
     '<rootDir>/src/**/__tests__/**/*.{js,jsx,ts,tsx}',
-    '<rootDir>/src/**/*.(test|spec).{js,jsx,ts,tsx}'
+    '<rootDir>/src/**/*.(test|spec).{js,jsx,ts,tsx}',
   ],
   testEnvironment: 'node',
-  setupFilesAfterEnv: [
-    '<rootDir>/jest.setup.js',
-    '<rootDir>/jest.console-setup.js',
-  ],
+  setupFilesAfterEnv: ['<rootDir>/jest.setup.js', '<rootDir>/jest.console-setup.js'],
   testPathIgnorePatterns: [
     '/node_modules/',
     '/android/',
@@ -31,18 +28,13 @@
     '!src/**/index.{js,ts}',
   ],
   coverageDirectory: 'coverage',
-  coverageReporters: [
-    'text',
-    'text-summary', 
-    'lcov',
-    'html'
-  ],
+  coverageReporters: ['text', 'text-summary', 'lcov', 'html'],
   coverageThreshold: {
     global: {
       functions: 78,
       lines: 78,
-      statements: 78
-    }
+      statements: 78,
+    },
   },
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/src/$1',

@@ -1,0 +1,3 @@
+[submodule "slop-mop"]
+	path = slop-mop
+	url = https://github.com/ScienceIsNeato/slop-mop.git

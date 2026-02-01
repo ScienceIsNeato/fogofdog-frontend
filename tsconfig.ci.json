@@ -16,11 +16,7 @@
     // Allow unused parameters in tests
     "noUnusedParameters": false
   },
-  "include": [
-    "src/**/*",
-    "App.tsx",
-    "index.ts"
-  ],
+  "include": ["src/**/*", "App.tsx", "index.ts"],
   "exclude": [
     "node_modules",
     "**/*.test.ts",
@@ -31,4 +27,4 @@
     "artifacts/**",
     "e2e/**"
   ]
-} 
+}

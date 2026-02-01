@@ -16,7 +16,7 @@ jobs:
     # Only run on merged PRs to main, not direct pushes
     if: github.event_name == 'pull_request' && github.event.action == 'closed' && github.event.pull_request.merged == true
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -97,11 +97,11 @@ jobs:
           git commit -m "🔖 Bump version to $NEW_VERSION
 
           Auto-generated version bump after PR merge.
-          
+
           Changes:
           - package.json: ${{ steps.current_version.outputs.version }} → $NEW_VERSION
           - app.json: Updated version and build numbers
-          
+
           PR: #${{ github.event.pull_request.number }}
           Merged by: ${{ github.event.pull_request.user.login }}"
 
@@ -120,23 +120,23 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: "v${{ steps.new_version.outputs.version }}"
-          release_name: "Release v${{ steps.new_version.outputs.version }}"
+          tag_name: 'v${{ steps.new_version.outputs.version }}'
+          release_name: 'Release v${{ steps.new_version.outputs.version }}'
           body: |
             🚀 **Auto-generated release v${{ steps.new_version.outputs.version }}**
-            
+
             This release was automatically created after merging PR #${{ github.event.pull_request.number }}.
-            
+
             **Changes:**
             - Version bumped from ${{ steps.current_version.outputs.version }} to ${{ steps.new_version.outputs.version }}
             - iOS build number incremented
             - Android version code incremented
-            
+
             **PR Details:**
             - Title: ${{ github.event.pull_request.title }}
             - Author: ${{ github.event.pull_request.user.login }}
             - Merged at: ${{ github.event.pull_request.merged_at }}
-            
+
             [View PR](${{ github.event.pull_request.html_url }})
           draft: false
           prerelease: false
@@ -145,10 +145,10 @@ jobs:
     needs: version-bump
     runs-on: ubuntu-latest
     if: success()
-    
+
     steps:
       - name: Notify version bump success
         run: |
           echo "✅ Version successfully bumped to ${{ needs.version-bump.outputs.version }}"
           echo "🏷️ Git tag created and pushed"
-          echo "📦 GitHub release created" 
+          echo "📦 GitHub release created"

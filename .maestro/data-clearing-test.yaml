@@ -1,6 +1,6 @@
 appId: com.fogofdog.app
 ---
-# Test: Full Data Clearing Functionality  
+# Test: Full Data Clearing Functionality
 # Purpose: Verify all data clearing options (Last Hour, Last Day, All Time) work correctly
 # Note: Button is now always enabled, even with no data points
 
@@ -17,32 +17,32 @@ appId: com.fogofdog.app
 # Handle login flow if needed (optional - app might already be authenticated)
 - runFlow:
     when:
-      visible: "Sign In"
+      visible: 'Sign In'
     commands:
       - assertVisible:
-          id: "signInButton"
+          id: 'signInButton'
       - tapOn:
-          id: "signInButton"
+          id: 'signInButton'
       - waitForAnimationToEnd
 
 # Handle location permission if needed
 - runFlow:
     when:
-      visible: "Allow"
+      visible: 'Allow'
     commands:
-      - tapOn: "Allow While Using App"
+      - tapOn: 'Allow While Using App'
       - waitForAnimationToEnd
 
 # Wait for map screen to load - using multiple approaches for reliability
 - waitForAnimationToEnd
 - waitForAnimationToEnd
 - assertVisible:
-    id: "map-screen"
+    id: 'map-screen'
 
 # Data clear button should always be visible now (never disabled due to no data)
 - assertVisible:
-    id: "data-clear-button"
-- takeScreenshot: "01-initial-map-screen"
+    id: 'data-clear-button'
+- takeScreenshot: '01-initial-map-screen'
 
 # Generate some exploration data by moving through locations
 # This creates realistic data for testing the clearing functionality
@@ -62,47 +62,47 @@ appId: com.fogofdog.app
 - waitForAnimationToEnd
 
 # Take screenshot after generating data
-- takeScreenshot: "02-after-location-changes"
+- takeScreenshot: '02-after-location-changes'
 
 # --- Test "Last Hour" ---
 # Button should always be tappable now
-- tapOn: 
-    id: "data-clear-button"
+- tapOn:
+    id: 'data-clear-button'
 - waitForAnimationToEnd
 
-- assertVisible: "Clear Exploration Data"
-- takeScreenshot: "03-clear-dialog-visible"
-- tapOn: "Last Hour"
+- assertVisible: 'Clear Exploration Data'
+- takeScreenshot: '03-clear-dialog-visible'
+- tapOn: 'Last Hour'
 - waitForAnimationToEnd
-- tapOn: "Clear Data"
+- tapOn: 'Clear Data'
 - waitForAnimationToEnd
-- tapOn: "OK"
+- tapOn: 'OK'
 - waitForAnimationToEnd
 
 # --- Test "Last Day" ---
-- tapOn: 
-    id: "data-clear-button"
+- tapOn:
+    id: 'data-clear-button'
 - waitForAnimationToEnd
-- assertVisible: "Clear Exploration Data"
-- tapOn: "Last Day"
+- assertVisible: 'Clear Exploration Data'
+- tapOn: 'Last Day'
 - waitForAnimationToEnd
-- tapOn: "Clear Data"
+- tapOn: 'Clear Data'
 - waitForAnimationToEnd
-- tapOn: "OK"
+- tapOn: 'OK'
 - waitForAnimationToEnd
 
 # --- Test "All Time" ---
-- tapOn: 
-    id: "data-clear-button"
+- tapOn:
+    id: 'data-clear-button'
 - waitForAnimationToEnd
-- assertVisible: "Clear Exploration Data"
-- tapOn: "All Time"
+- assertVisible: 'Clear Exploration Data'
+- tapOn: 'All Time'
 - waitForAnimationToEnd
-- tapOn: "Clear Data"
+- tapOn: 'Clear Data'
 - waitForAnimationToEnd
-- tapOn: "OK"
+- tapOn: 'OK'
 - waitForAnimationToEnd
 
 # Final verification - ensure app is still functional after clearing
 - assertVisible:
-    id: "map-screen" 
+    id: 'map-screen'

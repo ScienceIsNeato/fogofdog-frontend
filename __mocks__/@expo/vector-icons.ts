@@ -3,11 +3,15 @@ import { Text } from 'react-native';
 
 // Mock MaterialIcons component
 export const MaterialIcons = ({ name, size, color, testID, ...props }: any) => {
-  return React.createElement(Text, { 
-    testID: testID || `icon-${name}`,
-    style: { fontSize: size, color },
-    ...props 
-  }, name);
+  return React.createElement(
+    Text,
+    {
+      testID: testID || `icon-${name}`,
+      style: { fontSize: size, color },
+      ...props,
+    },
+    name
+  );
 };
 
 // Mock other icon sets if needed
@@ -24,4 +28,4 @@ export default {
   Ionicons,
   Feather,
   Entypo,
-}; 
+};

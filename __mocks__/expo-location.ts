@@ -33,10 +33,18 @@ module.exports = {
     Highest: 5,
     BestForNavigation: 6,
   },
-  requestBackgroundPermissionsAsync: jest.fn().mockResolvedValue(createCompletePermissionResponse('granted')),
-  getBackgroundPermissionsAsync: jest.fn().mockResolvedValue(createCompletePermissionResponse('granted')),
-  requestForegroundPermissionsAsync: jest.fn().mockResolvedValue(createCompletePermissionResponse('granted')),
-  getForegroundPermissionsAsync: jest.fn().mockResolvedValue(createCompletePermissionResponse('granted')),
+  requestBackgroundPermissionsAsync: jest
+    .fn()
+    .mockResolvedValue(createCompletePermissionResponse('granted')),
+  getBackgroundPermissionsAsync: jest
+    .fn()
+    .mockResolvedValue(createCompletePermissionResponse('granted')),
+  requestForegroundPermissionsAsync: jest
+    .fn()
+    .mockResolvedValue(createCompletePermissionResponse('granted')),
+  getForegroundPermissionsAsync: jest
+    .fn()
+    .mockResolvedValue(createCompletePermissionResponse('granted')),
   getCurrentPositionAsync: jest.fn().mockResolvedValue({
     coords: { latitude: 40.7128, longitude: -74.006 },
   }),

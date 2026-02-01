@@ -11,7 +11,7 @@ export const ImpactFeedbackStyle = {
 
 export const NotificationFeedbackType = {
   Success: 'success',
-  Warning: 'warning', 
+  Warning: 'warning',
   Error: 'error',
 };
 
@@ -21,4 +21,4 @@ export default {
   selectionAsync,
   ImpactFeedbackStyle,
   NotificationFeedbackType,
-}; 
+};

@@ -10,7 +10,7 @@ cd ${AGENT_HOME}
 
 # Start development
 npm start                    # Start Expo dev server
-npm test                     # Run unit tests  
+npm test                     # Run unit tests
 npm run quality:check       # Run all quality checks
 npm run lint:strict         # Zero-warnings linting
 
@@ -22,25 +22,29 @@ python scripts/ship_it.py --fail-fast  # Quick check, exit on first failure
 ## Important Notes
 
 ### Cursor Rules Integration
+
 This project uses comprehensive cursor-rules from the cursor-rules directory. These rules provide:
+
 - Development workflow guidelines (🌳)
-- Testing protocols (🧪) 
+- Testing protocols (🧪)
 - Session context management (🕒)
 - Path management rules (🛣️)
 - Issue reporting protocols (🐛)
 - Quality assurance standards
-If cursor-rules are present, they take precedence and should be followed alongside these guidelines.
+  If cursor-rules are present, they take precedence and should be followed alongside these guidelines.
 
-### Path Requirements  
+### Path Requirements
+
 **CRITICAL**: Always use absolute paths in commands. Always use full paths like `cd ${AGENT_HOME}`.
 
 ### Current Status
+
 ✅ **Production Ready**: Successfully deployed to TestFlight (v1.0.1)
 ✅ **Quality Gate**: 91.73% test coverage, 84.16% branches, 2.92% duplication
 ✅ **Dependencies Fixed**: All exact versions, expo-doctor passing  
 ✅ **Sequential Thinking**: MCP server integrated for systematic debugging
 ✅ **Background GPS**: Implemented and tested with location tracking
-✅ **Integration Testing**: E2E tests with Detox and visual validation  
+✅ **Integration Testing**: E2E tests with Detox and visual validation
 
 ## Development Commands
 
@@ -50,7 +54,7 @@ If cursor-rules are present, they take precedence and should be followed alongsi
 # Start development
 npm start                           # Start Expo development server
 npm start -- --clear               # Start with cache clearing
-npm run ios                        # Run on iOS simulator  
+npm run ios                        # Run on iOS simulator
 npx expo-doctor                    # Check project health
 ```
 
@@ -81,7 +85,7 @@ python scripts/ship_it.py --fail-fast              # Quick check, exit on first 
 python scripts/ship_it.py --checks tests lint     # Run specific checks only
 npm run quality:check                              # Core quality checks
 
-# Individual checks  
+# Individual checks
 npm run lint:strict                                # Zero-warnings linting
 npm run lint:fix                                   # Auto-fix lint issues
 npm run type-check                                 # TypeScript validation
@@ -104,7 +108,7 @@ Fog of Dog is a mobile game that implements a fog-of-war mechanic for real-world
 ### Frontend Stack (Production Ready)
 
 - **React Native 0.76.9** - Core framework
-- **Expo SDK 52** - Development platform  
+- **Expo SDK 52** - Development platform
 - **React Native Skia 1.5.0** - Graphics rendering for fog overlay
 - **React Native Maps** - GPS and map integration
 - **Redux Toolkit** - State management
@@ -123,13 +127,15 @@ Fog of Dog is a mobile game that implements a fog-of-war mechanic for real-world
 
 The core game mechanic is implemented with the following components:
 
-1. **State Management**: 
+1. **State Management**:
+
    - Redux store with `explorationSlice` that tracks:
      - Current GPS location
      - Array of explored areas (each with lat, lon, radius)
    - New areas are revealed when player moves at least 25m from existing explored areas
 
 2. **Rendering**:
+
    - MapScreen uses react-native-maps
    - Fog overlay implemented with React Native Skia Canvas
    - Each visited area creates a circular hole (approx. 50m radius) in the fog
@@ -175,6 +181,7 @@ fogofdog-frontend/
 ### Daily Development
 
 1. **Start Development Server**:
+
    ```bash
    cd ${AGENT_HOME}
    npx expo start
@@ -182,7 +189,8 @@ fogofdog-frontend/
 
 2. **Test on Device**: Use Expo Go app to scan QR code
 
-3. **Run Tests**: 
+3. **Run Tests**:
+
    ```bash
    npm test
    ```
@@ -195,11 +203,13 @@ fogofdog-frontend/
 ### Production Deployment
 
 1. **Build for TestFlight**:
+
    ```bash
    npx eas build --platform ios --profile testflight
    ```
 
 2. **Submit to TestFlight**:
+
    ```bash
    npx eas submit --platform ios --latest
    ```
@@ -209,7 +219,7 @@ fogofdog-frontend/
 ### Debugging Methodology
 
 1. **Use Sequential Thinking**: Systematic approach vs random fixes
-2. **Check Dependencies**: Run `npx expo-doctor` before builds  
+2. **Check Dependencies**: Run `npx expo-doctor` before builds
 3. **Validate Each Step**: Test incrementally
 4. **Document Findings**: Update STATUS.md with learnings
 
@@ -217,21 +227,24 @@ fogofdog-frontend/
 
 ### Fog of War Implementation
 
-1. **Current Implementation**: 
+1. **Current Implementation**:
+
    - Uses Redux store with `explorationSlice` tracking path coordinates
    - State includes both `path: GeoPoint[]` and `exploredAreas: GeoPoint[]`
    - Minimum distance threshold of 20m for new areas, with 50m radius fog holes
    - FogOverlay component using React Native Skia canvas rendering
 
 2. **Technical Approach**:
+
    - Uses `@shopify/react-native-skia` for canvas rendering
    - Implements luminance masking to cut holes in fog overlay
    - Coordinate conversion from geographic to screen pixels via `mapUtils.ts`
    - Canvas overlay positioned absolutely over MapView with `pointerEvents="none"`
 
 3. **Key Implementation Files**:
+
    - `src/store/slices/explorationSlice.ts` - State management for user path
-   - `src/components/FogOverlay.tsx` - Canvas-based fog rendering  
+   - `src/components/FogOverlay.tsx` - Canvas-based fog rendering
    - `src/utils/mapUtils.ts` - Geo to screen coordinate conversion
    - `src/screens/Map/index.tsx` - Main map screen integration
    - `src/services/BackgroundLocationService.ts` - Background GPS tracking
@@ -253,11 +266,12 @@ fogofdog-frontend/
 ✅ **TestFlight Deployment**: Production-ready builds with auto-increment
 ✅ **Quality Assurance**: Comprehensive testing suite with 91.73% coverage
 ✅ **E2E Testing**: Detox integration with visual validation
-✅ **Code Quality**: ESLint, TypeScript strict mode, automated formatting  
+✅ **Code Quality**: ESLint, TypeScript strict mode, automated formatting
 
 ### Testing Guidelines
 
 1. **Unit/Integration Tests**:
+
    - Use Jest and React Testing Library
    - Tests in `__tests__` directories alongside components
    - 80% coverage threshold enforced (statements, functions, lines)
@@ -283,7 +297,7 @@ fogofdog-frontend/
 
 - **Exact Versions**: All dependencies use exact versions (no wildcards)
 - **expo-doctor**: All checks must pass before builds
-- **Legacy Peer Deps**: Use `--legacy-peer-deps` for React version conflicts  
+- **Legacy Peer Deps**: Use `--legacy-peer-deps` for React version conflicts
 - **Critical Dependencies**: React Native 0.76.9, Expo SDK 52, React Native Skia 1.5.0
 
 ### Quality Assurance
@@ -297,7 +311,7 @@ fogofdog-frontend/
 ## Success Metrics
 
 - ✅ **0 black screens** (restored from complete failure)
-- ✅ **6-minute build times** for TestFlight deployment  
+- ✅ **6-minute build times** for TestFlight deployment
 - ✅ **100% core functionality** working in production
 - ✅ **91.73% test coverage** with 84.16% branch coverage
 - ✅ **Sequential debugging** proven effective for complex issues
@@ -309,12 +323,14 @@ fogofdog-frontend/
 ## Important Reminders
 
 ### Before Making Changes
+
 1. **Read STATUS.md** - Always check current project status first
 2. **Run baseline tests** - `npm test` to verify current state
 3. **Use absolute paths** - Always use `${AGENT_HOME}`
 4. **Check current quality** - Run `npm run quality:check`
 
-### After Making Changes  
+### After Making Changes
+
 1. **Run affected tests** - Test components/areas you modified
 2. **Type check** - `npm run type-check` for TypeScript validation
 3. **Lint validation** - `npm run lint:strict` must pass with zero warnings
@@ -322,6 +338,7 @@ fogofdog-frontend/
 5. **Update STATUS.md** - Document significant changes
 
 ### Working with Tests
+
 - **Never skip tests** - Always run tests for modified code
 - **Fix test failures immediately** - Don't ignore failing tests
 - **Update snapshots carefully** - Only when UI changes are intentional

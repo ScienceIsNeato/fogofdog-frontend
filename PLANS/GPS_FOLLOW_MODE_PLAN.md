@@ -10,12 +10,14 @@
 ## 🎯 PROBLEM SUMMARY
 
 ### Current Issues:
+
 1. **Auto-Centering Prevents User Interaction** - App continuously auto-centers making pan/zoom impossible
 2. **GPS Path Rendering Issues** - Showing triangular paths instead of orthogonal paths
 3. **Persistent Location Errors** - Still getting occasional location errors despite permission fixes
 
 ### Root Cause Analysis:
-- **Auto-centering occurs in TWO places**: 
+
+- **Auto-centering occurs in TWO places**:
   - `setupLocationWatcher()` in MapScreen (line ~97-128)
   - `useLocationRefreshPolling()` in MapScreen (line ~173-234)
 - **Current "Center" button is useless** since map is always centered
@@ -28,15 +30,17 @@
 ### **PHASE 1: Analysis & Investigation** 📊
 
 #### Step 1.1: Document Current Auto-Centering Behavior
+
 - [ ] **Action**: Add detailed logging to track when auto-centering occurs
 - [ ] **Files**: `src/screens/Map/index.tsx`
 - [ ] **Code Changes**: Add debug logs in `setupLocationWatcher()` and `useLocationRefreshPolling()`
 - [ ] **Outcome**: Clear understanding of when/how often auto-centering happens
 - [ ] **Test**: Run Maestro GPS test and analyze logs for auto-centering frequency
 
-#### Step 1.2: Investigate GPS Path Rendering Issues  
+#### Step 1.2: Investigate GPS Path Rendering Issues
+
 - [ ] **Action**: Deep dive into coordinate injection during app backgrounding/foregrounding
-- [ ] **Files**: 
+- [ ] **Files**:
   - `src/services/BackgroundLocationService.ts`
   - `src/screens/Map/index.tsx` (useAppStateHandler)
 - [ ] **Investigation**: Check if extra coordinates are injected when app returns from background
@@ -44,6 +48,7 @@
 - [ ] **Test**: Run Maestro test with detailed coordinate logging before/during/after backgrounding
 
 #### Step 1.3: Analyze Remaining Location Errors
+
 - [ ] **Action**: Collect and categorize all remaining location errors
 - [ ] **Files**: Check error logs, console output during tests
 - [ ] **Investigation**: Identify patterns in "two children with same key" errors
@@ -53,22 +58,26 @@
 ### **PHASE 2: Redux State Management Updates** 🏗️
 
 #### Step 2.1: Add Follow Mode State to Redux
+
 - [ ] **Action**: Add `isFollowModeEnabled` to explorationSlice
 - [ ] **Files**: `src/store/slices/explorationSlice.ts`
 - [ ] **Code Changes**:
+
   ```typescript
   // Add to initial state
   isFollowModeEnabled: false,
-  
+
   // Add action
   setFollowMode: (state, action: PayloadAction<boolean>) => {
     state.isFollowModeEnabled = action.payload;
   }
   ```
+
 - [ ] **Test**: Unit tests for new Redux action
 - [ ] **Validation**: Ensure state updates correctly
 
 #### Step 2.2: Update Redux State Management Logic
+
 - [ ] **Action**: Replace `isMapCenteredOnUser` logic with `isFollowModeEnabled`
 - [ ] **Files**: `src/store/slices/explorationSlice.ts`
 - [ ] **Code Changes**: Update existing `setCenterOnUser` to be `setFollowMode`
@@ -78,6 +87,7 @@
 ### **PHASE 3: Remove Auto-Centering Behaviors** ❌
 
 #### Step 3.1: Remove Auto-Centering from Location Updates
+
 - [ ] **Action**: Remove `mapRef.current.animateToRegion()` calls from location watchers
 - [ ] **Files**: `src/screens/Map/index.tsx`
 - [ ] **Code Changes**:
@@ -87,6 +97,7 @@
 - [ ] **Validation**: Map shows GPS updates without forced centering
 
 #### Step 3.2: Update Location Update Logic with Conditional Centering
+
 - [ ] **Action**: Add conditional centering based on Follow Mode state
 - [ ] **Files**: `src/screens/Map/index.tsx`
 - [ ] **Code Changes**:
@@ -102,6 +113,7 @@
 ### **PHASE 4: Transform Center Button to Follow Toggle** 🔄
 
 #### Step 4.1: Update LocationButton Component Props
+
 - [ ] **Action**: Change LocationButton to support toggle functionality
 - [ ] **Files**: `src/components/LocationButton.tsx`
 - [ ] **Code Changes**:
@@ -117,6 +129,7 @@
 - [ ] **Validation**: Component renders correctly with new interface
 
 #### Step 4.2: Update LocationButton Visual States
+
 - [ ] **Action**: Create distinct visual states for Follow Mode toggle
 - [ ] **Files**: `src/components/LocationButton.tsx`
 - [ ] **Code Changes**:
@@ -127,14 +140,13 @@
 - [ ] **Validation**: Button clearly shows ON/OFF states
 
 #### Step 4.3: Update LocationButton Accessibility
+
 - [ ] **Action**: Update accessibility labels for toggle behavior
 - [ ] **Files**: `src/components/LocationButton.tsx`
 - [ ] **Code Changes**:
   ```typescript
-  accessibilityLabel: isFollowModeEnabled 
-    ? "Turn off follow mode" 
-    : "Turn on follow mode"
-  accessibilityHint: "Toggles automatic centering on your location"
+  accessibilityLabel: isFollowModeEnabled ? 'Turn off follow mode' : 'Turn on follow mode';
+  accessibilityHint: 'Toggles automatic centering on your location';
   ```
 - [ ] **Test**: Accessibility testing with screen readers
 - [ ] **Validation**: VoiceOver/TalkBack announce correct states
@@ -142,6 +154,7 @@
 ### **PHASE 5: Implement Follow Mode Logic** 🎯
 
 #### Step 5.1: Create Follow Mode Toggle Handler
+
 - [ ] **Action**: Replace center button logic with toggle logic
 - [ ] **Files**: `src/screens/Map/index.tsx`
 - [ ] **Code Changes**:
@@ -149,7 +162,7 @@
   const handleFollowModeToggle = () => {
     const newFollowMode = !isFollowModeEnabled;
     dispatch(setFollowMode(newFollowMode));
-    
+
     // If turning ON Follow Mode, center immediately
     if (newFollowMode && currentLocation && mapRef.current) {
       const userRegion = {
@@ -166,19 +179,20 @@
 - [ ] **Validation**: Follow Mode toggles correctly
 
 #### Step 5.2: Implement Smart Gesture Detection
+
 - [ ] **Action**: Auto-disable Follow Mode when user pans/zooms
 - [ ] **Files**: `src/screens/Map/index.tsx`
 - [ ] **Code Changes**: Update `onRegionChange` to detect manual gestures:
   ```typescript
   const onRegionChange = (region: Region) => {
     setCurrentRegion(region);
-    
+
     // If Follow Mode is ON and user manually moved map, turn OFF Follow Mode
     if (isFollowModeEnabled && currentLocation) {
       const latDiff = Math.abs(region.latitude - currentLocation.latitude);
       const lonDiff = Math.abs(region.longitude - currentLocation.longitude);
       const threshold = Math.min(region.latitudeDelta, region.longitudeDelta) * 0.1;
-      
+
       if (latDiff > threshold || lonDiff > threshold) {
         dispatch(setFollowMode(false));
       }
@@ -191,8 +205,9 @@
 ### **PHASE 6: Fix GPS Path Rendering Issues** 🛤️
 
 #### Step 6.1: Investigate Coordinate Injection During Foregrounding
+
 - [ ] **Action**: Debug app state change handling for extra coordinates
-- [ ] **Files**: 
+- [ ] **Files**:
   - `src/screens/Map/index.tsx` (useAppStateHandler)
   - `src/services/BackgroundLocationService.ts`
 - [ ] **Investigation**: Add detailed logging during app state transitions
@@ -200,6 +215,7 @@
 - [ ] **Validation**: Identify source of spurious coordinates during foregrounding
 
 #### Step 6.2: Fix Coordinate Processing Logic
+
 - [ ] **Action**: Eliminate duplicate/spurious coordinate injection
 - [ ] **Files**: Identified from Step 6.1 investigation
 - [ ] **Code Changes**: Based on findings from coordinate investigation
@@ -209,6 +225,7 @@
 ### **PHASE 7: Eliminate Remaining Location Errors** 🔧
 
 #### Step 7.1: Fix "Two Children with Same Key" Errors
+
 - [ ] **Action**: Investigate and fix React key prop issues in location rendering
 - [ ] **Files**: Likely in map marker rendering or location list components
 - [ ] **Investigation**: Review all components that render location-based data
@@ -217,19 +234,21 @@
 - [ ] **Validation**: Zero "two children with same key" errors
 
 #### Step 7.2: Fix Location Fetch Failures
+
 - [ ] **Action**: Strengthen error handling in location fetching
-- [ ] **Files**: 
+- [ ] **Files**:
   - `src/services/BackgroundLocationService.ts`
   - `src/screens/Map/index.tsx`
 - [ ] **Code Changes**: Add robust error handling and recovery mechanisms
-- [ ] **Test**: Simulate location fetch failures and verify graceful handling  
+- [ ] **Test**: Simulate location fetch failures and verify graceful handling
 - [ ] **Validation**: Location errors handled gracefully without crashes
 
 ### **PHASE 8: Update Tests and Documentation** 📝
 
 #### Step 8.1: Update Existing Unit Tests
+
 - [ ] **Action**: Update all tests for Follow Mode changes
-- [ ] **Files**: 
+- [ ] **Files**:
   - `src/components/__tests__/LocationButton.test.tsx`
   - `src/screens/Map/__tests__/MapScreen.test.tsx`
   - `src/store/slices/__tests__/explorationSlice.test.tsx`
@@ -238,6 +257,7 @@
 - [ ] **Validation**: Test coverage remains above 80%
 
 #### Step 8.2: Create New Follow Mode Tests
+
 - [ ] **Action**: Add comprehensive tests for Follow Mode functionality
 - [ ] **Files**: New test cases in existing test files
 - [ ] **Test Cases**:
@@ -249,6 +269,7 @@
 - [ ] **Validation**: All new functionality is fully tested
 
 #### Step 8.3: Update Maestro Integration Tests
+
 - [ ] **Action**: Update GPS tests to validate Follow Mode and path accuracy
 - [ ] **Files**: `.maestro/background-gps-fog-validation.yaml`
 - [ ] **Code Changes**:
@@ -260,8 +281,9 @@
 ### **PHASE 9: Quality Assurance and Final Validation** ✅
 
 #### Step 9.1: Run Complete Test Suite
+
 - [ ] **Action**: Execute all tests to ensure no regressions
-- [ ] **Commands**: 
+- [ ] **Commands**:
   - `npm run test:coverage`
   - `npm run lint:strict`
   - `npm run format:check`
@@ -269,6 +291,7 @@
 - [ ] **Validation**: All quality gates pass (223+ tests, 80%+ coverage, zero lint errors)
 
 #### Step 9.2: Run Integration Tests
+
 - [ ] **Action**: Full Maestro GPS test suite
 - [ ] **Commands**: Run complete `.maestro/background-gps-fog-validation.yaml`
 - [ ] **Validation**: All GPS functionality works with Follow Mode
@@ -279,10 +302,11 @@
   - No location errors during test execution
 
 #### Step 9.3: Manual Testing Validation
+
 - [ ] **Action**: Comprehensive manual testing of Follow Mode UX
 - [ ] **Test Scenarios**:
   - App starts with Follow Mode OFF ✓
-  - Toggle shows clear ON/OFF states ✓  
+  - Toggle shows clear ON/OFF states ✓
   - Pan/zoom auto-disables Follow Mode ✓
   - GPS paths render correctly (orthogonal) ✓
   - Zero location errors ✓
@@ -307,7 +331,7 @@ From GitHub Issue #11, we must achieve:
 If any phase causes regressions:
 
 1. **Immediate Rollback**: Git revert to last known good state
-2. **Isolate Issue**: Identify which phase caused the problem  
+2. **Isolate Issue**: Identify which phase caused the problem
 3. **Fix Forward**: Address the specific issue without rolling back entire implementation
 4. **Re-test**: Ensure fix doesn't introduce new issues
 5. **Continue**: Resume implementation from fixed state
@@ -327,7 +351,7 @@ If any phase causes regressions:
 ## 🚀 ESTIMATED TIMELINE
 
 - **Phase 1 (Analysis)**: 2-3 hours
-- **Phase 2 (Redux)**: 1-2 hours  
+- **Phase 2 (Redux)**: 1-2 hours
 - **Phase 3 (Remove Auto-center)**: 1-2 hours
 - **Phase 4 (Button Transform)**: 2-3 hours
 - **Phase 5 (Follow Mode Logic)**: 2-3 hours
@@ -353,4 +377,4 @@ If any phase causes regressions:
 
 **Status**: ✅ **PLAN COMPLETE** - Ready to begin Phase 1: Analysis & Investigation
 
-**Next Action**: Start with Step 1.1 - Document Current Auto-Centering Behavior 
+**Next Action**: Start with Step 1.1 - Document Current Auto-Centering Behavior

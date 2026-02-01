@@ -6,27 +6,27 @@ jest.mock('react-native/Libraries/EventEmitter/NativeEventEmitter');
 // Mock React Native Platform
 jest.mock('react-native', () => {
   const RN = jest.requireActual('react-native');
-  
+
   // Mock Platform
   RN.Platform.OS = 'ios';
   RN.Platform.select = jest.fn((config) => config.ios || config.default);
-  
+
   // Mock Alert
   RN.Alert = {
     alert: jest.fn(),
   };
-  
+
   // Mock Pressable if not available
   if (!RN.Pressable) {
     RN.Pressable = RN.TouchableOpacity;
   }
-  
+
   // Add AppState mock
   RN.AppState = {
     addEventListener: jest.fn(() => ({ remove: jest.fn() })),
     currentState: 'active',
   };
-  
+
   return RN;
 });
 
@@ -67,17 +67,17 @@ jest.mock('@react-navigation/native-stack', () => ({
 jest.mock('react-native-safe-area-context', () => ({
   SafeAreaProvider: ({ children }) => children,
   SafeAreaView: ({ children }) => children,
-  useSafeAreaInsets: () => ({ 
-    top: 44, 
-    bottom: 34, 
-    left: 0, 
-    right: 0 
+  useSafeAreaInsets: () => ({
+    top: 44,
+    bottom: 34,
+    left: 0,
+    right: 0,
   }),
-  useSafeAreaFrame: () => ({ 
-    x: 0, 
-    y: 0, 
-    width: 375, 
-    height: 812 
+  useSafeAreaFrame: () => ({
+    x: 0,
+    y: 0,
+    width: 375,
+    height: 812,
   }),
 }));
 
