@@ -49,20 +49,17 @@ const mockGetOnboardingContext = jest.fn(() => ({ isFirstTimeUser: false }));
 
 jest.mock('../../../services/PermissionsOrchestrator', () => ({
   PermissionsOrchestrator: {
-    // @ts-expect-error mock
     completePermissionVerification: jest.fn().mockResolvedValue({
       canProceed: true,
       mode: 'full',
       backgroundGranted: true,
     }),
-    // @ts-expect-error mock
     cleanup: jest.fn().mockResolvedValue(undefined),
   },
 }));
 
 jest.mock('../../../services/GPSInjectionService', () => ({
   GPSInjectionService: {
-    // @ts-expect-error mock
     checkForInjectionOnce: jest.fn().mockResolvedValue([]),
     startPeriodicCheck: jest.fn(() => () => {}),
   },
@@ -191,7 +188,6 @@ jest.mock('react-native-safe-area-context', () => ({
 // Helpers
 // ---------------------------------------------------------------------------
 
-const _CINEMATIC_ZOOM_DURATION = 5000;
 
 /** Empty Redux store — no pre-existing location or path. */
 const createEmptyStore = (): Store<RootState> =>
