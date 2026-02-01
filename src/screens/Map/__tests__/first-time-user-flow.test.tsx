@@ -14,7 +14,7 @@
  */
 
 import React from 'react';
-import { render, act, waitFor } from '@testing-library/react-native';
+import { render, act } from '@testing-library/react-native';
 import { Provider } from 'react-redux';
 import { configureStore, Store } from '@reduxjs/toolkit';
 import { MapScreen } from '../index';
@@ -126,7 +126,7 @@ jest.mock('react-native-maps', () => {
 jest.mock('../../../components/OptimizedFogOverlay', () => {
   const React = jest.requireActual<typeof import('react')>('react');
   const { View } = jest.requireActual<typeof import('react-native')>('react-native');
-  const MockFog = (props: any) => React.createElement(View, { testID: 'mock-fog-overlay' });
+  const MockFog = (_props: any) => React.createElement(View, { testID: 'mock-fog-overlay' });
   return { __esModule: true, default: MockFog };
 });
 
@@ -143,7 +143,7 @@ jest.mock('../../../components/OnboardingOverlay', () => {
       onSkip?: () => void;
     }) => {
       // Always capture latest callbacks so tests can invoke them
-      mockOnboardingCallbacks.onComplete = props.onComplete || null;
+      mockOnboardingCallbacks.onComplete = props.onComplete ?? null;
       if (!props.visible) return null;
       return React.createElement(
         View,
@@ -173,12 +173,12 @@ jest.mock('@shopify/react-native-skia', () => {
   const React = jest.requireActual<typeof import('react')>('react');
   const { View } = jest.requireActual<typeof import('react-native')>('react-native');
   return {
-    Canvas: (p: any) => React.createElement(View, { testID: 'mock-skia-canvas' }),
-    Mask: (p: any) => React.createElement(View, {}),
-    Group: (p: any) => React.createElement(View, {}),
-    Fill: (p: any) => React.createElement(View, {}),
-    Path: (p: any) => React.createElement(View, {}),
-    Rect: (p: any) => React.createElement(View, {}),
+    Canvas: (_p: any) => React.createElement(View, { testID: 'mock-skia-canvas' }),
+    Mask: (_p: any) => React.createElement(View, {}),
+    Group: (_p: any) => React.createElement(View, {}),
+    Fill: (_p: any) => React.createElement(View, {}),
+    Path: (_p: any) => React.createElement(View, {}),
+    Rect: (_p: any) => React.createElement(View, {}),
     Skia: { Path: { Make: jest.fn().mockReturnValue({ moveTo: jest.fn(), lineTo: jest.fn() }) } },
   };
 });
@@ -191,7 +191,7 @@ jest.mock('react-native-safe-area-context', () => ({
 // Helpers
 // ---------------------------------------------------------------------------
 
-const CINEMATIC_ZOOM_DURATION = 5000;
+const _CINEMATIC_ZOOM_DURATION = 5000;
 
 /** Empty Redux store — no pre-existing location or path. */
 const createEmptyStore = (): Store<RootState> =>

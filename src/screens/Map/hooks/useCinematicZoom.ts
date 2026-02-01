@@ -506,7 +506,7 @@ export const useCinematicZoom = ({
     });
 
     return region;
-  }, [currentLocation, explorationPath]);
+  }, [currentLocation, explorationPath, canStartAnimation]);
 
   return {
     initialRegion,
