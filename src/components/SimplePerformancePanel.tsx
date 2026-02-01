@@ -66,7 +66,7 @@ const useRealTimeInjection = (config: {
 
     try {
       await performanceTestInjector.injectRealTimeData(count, 'REALISTIC_DRIVE', {
-        intervalMs: 1000, // 1 second between points
+        intervalMs: 3000, // 3 seconds between points for realistic speed
       });
       updateCount();
     } catch (error) {
@@ -84,7 +84,7 @@ const useRealTimeInjection = (config: {
 
     Alert.alert(
       'Real-Time GPS Injection',
-      `This will inject ${count} GPS points in real-time with current timestamps. The GPS beacon will act as the "head" of the worm. This will take about ${Math.round(count / 60)} minutes.`,
+      `This will inject ${count} GPS points in real-time with current timestamps. The GPS beacon will act as the "head" of the worm. This will take about ${Math.round((count * 3) / 60)} minutes.`,
       [
         {
           text: 'Cancel',

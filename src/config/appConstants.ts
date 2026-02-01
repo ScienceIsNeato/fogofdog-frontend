@@ -10,7 +10,7 @@
  */
 export const GPS_CONSTANTS = {
   // Distance and movement
-  MIN_MOVEMENT_THRESHOLD_METERS: 5, // Minimum movement to count as active
+  MIN_MOVEMENT_THRESHOLD_METERS: 3, // Minimum movement to count as active (lowered for synthetic data)
   EARTH_RADIUS_METERS: 6371000, // Earth radius for Haversine calculations
 
   // Time thresholds
@@ -23,7 +23,7 @@ export const GPS_CONSTANTS = {
 
   // GPS injection and performance testing
   DEFAULT_GPS_INTERVAL_SECONDS: 30, // Default interval for generated GPS points
-  REAL_TIME_INJECTION_INTERVAL_MS: 1000, // 1 second between real-time injections
+  REAL_TIME_INJECTION_INTERVAL_MS: 3000, // 3 seconds between real-time injections for realistic speed
 } as const;
 
 /**

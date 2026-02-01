@@ -52,6 +52,40 @@ const mockPath = Array.from({ length: 6 }, (_, i) => ({
 
 // Create test store helper
 const createTestStore = (preloadedState = {}) => {
+  const defaultState = {
+    exploration: {
+      currentLocation: null,
+      zoomLevel: 14,
+      path: [],
+      exploredAreas: [],
+      isMapCenteredOnUser: false,
+      isFollowModeActive: false,
+      isTrackingPaused: false,
+      backgroundLocationStatus: {
+        isRunning: false,
+        hasPermission: false,
+        storedLocationCount: 0,
+      },
+      gpsInjectionStatus: {
+        isRunning: false,
+        type: null,
+        message: '',
+      },
+    },
+    stats: {
+      totalDistance: 0,
+      totalTime: 0,
+      sessionDistance: 0,
+      sessionTime: 0,
+      totalArea: 0,
+      sessionArea: 0,
+      isSessionActive: false,
+    },
+    user: {
+      hasCompletedOnboarding: true,
+    },
+  };
+
   return configureStore({
     reducer: {
       exploration: explorationReducer,
@@ -59,25 +93,12 @@ const createTestStore = (preloadedState = {}) => {
       user: userReducer,
     } as any,
     preloadedState: {
-      exploration: {
-        path: [],
-        currentLocation: null,
-        isMapCenteredOnUser: false,
-        isFollowModeActive: false,
-      },
-      stats: {
-        totalDistance: 0,
-        totalTime: 0,
-        sessionDistance: 0,
-        sessionTime: 0,
-        totalArea: 0,
-        sessionArea: 0,
-        isSessionActive: false,
-      },
-      user: {
-        hasCompletedOnboarding: true,
-      },
+      ...defaultState,
       ...preloadedState,
+      exploration: {
+        ...defaultState.exploration,
+        ...(preloadedState as any)?.exploration,
+      },
     },
   });
 };

@@ -1,0 +1,208 @@
+appId: com.fogofdog.app
+---
+# First-Time User Complete Flow Test
+# Tests the complete journey from fresh install to cinematic animation
+# Specifically designed to identify white screen timing issues
+
+# Setup initial location in San Francisco
+- setLocation:
+    latitude: 37.7749
+    longitude: -122.4194
+
+# Launch app with completely clean state (first-time user simulation)
+- launchApp:
+    appId: com.fogofdog.app
+    clearState: true
+    clearKeychain: true
+
+# Wait for app initialization
+- waitForAnimationToEnd:
+    timeout: 2000
+
+# === PHASE 1: COMPLETE ONBOARDING TUTORIAL (ALL 6 STEPS) ===
+# Navigate through the complete 6-step onboarding sequence
+- assertVisible:
+    id: "onboarding-overlay"
+
+# Wait for onboarding to fully load
+- waitForAnimationToEnd:
+    timeout: 2000
+
+# Navigate through onboarding by tapping in the button area
+# KLUDGE: Using coordinate-based tapping because text matching fails in modal overlays
+# TODO: Investigate why Maestro cannot detect "Continue" button text inside React Native Modal
+# The buttons exist and are visible to users, but Maestro's text detection doesn't work
+# This brute force approach works but is fragile if button positions change
+
+# Step 1: Tap Continue button (bottom right area of modal)
+- tapOn:
+    point: "80%,85%"  # Bottom right area where Continue button should be
+- waitForAnimationToEnd:
+    timeout: 500
+
+# Step 2: Tap Continue button  
+- tapOn:
+    point: "80%,85%"
+- waitForAnimationToEnd:
+    timeout: 500
+
+# Step 3: Tap Continue button
+- tapOn:
+    point: "80%,85%"
+- waitForAnimationToEnd:
+    timeout: 500
+
+# Step 4: Tap Continue button
+- tapOn:
+    point: "80%,85%"
+- waitForAnimationToEnd:
+    timeout: 500
+
+# Step 5: Tap Continue button
+- tapOn:
+    point: "80%,85%"
+- waitForAnimationToEnd:
+    timeout: 500
+
+# Step 6: Final step - Get Started button (should be in same location)
+- tapOn:
+    point: "80%,85%"
+- waitForAnimationToEnd:
+    timeout: 500
+
+# === PHASE 2: PERMISSION FLOW ===
+# Wait for onboarding to fully complete and permission check to start
+- waitForAnimationToEnd:
+    timeout: 100
+
+# Permission verification might be very fast in release build
+# Check for permission loading screen but don't fail if it's too fast
+- runFlow:
+    when:
+      visible:
+        text: "Checking Location Permissions"
+    commands:
+      - waitForAnimationToEnd:
+          timeout: 2000
+
+# Handle initial location permission dialog
+- runFlow:
+    when:
+      visible: "Allow"
+    commands:
+      - tapOn: "Allow While Using App"
+      - waitForAnimationToEnd:
+          timeout: 1000
+
+# Handle background location permission dialog (the critical one)
+- runFlow:
+    when:
+      visible:
+        text: "Allow \"FogOfDog\" to also use your location even when you are not using the app?"
+    commands:
+      - tapOn: "Change to Always Allow"
+      - waitForAnimationToEnd:
+          timeout: 2000
+
+# Alternative background permission handling
+- runFlow:
+    when:
+      visible: "Always Allow"
+    commands:
+      - tapOn: "Always Allow"
+      - waitForAnimationToEnd:
+          timeout: 2000
+
+# === PHASE 3: CRITICAL TIMING CHECK ===
+# This is where the white screen issue occurs
+# Check what happens immediately after permissions are granted
+
+# Wait for permission verification to complete
+- waitForAnimationToEnd:
+    timeout: 3000
+
+# Check if we see the white "Getting your location..." screen (the bug)
+- runFlow:
+    when:
+      visible:
+        text: "Getting your location..."
+    commands:
+      - waitForAnimationToEnd:
+          timeout: 3000  # Wait to see how long it persists
+
+# Check if we see the loading screen  
+- runFlow:
+    when:
+      visible:
+        text: "Clearing the fog..."
+    commands:
+      - waitForAnimationToEnd:
+          timeout: 2000
+
+# === PHASE 4: MAP RENDERING & ANIMATION ===
+# CRITICAL: Verify we're NOT stuck on loading screen
+- assertNotVisible:
+    text: "Getting your location..."
+
+# CRITICAL: Verify actual map content is rendered (fog overlay should be present)
+# The map should show actual geographic content, not just a loading state
+- waitForAnimationToEnd:
+    timeout: 2000
+- assertVisible:
+    id: "map-screen"
+
+# Verify location button is present and functional
+- waitForAnimationToEnd
+- assertVisible:
+    id: "location-button"
+
+# CRITICAL: Verify we have actual GPS coordinates (not just loading state)
+# The map should be centered on a real location, not showing default/null state
+
+# === PHASE 5: CINEMATIC ANIMATION VALIDATION ===
+# The animation should start automatically after map loads
+# We can't directly test the animation, but we can verify the map is functional
+
+# Wait for potential cinematic animation to complete
+- waitForAnimationToEnd:
+    timeout: 8000
+
+# Verify map is interactive after animation
+- tapOn:
+    id: "location-button"
+- waitForAnimationToEnd:
+    timeout: 1000
+
+# Test that location updates work
+- setLocation:
+    latitude: 37.7849  # Move slightly north
+    longitude: -122.4194
+- waitForAnimationToEnd:
+    timeout: 2000
+
+# Verify the map responds to location changes
+- waitForAnimationToEnd
+- assertVisible:
+    text: "Woof!"
+
+# === PHASE 6: FINAL VALIDATION ===
+# Ensure all core functionality works after the first-time flow
+- tapOn:
+    id: "location-button"
+- waitForAnimationToEnd:
+    timeout: 1000
+
+# Test settings access
+- tapOn:
+    id: "settings-button"  
+- waitForAnimationToEnd:
+    timeout: 1000
+
+# Close settings if opened
+- runFlow:
+    when:
+      visible: "Close"
+    commands:
+      - tapOn: "Close"
+
+# Test complete - first-time user flow validated

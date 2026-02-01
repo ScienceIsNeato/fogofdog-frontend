@@ -19,10 +19,9 @@ const path = require('path');
 
 // Constants for coordinate calculations
 const METERS_PER_DEGREE_LAT = 111320;
-const DEFAULT_LOCATION = { latitude: 37.78825, longitude: -122.4324 };
 
-// File paths
-const CURRENT_LOCATION_FILE = path.join(__dirname, '..', 'current-location.json');
+// Track last location set in this session (no file persistence)
+let sessionLastLocation = null;
 
 /**
  * Calculate new coordinates based on angle and distance from current position
@@ -56,37 +55,127 @@ function validateCoordinates(lat, lon) {
 }
 
 /**
- * Get current location from stored file or use default
+ * Get current location from simulator or app state (no file dependency)
  */
-function getCurrentLocation() {
+async function getCurrentLocation() {
   try {
-    if (fs.existsSync(CURRENT_LOCATION_FILE)) {
-      const data = fs.readFileSync(CURRENT_LOCATION_FILE, 'utf8');
-      const location = JSON.parse(data);
-      console.log(`📍 Using stored current location: ${location.latitude}, ${location.longitude}`);
-      return location;
+    // Method 1: Query simulator directly for current location
+    const simulatorLocation = await getSimulatorCurrentLocation();
+    if (simulatorLocation) {
+      console.log(
+        `📍 Using simulator current location: ${simulatorLocation.latitude}, ${simulatorLocation.longitude}`
+      );
+      return simulatorLocation;
     }
-  } catch (error) {
-    console.warn(`⚠️  Could not read current location file: ${error.message}`);
+  } catch (_error) {
+    console.warn(`⚠️  Could not get simulator location: ${_error.message}`);
   }
 
-  console.log(
-    `📍 Using default location: ${DEFAULT_LOCATION.latitude}, ${DEFAULT_LOCATION.longitude}`
-  );
-  return DEFAULT_LOCATION;
+  try {
+    // Method 2: Try to read from app's AsyncStorage (if available)
+    const appLocation = await getAppCurrentLocation();
+    if (appLocation) {
+      console.log(
+        `📍 Using app current location: ${appLocation.latitude}, ${appLocation.longitude}`
+      );
+      return appLocation;
+    }
+  } catch (_error) {
+    console.warn(`⚠️  Could not get app location: ${_error.message}`);
+  }
+
+  // Method 3: Use last location set in this session
+  if (sessionLastLocation) {
+    console.log(
+      `📍 Using session last location: ${sessionLastLocation.latitude}, ${sessionLastLocation.longitude}`
+    );
+    return sessionLastLocation;
+  }
+
+  // Method 4: Final fallback to simulator's default location (Eugene, Oregon)
+  console.log(`📍 Using fallback location (Eugene, OR): 44.0248, -123.1044`);
+  return { latitude: 44.0248, longitude: -123.1044 };
 }
 
 /**
- * Save current location for future relative calculations
+ * Query simulator for its current location setting
  */
-function saveCurrentLocation(lat, lon) {
-  const location = { latitude: lat, longitude: lon };
+async function getSimulatorCurrentLocation() {
   try {
-    fs.writeFileSync(CURRENT_LOCATION_FILE, JSON.stringify(location, null, 2));
-    console.log(`💾 Saved current location: ${lat}, ${lon}`);
-  } catch (error) {
-    console.error(`❌ Failed to save current location: ${error.message}`);
+    // Get the current simulator device UDID
+    const devices = execSync('xcrun simctl list devices booted --json', { encoding: 'utf8' });
+    const deviceData = JSON.parse(devices);
+
+    let bootedDevice = null;
+    for (const runtime in deviceData.devices) {
+      const runtimeDevices = deviceData.devices[runtime];
+      bootedDevice = runtimeDevices.find((device) => device.state === 'Booted');
+      if (bootedDevice) break;
+    }
+
+    if (!bootedDevice) {
+      throw new Error('No booted simulator found');
+    }
+
+    // Unfortunately, xcrun simctl doesn't provide a direct way to query current location
+    // The simulator's location is set but not easily queryable via command line
+    // We'd need to implement this by reading simulator's internal location state
+    // For now, return null to use other methods
+    return null;
+  } catch (_error) {
+    return null;
   }
+}
+
+/**
+ * Try to read current location from app's actual GPS data
+ */
+async function getAppCurrentLocation() {
+  try {
+    // Method 1: Check if there's a gps-injection.json file with recent data
+    const injectionFile = path.join(__dirname, '..', 'gps-injection.json');
+    if (fs.existsSync(injectionFile)) {
+      const data = fs.readFileSync(injectionFile, 'utf8');
+      const gpsData = JSON.parse(data);
+
+      // Handle both array format and object format with coordinates array
+      let coordinates = [];
+      if (Array.isArray(gpsData)) {
+        coordinates = gpsData;
+      } else if (gpsData.coordinates && Array.isArray(gpsData.coordinates)) {
+        coordinates = gpsData.coordinates;
+      }
+
+      if (coordinates.length > 0) {
+        // Get the most recent GPS point that's not in the future
+        const now = Date.now();
+        const validPoints = coordinates
+          .filter((point) => point.timestamp <= now)
+          .sort((a, b) => b.timestamp - a.timestamp);
+
+        if (validPoints.length > 0) {
+          const lastPoint = validPoints[0];
+          console.log(`📍 Found recent GPS data: ${lastPoint.latitude}, ${lastPoint.longitude}`);
+          return { latitude: lastPoint.latitude, longitude: lastPoint.longitude };
+        }
+      }
+    }
+
+    // Method 2: Could implement AsyncStorage reading here in the future
+    // For now, return null to use fallback
+    return null;
+  } catch (_error) {
+    console.warn(`⚠️  Could not read app GPS data: ${_error.message}`);
+    return null;
+  }
+}
+
+/**
+ * Track location set in this session (no file persistence)
+ */
+function trackSessionLocation(lat, lon) {
+  sessionLastLocation = { latitude: lat, longitude: lon };
+  console.log(`📍 Location set: ${lat}, ${lon} (tracked in session)`);
 }
 
 /**
@@ -174,8 +263,8 @@ async function setSimulatorLocation(lat, lon, timeDeltaHours = 0) {
     console.log(`🎯 GPS injection complete! App should update automatically.`);
 
     return true;
-  } catch (error) {
-    console.error(`❌ Failed to set simulator location: ${error.message}`);
+  } catch (_error) {
+    console.error(`❌ Failed to set simulator location: ${_error.message}`);
     return false;
   }
 }
@@ -297,7 +386,7 @@ async function main() {
         process.exit(1);
       }
 
-      const { latitude, longitude } = getCurrentLocation();
+      const { latitude, longitude } = await getCurrentLocation();
 
       const angle = parseFloat(args.angle);
       const distance = parseFloat(args.distance);
@@ -315,12 +404,12 @@ async function main() {
     // Set location and save for next relative calculation
     const success = await setSimulatorLocation(targetLat, targetLon, timeDeltaHours);
     if (success) {
-      saveCurrentLocation(targetLat, targetLon);
+      trackSessionLocation(targetLat, targetLon);
     } else {
       process.exit(1);
     }
-  } catch (error) {
-    console.error(`❌ An error occurred: ${error.message}`);
+  } catch (_error) {
+    console.error(`❌ An error occurred: ${_error.message}`);
     process.exit(1);
   }
 }
