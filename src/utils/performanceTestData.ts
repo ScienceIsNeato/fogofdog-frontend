@@ -1,6 +1,6 @@
 import { GeoPoint } from '../types/user';
-import type { StreetSegment, Intersection, StreetPoint } from '../types/street';
-import { closestPointOnSegment, haversineDistance } from '../services/StreetDataService';
+import type { StreetSegment, Intersection } from '../types/street';
+import { walkStreets } from '../services/StreetDataService';
 
 /**
  * Performance test data generators for interactive testing
@@ -167,69 +167,9 @@ export const generatePerformanceTestData = (
 // Street-aligned test-data generation
 // ---------------------------------------------------------------------------
 
-/** Choose the intersection end of `seg` that is closer to `point`. */
-function nearerEndId(point: StreetPoint, seg: StreetSegment): string {
-  const first = seg.points[0];
-  const last = seg.points[seg.points.length - 1];
-  if (!first) return seg.startNodeId;
-  if (!last) return seg.endNodeId;
-  const dStart = haversineDistance(
-    point.latitude,
-    point.longitude,
-    first.latitude,
-    first.longitude
-  );
-  const dEnd = haversineDistance(point.latitude, point.longitude, last.latitude, last.longitude);
-  return dStart <= dEnd ? seg.startNodeId : seg.endNodeId;
-}
-
-/** Pick a random exit segment at `intersection`, optionally preferring unexplored. */
-function pickNextSegment(params: {
-  intersection: Intersection;
-  excludeId: string;
-  preferUnexplored: boolean;
-  exploredIds: string[];
-}): string | null {
-  const { intersection, excludeId, preferUnexplored, exploredIds } = params;
-  const candidates = intersection.connectedSegmentIds.filter((id) => id !== excludeId);
-  if (candidates.length === 0) return null;
-
-  if (preferUnexplored) {
-    const unexplored = candidates.filter((id) => !exploredIds.includes(id));
-    if (unexplored.length > 0)
-      return unexplored[Math.floor(Math.random() * unexplored.length)] ?? null;
-  }
-  return candidates[Math.floor(Math.random() * candidates.length)] ?? null;
-}
-
-/** Interpolate `maxPts` evenly-spaced points from `from` toward `to`. */
-function stepsToward(
-  from: StreetPoint,
-  to: StreetPoint,
-  stepMeters: number,
-  maxPts: number
-): StreetPoint[] {
-  const totalDist = haversineDistance(from.latitude, from.longitude, to.latitude, to.longitude);
-  const n = Math.min(maxPts, Math.max(1, Math.round(totalDist / stepMeters)));
-  const result: StreetPoint[] = [];
-  for (let i = 1; i <= n; i++) {
-    const t = Math.min((i * stepMeters) / totalDist, 1);
-    result.push({
-      latitude: from.latitude + t * (to.latitude - from.latitude),
-      longitude: from.longitude + t * (to.longitude - from.longitude),
-    });
-  }
-  return result;
-}
-
 /**
  * Generate GPS points that follow the provided street graph.
- *
- * Algorithm:
- *  1. Snap `startingLocation` to the nearest segment.
- *  2. Walk toward the nearer intersection on that segment.
- *  3. At each intersection choose a random (or prefer-unexplored) exit.
- *  4. Repeat until `count` points have been emitted.
+ * Delegates the actual walk to `walkStreets` and wraps each point with a timestamp.
  */
 export const generateStreetAlignedTestData = (
   count: number,
@@ -257,7 +197,7 @@ export const generateStreetAlignedTestData = (
     streetData.intersections.map((i) => [i.id, i])
   );
 
-  const start: StreetPoint = startingLocation ?? BASE_COORDINATES;
+  const start = startingLocation ?? BASE_COORDINATES;
   const path = walkStreets({ start, segMap, intMap, count, preferUnexplored, exploredSegmentIds });
 
   return path.slice(0, count).map((pt, idx) => ({
@@ -266,58 +206,3 @@ export const generateStreetAlignedTestData = (
     timestamp: startTime + idx * intervalSeconds * 1000,
   }));
 };
-
-/** Core street-walk loop – returns raw StreetPoint path. */
-function walkStreets(params: {
-  start: StreetPoint;
-  segMap: Record<string, StreetSegment>;
-  intMap: Record<string, Intersection>;
-  count: number;
-  preferUnexplored: boolean;
-  exploredSegmentIds: string[];
-}): StreetPoint[] {
-  const { start, segMap, intMap, count, preferUnexplored, exploredSegmentIds } = params;
-  const STEP_M = 15; // ~15 m between generated points
-  const points: StreetPoint[] = [start];
-
-  // Find nearest segment
-  let bestSeg: StreetSegment | null = null;
-  let bestDist = Infinity;
-  for (const seg of Object.values(segMap)) {
-    const { distance } = closestPointOnSegment(start, seg.points);
-    if (distance < bestDist) {
-      bestDist = distance;
-      bestSeg = seg;
-    }
-  }
-  if (!bestSeg) return points;
-
-  let currentSegId = bestSeg.id;
-  let targetIntId = nearerEndId(start, bestSeg);
-
-  while (points.length < count) {
-    const targetInt = intMap[targetIntId];
-    if (!targetInt) break;
-
-    // Generate steps toward this intersection
-    const last = points[points.length - 1]!;
-    const steps = stepsToward(last, targetInt, STEP_M, count - points.length);
-    points.push(...steps);
-
-    // Choose next segment
-    const nextSegId = pickNextSegment({
-      intersection: targetInt,
-      excludeId: currentSegId,
-      preferUnexplored,
-      exploredIds: exploredSegmentIds,
-    });
-    if (!nextSegId) break; // dead end
-
-    currentSegId = nextSegId;
-    const nextSeg = segMap[nextSegId];
-    if (nextSeg) {
-      targetIntId = nextSeg.startNodeId === targetInt.id ? nextSeg.endNodeId : nextSeg.startNodeId;
-    }
-  }
-  return points;
-}

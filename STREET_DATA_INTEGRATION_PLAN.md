@@ -73,7 +73,10 @@ Key actions:
 
 ## 4. Service Layer — `src/services/StreetDataService.ts`
 
-### Utility helpers (pure, exported, independently testable)
+All exports are **pure functions**; nothing in this module touches Redux. Callers
+read state, call the functions, and dispatch results themselves.
+
+### Geometry helpers
 
 | Function                | Notes                            |
 | ----------------------- | -------------------------------- |
@@ -82,24 +85,25 @@ Key actions:
 | `cardinalDirection`     | N / NE / E … string              |
 | `closestPointOnSegment` | projects a point onto a polyline |
 | `computeSegmentLength`  | sum of haversine edges           |
+| `makeNodeKey`           | rounds lat/lon to node-ID string |
 
-### Query methods (on the `StreetDataService` singleton)
+### Query functions
 
-#### `get_closest_streets({ numResults?, comparisonPoint?, filter? })`
+#### `findClosestStreets({ segments, exploredIds, comparisonPoint, numResults, filter? })`
 
-Returns up to `numResults` streets sorted by distance. `comparisonPoint` defaults to the current
-GPS location. `filter` limits results to explored or unexplored segments only.
+Returns up to `numResults` streets sorted by distance. `filter` limits results to
+explored or unexplored segments only.
 
-#### `get_closest_intersections({ numResults?, comparisonPoint?, filter? })`
+#### `findClosestIntersections({ intersections, exploredIds, comparisonPoint, numResults, filter? })`
 
 Same contract but over intersections. Returned objects include both street-name pairs and GPS
 coords of the node.
 
-#### `get_shortest_loop({ maxDistanceMiles? })`
+#### `findShortestLoop({ segments, intersections, startPoint, maxDistanceMiles })`
 
 Uses the **always-turn-right** heuristic to trace a loop:
 
-1. Project current location onto the nearest segment.
+1. Project `startPoint` onto the nearest segment.
 2. Walk to the nearer intersection.
 3. At each intersection, choose the exit whose bearing is the **rightmost** turn
    (formula: sort by `((exitBearing − inBearing − 90 + 720) % 360)` ascending).
@@ -112,11 +116,34 @@ Edge cases handled:
 - **Max distance** — cumulative metres exceeds limit → `error: 'max_distance_exceeded'`
 - **No streets loaded** — returns `success: false` immediately
 
-### Bulk helpers
+### Street-walk generator
 
-- `markPathAsExplored(path)` — scans every point in a GPS path, batch-dispatches explored IDs
-- `fetchAndStore(centre, radiusMiles)` — hits Overpass, parses, dispatches `loadStreetData`
-- `getSampleStreetData()` — static 3×3 grid fixture centred on Eugene South Hills
+#### `walkStreets({ start, segMap, intMap, count, preferUnexplored, exploredSegmentIds })`
+
+Walks the street graph emitting points ~15 m apart until `count` is reached. Used by
+`generateStreetAlignedTestData` in the performance-test utilities.
+
+### Exploration helpers
+
+#### `computeExploredIds(path, segments, intersections)`
+
+Scans every point in a GPS path and returns `{ segmentIds, intersectionIds }` of nearby
+streets. The caller dispatches `markSegmentsExplored` / `markIntersectionsExplored`.
+
+#### `getSampleStreetData()`
+
+Static 3×3 grid fixture centred on Eugene South Hills — used by dev tools and CI.
+
+---
+
+### Overpass fetch — `src/services/OverpassClient.ts`
+
+Network access is isolated in its own module. The single public export,
+`fetchStreetGraph(centre, radiusMeters)`, hits the Overpass API, parses the response,
+and returns `{ segments, intersections }`. It does **not** touch Redux.
+
+> **TODO before production:** add retry with back-off, response caching (keyed on
+> centre + radius), and an offline fallback path.
 
 ---
 
@@ -124,17 +151,18 @@ Edge cases handled:
 
 ### `src/utils/performanceTestData.ts`
 
-New exported function `generateStreetAlignedTestData(count, streetData, options)`:
+Exported function `generateStreetAlignedTestData(count, streetData, options)`:
 
-- Projects the starting point onto the nearest segment.
-- Walks the street graph, choosing random (or prefer-unexplored) exits at intersections.
-- Emits one `GeoPoint` every `intervalSeconds` spaced ~15 m apart along the polyline.
+- Assembles `segMap` / `intMap` from the flat arrays in `streetData`.
+- Delegates the actual graph walk to `walkStreets` (exported from `StreetDataService`).
+- Wraps every returned point with a monotonic timestamp.
 
 ### `src/utils/injectPerformanceTestData.ts`
 
 `generateSpatialPath` gains a branch: when `state.street.preferStreets` is `true` **and** street
-data is loaded, it delegates to `generateStreetAlignedTestData` and, after injection, calls
-`markPathAsExplored` so the streetSlice stays in sync.
+data is loaded, it delegates to `generateStreetAlignedTestData`. After injection it calls
+`computeExploredIds` and dispatches `markSegmentsExplored` / `markIntersectionsExplored`
+directly — no singleton involved.
 
 ---
 
@@ -165,6 +193,7 @@ New "Street Navigation" section after the Performance Testing panel:
 
 ## 8. Follow-ups (out of scope)
 
+- **OverpassClient**: retry with back-off, response caching, offline fallback (see TODO in `OverpassClient.ts`)
 - Production auto-fetch on map centre change
 - T-junction detection (splitting ways at interior nodes)
 - Persistent street-exploration cache (AsyncStorage)

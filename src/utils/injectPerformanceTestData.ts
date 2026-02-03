@@ -8,7 +8,8 @@ import {
 } from './performanceTestData';
 import { logger } from './logger';
 import { GeoPoint } from '../types/user';
-import { StreetDataService } from '../services/StreetDataService';
+import { computeExploredIds } from '../services/StreetDataService';
+import { markSegmentsExplored, markIntersectionsExplored } from '../store/slices/streetSlice';
 
 /**
  * Inject performance test data into the app for interactive testing
@@ -203,10 +204,14 @@ export class PerformanceTestDataInjector {
     });
 
     // Mark streets along the generated path as explored
-    const service = StreetDataService.getInstance();
-    service.markPathAsExplored(
-      points.map((p) => ({ latitude: p.latitude, longitude: p.longitude }))
+    const path = points.map((p) => ({ latitude: p.latitude, longitude: p.longitude }));
+    const { segmentIds, intersectionIds } = computeExploredIds(
+      path,
+      streetData.segments,
+      streetData.intersections
     );
+    if (segmentIds.length > 0) store.dispatch(markSegmentsExplored(segmentIds));
+    if (intersectionIds.length > 0) store.dispatch(markIntersectionsExplored(intersectionIds));
 
     return points.map((p) => ({ latitude: p.latitude, longitude: p.longitude }));
   }

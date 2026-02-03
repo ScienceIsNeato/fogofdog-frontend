@@ -8,33 +8,9 @@ import {
   findClosestIntersections,
   findShortestLoop,
   getSampleStreetData,
-  StreetDataService,
+  computeExploredIds,
 } from '../StreetDataService';
 import type { StreetPoint } from '../../types/street';
-
-// ---------------------------------------------------------------------------
-// Module-level mocks (hoisted before imports)
-// ---------------------------------------------------------------------------
-jest.mock('../../store', () => ({
-  store: {
-    getState: jest.fn(),
-    dispatch: jest.fn(),
-  },
-}));
-
-jest.mock('../../utils/logger', () => ({
-  logger: { warn: jest.fn(), error: jest.fn(), info: jest.fn(), debug: jest.fn() },
-}));
-
-// Grab stable references to the mock fns after hoisting
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const { store: mockStore } = require('../../store');
-const mockGetState: jest.Mock = mockStore.getState;
-const mockDispatch: jest.Mock = mockStore.dispatch;
-
-beforeEach(() => {
-  jest.clearAllMocks();
-});
 
 // ===========================================================================
 // 1. haversineDistance
@@ -482,129 +458,24 @@ describe('findShortestLoop', () => {
 });
 
 // ===========================================================================
-// 10. StreetDataService singleton — delegates to pure functions with Redux state
+// 10. computeExploredIds
 // ===========================================================================
-describe('StreetDataService singleton', () => {
-  it('getInstance returns the same instance', () => {
-    expect(StreetDataService.getInstance()).toBe(StreetDataService.getInstance());
+describe('computeExploredIds', () => {
+  const { segments, intersections } = getSampleStreetData();
+
+  it('returns IDs for segments and intersections near the path', () => {
+    // Centre intersection — should be within 30 m of the segments meeting there
+    const path = [{ latitude: 44.0462, longitude: -123.0236 }];
+    const { segmentIds, intersectionIds } = computeExploredIds(path, segments, intersections);
+    expect(segmentIds.length).toBeGreaterThan(0);
+    expect(intersectionIds.length).toBeGreaterThan(0);
   });
 
-  describe('get_closest_streets', () => {
-    it('reads segments from Redux and returns sorted results', () => {
-      const { segments, intersections } = getSampleStreetData();
-      mockGetState.mockReturnValue({
-        street: {
-          segments: Object.fromEntries(segments.map((s) => [s.id, s])),
-          intersections: Object.fromEntries(intersections.map((i) => [i.id, i])),
-          exploredSegmentIds: ['ew_0_0'],
-          exploredIntersectionIds: [],
-        },
-        exploration: { currentLocation: { latitude: 44.0462, longitude: -123.0236 } },
-      });
-
-      const results = StreetDataService.getInstance().get_closest_streets({ numResults: 2 });
-      expect(results).toHaveLength(2);
-      expect(results[0]?.distance).toBeLessThanOrEqual(results[1]?.distance ?? Infinity);
-    });
-
-    it('uses comparisonPoint override when provided', () => {
-      const { segments } = getSampleStreetData();
-      mockGetState.mockReturnValue({
-        street: {
-          segments: Object.fromEntries(segments.map((s) => [s.id, s])),
-          exploredSegmentIds: [],
-        },
-        exploration: { currentLocation: null },
-      });
-
-      const corner: StreetPoint = { latitude: 44.0444, longitude: -123.0261 };
-      const results = StreetDataService.getInstance().get_closest_streets({
-        numResults: 1,
-        comparisonPoint: corner,
-      });
-      expect(results).toHaveLength(1);
-    });
-
-    it('falls back to Eugene centre when currentLocation is null', () => {
-      mockGetState.mockReturnValue({
-        street: { segments: {}, exploredSegmentIds: [] },
-        exploration: { currentLocation: null },
-      });
-
-      // No segments → empty result, but no crash
-      expect(StreetDataService.getInstance().get_closest_streets({ numResults: 1 })).toHaveLength(
-        0
-      );
-    });
-  });
-
-  describe('get_closest_intersections', () => {
-    it('reads intersections from Redux and returns results', () => {
-      const { intersections } = getSampleStreetData();
-      mockGetState.mockReturnValue({
-        street: {
-          intersections: Object.fromEntries(intersections.map((i) => [i.id, i])),
-          exploredIntersectionIds: [],
-        },
-        exploration: { currentLocation: { latitude: 44.0462, longitude: -123.0236 } },
-      });
-
-      const results = StreetDataService.getInstance().get_closest_intersections({ numResults: 2 });
-      expect(results).toHaveLength(2);
-    });
-  });
-
-  describe('get_shortest_loop', () => {
-    it('finds a loop using currentLocation as start', () => {
-      const { segments, intersections } = getSampleStreetData();
-      mockGetState.mockReturnValue({
-        street: {
-          segments: Object.fromEntries(segments.map((s) => [s.id, s])),
-          intersections: Object.fromEntries(intersections.map((i) => [i.id, i])),
-        },
-        exploration: { currentLocation: { latitude: 44.0462, longitude: -123.0236 } },
-      });
-
-      const result = StreetDataService.getInstance().get_shortest_loop();
-      expect(result.success).toBe(true);
-    });
-  });
-
-  describe('markPathAsExplored', () => {
-    it('dispatches markSegmentsExplored for nearby segments', () => {
-      const { segments, intersections } = getSampleStreetData();
-      mockGetState.mockReturnValue({
-        street: {
-          segments: Object.fromEntries(segments.map((s) => [s.id, s])),
-          intersections: Object.fromEntries(intersections.map((i) => [i.id, i])),
-        },
-      });
-
-      // Walk directly through the centre intersection
-      StreetDataService.getInstance().markPathAsExplored([
-        { latitude: 44.0462, longitude: -123.0236 },
-      ]);
-
-      expect(mockDispatch).toHaveBeenCalled();
-      // Should have dispatched both segment and intersection actions
-      const dispatchedTypes = mockDispatch.mock.calls.map((c: any[]) => c[0]?.type);
-      expect(dispatchedTypes).toContain('street/markSegmentsExplored');
-      expect(dispatchedTypes).toContain('street/markIntersectionsExplored');
-    });
-
-    it('does not dispatch when path is far from all streets', () => {
-      const { segments, intersections } = getSampleStreetData();
-      mockGetState.mockReturnValue({
-        street: {
-          segments: Object.fromEntries(segments.map((s) => [s.id, s])),
-          intersections: Object.fromEntries(intersections.map((i) => [i.id, i])),
-        },
-      });
-
-      // Point at lat 0 — thousands of km from Eugene
-      StreetDataService.getInstance().markPathAsExplored([{ latitude: 0, longitude: 0 }]);
-
-      expect(mockDispatch).not.toHaveBeenCalled();
-    });
+  it('returns empty arrays when the path is far from all streets', () => {
+    // Point at lat 0 — thousands of km from Eugene
+    const path = [{ latitude: 0, longitude: 0 }];
+    const { segmentIds, intersectionIds } = computeExploredIds(path, segments, intersections);
+    expect(segmentIds).toHaveLength(0);
+    expect(intersectionIds).toHaveLength(0);
   });
 });

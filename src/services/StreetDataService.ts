@@ -1,15 +1,11 @@
 /**
- * StreetDataService – fetches, caches, and queries street-level data.
+ * StreetDataService – pure geometry helpers, query functions, loop algorithm,
+ * street-walk generator, and exploration-marking utilities.
  *
- * Pure helper functions are exported individually so unit tests can exercise
- * them without instantiating the singleton or touching Redux.
- *
- * The singleton class (`StreetDataService`) is the only layer that reads /
- * writes Redux state; everything it delegates to is a plain function.
+ * Every export is a plain function.  Nothing in this module reads or writes
+ * Redux state; callers are responsible for dispatching.
  */
 
-import { store } from '../store';
-import { logger } from '../utils/logger';
 import type {
   StreetPoint,
   StreetSegment,
@@ -20,18 +16,10 @@ import type {
   LoopResult,
   LoopWaypoint,
 } from '../types/street';
-import {
-  loadStreetData,
-  setStreetLoading,
-  setStreetError,
-  markSegmentsExplored,
-  markIntersectionsExplored,
-} from '../store/slices/streetSlice';
 
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
-const OVERPASS_API_URL = 'https://overpass-api.de/api/interpreter';
 const METERS_PER_MILE = 1609.344;
 const EARTH_RADIUS_METERS = 6_371_000;
 /** GPS points within this many metres of a segment mark it explored */
@@ -138,118 +126,13 @@ export function computeSegmentLength(points: StreetPoint[]): number {
   return total;
 }
 
-// ---------------------------------------------------------------------------
-// 2. Overpass API helpers
-// ---------------------------------------------------------------------------
-
-interface OverpassElement {
-  type: string;
-  id: number;
-  tags?: { highway?: string; name?: string; [key: string]: string | undefined };
-  geometry?: { lat: number; lon: number }[];
-}
-
-interface ParsedWay {
-  id: string;
-  name: string;
-  points: StreetPoint[];
-}
-
-function makeNodeKey(lat: number, lon: number): string {
+/** Round lat/lon to 5 decimal places and join with underscore — used as node ID. */
+export function makeNodeKey(lat: number, lon: number): string {
   return `${lat.toFixed(5)}_${lon.toFixed(5)}`;
 }
 
-async function fetchFromOverpassAPI(
-  center: StreetPoint,
-  radiusMeters: number
-): Promise<OverpassElement[]> {
-  const q = [
-    '[out:json][timeout:25];(',
-    'way["highway"~"^(residential|primary|secondary|tertiary|unclassified|living_street|service)$"]',
-    `(around:${radiusMeters},${center.latitude},${center.longitude});`,
-    ');out geom;',
-  ].join('');
-
-  const res = await fetch(OVERPASS_API_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: `data=${encodeURIComponent(q)}`,
-  });
-  if (!res.ok) throw new Error(`Overpass API ${res.status}`);
-  const data = (await res.json()) as { elements: OverpassElement[] };
-  return data.elements;
-}
-
-function parseWays(elements: OverpassElement[]): ParsedWay[] {
-  return elements
-    .filter((el) => el.type === 'way' && el.geometry && el.geometry.length >= 2)
-    .map((el) => ({
-      id: String(el.id),
-      name: el.tags?.name ?? 'Unnamed Road',
-      points: (el.geometry ?? []).map((g) => ({ latitude: g.lat, longitude: g.lon })),
-    }));
-}
-
 // ---------------------------------------------------------------------------
-// 3. Graph construction  (endpoints → intersections → segments)
-// ---------------------------------------------------------------------------
-
-function buildStreetGraph(ways: ParsedWay[]): {
-  segments: StreetSegment[];
-  intersections: Intersection[];
-} {
-  // Collect first / last point of every way keyed by rounded coord
-  const epMap: Record<string, { wayIds: string[]; point: StreetPoint }> = {};
-
-  for (const way of ways) {
-    const first = way.points[0];
-    const last = way.points[way.points.length - 1];
-    for (const ep of [first, last]) {
-      if (!ep) continue;
-      const key = makeNodeKey(ep.latitude, ep.longitude);
-      if (!epMap[key]) epMap[key] = { wayIds: [], point: ep };
-      epMap[key]!.wayIds.push(way.id);
-    }
-  }
-
-  // Every endpoint becomes an intersection node
-  const intersections: Intersection[] = Object.entries(epMap).map(([key, data]) => ({
-    id: key,
-    latitude: data.point.latitude,
-    longitude: data.point.longitude,
-    streetNames: [...new Set(ways.filter((w) => data.wayIds.includes(w.id)).map((w) => w.name))],
-    connectedSegmentIds: [], // filled below
-  }));
-
-  // Build one segment per way; wire up connected-segment lists
-  const segments: StreetSegment[] = ways.map((way) => {
-    const first = way.points[0];
-    const last = way.points[way.points.length - 1];
-    const startId = first ? makeNodeKey(first.latitude, first.longitude) : '';
-    const endId = last ? makeNodeKey(last.latitude, last.longitude) : '';
-
-    const seg: StreetSegment = {
-      id: `seg_${way.id}`,
-      name: way.name,
-      points: way.points,
-      startNodeId: startId,
-      endNodeId: endId,
-      lengthMeters: computeSegmentLength(way.points),
-    };
-
-    const startInt = intersections.find((i) => i.id === startId);
-    if (startInt) startInt.connectedSegmentIds.push(seg.id);
-    const endInt = intersections.find((i) => i.id === endId);
-    if (endInt) endInt.connectedSegmentIds.push(seg.id);
-
-    return seg;
-  });
-
-  return { segments, intersections };
-}
-
-// ---------------------------------------------------------------------------
-// 4. Core query functions  (pure – accept data, return results)
+// 2. Core query functions  (pure – accept data, return results)
 // ---------------------------------------------------------------------------
 
 export function findClosestStreets(params: {
@@ -331,7 +214,7 @@ export function findClosestIntersections(params: {
 }
 
 // ---------------------------------------------------------------------------
-// 5. Loop algorithm helpers
+// 3. Loop algorithm helpers
 // ---------------------------------------------------------------------------
 
 /** Bearing of the exit from `intersection` along `seg` (towards the other end). */
@@ -560,7 +443,129 @@ function nearerIntersection(
 }
 
 // ---------------------------------------------------------------------------
-// 6. Exploration-marking helpers  (used by the service)
+// 4. Street-walk helpers  (used by test-data generators)
+// ---------------------------------------------------------------------------
+
+/** Choose the intersection end of `seg` that is closer to `point`. */
+function nearerEndId(point: StreetPoint, seg: StreetSegment): string {
+  const first = seg.points[0];
+  const last = seg.points[seg.points.length - 1];
+  if (!first) return seg.startNodeId;
+  if (!last) return seg.endNodeId;
+  const dStart = haversineDistance(
+    point.latitude,
+    point.longitude,
+    first.latitude,
+    first.longitude
+  );
+  const dEnd = haversineDistance(point.latitude, point.longitude, last.latitude, last.longitude);
+  return dStart <= dEnd ? seg.startNodeId : seg.endNodeId;
+}
+
+/** Pick a random exit segment at `intersection`, optionally preferring unexplored. */
+function pickNextSegment(params: {
+  intersection: Intersection;
+  excludeId: string;
+  preferUnexplored: boolean;
+  exploredIds: string[];
+}): string | null {
+  const { intersection, excludeId, preferUnexplored, exploredIds } = params;
+  const candidates = intersection.connectedSegmentIds.filter((id) => id !== excludeId);
+  if (candidates.length === 0) return null;
+
+  if (preferUnexplored) {
+    const unexplored = candidates.filter((id) => !exploredIds.includes(id));
+    if (unexplored.length > 0)
+      return unexplored[Math.floor(Math.random() * unexplored.length)] ?? null;
+  }
+  return candidates[Math.floor(Math.random() * candidates.length)] ?? null;
+}
+
+/** Interpolate `maxPts` evenly-spaced points from `from` toward `to`. */
+function stepsToward(
+  from: StreetPoint,
+  to: StreetPoint,
+  stepMeters: number,
+  maxPts: number
+): StreetPoint[] {
+  const totalDist = haversineDistance(from.latitude, from.longitude, to.latitude, to.longitude);
+  const n = Math.min(maxPts, Math.max(1, Math.round(totalDist / stepMeters)));
+  const result: StreetPoint[] = [];
+  for (let i = 1; i <= n; i++) {
+    const t = Math.min((i * stepMeters) / totalDist, 1);
+    result.push({
+      latitude: from.latitude + t * (to.latitude - from.latitude),
+      longitude: from.longitude + t * (to.longitude - from.longitude),
+    });
+  }
+  return result;
+}
+
+/**
+ * Core street-walk loop – returns raw StreetPoint path.
+ *
+ * Algorithm:
+ *  1. Snap `start` to the nearest segment.
+ *  2. Walk toward the nearer intersection on that segment.
+ *  3. At each intersection choose a random (or prefer-unexplored) exit.
+ *  4. Repeat until `count` points have been emitted.
+ */
+export function walkStreets(params: {
+  start: StreetPoint;
+  segMap: Record<string, StreetSegment>;
+  intMap: Record<string, Intersection>;
+  count: number;
+  preferUnexplored: boolean;
+  exploredSegmentIds: string[];
+}): StreetPoint[] {
+  const { start, segMap, intMap, count, preferUnexplored, exploredSegmentIds } = params;
+  const STEP_M = 15; // ~15 m between generated points
+  const points: StreetPoint[] = [start];
+
+  // Find nearest segment
+  let bestSeg: StreetSegment | null = null;
+  let bestDist = Infinity;
+  for (const seg of Object.values(segMap)) {
+    const { distance } = closestPointOnSegment(start, seg.points);
+    if (distance < bestDist) {
+      bestDist = distance;
+      bestSeg = seg;
+    }
+  }
+  if (!bestSeg) return points;
+
+  let currentSegId = bestSeg.id;
+  let targetIntId = nearerEndId(start, bestSeg);
+
+  while (points.length < count) {
+    const targetInt = intMap[targetIntId];
+    if (!targetInt) break;
+
+    // Generate steps toward this intersection
+    const last = points[points.length - 1]!;
+    const steps = stepsToward(last, targetInt, STEP_M, count - points.length);
+    points.push(...steps);
+
+    // Choose next segment
+    const nextSegId = pickNextSegment({
+      intersection: targetInt,
+      excludeId: currentSegId,
+      preferUnexplored,
+      exploredIds: exploredSegmentIds,
+    });
+    if (!nextSegId) break; // dead end
+
+    currentSegId = nextSegId;
+    const nextSeg = segMap[nextSegId];
+    if (nextSeg) {
+      targetIntId = nextSeg.startNodeId === targetInt.id ? nextSeg.endNodeId : nextSeg.startNodeId;
+    }
+  }
+  return points;
+}
+
+// ---------------------------------------------------------------------------
+// 5. Exploration-marking helpers
 // ---------------------------------------------------------------------------
 
 function findNearbySegmentIds(point: StreetPoint, segments: StreetSegment[]): string[] {
@@ -579,8 +584,26 @@ function findNearbyIntersectionIds(point: StreetPoint, intersections: Intersecti
     .map((i) => i.id);
 }
 
+/**
+ * Scan every point in a path and return the IDs of nearby segments and
+ * intersections.  The caller is responsible for dispatching the result.
+ */
+export function computeExploredIds(
+  path: StreetPoint[],
+  segments: StreetSegment[],
+  intersections: Intersection[]
+): { segmentIds: string[]; intersectionIds: string[] } {
+  const segIds = new Set<string>();
+  const intIds = new Set<string>();
+  for (const pt of path) {
+    for (const id of findNearbySegmentIds(pt, segments)) segIds.add(id);
+    for (const id of findNearbyIntersectionIds(pt, intersections)) intIds.add(id);
+  }
+  return { segmentIds: [...segIds], intersectionIds: [...intIds] };
+}
+
 // ---------------------------------------------------------------------------
-// 7. Sample street data  (3×3 grid fixture for dev / CI)
+// 6. Sample street data  (3×3 grid fixture for dev / CI)
 // ---------------------------------------------------------------------------
 
 export function getSampleStreetData(): {
@@ -673,110 +696,4 @@ function wires(intersections: Intersection[], seg: StreetSegment): void {
   if (s) s.connectedSegmentIds.push(seg.id);
   const e = intersections.find((i) => i.id === seg.endNodeId);
   if (e) e.connectedSegmentIds.push(seg.id);
-}
-
-// ---------------------------------------------------------------------------
-// 8. Singleton service class  (reads / writes Redux)
-// ---------------------------------------------------------------------------
-
-export class StreetDataService {
-  private static instance: StreetDataService;
-
-  static getInstance(): StreetDataService {
-    if (!StreetDataService.instance) {
-      StreetDataService.instance = new StreetDataService();
-    }
-    return StreetDataService.instance;
-  }
-
-  /** Fetch from Overpass, parse, and dispatch into Redux. */
-  async fetchAndStore(center: StreetPoint, radiusMiles: number): Promise<void> {
-    store.dispatch(setStreetLoading(true));
-    try {
-      const elements = await fetchFromOverpassAPI(center, radiusMiles * METERS_PER_MILE);
-      const ways = parseWays(elements);
-      const graph = buildStreetGraph(ways);
-      store.dispatch(loadStreetData(graph));
-      logger.info(`Fetched ${graph.segments.length} street segments from Overpass`);
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Unknown fetch error';
-      store.dispatch(setStreetError(msg));
-      logger.error('Failed to fetch street data', err);
-    }
-  }
-
-  /** Return closest streets, optionally filtered by exploration status. */
-  get_closest_streets(
-    options: {
-      numResults?: number;
-      comparisonPoint?: StreetPoint;
-      filter?: ExplorationFilter;
-    } = {}
-  ): ClosestStreetResult[] {
-    const state = store.getState();
-    const { numResults = 1, filter } = options;
-    const comparisonPoint = options.comparisonPoint ?? this.currentPoint();
-    return findClosestStreets({
-      segments: Object.values(state.street.segments),
-      exploredIds: state.street.exploredSegmentIds,
-      comparisonPoint,
-      numResults,
-      ...(filter !== undefined && { filter }),
-    });
-  }
-
-  /** Return closest intersections, optionally filtered by exploration status. */
-  get_closest_intersections(
-    options: {
-      numResults?: number;
-      comparisonPoint?: StreetPoint;
-      filter?: ExplorationFilter;
-    } = {}
-  ): ClosestIntersectionResult[] {
-    const state = store.getState();
-    const { numResults = 1, filter } = options;
-    const comparisonPoint = options.comparisonPoint ?? this.currentPoint();
-    return findClosestIntersections({
-      intersections: Object.values(state.street.intersections),
-      exploredIds: state.street.exploredIntersectionIds,
-      comparisonPoint,
-      numResults,
-      ...(filter !== undefined && { filter }),
-    });
-  }
-
-  /** Find the shortest always-turn-right loop from current location. */
-  get_shortest_loop(options: { maxDistanceMiles?: number } = {}): LoopResult {
-    const state = store.getState();
-    const { maxDistanceMiles = 3 } = options;
-    return findShortestLoop({
-      segments: state.street.segments,
-      intersections: state.street.intersections,
-      startPoint: this.currentPoint(),
-      maxDistanceMiles,
-    });
-  }
-
-  /** Scan every point in a path and batch-mark nearby segments / intersections explored. */
-  markPathAsExplored(path: StreetPoint[]): void {
-    const state = store.getState();
-    const segments = Object.values(state.street.segments);
-    const intersections = Object.values(state.street.intersections);
-
-    const segIds = new Set<string>();
-    const intIds = new Set<string>();
-    for (const pt of path) {
-      for (const id of findNearbySegmentIds(pt, segments)) segIds.add(id);
-      for (const id of findNearbyIntersectionIds(pt, intersections)) intIds.add(id);
-    }
-
-    if (segIds.size > 0) store.dispatch(markSegmentsExplored([...segIds]));
-    if (intIds.size > 0) store.dispatch(markIntersectionsExplored([...intIds]));
-  }
-
-  /** Fallback comparison point – current GPS or Eugene centre. */
-  private currentPoint(): StreetPoint {
-    const loc = store.getState().exploration.currentLocation;
-    return loc ?? { latitude: 44.0462, longitude: -123.0236 };
-  }
 }
