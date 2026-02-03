@@ -2,9 +2,8 @@ import {
   generatePerformanceTestData,
   TestPatterns,
   addGPSNoise,
-  GPSPointWithAccuracy,
 } from '../performanceTestData';
-import { GeoPoint } from '../../types/user';
+import { GeoPoint, GPSPointWithAccuracy } from '../../types/user';
 
 describe('performanceTestData', () => {
   describe('generatePerformanceTestData', () => {

@@ -7,11 +7,9 @@ import {
   StreetType,
   BoundingBox,
   OSMResponse,
-  OSMElement,
   ClosestStreetResult,
   ClosestIntersectionResult,
   LoopPath,
-  TurnInstruction,
   GetClosestStreetsOptions,
   GetClosestIntersectionsOptions,
   GetShortestLoopOptions,
@@ -21,10 +19,7 @@ import {
 const OVERPASS_API_URL = 'https://overpass-api.de/api/interpreter';
 const CACHE_PREFIX = 'street_cache_';
 const CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
-const MAX_CACHE_SIZE_MB = 10;
 const RATE_LIMIT_MS = 6000; // 10 requests per minute = 6s between requests
-const EXPLORATION_THRESHOLD_METERS = 10; // Distance to mark intersection as explored
-const METERS_PER_MILE = 1609.34;
 
 // V2: Confidence scoring constants
 const CONFIDENCE_THRESHOLD = 0.7; // Threshold to consider explored (0.0-1.0)
@@ -50,7 +45,6 @@ export class StreetDataService {
   private intersections: Map<string, StreetIntersection> = new Map();
   private lastFetchTimestamp = 0;
   private currentLocation: GeoPoint | null = null;
-  private lastFetchCenter: GeoPoint | null = null;
 
   private constructor() {
     logger.info('StreetDataService initialized', {
@@ -139,7 +133,10 @@ export class StreetDataService {
   /**
    * Save data to cache
    */
-  private async saveToCache<T>(key: string, data: T[]): Promise<void> {
+  private async saveToCache(
+    key: string,
+    data: StreetSegment[] | StreetIntersection[]
+  ): Promise<void> {
     try {
       const entry: CacheEntry = {
         data,
@@ -531,7 +528,6 @@ export class StreetDataService {
       street.visitCount = 0;
       street.totalTimeNearby = 0;
       street.averageDistance = 0;
-      street.lastVisited = undefined;
     }
   }
 
@@ -544,7 +540,6 @@ export class StreetDataService {
       intersection.visitCount = 0;
       intersection.totalTimeNearby = 0;
       intersection.averageDistance = 0;
-      intersection.lastVisited = undefined;
     }
   }
 
@@ -556,14 +551,10 @@ export class StreetDataService {
     lineStart: GeoPoint,
     lineEnd: GeoPoint
   ): number {
-    // Calculate distances to endpoints
-    const d1 = this.haversineDistance(point, lineStart);
-    const d2 = this.haversineDistance(point, lineEnd);
-
     // Calculate perpendicular distance
     const lineLength = this.haversineDistance(lineStart, lineEnd);
 
-    if (lineLength === 0) return d1;
+    if (lineLength === 0) return this.haversineDistance(point, lineStart);
 
     // Project point onto line segment
     const t = Math.max(
@@ -736,7 +727,7 @@ export class StreetDataService {
    * Get shortest loop from current location using "always turn" algorithm
    */
   async getShortestLoop(options: GetShortestLoopOptions = {}): Promise<LoopPath> {
-    const { maxDistanceMiles = 3, direction = 'right', startLocation } = options;
+    const { maxDistanceMiles = 3, startLocation } = options;
 
     const start = startLocation || this.currentLocation;
 
@@ -750,8 +741,6 @@ export class StreetDataService {
         reason: 'No starting location provided or set',
       };
     }
-
-    const maxDistanceMeters = maxDistanceMiles * METERS_PER_MILE;
 
     // Ensure we have street data
     if (this.streets.size === 0) {
@@ -976,7 +965,6 @@ export class StreetDataService {
     this.intersections.clear();
     this.lastFetchTimestamp = 0;
     this.currentLocation = null;
-    this.lastFetchCenter = null;
   }
 
   /**

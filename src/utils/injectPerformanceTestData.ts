@@ -86,7 +86,7 @@ export class PerformanceTestDataInjector {
 
         // Generate street-based path
         const gpsPoints = await generateStreetBasedPath(count, {
-          startingLocation,
+          ...(startingLocation ? { startingLocation } : {}),
           intervalSeconds: intervalMs / 1000,
           preferUnexplored,
           ...generateOptions,

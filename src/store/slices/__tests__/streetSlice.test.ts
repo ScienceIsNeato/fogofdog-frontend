@@ -10,8 +10,9 @@ import reducer, {
   clearError,
   fetchStreets,
   fetchIntersections,
+  StreetState,
 } from '../streetSlice';
-import { StreetSegment, StreetIntersection, StreetType, BoundingBox } from '../../../types/street';
+import { StreetSegment, StreetIntersection, StreetType } from '../../../types/street';
 import { configureStore } from '@reduxjs/toolkit';
 
 // Mock the StreetDataService
@@ -52,7 +53,7 @@ describe('streetSlice', () => {
     isExplored: false,
   };
 
-  const initialState = {
+  const initialState: StreetState = {
     streets: {},
     intersections: {},
     exploredStreetIds: [],
@@ -251,10 +252,8 @@ describe('streetSlice', () => {
   });
 
   describe('fetchStreets async thunk', () => {
-    let store: ReturnType<typeof configureStore>;
-
     beforeEach(() => {
-      store = configureStore({
+      configureStore({
         reducer: { street: reducer },
       });
     });

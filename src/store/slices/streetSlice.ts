@@ -3,7 +3,7 @@ import { StreetSegment, StreetIntersection, BoundingBox } from '../../types/stre
 import { streetDataService } from '../../services/StreetDataService';
 import { logger } from '../../utils/logger';
 
-interface StreetState {
+export interface StreetState {
   streets: Record<string, StreetSegment>; // Indexed by ID
   intersections: Record<string, StreetIntersection>; // Indexed by ID
   exploredStreetIds: string[]; // IDs of explored streets
@@ -201,7 +201,7 @@ const streetSlice = createSlice({
         const street = state.streets[streetId];
         if (street) {
           street.isExplored = false;
-          street.exploredAt = undefined;
+          delete street.exploredAt;
         }
       }
 
@@ -210,7 +210,7 @@ const streetSlice = createSlice({
         const intersection = state.intersections[intersectionId];
         if (intersection) {
           intersection.isExplored = false;
-          intersection.exploredAt = undefined;
+          delete intersection.exploredAt;
         }
       }
 
