@@ -1,4 +1,6 @@
 import { GeoPoint } from '../types/user';
+import { streetDataService } from '../services/StreetDataService';
+import { StreetSegment } from '../types/street';
 
 /**
  * Performance test data generators for interactive testing
@@ -19,6 +21,7 @@ export const TestPatterns = {
   GRID_PATTERN: 'grid',
   REALISTIC_DRIVE: 'realistic_drive',
   HIKING_TRAIL: 'hiking_trail',
+  STREET_BASED_WALK: 'street_based_walk',
 } as const;
 
 export type TestPattern = (typeof TestPatterns)[keyof typeof TestPatterns];
@@ -155,6 +158,142 @@ export const generatePerformanceTestData = (
       longitude,
       timestamp,
     });
+  }
+
+  return points;
+};
+
+/**
+ * Generate GPS points along actual streets using StreetDataService
+ * This is an async function that fetches real street data
+ */
+export const generateStreetBasedPath = async (
+  count: number,
+  options: {
+    startTime?: number;
+    intervalSeconds?: number;
+    startingLocation?: { latitude: number; longitude: number };
+    radiusKm?: number;
+    preferUnexplored?: boolean;
+  } = {}
+): Promise<GeoPoint[]> => {
+  const {
+    startTime = Date.now(),
+    intervalSeconds = 30,
+    startingLocation,
+    radiusKm = 1, // 1km radius for street fetching
+    preferUnexplored = false,
+  } = options;
+
+  const baseCoords = startingLocation ?? BASE_COORDINATES;
+  const startPoint: GeoPoint = {
+    latitude: baseCoords.latitude,
+    longitude: baseCoords.longitude,
+    timestamp: startTime,
+  };
+
+  // Set current location in service
+  streetDataService.setCurrentLocation(startPoint);
+
+  // Fetch streets in bounding box
+  const bbox = {
+    south: baseCoords.latitude - radiusKm / 111,
+    west: baseCoords.longitude - radiusKm / (111 * Math.cos((baseCoords.latitude * Math.PI) / 180)),
+    north: baseCoords.latitude + radiusKm / 111,
+    east: baseCoords.longitude + radiusKm / (111 * Math.cos((baseCoords.latitude * Math.PI) / 180)),
+  };
+
+  const streets = await streetDataService.fetchStreetsInBoundingBox(bbox);
+
+  if (streets.length === 0) {
+    // Fall back to realistic drive pattern if no streets found
+    return generatePerformanceTestData(count, TestPatterns.REALISTIC_DRIVE, options);
+  }
+
+  // Filter streets if preferUnexplored is set
+  const availableStreets = preferUnexplored ? streets.filter((s) => !s.isExplored) : streets;
+
+  if (availableStreets.length === 0) {
+    // If no unexplored streets, use all streets
+    return generateStreetBasedPathFromStreets(
+      count,
+      streets,
+      startPoint,
+      startTime,
+      intervalSeconds
+    );
+  }
+
+  return generateStreetBasedPathFromStreets(
+    count,
+    availableStreets,
+    startPoint,
+    startTime,
+    intervalSeconds
+  );
+};
+
+/**
+ * Generate path from street segments with GPS noise
+ */
+const generateStreetBasedPathFromStreets = (
+  count: number,
+  streets: StreetSegment[],
+  startPoint: GeoPoint,
+  startTime: number,
+  intervalSeconds: number
+): GeoPoint[] => {
+  const points: GeoPoint[] = [];
+  const GPS_NOISE_METERS = 5; // Realistic GPS drift
+  const GPS_NOISE_DEGREES = GPS_NOISE_METERS / 111000;
+
+  // Pick random street segments and interpolate along them
+  let currentStreetIndex = Math.floor(Math.random() * streets.length);
+  let pointsOnCurrentStreet = 0;
+  const maxPointsPerStreet = Math.max(5, Math.floor(count / streets.length));
+
+  for (let i = 0; i < count; i++) {
+    const timestamp = startTime + i * intervalSeconds * 1000;
+
+    // Switch streets periodically
+    if (pointsOnCurrentStreet >= maxPointsPerStreet) {
+      currentStreetIndex = (currentStreetIndex + 1) % streets.length;
+      pointsOnCurrentStreet = 0;
+    }
+
+    const currentStreet = streets[currentStreetIndex];
+    if (!currentStreet || currentStreet.coordinates.length === 0) {
+      // Fallback to start point with noise
+      points.push({
+        latitude: startPoint.latitude + (Math.random() - 0.5) * GPS_NOISE_DEGREES * 2,
+        longitude: startPoint.longitude + (Math.random() - 0.5) * GPS_NOISE_DEGREES * 2,
+        timestamp,
+      });
+      continue;
+    }
+
+    // Pick a random point along the street
+    const coordIndex = Math.floor(Math.random() * currentStreet.coordinates.length);
+    const coord = currentStreet.coordinates[coordIndex];
+
+    if (!coord) {
+      // Fallback
+      points.push({
+        latitude: startPoint.latitude + (Math.random() - 0.5) * GPS_NOISE_DEGREES * 2,
+        longitude: startPoint.longitude + (Math.random() - 0.5) * GPS_NOISE_DEGREES * 2,
+        timestamp,
+      });
+      continue;
+    }
+
+    // Add GPS noise for realism
+    points.push({
+      latitude: coord.latitude + (Math.random() - 0.5) * GPS_NOISE_DEGREES * 2,
+      longitude: coord.longitude + (Math.random() - 0.5) * GPS_NOISE_DEGREES * 2,
+      timestamp,
+    });
+
+    pointsOnCurrentStreet++;
   }
 
   return points;

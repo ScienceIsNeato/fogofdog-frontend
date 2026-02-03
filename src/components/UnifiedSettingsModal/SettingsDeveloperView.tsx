@@ -67,6 +67,50 @@ const useLoadSettings = (setSettings: React.Dispatch<React.SetStateAction<Develo
   return isLoading;
 };
 
+// Handler for prefer streets toggle
+const usePreferStreetsToggle = (
+  setSettings: React.Dispatch<React.SetStateAction<DeveloperSettings>>
+) => {
+  return async (enabled: boolean) => {
+    try {
+      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      await DeveloperSettingsService.togglePreferStreets(enabled);
+      setSettings((prev) => ({ ...prev, preferStreets: enabled }));
+
+      // If disabling prefer streets, also disable prefer unexplored
+      if (!enabled) {
+        await DeveloperSettingsService.togglePreferUnexplored(false);
+        setSettings((prev) => ({ ...prev, preferUnexplored: false }));
+      }
+    } catch (error) {
+      logger.error('Failed to toggle prefer streets', error, {
+        component: 'SettingsDeveloperView',
+        action: 'handlePreferStreetsToggle',
+      });
+      Alert.alert('Error', 'Failed to update street preference. Please try again.');
+    }
+  };
+};
+
+// Handler for prefer unexplored toggle
+const usePreferUnexploredToggle = (
+  setSettings: React.Dispatch<React.SetStateAction<DeveloperSettings>>
+) => {
+  return async (enabled: boolean) => {
+    try {
+      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      await DeveloperSettingsService.togglePreferUnexplored(enabled);
+      setSettings((prev) => ({ ...prev, preferUnexplored: enabled }));
+    } catch (error) {
+      logger.error('Failed to toggle prefer unexplored', error, {
+        component: 'SettingsDeveloperView',
+        action: 'handlePreferUnexploredToggle',
+      });
+      Alert.alert('Error', 'Failed to update unexplored preference. Please try again.');
+    }
+  };
+};
+
 export const SettingsDeveloperView: React.FC<SettingsDeveloperViewProps> = ({
   onBack,
   onClose,
@@ -74,10 +118,14 @@ export const SettingsDeveloperView: React.FC<SettingsDeveloperViewProps> = ({
 }) => {
   const [settings, setSettings] = useState<DeveloperSettings>({
     onboardingEnabled: false,
+    preferStreets: false,
+    preferUnexplored: false,
   });
 
   const isLoading = useLoadSettings(setSettings);
   const handleOnboardingToggle = useOnboardingToggle(setSettings);
+  const handlePreferStreetsToggle = usePreferStreetsToggle(setSettings);
+  const handlePreferUnexploredToggle = usePreferUnexploredToggle(setSettings);
 
   return (
     <>
@@ -106,6 +154,49 @@ export const SettingsDeveloperView: React.FC<SettingsDeveloperViewProps> = ({
               onValueChange={handleOnboardingToggle}
               disabled={isLoading}
               testID="onboarding-toggle"
+            />
+          </View>
+        </View>
+
+        {/* Street Data Section */}
+        <Text style={styles.sectionHeader}>Street Data Generation</Text>
+
+        {/* Prefer Streets Toggle */}
+        <View style={styles.settingItem}>
+          <View style={styles.settingContent}>
+            <View style={styles.settingTextContainer}>
+              <Text style={styles.settingTitle}>Prefer Streets</Text>
+              <Text style={styles.settingDescription}>
+                Generate test data along actual streets from OpenStreetMap
+              </Text>
+            </View>
+            <Switch
+              value={settings.preferStreets}
+              onValueChange={handlePreferStreetsToggle}
+              disabled={isLoading}
+              testID="prefer-streets-toggle"
+            />
+          </View>
+        </View>
+
+        {/* Prefer Unexplored Toggle - only enabled if Prefer Streets is on */}
+        <View style={styles.settingItem}>
+          <View style={styles.settingContent}>
+            <View style={styles.settingTextContainer}>
+              <Text style={[styles.settingTitle, !settings.preferStreets && { opacity: 0.5 }]}>
+                Prefer Unexplored Territory
+              </Text>
+              <Text
+                style={[styles.settingDescription, !settings.preferStreets && { opacity: 0.5 }]}
+              >
+                Prioritize unexplored streets in test data generation
+              </Text>
+            </View>
+            <Switch
+              value={settings.preferUnexplored}
+              onValueChange={handlePreferUnexploredToggle}
+              disabled={isLoading || !settings.preferStreets}
+              testID="prefer-unexplored-toggle"
             />
           </View>
         </View>

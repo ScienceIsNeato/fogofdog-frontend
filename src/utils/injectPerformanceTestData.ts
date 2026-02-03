@@ -1,8 +1,15 @@
 import { store } from '../store';
 import { DeviceEventEmitter } from 'react-native';
-import { TestPatterns, generatePerformanceTestData, TestPattern } from './performanceTestData';
+import {
+  TestPatterns,
+  generatePerformanceTestData,
+  TestPattern,
+  generateStreetBasedPath,
+} from './performanceTestData';
 import { logger } from './logger';
 import { GeoPoint } from '../types/user';
+import { DeveloperSettingsService } from '../services/DeveloperSettingsService';
+import { streetDataService } from '../services/StreetDataService';
 
 /**
  * Inject performance test data into the app for interactive testing
@@ -65,14 +72,43 @@ export class PerformanceTestDataInjector {
           }
         : undefined;
 
-      // Generate spatial path (coordinates only, timestamps will be assigned in real-time)
-      const spatialPoints = this.generateSpatialPath(count, TestPatterns[pattern], {
-        ...generateOptions,
-        ...(startingLocation && { startingLocation }),
-      });
+      // Check if street-based generation is enabled
+      const preferStreets = await DeveloperSettingsService.getPreferStreets();
+      const preferUnexplored = await DeveloperSettingsService.getPreferUnexplored();
+
+      let spatialPoints: { latitude: number; longitude: number }[];
+
+      if (preferStreets) {
+        logger.info('Using street-based path generation', {
+          component: 'PerformanceTestDataInjector',
+          preferUnexplored,
+        });
+
+        // Generate street-based path
+        const gpsPoints = await generateStreetBasedPath(count, {
+          startingLocation,
+          intervalSeconds: intervalMs / 1000,
+          preferUnexplored,
+          ...generateOptions,
+        });
+
+        spatialPoints = gpsPoints.map((p) => ({
+          latitude: p.latitude,
+          longitude: p.longitude,
+        }));
+
+        // Update street exploration status
+        streetDataService.updateExplorationFromGPSPath(gpsPoints);
+      } else {
+        // Generate spatial path (coordinates only, timestamps will be assigned in real-time)
+        spatialPoints = this.generateSpatialPath(count, TestPatterns[pattern], {
+          ...generateOptions,
+          ...(startingLocation && { startingLocation }),
+        });
+      }
 
       logger.info(
-        `🎯 Starting REAL-TIME injection: ${count} points with ${intervalMs}ms intervals from ${startingLocation ? 'current location' : 'default location'}`
+        `🎯 Starting REAL-TIME injection: ${count} points with ${intervalMs}ms intervals from ${startingLocation ? 'current location' : 'default location'}${preferStreets ? ' (street-based)' : ''}`
       );
 
       await this.injectRealTimePoints(spatialPoints, intervalMs);
@@ -126,18 +162,54 @@ export class PerformanceTestDataInjector {
         return;
       }
 
-      // Generate historical path ending at the earliest existing point
-      const historicalPoints = this.generateHistoricalPath(count, TestPatterns[pattern], {
-        ...generateOptions,
-        endingLocation: {
-          latitude: earliestPoint.latitude,
-          longitude: earliestPoint.longitude,
-        },
-        sessionDurationHours,
-      });
+      // Check if street-based generation is enabled
+      const preferStreets = await DeveloperSettingsService.getPreferStreets();
+      const preferUnexplored = await DeveloperSettingsService.getPreferUnexplored();
+
+      let historicalPoints: GeoPoint[];
+
+      if (preferStreets) {
+        logger.info('Using street-based historical path generation', {
+          component: 'PerformanceTestDataInjector',
+          preferUnexplored,
+        });
+
+        // Calculate timestamps for historical session
+        const sessionEndTime = earliestPoint.timestamp - 60 * 1000; // End 1 minute before earliest point
+        const sessionStartTime = sessionEndTime - sessionDurationHours * 60 * 60 * 1000;
+        const intervalSeconds = (sessionEndTime - sessionStartTime) / (count * 1000);
+
+        // Generate street-based historical path
+        historicalPoints = await generateStreetBasedPath(count, {
+          startingLocation: {
+            latitude: earliestPoint.latitude,
+            longitude: earliestPoint.longitude,
+          },
+          startTime: sessionStartTime,
+          intervalSeconds,
+          preferUnexplored,
+          ...generateOptions,
+        });
+
+        // Reverse to end at the earliest point
+        historicalPoints = historicalPoints.reverse();
+
+        // Update street exploration status
+        streetDataService.updateExplorationFromGPSPath(historicalPoints);
+      } else {
+        // Generate historical path ending at the earliest existing point
+        historicalPoints = this.generateHistoricalPath(count, TestPatterns[pattern], {
+          ...generateOptions,
+          endingLocation: {
+            latitude: earliestPoint.latitude,
+            longitude: earliestPoint.longitude,
+          },
+          sessionDurationHours,
+        });
+      }
 
       logger.info(
-        `📚 Prepending HISTORICAL data: ${count} points spanning ${sessionDurationHours}h, ending at first existing GPS point`
+        `📚 Prepending HISTORICAL data: ${count} points spanning ${sessionDurationHours}h, ending at first existing GPS point${preferStreets ? ' (street-based)' : ''}`
       );
 
       await this.prependHistoricalPoints(historicalPoints);

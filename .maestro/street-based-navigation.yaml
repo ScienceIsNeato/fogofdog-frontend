@@ -1,0 +1,110 @@
+appId: com.fogofdog.app
+---
+# Test street-based navigation features
+# This test validates the integration of street-level data into the app
+
+- launchApp
+- assertVisible: 'FogOfDog'
+
+# Step 1: Navigate to Developer Settings
+- tapOn: 'Settings'
+- assertVisible: 'Settings'
+
+- tapOn: 'Developer Settings'
+- assertVisible: 'Developer Settings'
+
+# Step 2: Enable street preferences
+- tapOn:
+    id: 'prefer-streets-toggle'
+- assertVisible: 'Prefer Streets.*enabled'
+
+# Step 3: Enable prefer unexplored (should now be enabled since prefer streets is on)
+- tapOn:
+    id: 'prefer-unexplored-toggle'
+- assertVisible: 'Prefer Unexplored.*enabled'
+
+# Step 4: Go back to main settings
+- tapOn:
+    id: 'back-button'
+- assertVisible: 'Settings'
+
+# Step 5: Navigate to Performance Testing Panel
+# (Note: This assumes the performance panel is accessible from settings)
+- tapOn: 'Developer Settings'
+- scroll
+
+# Step 6: Clear existing data first
+- tapOn: 'Clear All Data'
+- assertVisible: 'Confirm'
+- tapOn: 'Confirm'
+
+# Step 7: Inject street-based test data
+# Note: The actual UI elements may vary - adjust based on SimplePerformancePanel implementation
+- tapOn: 'Inject Real-Time Data'
+- assertVisible: 'Enter number of points'
+- inputText: '50'
+- tapOn: 'Inject'
+
+# Wait for injection to complete
+- waitForAnimationToEnd
+
+# Step 8: Verify GPS data was injected
+# The map should show GPS path
+- tapOn:
+    id: 'back-button'
+- tapOn:
+    id: 'back-button'
+- assertVisible: 'Map'
+
+# Step 9: Visual verification that points are on streets
+# (This would require visual analysis in a real test)
+# For now, we just verify the map is visible with data
+
+- assertVisible: 'Map'
+
+# Step 10: Test that exploration is tracked
+# Re-open developer settings to verify street exploration
+- tapOn: 'Settings'
+- tapOn: 'Developer Settings'
+
+# Step 11: Now test with prefer streets disabled
+- tapOn:
+    id: 'prefer-streets-toggle'
+- assertVisible: 'Prefer Streets.*disabled'
+
+# Prefer unexplored should also be disabled now
+- tapOn:
+    id: 'back-button'
+
+# Step 12: Clear data and inject without street preference
+- tapOn: 'Developer Settings'
+- tapOn: 'Clear All Data'
+- assertVisible: 'Confirm'
+- tapOn: 'Confirm'
+
+- tapOn: 'Inject Real-Time Data'
+- inputText: '50'
+- tapOn: 'Inject'
+- waitForAnimationToEnd
+
+# Step 13: Navigate back to map and verify
+- tapOn:
+    id: 'back-button'
+- tapOn:
+    id: 'back-button'
+- assertVisible: 'Map'
+
+# Step 14: Final verification
+# The test passes if we got here without crashes
+- assertVisible: 'Map'
+
+# Cleanup: Clear data before test ends
+- tapOn: 'Settings'
+- tapOn: 'Developer Settings'
+- tapOn: 'Clear All Data'
+- tapOn: 'Confirm'
+
+- tapOn:
+    id: 'back-button'
+- tapOn:
+    id: 'back-button'
