@@ -28,6 +28,13 @@ describe('PerformanceTestDataInjector', () => {
     mockStore.getState = jest.fn(() => ({
       user: { isAuthenticated: false, user: null, isLoading: false, error: null },
       exploration: { path: [] },
+      street: {
+        preferStreets: false,
+        segments: {},
+        exploredSegmentIds: [],
+        intersections: {},
+        preferUnexplored: false,
+      },
     })) as any;
 
     mockGenerateData.mockReturnValue([
@@ -145,6 +152,13 @@ describe('PerformanceTestDataInjector', () => {
           path: [],
           currentLocation: { latitude: 45.0, longitude: -122.0 },
         },
+        street: {
+          preferStreets: false,
+          segments: {},
+          exploredSegmentIds: [],
+          intersections: {},
+          preferUnexplored: false,
+        },
       })) as any;
 
       const injectionPromise = performanceTestInjector.injectRealTimeData(3, 'REALISTIC_DRIVE');
@@ -182,6 +196,13 @@ describe('PerformanceTestDataInjector', () => {
         exploration: {
           path: [],
           currentLocation: { latitude: 45.0, longitude: -122.0 },
+        },
+        street: {
+          preferStreets: false,
+          segments: {},
+          exploredSegmentIds: [],
+          intersections: {},
+          preferUnexplored: false,
         },
       })) as any;
 

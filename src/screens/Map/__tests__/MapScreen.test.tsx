@@ -7,6 +7,7 @@ import { MapScreen } from '../index';
 import explorationReducer, { updateLocation } from '../../../store/slices/explorationSlice';
 import userReducer from '../../../store/slices/userSlice';
 import statsReducer from '../../../store/slices/statsSlice';
+import streetReducer from '../../../store/slices/streetSlice';
 import type { RootState } from '../../../store';
 import * as Location from 'expo-location';
 import { Region } from 'react-native-maps';
@@ -404,6 +405,7 @@ describe('MapScreen', () => {
         exploration: explorationReducer,
         user: userReducer,
         stats: statsReducer,
+        street: streetReducer,
       },
     });
     // Use mockImplementation for better type compatibility with Jest mocks
@@ -923,6 +925,7 @@ describe('MapScreen', () => {
         exploration: explorationReducer,
         user: userReducer,
         stats: statsReducer,
+        street: streetReducer,
       },
       preloadedState: {
         exploration: {

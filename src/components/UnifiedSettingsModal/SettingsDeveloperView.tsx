@@ -8,6 +8,13 @@ import {
 } from '../../services/DeveloperSettingsService';
 import { logger } from '../../utils/logger';
 import { SimplePerformancePanel } from '../SimplePerformancePanel';
+import { useAppDispatch, useAppSelector } from '../../store/hooks';
+import {
+  setPreferStreets,
+  setPreferUnexplored,
+  loadStreetData,
+} from '../../store/slices/streetSlice';
+import { getSampleStreetData } from '../../services/StreetDataService';
 
 interface SettingsDeveloperViewProps {
   onBack: () => void;
@@ -67,6 +74,108 @@ const useLoadSettings = (setSettings: React.Dispatch<React.SetStateAction<Develo
   return isLoading;
 };
 
+// Hook to manage street-navigation toggle state
+const useStreetNavigationSettings = () => {
+  const dispatch = useAppDispatch();
+  const preferStreets = useAppSelector((s) => s.street.preferStreets);
+  const preferUnexplored = useAppSelector((s) => s.street.preferUnexplored);
+  const segmentCount = useAppSelector((s) => Object.keys(s.street.segments).length);
+  const exploredCount = useAppSelector((s) => s.street.exploredSegmentIds.length);
+
+  const handlePreferStreets = (enabled: boolean) => {
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    dispatch(setPreferStreets(enabled));
+  };
+
+  const handlePreferUnexplored = (enabled: boolean) => {
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    dispatch(setPreferUnexplored(enabled));
+  };
+
+  const handleLoadSampleStreets = () => {
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    dispatch(loadStreetData(getSampleStreetData()));
+    Alert.alert('Sample Streets', '3×3 street grid loaded for testing.');
+  };
+
+  return {
+    preferStreets,
+    preferUnexplored,
+    segmentCount,
+    exploredCount,
+    handlePreferStreets,
+    handlePreferUnexplored,
+    handleLoadSampleStreets,
+  };
+};
+
+type StreetNavSettings = ReturnType<typeof useStreetNavigationSettings>;
+
+// Extracted section component to stay under max-lines-per-function
+const StreetNavigationSection: React.FC<{ nav: StreetNavSettings; styles: any }> = ({
+  nav,
+  styles,
+}) => (
+  <>
+    <Text style={styles.sectionHeader}>Street Navigation</Text>
+
+    <View style={styles.settingItem}>
+      <View style={styles.settingContent}>
+        <View style={styles.settingTextContainer}>
+          <Text style={styles.settingTitle}>Prefer Streets</Text>
+          <Text style={styles.settingDescription}>
+            Generate test paths along loaded street data
+          </Text>
+        </View>
+        <Switch
+          value={nav.preferStreets}
+          onValueChange={nav.handlePreferStreets}
+          testID="prefer-streets-toggle"
+        />
+      </View>
+    </View>
+
+    <View style={styles.settingItem}>
+      <View style={styles.settingContent}>
+        <View style={styles.settingTextContainer}>
+          <Text style={styles.settingTitle}>Prefer Unexplored</Text>
+          <Text style={styles.settingDescription}>
+            Prioritise unexplored streets when generating paths
+          </Text>
+        </View>
+        <Switch
+          value={nav.preferUnexplored}
+          onValueChange={nav.handlePreferUnexplored}
+          disabled={!nav.preferStreets}
+          testID="prefer-unexplored-toggle"
+        />
+      </View>
+    </View>
+
+    <TouchableOpacity
+      style={styles.settingItem}
+      onPress={nav.handleLoadSampleStreets}
+      testID="load-sample-streets"
+    >
+      <View style={styles.settingContent}>
+        <View style={styles.settingTextContainer}>
+          <Text style={styles.settingTitle}>Load Sample Streets</Text>
+          <Text style={styles.settingDescription}>Load a 3×3 grid of streets for testing</Text>
+        </View>
+        <MaterialIcons name="chevron-right" size={24} color="#8E8E93" />
+      </View>
+    </TouchableOpacity>
+
+    {nav.segmentCount > 0 && (
+      <View style={styles.settingItem} testID="street-info-loaded">
+        <Text style={styles.settingDescription}>
+          {nav.segmentCount} segments loaded · {nav.exploredCount} explored
+        </Text>
+      </View>
+    )}
+  </>
+);
+
 export const SettingsDeveloperView: React.FC<SettingsDeveloperViewProps> = ({
   onBack,
   onClose,
@@ -78,6 +187,7 @@ export const SettingsDeveloperView: React.FC<SettingsDeveloperViewProps> = ({
 
   const isLoading = useLoadSettings(setSettings);
   const handleOnboardingToggle = useOnboardingToggle(setSettings);
+  const streetNav = useStreetNavigationSettings();
 
   return (
     <>
@@ -112,6 +222,9 @@ export const SettingsDeveloperView: React.FC<SettingsDeveloperViewProps> = ({
 
         {/* Performance Testing Panel */}
         <SimplePerformancePanel onCloseModal={onClose} />
+
+        {/* Street Navigation */}
+        <StreetNavigationSection nav={streetNav} styles={styles} />
       </View>
     </>
   );

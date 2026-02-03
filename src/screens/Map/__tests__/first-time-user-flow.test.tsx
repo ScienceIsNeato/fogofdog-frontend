@@ -21,6 +21,7 @@ import { MapScreen } from '../index';
 import explorationReducer from '../../../store/slices/explorationSlice';
 import userReducer from '../../../store/slices/userSlice';
 import statsReducer from '../../../store/slices/statsSlice';
+import streetReducer from '../../../store/slices/streetSlice';
 import type { RootState } from '../../../store';
 import * as Location from 'expo-location';
 
@@ -188,11 +189,15 @@ jest.mock('react-native-safe-area-context', () => ({
 // Helpers
 // ---------------------------------------------------------------------------
 
-
 /** Empty Redux store — no pre-existing location or path. */
 const createEmptyStore = (): Store<RootState> =>
   configureStore({
-    reducer: { exploration: explorationReducer, user: userReducer, stats: statsReducer },
+    reducer: {
+      exploration: explorationReducer,
+      user: userReducer,
+      stats: statsReducer,
+      street: streetReducer,
+    },
     preloadedState: {
       exploration: {
         path: [],

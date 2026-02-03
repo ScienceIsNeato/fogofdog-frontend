@@ -1,8 +1,14 @@
 import { store } from '../store';
 import { DeviceEventEmitter } from 'react-native';
-import { TestPatterns, generatePerformanceTestData, TestPattern } from './performanceTestData';
+import {
+  TestPatterns,
+  generatePerformanceTestData,
+  generateStreetAlignedTestData,
+  TestPattern,
+} from './performanceTestData';
 import { logger } from './logger';
 import { GeoPoint } from '../types/user';
+import { StreetDataService } from '../services/StreetDataService';
 
 /**
  * Inject performance test data into the app for interactive testing
@@ -151,24 +157,58 @@ export class PerformanceTestDataInjector {
   }
 
   /**
-   * Generate spatial path (coordinates only, no timestamps)
+   * Generate spatial path (coordinates only, no timestamps).
+   * When `preferStreets` is enabled and street data is loaded, delegates to
+   * the street-aligned generator and subsequently marks the path as explored.
    */
   private generateSpatialPath(
     count: number,
     pattern: TestPattern,
     options: { radiusKm?: number; startingLocation?: { latitude: number; longitude: number } }
   ): { latitude: number; longitude: number }[] {
-    // Generate with dummy timestamps, we only care about coordinates
+    const state = store.getState();
+    const streetState = state.street;
+    const hasStreets = Object.keys(streetState.segments).length > 0;
+
+    if (streetState.preferStreets && hasStreets) {
+      return this.generateStreetAlignedPath(count, options);
+    }
+
+    // Original fallback
     const tempPoints = generatePerformanceTestData(count, pattern, {
       ...options,
-      startTime: 0, // Dummy timestamp
-      intervalSeconds: 1, // Dummy interval
+      startTime: 0,
+      intervalSeconds: 1,
+    });
+    return tempPoints.map((point) => ({ latitude: point.latitude, longitude: point.longitude }));
+  }
+
+  /** Street-aligned spatial path + exploration marking. */
+  private generateStreetAlignedPath(
+    count: number,
+    options: { startingLocation?: { latitude: number; longitude: number } }
+  ): { latitude: number; longitude: number }[] {
+    const state = store.getState();
+    const streetData = {
+      segments: Object.values(state.street.segments),
+      intersections: Object.values(state.street.intersections),
+    };
+
+    const points = generateStreetAlignedTestData(count, streetData, {
+      ...(options.startingLocation && { startingLocation: options.startingLocation }),
+      preferUnexplored: state.street.preferUnexplored,
+      exploredSegmentIds: state.street.exploredSegmentIds,
+      startTime: 0,
+      intervalSeconds: 1,
     });
 
-    return tempPoints.map((point) => ({
-      latitude: point.latitude,
-      longitude: point.longitude,
-    }));
+    // Mark streets along the generated path as explored
+    const service = StreetDataService.getInstance();
+    service.markPathAsExplored(
+      points.map((p) => ({ latitude: p.latitude, longitude: p.longitude }))
+    );
+
+    return points.map((p) => ({ latitude: p.latitude, longitude: p.longitude }));
   }
 
   /**

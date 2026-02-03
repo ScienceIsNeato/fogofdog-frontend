@@ -1,0 +1,126 @@
+appId: com.fogofdog.app
+---
+# Street Navigation Integration Test
+# Verifies: load sample streets → toggles work → info display appears
+# Exercises the full developer-menu street-navigation flow.
+
+# Anchor GPS at Eugene South Hills centre
+- setLocation:
+    latitude: 44.0462
+    longitude: -123.0236
+
+# Launch fresh
+- launchApp:
+    appId: com.fogofdog.app
+    clearState: true
+- waitForAnimationToEnd:
+    timeout: 1000
+
+# Handle onboarding if present
+- runFlow:
+    file: shared/handle-onboarding.yaml
+
+# Login
+- assertVisible:
+    text: 'Sign In'
+- tapOn:
+    id: 'signInButton'
+
+# Grant location permission if prompted
+- runFlow:
+    when:
+      visible: 'Allow'
+    commands:
+      - tapOn: 'Allow While Using App'
+
+# Wait for map screen
+- waitForAnimationToEnd:
+    timeout: 3000
+- assertVisible:
+    id: 'map-screen'
+
+# --- Open Settings modal ---
+- tapOn:
+    id: 'settings-button'
+- waitForAnimationToEnd:
+    timeout: 1000
+
+# --- Navigate to Developer Settings ---
+- assertVisible:
+    text: 'Developer Settings'
+- tapOn:
+    text: 'Developer Settings'
+- waitForAnimationToEnd:
+    timeout: 1000
+
+# --- Verify Street Navigation section is visible ---
+- assertVisible:
+    text: 'Street Navigation'
+- assertVisible:
+    text: 'Prefer Streets'
+- assertVisible:
+    text: 'Prefer Unexplored'
+- assertVisible:
+    text: 'Load Sample Streets'
+- takeScreenshot: '01-dev-settings-initial'
+
+# --- Load sample street data ---
+- tapOn:
+    id: 'load-sample-streets'
+- waitForAnimationToEnd:
+    timeout: 1000
+
+# Dismiss the alert ("Sample Streets loaded…")
+- runFlow:
+    when:
+      visible: 'Sample Streets'
+    commands:
+      - tapOn: 'OK'
+- waitForAnimationToEnd:
+    timeout: 500
+
+# --- Verify info display appears after load ---
+- assertVisible:
+    id: 'street-info-loaded'
+- assertVisible:
+    text: '12 segments loaded'
+- takeScreenshot: '02-sample-streets-loaded'
+
+# --- Toggle "Prefer Streets" ON ---
+- tapOn:
+    id: 'prefer-streets-toggle'
+- waitForAnimationToEnd:
+    timeout: 500
+- takeScreenshot: '03-prefer-streets-on'
+
+# --- Toggle "Prefer Unexplored" ON (should now be enabled) ---
+- tapOn:
+    id: 'prefer-unexplored-toggle'
+- waitForAnimationToEnd:
+    timeout: 500
+- takeScreenshot: '04-prefer-unexplored-on'
+
+# --- Verify both toggles remain visible (no crash) ---
+- assertVisible:
+    text: 'Prefer Streets'
+- assertVisible:
+    text: 'Prefer Unexplored'
+- assertVisible:
+    id: 'street-info-loaded'
+
+# --- Toggle "Prefer Streets" OFF — "Prefer Unexplored" should be disabled ---
+- tapOn:
+    id: 'prefer-streets-toggle'
+- waitForAnimationToEnd:
+    timeout: 500
+- takeScreenshot: '05-prefer-streets-off'
+
+# --- Back to main settings, then close ---
+- tapOn:
+    id: 'back-button'
+- waitForAnimationToEnd:
+    timeout: 500
+
+# App should still be functional
+- assertVisible:
+    id: 'map-screen'

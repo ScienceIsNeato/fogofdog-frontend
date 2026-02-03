@@ -1,4 +1,9 @@
-import { generatePerformanceTestData, TestPatterns } from '../performanceTestData';
+import {
+  generatePerformanceTestData,
+  generateStreetAlignedTestData,
+  TestPatterns,
+} from '../performanceTestData';
+import type { StreetSegment, Intersection } from '../../types/street';
 
 describe('performanceTestData', () => {
   describe('generatePerformanceTestData', () => {
@@ -151,6 +156,214 @@ describe('performanceTestData', () => {
       // Test with zero count should still return empty array gracefully
       const zeroPoints = generatePerformanceTestData(0, TestPatterns.REALISTIC_DRIVE);
       expect(zeroPoints).toHaveLength(0);
+    });
+  });
+
+  describe('generateStreetAlignedTestData', () => {
+    // T-shaped graph: int_1 connects to int_2 (East) via seg_a and to int_3 (North) via seg_b
+    const segments: StreetSegment[] = [
+      {
+        id: 'seg_a',
+        name: 'Main St',
+        points: [
+          { latitude: 44.0462, longitude: -123.0236 },
+          { latitude: 44.0462, longitude: -123.0226 },
+        ],
+        startNodeId: 'int_1',
+        endNodeId: 'int_2',
+        lengthMeters: 80,
+      },
+      {
+        id: 'seg_b',
+        name: 'Oak Ave',
+        points: [
+          { latitude: 44.0462, longitude: -123.0236 },
+          { latitude: 44.0472, longitude: -123.0236 },
+        ],
+        startNodeId: 'int_1',
+        endNodeId: 'int_3',
+        lengthMeters: 110,
+      },
+    ];
+
+    const intersections: Intersection[] = [
+      {
+        id: 'int_1',
+        latitude: 44.0462,
+        longitude: -123.0236,
+        streetNames: ['Main St', 'Oak Ave'],
+        connectedSegmentIds: ['seg_a', 'seg_b'],
+      },
+      {
+        id: 'int_2',
+        latitude: 44.0462,
+        longitude: -123.0226,
+        streetNames: ['Main St'],
+        connectedSegmentIds: ['seg_a'],
+      },
+      {
+        id: 'int_3',
+        latitude: 44.0472,
+        longitude: -123.0236,
+        streetNames: ['Oak Ave'],
+        connectedSegmentIds: ['seg_b'],
+      },
+    ];
+
+    it('should generate valid GeoPoints along street graph', () => {
+      const points = generateStreetAlignedTestData(5, { segments, intersections });
+
+      expect(points.length).toBeGreaterThan(0);
+      expect(points.length).toBeLessThanOrEqual(5);
+      points.forEach((p, i) => {
+        expect(typeof p.latitude).toBe('number');
+        expect(typeof p.longitude).toBe('number');
+        expect(typeof p.timestamp).toBe('number');
+        if (i > 0) expect(p.timestamp).toBeGreaterThan(points[i - 1]!.timestamp);
+      });
+    });
+
+    it('should use custom starting location', () => {
+      const start = { latitude: 44.0462, longitude: -123.0231 };
+      const points = generateStreetAlignedTestData(
+        3,
+        { segments, intersections },
+        {
+          startingLocation: start,
+        }
+      );
+
+      expect(points.length).toBeGreaterThan(0);
+      expect(points[0]!.latitude).toBe(start.latitude);
+      expect(points[0]!.longitude).toBe(start.longitude);
+    });
+
+    it('should apply custom time parameters', () => {
+      const startTime = 5_000_000;
+      const points = generateStreetAlignedTestData(
+        3,
+        { segments, intersections },
+        {
+          startTime,
+          intervalSeconds: 10,
+        }
+      );
+
+      expect(points[0]!.timestamp).toBe(startTime);
+      if (points.length > 1) expect(points[1]!.timestamp).toBe(startTime + 10_000);
+    });
+
+    it('should return single start point when no segments exist', () => {
+      const points = generateStreetAlignedTestData(5, { segments: [], intersections: [] });
+
+      // walkStreets returns [start] when bestSeg is null
+      expect(points).toHaveLength(1);
+    });
+
+    it('should stop at dead-end intersections before reaching count', () => {
+      // Single isolated segment — both endpoints are dead ends
+      const soloSeg: StreetSegment[] = [
+        {
+          id: 'solo',
+          name: 'Solo St',
+          points: [
+            { latitude: 44.0462, longitude: -123.0236 },
+            { latitude: 44.0462, longitude: -123.022 },
+          ],
+          startNodeId: 'end_a',
+          endNodeId: 'end_b',
+          lengthMeters: 140,
+        },
+      ];
+      const soloInt: Intersection[] = [
+        {
+          id: 'end_a',
+          latitude: 44.0462,
+          longitude: -123.0236,
+          streetNames: ['Solo St'],
+          connectedSegmentIds: ['solo'],
+        },
+        {
+          id: 'end_b',
+          latitude: 44.0462,
+          longitude: -123.022,
+          streetNames: ['Solo St'],
+          connectedSegmentIds: ['solo'],
+        },
+      ];
+
+      const points = generateStreetAlignedTestData(50, {
+        segments: soloSeg,
+        intersections: soloInt,
+      });
+
+      expect(points.length).toBeGreaterThan(1);
+      expect(points.length).toBeLessThan(50);
+    });
+
+    it('should prefer unexplored segments when flag is set', () => {
+      const points = generateStreetAlignedTestData(
+        5,
+        { segments, intersections },
+        {
+          preferUnexplored: true,
+          exploredSegmentIds: ['seg_a'],
+        }
+      );
+
+      expect(points.length).toBeGreaterThan(0);
+    });
+
+    it('should fall back to any candidate when all are explored', () => {
+      const points = generateStreetAlignedTestData(
+        5,
+        { segments, intersections },
+        {
+          preferUnexplored: true,
+          exploredSegmentIds: ['seg_a', 'seg_b'],
+        }
+      );
+
+      // All candidates explored — falls through to random selection
+      expect(points.length).toBeGreaterThan(0);
+    });
+
+    it('should break gracefully when targeted intersection is missing', () => {
+      // seg_x.endNodeId points to a non-existent intersection
+      const brokenSeg: StreetSegment[] = [
+        {
+          id: 'seg_x',
+          name: 'Broken St',
+          points: [
+            { latitude: 44.0462, longitude: -123.0236 },
+            { latitude: 44.0465, longitude: -123.0236 },
+          ],
+          startNodeId: 'int_ok',
+          endNodeId: 'int_missing',
+          lengthMeters: 33,
+        },
+      ];
+      const partialInt: Intersection[] = [
+        {
+          id: 'int_ok',
+          latitude: 44.0462,
+          longitude: -123.0236,
+          streetNames: ['Broken St'],
+          connectedSegmentIds: ['seg_x'],
+        },
+      ];
+
+      // Start near the END of the segment so nearerEndId returns int_missing
+      const points = generateStreetAlignedTestData(
+        5,
+        {
+          segments: brokenSeg,
+          intersections: partialInt,
+        },
+        { startingLocation: { latitude: 44.0465, longitude: -123.0236 } }
+      );
+
+      expect(points.length).toBeGreaterThan(0);
     });
   });
 });
