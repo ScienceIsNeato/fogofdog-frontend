@@ -1,4 +1,4 @@
-import { GeoPoint } from '../types/user';
+import { GeoPoint, GPSPointWithAccuracy } from '../types/user';
 import { streetDataService } from '../services/StreetDataService';
 import { StreetSegment } from '../types/street';
 
@@ -6,6 +6,36 @@ import { StreetSegment } from '../types/street';
  * Performance test data generators for interactive testing
  * These can be used to inject different amounts of GPS data into the app
  */
+
+/**
+ * GPS noise configuration options
+ */
+export interface GPSNoiseOptions {
+  noiseStdDev?: number; // Standard deviation in meters (default: 5m)
+  accuracyRange?: [number, number]; // Min/max accuracy in meters (default: [3, 15])
+  dropoutProbability?: number; // Probability of signal loss (default: 0.02)
+  driftProbability?: number; // Probability of sustained drift (default: 0.05)
+  driftDuration?: number; // Number of points drift lasts (default: 5)
+  driftMagnitude?: number; // Drift offset in meters (default: 10m)
+}
+
+/**
+ * Generate Gaussian random number using Box-Muller transform
+ * More realistic than uniform distribution for GPS noise
+ */
+function gaussianRandom(mean: number, stdDev: number): number {
+  const u1 = Math.random();
+  const u2 = Math.random();
+  const z0 = Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2);
+  return mean + z0 * stdDev;
+}
+
+/**
+ * Convert meters to degrees latitude (approximate)
+ */
+function metersToDegrees(meters: number): number {
+  return meters / 111000;
+}
 
 // Eugene, Oregon South Hills area coordinates (as requested by user)
 const BASE_COORDINATES = {
@@ -127,6 +157,8 @@ export const generatePerformanceTestData = (
     startTime?: number;
     intervalSeconds?: number;
     startingLocation?: { latitude: number; longitude: number };
+    applyNoise?: boolean;
+    noiseOptions?: GPSNoiseOptions;
   } = {}
 ): GeoPoint[] => {
   const {
@@ -134,6 +166,8 @@ export const generatePerformanceTestData = (
     startTime = Date.now(), // Start from current time to avoid "forking worms" with real GPS
     intervalSeconds = 30, // 30 second intervals for walking speed
     startingLocation,
+    applyNoise = true, // Apply noise by default for realism
+    noiseOptions,
   } = options;
 
   // Use provided starting location or default to Eugene South Hills
@@ -160,6 +194,11 @@ export const generatePerformanceTestData = (
     });
   }
 
+  // Apply GPS noise if requested
+  if (applyNoise) {
+    return addGPSNoise(points, noiseOptions);
+  }
+
   return points;
 };
 
@@ -175,6 +214,7 @@ export const generateStreetBasedPath = async (
     startingLocation?: { latitude: number; longitude: number };
     radiusKm?: number;
     preferUnexplored?: boolean;
+    noiseOptions?: GPSNoiseOptions;
   } = {}
 ): Promise<GeoPoint[]> => {
   const {
@@ -183,6 +223,7 @@ export const generateStreetBasedPath = async (
     startingLocation,
     radiusKm = 1, // 1km radius for street fetching
     preferUnexplored = false,
+    noiseOptions,
   } = options;
 
   const baseCoords = startingLocation ?? BASE_COORDINATES;
@@ -220,7 +261,8 @@ export const generateStreetBasedPath = async (
       streets,
       startPoint,
       startTime,
-      intervalSeconds
+      intervalSeconds,
+      noiseOptions
     );
   }
 
@@ -229,8 +271,77 @@ export const generateStreetBasedPath = async (
     availableStreets,
     startPoint,
     startTime,
-    intervalSeconds
+    intervalSeconds,
+    noiseOptions
   );
+};
+
+/**
+ * Add realistic GPS noise to a set of GPS points
+ * Implements Gaussian noise, accuracy simulation, dropout, and drift
+ */
+export const addGPSNoise = (
+  basePoints: GeoPoint[],
+  options: GPSNoiseOptions = {}
+): GPSPointWithAccuracy[] => {
+  const {
+    noiseStdDev = 5, // 5m standard deviation
+    accuracyRange = [3, 15], // 3-15m accuracy range
+    dropoutProbability = 0.02, // 2% dropout rate
+    driftProbability = 0.05, // 5% drift probability
+    driftDuration = 5, // 5 points of drift
+    driftMagnitude = 10, // 10m drift offset
+  } = options;
+
+  const noisyPoints: GPSPointWithAccuracy[] = [];
+  let driftRemaining = 0;
+  let driftLatOffset = 0;
+  let driftLonOffset = 0;
+
+  for (let i = 0; i < basePoints.length; i++) {
+    const point = basePoints[i];
+    if (!point) continue;
+
+    // Simulate signal dropout
+    if (Math.random() < dropoutProbability) {
+      continue; // Skip this point (signal lost)
+    }
+
+    // Check if we should start a new drift period
+    if (driftRemaining === 0 && Math.random() < driftProbability) {
+      driftRemaining = driftDuration;
+      // Random drift direction
+      const driftAngle = Math.random() * 2 * Math.PI;
+      driftLatOffset = metersToDegrees(Math.cos(driftAngle) * driftMagnitude);
+      driftLonOffset = metersToDegrees(Math.sin(driftAngle) * driftMagnitude);
+    }
+
+    // Apply Gaussian noise
+    const noiseLatMeters = gaussianRandom(0, noiseStdDev);
+    const noiseLonMeters = gaussianRandom(0, noiseStdDev);
+    const noiseLatDegrees = metersToDegrees(noiseLatMeters);
+    const noiseLonDegrees = metersToDegrees(noiseLonMeters);
+
+    // Apply drift if active
+    const driftLat = driftRemaining > 0 ? driftLatOffset : 0;
+    const driftLon = driftRemaining > 0 ? driftLonOffset : 0;
+
+    // Simulate accuracy variation
+    const accuracy = accuracyRange[0] + Math.random() * (accuracyRange[1] - accuracyRange[0]);
+
+    noisyPoints.push({
+      latitude: point.latitude + noiseLatDegrees + driftLat,
+      longitude: point.longitude + noiseLonDegrees + driftLon,
+      timestamp: point.timestamp,
+      accuracy,
+    });
+
+    if (driftRemaining > 0) {
+      driftRemaining--;
+    }
+  }
+
+  return noisyPoints;
 };
 
 /**
@@ -241,11 +352,10 @@ const generateStreetBasedPathFromStreets = (
   streets: StreetSegment[],
   startPoint: GeoPoint,
   startTime: number,
-  intervalSeconds: number
+  intervalSeconds: number,
+  noiseOptions?: GPSNoiseOptions
 ): GeoPoint[] => {
-  const points: GeoPoint[] = [];
-  const GPS_NOISE_METERS = 5; // Realistic GPS drift
-  const GPS_NOISE_DEGREES = GPS_NOISE_METERS / 111000;
+  const basePoints: GeoPoint[] = [];
 
   // Pick random street segments and interpolate along them
   let currentStreetIndex = Math.floor(Math.random() * streets.length);
@@ -263,10 +373,10 @@ const generateStreetBasedPathFromStreets = (
 
     const currentStreet = streets[currentStreetIndex];
     if (!currentStreet || currentStreet.coordinates.length === 0) {
-      // Fallback to start point with noise
-      points.push({
-        latitude: startPoint.latitude + (Math.random() - 0.5) * GPS_NOISE_DEGREES * 2,
-        longitude: startPoint.longitude + (Math.random() - 0.5) * GPS_NOISE_DEGREES * 2,
+      // Fallback to start point
+      basePoints.push({
+        latitude: startPoint.latitude,
+        longitude: startPoint.longitude,
         timestamp,
       });
       continue;
@@ -278,23 +388,23 @@ const generateStreetBasedPathFromStreets = (
 
     if (!coord) {
       // Fallback
-      points.push({
-        latitude: startPoint.latitude + (Math.random() - 0.5) * GPS_NOISE_DEGREES * 2,
-        longitude: startPoint.longitude + (Math.random() - 0.5) * GPS_NOISE_DEGREES * 2,
+      basePoints.push({
+        latitude: startPoint.latitude,
+        longitude: startPoint.longitude,
         timestamp,
       });
       continue;
     }
 
-    // Add GPS noise for realism
-    points.push({
-      latitude: coord.latitude + (Math.random() - 0.5) * GPS_NOISE_DEGREES * 2,
-      longitude: coord.longitude + (Math.random() - 0.5) * GPS_NOISE_DEGREES * 2,
+    basePoints.push({
+      latitude: coord.latitude,
+      longitude: coord.longitude,
       timestamp,
     });
 
     pointsOnCurrentStreet++;
   }
 
-  return points;
+  // Apply realistic GPS noise to all base points
+  return addGPSNoise(basePoints, noiseOptions);
 };

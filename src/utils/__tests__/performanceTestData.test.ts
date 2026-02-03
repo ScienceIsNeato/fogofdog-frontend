@@ -1,9 +1,17 @@
-import { generatePerformanceTestData, TestPatterns } from '../performanceTestData';
+import {
+  generatePerformanceTestData,
+  TestPatterns,
+  addGPSNoise,
+  GPSPointWithAccuracy,
+} from '../performanceTestData';
+import { GeoPoint } from '../../types/user';
 
 describe('performanceTestData', () => {
   describe('generatePerformanceTestData', () => {
     it('should generate single point', () => {
-      const points = generatePerformanceTestData(1, TestPatterns.SINGLE_POINT);
+      const points = generatePerformanceTestData(1, TestPatterns.SINGLE_POINT, {
+        applyNoise: false,
+      });
 
       expect(points).toHaveLength(1);
       expect(points[0]).toBeDefined();
@@ -16,7 +24,9 @@ describe('performanceTestData', () => {
     });
 
     it('should generate multiple points with random walk', () => {
-      const points = generatePerformanceTestData(5, TestPatterns.RANDOM_WALK);
+      const points = generatePerformanceTestData(5, TestPatterns.RANDOM_WALK, {
+        applyNoise: false,
+      });
 
       expect(points).toHaveLength(5);
       points.forEach((point, index) => {
@@ -32,7 +42,9 @@ describe('performanceTestData', () => {
     });
 
     it('should generate realistic drive pattern', () => {
-      const points = generatePerformanceTestData(3, TestPatterns.REALISTIC_DRIVE);
+      const points = generatePerformanceTestData(3, TestPatterns.REALISTIC_DRIVE, {
+        applyNoise: false,
+      });
 
       expect(points).toHaveLength(3);
       // First point should be at base coordinates (Eugene South Hills)
@@ -48,6 +60,7 @@ describe('performanceTestData', () => {
       const customLocation = { latitude: 45.0, longitude: -122.0 };
       const points = generatePerformanceTestData(1, TestPatterns.SINGLE_POINT, {
         startingLocation: customLocation,
+        applyNoise: false,
       });
 
       expect(points[0]!.latitude).toBe(45.0);
@@ -59,6 +72,7 @@ describe('performanceTestData', () => {
       const points = generatePerformanceTestData(2, TestPatterns.RANDOM_WALK, {
         startTime,
         intervalSeconds: 60,
+        applyNoise: false,
       });
 
       expect(points[0]!.timestamp).toBe(startTime);
@@ -66,7 +80,9 @@ describe('performanceTestData', () => {
     });
 
     it('should generate circular path pattern', () => {
-      const points = generatePerformanceTestData(8, TestPatterns.CIRCULAR_PATH);
+      const points = generatePerformanceTestData(8, TestPatterns.CIRCULAR_PATH, {
+        applyNoise: false,
+      });
 
       expect(points).toHaveLength(8);
       // Should have coordinates within reasonable bounds
@@ -85,7 +101,9 @@ describe('performanceTestData', () => {
     });
 
     it('should generate grid pattern', () => {
-      const points = generatePerformanceTestData(4, TestPatterns.GRID_PATTERN);
+      const points = generatePerformanceTestData(4, TestPatterns.GRID_PATTERN, {
+        applyNoise: false,
+      });
 
       expect(points).toHaveLength(4);
       points.forEach((point) => {
@@ -97,7 +115,9 @@ describe('performanceTestData', () => {
     });
 
     it('should generate hiking trail pattern', () => {
-      const points = generatePerformanceTestData(3, TestPatterns.HIKING_TRAIL);
+      const points = generatePerformanceTestData(3, TestPatterns.HIKING_TRAIL, {
+        applyNoise: false,
+      });
 
       expect(points).toHaveLength(3);
       points.forEach((point) => {
@@ -108,7 +128,9 @@ describe('performanceTestData', () => {
     });
 
     it('should generate RANDOM_WALK pattern data', () => {
-      const points = generatePerformanceTestData(5, TestPatterns.RANDOM_WALK);
+      const points = generatePerformanceTestData(5, TestPatterns.RANDOM_WALK, {
+        applyNoise: false,
+      });
 
       expect(points).toHaveLength(5);
       if (points.length > 1) {
@@ -117,7 +139,9 @@ describe('performanceTestData', () => {
     });
 
     it('should generate CIRCULAR_PATH pattern data', () => {
-      const points = generatePerformanceTestData(4, TestPatterns.CIRCULAR_PATH);
+      const points = generatePerformanceTestData(4, TestPatterns.CIRCULAR_PATH, {
+        applyNoise: false,
+      });
 
       expect(points).toHaveLength(4);
       points.forEach((point) => {
@@ -133,6 +157,7 @@ describe('performanceTestData', () => {
         startingLocation: { latitude: 40.7128, longitude: -74.006 },
         intervalSeconds: 30,
         startTime: 1000000,
+        applyNoise: false,
       };
 
       const points = generatePerformanceTestData(2, TestPatterns.REALISTIC_DRIVE, customOptions);
@@ -145,12 +170,155 @@ describe('performanceTestData', () => {
 
     it('should handle edge cases', () => {
       // Test with minimal count
-      const singlePoint = generatePerformanceTestData(1, TestPatterns.REALISTIC_DRIVE);
+      const singlePoint = generatePerformanceTestData(1, TestPatterns.REALISTIC_DRIVE, {
+        applyNoise: false,
+      });
       expect(singlePoint).toHaveLength(1);
 
       // Test with zero count should still return empty array gracefully
-      const zeroPoints = generatePerformanceTestData(0, TestPatterns.REALISTIC_DRIVE);
+      const zeroPoints = generatePerformanceTestData(0, TestPatterns.REALISTIC_DRIVE, {
+        applyNoise: false,
+      });
       expect(zeroPoints).toHaveLength(0);
+    });
+  });
+
+  describe('GPS Noise Generation', () => {
+    it('should apply GPS noise by default', () => {
+      const points = generatePerformanceTestData(10, TestPatterns.SINGLE_POINT);
+
+      // With noise applied, points should not all be identical
+      const uniqueLatitudes = new Set(points.map((p) => p.latitude));
+      const uniqueLongitudes = new Set(points.map((p) => p.longitude));
+
+      // Most points should be unique due to noise
+      expect(uniqueLatitudes.size).toBeGreaterThan(1);
+      expect(uniqueLongitudes.size).toBeGreaterThan(1);
+    });
+
+    it('should add accuracy field to points with noise', () => {
+      const points = generatePerformanceTestData(5, TestPatterns.SINGLE_POINT);
+
+      points.forEach((point) => {
+        expect(point).toHaveProperty('accuracy');
+        const pointWithAccuracy = point as GPSPointWithAccuracy;
+        expect(pointWithAccuracy.accuracy).toBeGreaterThan(0);
+        expect(pointWithAccuracy.accuracy).toBeLessThan(20); // Within reasonable bounds
+      });
+    });
+
+    it('should respect applyNoise: false option', () => {
+      const baseLocation = { latitude: 45.0, longitude: -122.0 };
+      const points = generatePerformanceTestData(5, TestPatterns.SINGLE_POINT, {
+        startingLocation: baseLocation,
+        applyNoise: false,
+      });
+
+      // All points should be identical when noise is disabled
+      points.forEach((point) => {
+        expect(point.latitude).toBe(45.0);
+        expect(point.longitude).toBe(-122.0);
+      });
+    });
+
+    it('should handle dropout in GPS noise', () => {
+      const basePoints: GeoPoint[] = Array.from({ length: 100 }, (_, i) => ({
+        latitude: 44.0462,
+        longitude: -123.0236,
+        timestamp: Date.now() + i * 1000,
+      }));
+
+      // With high dropout probability, should lose some points
+      const noisyPoints = addGPSNoise(basePoints, {
+        dropoutProbability: 0.3, // 30% dropout
+        noiseStdDev: 0, // No position noise
+      });
+
+      // Should have fewer points due to dropout
+      expect(noisyPoints.length).toBeLessThan(basePoints.length);
+      expect(noisyPoints.length).toBeGreaterThan(basePoints.length * 0.5); // But not too many
+    });
+
+    it('should apply Gaussian noise correctly', () => {
+      const baseLocation = { latitude: 44.0462, longitude: -123.0236 };
+      const points = generatePerformanceTestData(100, TestPatterns.SINGLE_POINT, {
+        startingLocation: baseLocation,
+        noiseOptions: {
+          noiseStdDev: 5, // 5m standard deviation
+          dropoutProbability: 0, // No dropout for this test
+        },
+      });
+
+      // Calculate average distance from base point
+      const distances = points.map((point) => {
+        const latDiff = (point.latitude - baseLocation.latitude) * 111000;
+        const lonDiff = (point.longitude - baseLocation.longitude) * 111000;
+        return Math.sqrt(latDiff * latDiff + lonDiff * lonDiff);
+      });
+
+      const avgDistance = distances.reduce((sum, d) => sum + d, 0) / distances.length;
+
+      // Average distance should be roughly within expected range for Gaussian
+      // For 5m std dev, expect average around 4-6m (with some statistical variance)
+      expect(avgDistance).toBeGreaterThan(2);
+      expect(avgDistance).toBeLessThan(10);
+    });
+
+    it('should simulate GPS drift', () => {
+      const basePoints: GeoPoint[] = Array.from({ length: 20 }, (_, i) => ({
+        latitude: 44.0462,
+        longitude: -123.0236,
+        timestamp: Date.now() + i * 1000,
+      }));
+
+      const noisyPoints = addGPSNoise(basePoints, {
+        noiseStdDev: 1, // Low noise
+        driftProbability: 1.0, // Always drift
+        driftDuration: 5,
+        driftMagnitude: 15, // 15m drift
+        dropoutProbability: 0,
+      });
+
+      // Should have consecutive points with similar offset (drift)
+      expect(noisyPoints.length).toBeGreaterThan(10);
+
+      // Check that some consecutive points are clustered (indicating drift)
+      let foundDrift = false;
+      for (let i = 1; i < Math.min(10, noisyPoints.length); i++) {
+        const prev = noisyPoints[i - 1];
+        const curr = noisyPoints[i];
+        if (prev && curr) {
+          const latDiff = (curr.latitude - prev.latitude) * 111000;
+          const lonDiff = (curr.longitude - prev.longitude) * 111000;
+          const distance = Math.sqrt(latDiff * latDiff + lonDiff * lonDiff);
+
+          // Drifted points should be close together
+          if (distance < 3) {
+            foundDrift = true;
+            break;
+          }
+        }
+      }
+
+      expect(foundDrift).toBe(true);
+    });
+
+    it('should allow custom noise options', () => {
+      const points = generatePerformanceTestData(10, TestPatterns.SINGLE_POINT, {
+        applyNoise: true,
+        noiseOptions: {
+          noiseStdDev: 10, // Higher noise
+          accuracyRange: [5, 20],
+          dropoutProbability: 0,
+        },
+      });
+
+      expect(points.length).toBe(10); // No dropout
+      points.forEach((point) => {
+        const pointWithAccuracy = point as GPSPointWithAccuracy;
+        expect(pointWithAccuracy.accuracy).toBeGreaterThanOrEqual(5);
+        expect(pointWithAccuracy.accuracy).toBeLessThanOrEqual(20);
+      });
     });
   });
 });

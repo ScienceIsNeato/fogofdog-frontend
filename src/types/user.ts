@@ -21,3 +21,10 @@ export interface GeoPoint {
   longitude: number;
   timestamp: number; // Unix timestamp in milliseconds
 }
+
+/**
+ * GPS point with accuracy information for confidence-based tracking
+ */
+export interface GPSPointWithAccuracy extends GeoPoint {
+  accuracy?: number; // Accuracy in meters (lower is better)
+}

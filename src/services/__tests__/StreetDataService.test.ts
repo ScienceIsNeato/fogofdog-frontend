@@ -24,11 +24,25 @@ describe('StreetDataService', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    (global.fetch as jest.Mock).mockClear();
+
+    // Reset fetch mock with a default implementation that returns empty results
+    (global.fetch as jest.Mock).mockReset();
+    (global.fetch as jest.Mock).mockResolvedValue({
+      ok: true,
+      status: 200,
+      statusText: 'OK',
+      json: async () => ({
+        version: 0.6,
+        generator: 'test',
+        elements: [],
+      }),
+    });
+
     (AsyncStorage.getItem as jest.Mock).mockClear();
     (AsyncStorage.setItem as jest.Mock).mockClear();
     (AsyncStorage.getAllKeys as jest.Mock).mockClear();
     (AsyncStorage.multiRemove as jest.Mock).mockClear();
+    (AsyncStorage.getItem as jest.Mock).mockResolvedValue(null);
 
     service = StreetDataService.getInstance();
     service.reset();
@@ -109,7 +123,8 @@ describe('StreetDataService', () => {
         },
       ];
 
-      (AsyncStorage.getItem as jest.Mock).mockResolvedValueOnce(
+      // Mock cache for both isCacheValid and getFromCache calls
+      (AsyncStorage.getItem as jest.Mock).mockResolvedValue(
         JSON.stringify({
           data: cachedStreets,
           timestamp: Date.now(),
@@ -137,7 +152,8 @@ describe('StreetDataService', () => {
         },
       ];
 
-      (AsyncStorage.getItem as jest.Mock).mockResolvedValueOnce(
+      // Mock cache for fallback
+      (AsyncStorage.getItem as jest.Mock).mockResolvedValue(
         JSON.stringify({
           data: cachedStreets,
           timestamp: Date.now(),
@@ -437,7 +453,7 @@ describe('StreetDataService', () => {
   });
 
   describe('updateExplorationFromGPSPath', () => {
-    it('should mark nearby streets as explored', () => {
+    it('should mark nearby streets as explored with confidence scoring', () => {
       const street: StreetSegment = {
         id: '1',
         name: 'Test Street',
@@ -451,17 +467,24 @@ describe('StreetDataService', () => {
 
       service['streets'].set(street.id, street);
 
+      // Multiple GPS points to build up confidence (EMA requires several observations)
+      const baseTime = Date.now();
       const gpsPath: GeoPoint[] = [
-        { latitude: 44.0462, longitude: -123.0236, timestamp: Date.now() },
+        { latitude: 44.0462, longitude: -123.0236, timestamp: baseTime },
+        { latitude: 44.0462, longitude: -123.0236, timestamp: baseTime + 1000 },
+        { latitude: 44.0462, longitude: -123.0236, timestamp: baseTime + 2000 },
+        { latitude: 44.0462, longitude: -123.0236, timestamp: baseTime + 3000 },
       ];
 
       service.updateExplorationFromGPSPath(gpsPath);
 
       const updatedStreet = service['streets'].get(street.id);
       expect(updatedStreet?.isExplored).toBe(true);
+      expect(updatedStreet?.confidenceScore).toBeGreaterThan(0.7);
+      expect(updatedStreet?.visitCount).toBe(4);
     });
 
-    it('should mark nearby intersections as explored', () => {
+    it('should mark nearby intersections as explored with confidence scoring', () => {
       const intersection = {
         id: 'int1',
         location: { latitude: 44.0462, longitude: -123.0236, timestamp: Date.now() },
@@ -472,14 +495,21 @@ describe('StreetDataService', () => {
 
       service['intersections'].set(intersection.id, intersection);
 
+      // Multiple GPS points to build up confidence
+      const baseTime = Date.now();
       const gpsPath: GeoPoint[] = [
-        { latitude: 44.0462, longitude: -123.0236, timestamp: Date.now() },
+        { latitude: 44.0462, longitude: -123.0236, timestamp: baseTime },
+        { latitude: 44.0462, longitude: -123.0236, timestamp: baseTime + 1000 },
+        { latitude: 44.0462, longitude: -123.0236, timestamp: baseTime + 2000 },
+        { latitude: 44.0462, longitude: -123.0236, timestamp: baseTime + 3000 },
       ];
 
       service.updateExplorationFromGPSPath(gpsPath);
 
       const updatedIntersection = service['intersections'].get(intersection.id);
       expect(updatedIntersection?.isExplored).toBe(true);
+      expect(updatedIntersection?.confidenceScore).toBeGreaterThan(0.7);
+      expect(updatedIntersection?.visitCount).toBe(4);
     });
   });
 

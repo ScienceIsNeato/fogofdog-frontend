@@ -20,8 +20,14 @@ export interface StreetSegment {
   name: string; // Street name (e.g., "Main St")
   type: StreetType; // Road classification
   coordinates: GeoPoint[]; // Array of points forming the segment
-  isExplored: boolean; // Whether user has traveled this segment
+  isExplored: boolean; // Whether user has traveled this segment (derived from confidence >= 0.7)
   exploredAt?: number; // Timestamp when first explored (Unix ms)
+  // V2: Confidence-based exploration tracking
+  confidenceScore?: number; // 0.0-1.0, how confident we are this was explored
+  visitCount?: number; // Number of GPS points near this segment
+  totalTimeNearby?: number; // Total milliseconds spent near this segment
+  averageDistance?: number; // Average distance of GPS points (meters)
+  lastVisited?: number; // Timestamp of most recent visit
 }
 
 /**
@@ -32,8 +38,14 @@ export interface StreetIntersection {
   location: GeoPoint; // Intersection center point
   streetNames: string[]; // Names of intersecting streets (2+)
   streetIds: string[]; // IDs of intersecting street segments
-  isExplored: boolean; // Whether user has visited
+  isExplored: boolean; // Whether user has visited (derived from confidence >= 0.7)
   exploredAt?: number; // Timestamp when first explored (Unix ms)
+  // V2: Confidence-based exploration tracking
+  confidenceScore?: number; // 0.0-1.0, how confident we are this was explored
+  visitCount?: number; // Number of GPS points near this intersection
+  totalTimeNearby?: number; // Total milliseconds spent near this intersection
+  averageDistance?: number; // Average distance of GPS points (meters)
+  lastVisited?: number; // Timestamp of most recent visit
 }
 
 /**

@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { logger } from '../utils/logger';
-import { GeoPoint } from '../types/user';
+import { GeoPoint, GPSPointWithAccuracy } from '../types/user';
 import {
   StreetSegment,
   StreetIntersection,
@@ -25,6 +25,15 @@ const MAX_CACHE_SIZE_MB = 10;
 const RATE_LIMIT_MS = 6000; // 10 requests per minute = 6s between requests
 const EXPLORATION_THRESHOLD_METERS = 10; // Distance to mark intersection as explored
 const METERS_PER_MILE = 1609.34;
+
+// V2: Confidence scoring constants
+const CONFIDENCE_THRESHOLD = 0.7; // Threshold to consider explored (0.0-1.0)
+const CONFIDENCE_EMA_ALPHA = 0.3; // Exponential moving average smoothing factor
+const CONFIDENCE_HIGH_DISTANCE = 5; // Distance in meters for high confidence (0.8-1.0)
+const CONFIDENCE_MEDIUM_DISTANCE = 15; // Distance in meters for medium confidence (0.4-0.8)
+const CONFIDENCE_MAX_DISTANCE = 30; // Maximum distance to consider (beyond this = 0 confidence)
+const GPS_ACCURACY_GOOD = 10; // GPS accuracy threshold for good signal (meters)
+const GPS_ACCURACY_POOR = 20; // GPS accuracy threshold for poor signal (meters)
 
 interface CacheEntry {
   data: StreetSegment[] | StreetIntersection[];
@@ -441,6 +450,93 @@ export class StreetDataService {
   }
 
   /**
+   * V2: Calculate confidence score for a single GPS point near a street
+   * Returns a value between 0.0 (no confidence) and 1.0 (high confidence)
+   * Based on distance to street and GPS accuracy
+   */
+  private calculatePointConfidence(
+    gpsPoint: GPSPointWithAccuracy,
+    distanceToStreet: number
+  ): number {
+    // If too far away, no confidence
+    if (distanceToStreet > CONFIDENCE_MAX_DISTANCE) {
+      return 0.0;
+    }
+
+    // Base confidence from distance
+    let confidence = 0;
+    if (distanceToStreet <= CONFIDENCE_HIGH_DISTANCE) {
+      // High confidence: 0.8 to 1.0
+      confidence = 0.8 + (1 - distanceToStreet / CONFIDENCE_HIGH_DISTANCE) * 0.2;
+    } else if (distanceToStreet <= CONFIDENCE_MEDIUM_DISTANCE) {
+      // Medium confidence: 0.4 to 0.8
+      const ratio = (distanceToStreet - CONFIDENCE_HIGH_DISTANCE) /
+                    (CONFIDENCE_MEDIUM_DISTANCE - CONFIDENCE_HIGH_DISTANCE);
+      confidence = 0.8 - ratio * 0.4;
+    } else {
+      // Low confidence: 0.0 to 0.4
+      const ratio = (distanceToStreet - CONFIDENCE_MEDIUM_DISTANCE) /
+                    (CONFIDENCE_MAX_DISTANCE - CONFIDENCE_MEDIUM_DISTANCE);
+      confidence = 0.4 * (1 - ratio);
+    }
+
+    // Adjust for GPS accuracy (if available)
+    if (gpsPoint.accuracy !== undefined) {
+      if (gpsPoint.accuracy > GPS_ACCURACY_POOR) {
+        // Very poor accuracy, reduce confidence significantly
+        confidence *= 0.5;
+      } else if (gpsPoint.accuracy > GPS_ACCURACY_GOOD) {
+        // Poor accuracy, reduce confidence moderately
+        confidence *= 0.75;
+      }
+      // Good accuracy (< GPS_ACCURACY_GOOD) - no reduction
+    }
+
+    return Math.min(Math.max(confidence, 0.0), 1.0);
+  }
+
+  /**
+   * V2: Update confidence score using exponential moving average (EMA)
+   * This smooths out noise and prevents rapid fluctuations
+   */
+  private updateConfidenceScore(
+    currentConfidence: number,
+    newObservation: number
+  ): number {
+    // EMA formula: new = alpha * observation + (1 - alpha) * old
+    const updated =
+      CONFIDENCE_EMA_ALPHA * newObservation +
+      (1 - CONFIDENCE_EMA_ALPHA) * currentConfidence;
+    return Math.min(Math.max(updated, 0.0), 1.0);
+  }
+
+  /**
+   * V2: Initialize or get confidence tracking data for a street
+   */
+  private initializeConfidenceData(street: StreetSegment): void {
+    if (street.confidenceScore === undefined) {
+      street.confidenceScore = 0.0;
+      street.visitCount = 0;
+      street.totalTimeNearby = 0;
+      street.averageDistance = 0;
+      street.lastVisited = undefined;
+    }
+  }
+
+  /**
+   * V2: Initialize or get confidence tracking data for an intersection
+   */
+  private initializeIntersectionConfidenceData(intersection: StreetIntersection): void {
+    if (intersection.confidenceScore === undefined) {
+      intersection.confidenceScore = 0.0;
+      intersection.visitCount = 0;
+      intersection.totalTimeNearby = 0;
+      intersection.averageDistance = 0;
+      intersection.lastVisited = undefined;
+    }
+  }
+
+  /**
    * Calculate minimum distance from point to line segment
    */
   private pointToLineSegmentDistance(
@@ -708,26 +804,91 @@ export class StreetDataService {
   }
 
   /**
-   * Check if GPS path intersects with a street and mark as explored
+   * V2: Check if GPS path intersects with a street and update confidence
+   * Uses confidence-based tracking with GPS noise tolerance
    */
   updateExplorationFromGPSPath(gpsPath: GeoPoint[]): void {
-    for (const point of gpsPath) {
+    // Sort points by timestamp to calculate time intervals
+    const sortedPath = [...gpsPath].sort((a, b) => a.timestamp - b.timestamp);
+
+    for (let i = 0; i < sortedPath.length; i++) {
+      const point = sortedPath[i];
+      if (!point) continue;
+
+      // Calculate time interval to next point (for time tracking)
+      const nextPoint = sortedPath[i + 1];
+      const timeInterval = nextPoint ? nextPoint.timestamp - point.timestamp : 0;
+
+      // Convert to GPSPointWithAccuracy (may already have accuracy from noise generation)
+      const gpsPoint: GPSPointWithAccuracy = point;
+
       // Check streets
       for (const street of this.streets.values()) {
-        if (!street.isExplored) {
-          const distance = this.pointToStreetDistance(point, street);
-          if (distance < EXPLORATION_THRESHOLD_METERS) {
-            this.markStreetExplored(street.id, point.timestamp);
+        const distance = this.pointToStreetDistance(point, street);
+
+        // Only process if within max confidence distance
+        if (distance < CONFIDENCE_MAX_DISTANCE) {
+          this.initializeConfidenceData(street);
+
+          // Calculate confidence for this observation
+          const pointConfidence = this.calculatePointConfidence(gpsPoint, distance);
+
+          // Update confidence using EMA
+          street.confidenceScore = this.updateConfidenceScore(
+            street.confidenceScore || 0,
+            pointConfidence
+          );
+
+          // Update tracking metrics
+          street.visitCount = (street.visitCount || 0) + 1;
+          street.totalTimeNearby = (street.totalTimeNearby || 0) + timeInterval;
+
+          // Update average distance using running average
+          const prevAvg = street.averageDistance || 0;
+          const count = street.visitCount || 1;
+          street.averageDistance = prevAvg + (distance - prevAvg) / count;
+
+          street.lastVisited = point.timestamp;
+
+          // Update isExplored based on confidence threshold
+          if (street.confidenceScore >= CONFIDENCE_THRESHOLD && !street.isExplored) {
+            street.isExplored = true;
+            street.exploredAt = point.timestamp;
           }
         }
       }
 
       // Check intersections
       for (const intersection of this.intersections.values()) {
-        if (!intersection.isExplored) {
-          const distance = this.haversineDistance(point, intersection.location);
-          if (distance < EXPLORATION_THRESHOLD_METERS) {
-            this.markIntersectionExplored(intersection.id, point.timestamp);
+        const distance = this.haversineDistance(point, intersection.location);
+
+        if (distance < CONFIDENCE_MAX_DISTANCE) {
+          this.initializeIntersectionConfidenceData(intersection);
+
+          // Calculate confidence for this observation
+          const pointConfidence = this.calculatePointConfidence(gpsPoint, distance);
+
+          // Update confidence using EMA
+          intersection.confidenceScore = this.updateConfidenceScore(
+            intersection.confidenceScore || 0,
+            pointConfidence
+          );
+
+          // Update tracking metrics
+          intersection.visitCount = (intersection.visitCount || 0) + 1;
+          intersection.totalTimeNearby = (intersection.totalTimeNearby || 0) + timeInterval;
+
+          // Update average distance using running average
+          const prevAvg = intersection.averageDistance || 0;
+          const count = intersection.visitCount || 1;
+          intersection.averageDistance = prevAvg + (distance - prevAvg) / count;
+
+          intersection.lastVisited = point.timestamp;
+
+          // Update isExplored based on confidence threshold
+          if (intersection.confidenceScore >= CONFIDENCE_THRESHOLD && !intersection.isExplored) {
+            intersection.isExplored = true;
+            intersection.exploredAt = point.timestamp;
           }
         }
       }
