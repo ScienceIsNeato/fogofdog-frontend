@@ -170,32 +170,50 @@ directly — no singleton involved.
 
 New "Street Navigation" section after the Performance Testing panel:
 
-| Control                    | testID                     | Behaviour                               |
-| -------------------------- | -------------------------- | --------------------------------------- |
-| Prefer Streets toggle      | `prefer-streets-toggle`    | dispatches `setPreferStreets`           |
-| Prefer Unexplored toggle   | `prefer-unexplored-toggle` | dispatches `setPreferUnexplored`        |
-| Load Sample Streets button | `load-sample-streets`      | loads the static 3×3 grid               |
-| Info text                  | `street-info-loaded`       | shows _"Streets: N loaded, N explored"_ |
+| Control                    | testID                     | Behaviour                                |
+| -------------------------- | -------------------------- | ---------------------------------------- |
+| Prefer Streets toggle      | `prefer-streets-toggle`    | dispatches `setPreferStreets`            |
+| Prefer Unexplored toggle   | `prefer-unexplored-toggle` | dispatches `setPreferUnexplored`         |
+| Load Sample Streets button | `load-sample-streets`      | loads the static 3×3 grid                |
+| Info text                  | `street-info-loaded`       | shows _"N segments loaded · N explored"_ |
 
 ---
 
 ## 7. Testing Matrix
 
-| Layer          | File(s)                                 | What is verified                                                                                                                    |
-| -------------- | --------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
-| Unit — types   | `street.test.ts`                        | All interfaces compile; runtime shape checks                                                                                        |
-| Unit — slice   | `streetSlice.test.ts`                   | All reducers, initial state, explored tracking                                                                                      |
-| Unit — service | `StreetDataService.test.ts`             | haversine, bearing, closest-point projection, `findClosestStreets`, `findClosestIntersections`, `findShortestLoop` with sample grid |
-| Integration    | `StreetDataService.integration.test.ts` | Service ↔ real Redux store; filter round-trips; markPathAsExplored                                                                 |
-| E2E (Maestro)  | `street-navigation-test.yaml`           | Full dev-tool flow: load streets → toggle prefs → inject data → verify explored count                                               |
+| Layer          | File(s)                             | What is verified                                                                                                                                          |
+| -------------- | ----------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Unit — slice   | `streetSlice.test.ts`               | All reducers, initial state, explored tracking                                                                                                            |
+| Unit — service | `StreetDataService.test.ts`         | haversine, bearing, closest-point projection, `findClosestStreets`, `findClosestIntersections`, `findShortestLoop`, `computeExploredIds` with sample grid |
+| Unit — inject  | `injectPerformanceTestData.test.ts` | Legacy random-walk path, street-aligned path with prefer-unexplored, exploration marking via `computeExploredIds`                                         |
+| Unit — perf    | `performanceTestData.test.ts`       | `generateStreetAlignedTestData` on synthetic graph; start-location snap, prefer-unexplored routing                                                        |
+| E2E (Maestro)  | `street-navigation-test.yaml`       | Full dev-tool flow: load streets → toggle prefs → inject data → verify explored count                                                                     |
 
 ---
 
-## 8. Follow-ups (out of scope)
+## 8. ExplorationNudge — `src/components/ExplorationNudge.tsx`
+
+A floating map overlay added after the initial design doc was written. It is the
+first **production** (non-test-injection) consumer of the street-query layer.
+
+Two responsibilities:
+
+1. **Real-time exploration marking** — on every GPS tick it calls `computeExploredIds`
+   for the current point and dispatches `markSegmentsExplored` /
+   `markIntersectionsExplored`. This is the only place outside of test-data injection
+   that keeps the explored set in sync with the live path.
+2. **Nearest-unexplored nudge** — calls `findClosestStreets` with `filter: 'unexplored'`
+   and renders a small card showing street name, distance, cardinal direction, and a
+   running `N / M streets explored` counter. Returns `null` (invisible) when no streets
+   are loaded or every street is already explored.
+
+---
+
+## 9. Follow-ups (out of scope)
 
 - **OverpassClient**: retry with back-off, response caching, offline fallback (see TODO in `OverpassClient.ts`)
 - Production auto-fetch on map centre change
 - T-junction detection (splitting ways at interior nodes)
 - Persistent street-exploration cache (AsyncStorage)
-- "Guide me to nearest street" navigation UI
+- Turn-by-turn navigation UI (ExplorationNudge is a lightweight first step)
 - "Alert: unexplored intersection nearby" push notification
