@@ -160,11 +160,15 @@ export class StreetDataService {
    * Fetch streets from Overpass API
    */
   async fetchStreetsInBoundingBox(bbox: BoundingBox, useCache = true): Promise<StreetSegment[]> {
+    const perfTimer = logger.startTimer('StreetDataService.fetchStreetsInBoundingBox');
     const cacheKey = this.getCacheKey(bbox, 'streets');
 
     // Check cache first
     if (useCache && (await this.isCacheValid(cacheKey))) {
+      const cacheReadTimer = logger.startTimer('StreetDataService.cacheRead');
       const cached = await this.getFromCache<StreetSegment>(cacheKey);
+      cacheReadTimer();
+
       if (cached) {
         logger.info('Loaded streets from cache', {
           component: 'StreetDataService',
@@ -174,6 +178,7 @@ export class StreetDataService {
 
         // Update in-memory map
         cached.forEach((street) => this.streets.set(street.id, street));
+        perfTimer();
         return cached;
       }
     }
@@ -203,6 +208,7 @@ export class StreetDataService {
         bbox,
       });
 
+      const apiTimer = logger.startTimer('StreetDataService.overpassAPI');
       const response = await fetch(OVERPASS_API_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -214,16 +220,21 @@ export class StreetDataService {
       }
 
       const data: OSMResponse = await response.json();
+      apiTimer();
       this.lastFetchTimestamp = Date.now();
 
       // Parse response into StreetSegment objects
+      const parseTimer = logger.startTimer('StreetDataService.parseOSM');
       const streets = this.parseStreetsFromOSM(data);
+      parseTimer();
 
       // Update in-memory map
       streets.forEach((street) => this.streets.set(street.id, street));
 
       // Save to cache
+      const cacheWriteTimer = logger.startTimer('StreetDataService.cacheWrite');
       await this.saveToCache(cacheKey, streets);
+      cacheWriteTimer();
 
       logger.info('Successfully fetched streets', {
         component: 'StreetDataService',
@@ -231,6 +242,7 @@ export class StreetDataService {
         count: streets.length,
       });
 
+      perfTimer();
       return streets;
     } catch (error) {
       logger.error('Failed to fetch streets from Overpass API', error, {
@@ -245,9 +257,11 @@ export class StreetDataService {
           component: 'StreetDataService',
           action: 'fetchStreetsInBoundingBox',
         });
+        perfTimer();
         return cached;
       }
 
+      perfTimer();
       throw error;
     }
   }
@@ -470,13 +484,15 @@ export class StreetDataService {
       confidence = 0.8 + (1 - distanceToStreet / CONFIDENCE_HIGH_DISTANCE) * 0.2;
     } else if (distanceToStreet <= CONFIDENCE_MEDIUM_DISTANCE) {
       // Medium confidence: 0.4 to 0.8
-      const ratio = (distanceToStreet - CONFIDENCE_HIGH_DISTANCE) /
-                    (CONFIDENCE_MEDIUM_DISTANCE - CONFIDENCE_HIGH_DISTANCE);
+      const ratio =
+        (distanceToStreet - CONFIDENCE_HIGH_DISTANCE) /
+        (CONFIDENCE_MEDIUM_DISTANCE - CONFIDENCE_HIGH_DISTANCE);
       confidence = 0.8 - ratio * 0.4;
     } else {
       // Low confidence: 0.0 to 0.4
-      const ratio = (distanceToStreet - CONFIDENCE_MEDIUM_DISTANCE) /
-                    (CONFIDENCE_MAX_DISTANCE - CONFIDENCE_MEDIUM_DISTANCE);
+      const ratio =
+        (distanceToStreet - CONFIDENCE_MEDIUM_DISTANCE) /
+        (CONFIDENCE_MAX_DISTANCE - CONFIDENCE_MEDIUM_DISTANCE);
       confidence = 0.4 * (1 - ratio);
     }
 
@@ -499,14 +515,10 @@ export class StreetDataService {
    * V2: Update confidence score using exponential moving average (EMA)
    * This smooths out noise and prevents rapid fluctuations
    */
-  private updateConfidenceScore(
-    currentConfidence: number,
-    newObservation: number
-  ): number {
+  private updateConfidenceScore(currentConfidence: number, newObservation: number): number {
     // EMA formula: new = alpha * observation + (1 - alpha) * old
     const updated =
-      CONFIDENCE_EMA_ALPHA * newObservation +
-      (1 - CONFIDENCE_EMA_ALPHA) * currentConfidence;
+      CONFIDENCE_EMA_ALPHA * newObservation + (1 - CONFIDENCE_EMA_ALPHA) * currentConfidence;
     return Math.min(Math.max(updated, 0.0), 1.0);
   }
 
@@ -619,6 +631,11 @@ export class StreetDataService {
    * Get closest streets to a comparison point
    */
   async getClosestStreets(options: GetClosestStreetsOptions = {}): Promise<ClosestStreetResult[]> {
+    const perfTimer = logger.startTimer('StreetDataService.getClosestStreets', {
+      numResults: options.numResults,
+      filter: options.filter,
+    });
+
     const { numResults = 1, comparisonPoint, filter = 'all' } = options;
 
     const point = comparisonPoint || this.currentLocation;
@@ -648,6 +665,13 @@ export class StreetDataService {
     });
 
     results.sort((a, b) => a.distance - b.distance);
+
+    logger.perf('StreetDataService.getClosestStreets', {
+      totalStreets: this.streets.size,
+      filteredStreets: filteredStreets.length,
+      resultsReturned: Math.min(numResults, results.length),
+    });
+    perfTimer();
 
     return results.slice(0, numResults);
   }
@@ -808,8 +832,19 @@ export class StreetDataService {
    * Uses confidence-based tracking with GPS noise tolerance
    */
   updateExplorationFromGPSPath(gpsPath: GeoPoint[]): void {
+    const perfTimer = logger.startTimer('StreetDataService.updateExplorationFromGPSPath', {
+      pathLength: gpsPath.length,
+      streetCount: this.streets.size,
+      intersectionCount: this.intersections.size,
+    });
+
     // Sort points by timestamp to calculate time intervals
     const sortedPath = [...gpsPath].sort((a, b) => a.timestamp - b.timestamp);
+
+    let streetsUpdated = 0;
+    let intersectionsUpdated = 0;
+    let newlyExploredStreets = 0;
+    let newlyExploredIntersections = 0;
 
     for (let i = 0; i < sortedPath.length; i++) {
       const point = sortedPath[i];
@@ -829,11 +864,13 @@ export class StreetDataService {
         // Only process if within max confidence distance
         if (distance < CONFIDENCE_MAX_DISTANCE) {
           this.initializeConfidenceData(street);
+          streetsUpdated++;
 
           // Calculate confidence for this observation
           const pointConfidence = this.calculatePointConfidence(gpsPoint, distance);
 
           // Update confidence using EMA
+          const wasExplored = street.isExplored;
           street.confidenceScore = this.updateConfidenceScore(
             street.confidenceScore || 0,
             pointConfidence
@@ -854,6 +891,7 @@ export class StreetDataService {
           if (street.confidenceScore >= CONFIDENCE_THRESHOLD && !street.isExplored) {
             street.isExplored = true;
             street.exploredAt = point.timestamp;
+            if (!wasExplored) newlyExploredStreets++;
           }
         }
       }
@@ -864,11 +902,13 @@ export class StreetDataService {
 
         if (distance < CONFIDENCE_MAX_DISTANCE) {
           this.initializeIntersectionConfidenceData(intersection);
+          intersectionsUpdated++;
 
           // Calculate confidence for this observation
           const pointConfidence = this.calculatePointConfidence(gpsPoint, distance);
 
           // Update confidence using EMA
+          const wasExplored = intersection.isExplored;
           intersection.confidenceScore = this.updateConfidenceScore(
             intersection.confidenceScore || 0,
             pointConfidence
@@ -889,10 +929,21 @@ export class StreetDataService {
           if (intersection.confidenceScore >= CONFIDENCE_THRESHOLD && !intersection.isExplored) {
             intersection.isExplored = true;
             intersection.exploredAt = point.timestamp;
+            if (!wasExplored) newlyExploredIntersections++;
           }
         }
       }
     }
+
+    // Log performance metrics
+    logger.perf('StreetDataService.updateExplorationFromGPSPath', {
+      pathLength: gpsPath.length,
+      streetsUpdated,
+      intersectionsUpdated,
+      newlyExploredStreets,
+      newlyExploredIntersections,
+    });
+    perfTimer();
   }
 
   /**

@@ -72,6 +72,31 @@ class Logger {
     }
   }
 
+  /**
+   * Log performance metrics with timing information
+   * Use for tracking operation duration and throughput
+   */
+  perf(operation: string, metrics: { duration?: number; [key: string]: unknown }): void {
+    if (__DEV__) {
+      const timestamp = new Date().toISOString();
+      const durationStr = metrics.duration !== undefined ? `${metrics.duration.toFixed(2)}ms` : '';
+      // eslint-disable-next-line no-console
+      console.log(`[${timestamp}] PERF [${operation}] ${durationStr}`, metrics);
+    }
+  }
+
+  /**
+   * Create a performance timer for measuring operation duration
+   * Returns a function that when called, logs the elapsed time
+   */
+  startTimer(operation: string, context?: LogContext): () => void {
+    const startTime = Date.now();
+    return () => {
+      const duration = Date.now() - startTime;
+      this.perf(operation, { duration, ...context });
+    };
+  }
+
   private formatPrefix(level: string, context?: LogContext): string {
     const timestamp = new Date().toISOString();
     const component = context?.component ?? 'App';

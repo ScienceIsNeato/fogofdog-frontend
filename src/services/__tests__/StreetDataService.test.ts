@@ -16,6 +16,8 @@ jest.mock('../../utils/logger', () => ({
     error: jest.fn(),
     warn: jest.fn(),
     debug: jest.fn(),
+    perf: jest.fn(),
+    startTimer: jest.fn(() => jest.fn()), // Returns a function
   },
 }));
 
