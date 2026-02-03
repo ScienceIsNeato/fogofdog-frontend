@@ -802,7 +802,12 @@ describe('MapScreen', () => {
 
     // Start with no location in store
     const storeWithoutLocation = configureStore({
-      reducer: { exploration: explorationReducer, user: userReducer, stats: statsReducer },
+      reducer: {
+        exploration: explorationReducer,
+        user: userReducer,
+        stats: statsReducer,
+        street: streetReducer,
+      },
       preloadedState: {
         exploration: {
           path: [],
@@ -875,7 +880,12 @@ describe('MapScreen', () => {
 
     // Start with no location in store
     const storeWithoutLocation = configureStore({
-      reducer: { exploration: explorationReducer, user: userReducer, stats: statsReducer },
+      reducer: {
+        exploration: explorationReducer,
+        user: userReducer,
+        stats: statsReducer,
+        street: streetReducer,
+      },
       preloadedState: {
         exploration: {
           path: [],
