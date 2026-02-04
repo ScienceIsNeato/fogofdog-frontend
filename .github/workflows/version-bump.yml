@@ -21,7 +21,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          # Use PAT to bypass branch protection for version bump commits
+          # PAT grants privileges to github runner to auto-bump the version on main after a successful merge
           token: ${{ secrets.BUMP_VERSION_TOKEN }}
           fetch-depth: 0
 

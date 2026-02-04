@@ -240,6 +240,103 @@ describe('PerformanceTestDataInjector', () => {
 
       jest.useRealTimers();
     });
+
+    it('should pass preferUnexplored flag when enabled', async () => {
+      jest.useFakeTimers();
+
+      // Enable preferUnexplored in state
+      mockStore.getState = jest.fn(() => ({
+        user: { isAuthenticated: false, user: null, isLoading: false, error: null },
+        exploration: { path: [], currentLocation: { latitude: 44.046, longitude: -123.024 } },
+        street: {
+          preferStreets: true,
+          preferUnexplored: true,
+          segments: { seg_1: { id: 'seg_1', streetName: 'Oak St' } },
+          intersections: { n1: { id: 'n1' } },
+          exploredSegmentIds: ['seg_already_explored'],
+        },
+      })) as any;
+
+      mockComputeExploredIds.mockReturnValue({ segmentIds: [], intersectionIds: [] });
+
+      const injectionPromise = performanceTestInjector.injectRealTimeData(2);
+      jest.runAllTimers();
+      await injectionPromise;
+
+      // Verify generateStreetAlignedTestData was called with preferUnexplored options
+      expect(mockGenerateStreetAligned).toHaveBeenCalledWith(
+        2,
+        expect.any(Object),
+        expect.objectContaining({
+          preferUnexplored: true,
+          exploredSegmentIds: ['seg_already_explored'],
+        })
+      );
+
+      jest.useRealTimers();
+    });
+
+    it('should fall back to random walk when preferStreets is disabled', async () => {
+      jest.useFakeTimers();
+
+      // Disable preferStreets
+      mockStore.getState = jest.fn(() => ({
+        user: { isAuthenticated: false, user: null, isLoading: false, error: null },
+        exploration: { path: [], currentLocation: { latitude: 44.046, longitude: -123.024 } },
+        street: {
+          preferStreets: false,
+          preferUnexplored: true, // Should be ignored since preferStreets is false
+          segments: { seg_1: { id: 'seg_1' } },
+          intersections: { n1: { id: 'n1' } },
+          exploredSegmentIds: [],
+        },
+      })) as any;
+
+      mockGenerateData.mockReturnValue([
+        { latitude: 44.046, longitude: -123.024, timestamp: 0 },
+      ]);
+
+      const injectionPromise = performanceTestInjector.injectRealTimeData(1);
+      jest.runAllTimers();
+      await injectionPromise;
+
+      // Should use regular generator, not street-aligned
+      expect(mockGenerateData).toHaveBeenCalled();
+      expect(mockGenerateStreetAligned).not.toHaveBeenCalled();
+
+      jest.useRealTimers();
+    });
+
+    it('should fall back to random walk when no street data is loaded', async () => {
+      jest.useFakeTimers();
+
+      // preferStreets is true, but no segments loaded
+      mockStore.getState = jest.fn(() => ({
+        user: { isAuthenticated: false, user: null, isLoading: false, error: null },
+        exploration: { path: [], currentLocation: { latitude: 44.046, longitude: -123.024 } },
+        street: {
+          preferStreets: true,
+          preferUnexplored: false,
+          segments: {}, // Empty
+          intersections: {},
+          exploredSegmentIds: [],
+        },
+      })) as any;
+
+      mockGenerateData.mockReturnValue([
+        { latitude: 44.046, longitude: -123.024, timestamp: 0 },
+      ]);
+
+      const injectionPromise = performanceTestInjector.injectRealTimeData(1);
+      jest.runAllTimers();
+      await injectionPromise;
+
+      // Should fall back to regular generator since no street data
+      expect(mockGenerateData).toHaveBeenCalled();
+      expect(mockGenerateStreetAligned).not.toHaveBeenCalled();
+
+      jest.useRealTimers();
+    });
   });
 
   describe('error handling', () => {

@@ -80,7 +80,7 @@
       "full": {
         "enabled": false,
         "auto_fix": false,
-        "config_file_path": null,
+        "config_file_path": ".secrets.baseline",
         "scanners": ["bandit", "semgrep", "detect-secrets"],
         "exclude_dirs": [
           "venv",
@@ -97,7 +97,7 @@
       "local": {
         "enabled": false,
         "auto_fix": false,
-        "config_file_path": null,
+        "config_file_path": ".secrets.baseline",
         "scanners": ["bandit", "semgrep", "detect-secrets"],
         "exclude_dirs": [
           "venv",

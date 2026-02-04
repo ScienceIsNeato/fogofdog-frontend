@@ -75,14 +75,16 @@ export const ExplorationNudge: React.FC = () => {
   const totalCount = segmentArray.length;
 
   return (
-    <View style={styles.container}>
+    <View style={styles.container} testID="exploration-nudge">
       <View style={styles.card}>
         <Text style={styles.label}>UNEXPLORED</Text>
-        <Text style={styles.streetName}>{nearest.streetName}</Text>
-        <Text style={styles.detail}>
+        <Text style={styles.streetName} testID="nudge-street-name">
+          {nearest.streetName}
+        </Text>
+        <Text style={styles.detail} testID="nudge-distance-direction">
           {arrow} {distanceText} {nearest.direction}
         </Text>
-        <Text style={styles.progress}>
+        <Text style={styles.progress} testID="nudge-progress">
           {exploredCount} / {totalCount} streets explored
         </Text>
       </View>

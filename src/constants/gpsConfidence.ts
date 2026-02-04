@@ -6,6 +6,19 @@
  * prevent jitter from poisoning the exploration path.
  *
  * Accuracy values are in metres — smaller is better.
+ *
+ * ## Current Application
+ *
+ * As of this PR, these constants define the threshold infrastructure but are
+ * not yet wired into the live GPS pipeline. They will be consumed by:
+ *
+ * 1. **ExplorationNudge** — to filter low-confidence fixes before calling
+ *    `computeExploredIds()` (prevents crediting exploration for noisy GPS).
+ * 2. **BackgroundLocationService** — to discard fixes that exceed
+ *    `GPS_NOISE_THRESHOLD` before appending to the path.
+ *
+ * This module exists now so the threshold values and classification logic can
+ * be unit-tested independently before integration into location tracking.
  */
 
 /**

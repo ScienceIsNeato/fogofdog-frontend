@@ -170,12 +170,12 @@ directly — no singleton involved.
 
 New "Street Navigation" section after the Performance Testing panel:
 
-| Control                    | testID                     | Behaviour                                |
-| -------------------------- | -------------------------- | ---------------------------------------- |
-| Prefer Streets toggle      | `prefer-streets-toggle`    | dispatches `setPreferStreets`            |
-| Prefer Unexplored toggle   | `prefer-unexplored-toggle` | dispatches `setPreferUnexplored`         |
-| Load Sample Streets button | `load-sample-streets`      | loads the static 3×3 grid                |
-| Info text                  | `street-info-loaded`       | shows _"N segments loaded · N explored"_ |
+| Control                    | testID                     | Behaviour                                                      |
+| -------------------------- | -------------------------- | -------------------------------------------------------------- |
+| Prefer Streets toggle      | `prefer-streets-toggle`    | dispatches `setPreferStreets`                                  |
+| Prefer Unexplored toggle   | `prefer-unexplored-toggle` | dispatches `setPreferUnexplored`                               |
+| Load Sample Streets button | `load-sample-streets`      | loads the static 3×3 grid                                      |
+| Info text                  | `street-info-loaded`       | shows _"${segmentCount} segments loaded · ${exploredCount} explored"_ |
 
 ---
 
@@ -202,6 +202,9 @@ Two responsibilities:
    for the current point and dispatches `markSegmentsExplored` /
    `markIntersectionsExplored`. This is the only place outside of test-data injection
    that keeps the explored set in sync with the live path.
+   > ⚠️ **Performance note:** Per-tick processing is computationally heavy. A future
+   > iteration will replace this card with a "scent" animation and optimise the
+   > exploration-marking frequency. See follow-up issue for full nudge redesign.
 2. **Nearest-unexplored nudge** — calls `findClosestStreets` with `filter: 'unexplored'`
    and renders a small card showing street name, distance, cardinal direction, and a
    running `N / M streets explored` counter. Returns `null` (invisible) when no streets

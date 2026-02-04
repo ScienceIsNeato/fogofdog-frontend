@@ -2,6 +2,8 @@
  * Types for street-level data integration.
  * Streets are sourced from OpenStreetMap via the Overpass API
  * and cached locally for offline / dev use.
+ *
+ * @see PROJECT_DOCS/OVERPASS_INTEGRATION.md for API details, limitations, and future work.
  */
 
 // ---------------------------------------------------------------------------

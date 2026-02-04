@@ -11,15 +11,15 @@
  *   ✅ Offline fallback status exposed to callers
  */
 
-import type {
-  StreetSegment,
-  Intersection,
-  StreetPoint,
+import {
   StreetType,
-  OSMElement,
-  OSMWayElement,
-  OSMWayElementWithGeometry,
-  OSMResponse,
+  type StreetSegment,
+  type Intersection,
+  type StreetPoint,
+  type OSMElement,
+  type OSMWayElement,
+  type OSMWayElementWithGeometry,
+  type OSMResponse,
 } from '../types/street';
 import { computeSegmentLength, makeNodeKey } from './StreetDataService';
 import { logger } from '../utils/logger';
@@ -36,7 +36,14 @@ const MAX_RETRIES = 3;
 /** Base delay in ms for exponential back-off (doubles each retry) */
 const RETRY_BASE_DELAY_MS = 1000;
 
-/** Cache TTL in milliseconds (5 minutes) */
+/**
+ * Cache TTL in milliseconds (5 minutes).
+ *
+ * Rationale: Street geometry rarely changes on short timescales. 5 minutes is
+ * long enough to avoid redundant network calls during a typical exploration
+ * session, yet short enough that the app eventually picks up OSM edits and
+ * allows for natural memory reclamation.
+ */
 const CACHE_TTL_MS = 5 * 60 * 1000;
 
 /** Maximum cache entries to prevent memory bloat */
@@ -113,22 +120,33 @@ function sleep(ms: number): Promise<void> {
 
 function parseHighwayType(highway: string | undefined): StreetType | undefined {
   if (!highway) return undefined;
-  // Map OSM highway values to our enum
+
+  /**
+   * Map OSM `highway` tag values to our StreetType enum.
+   *
+   * Canonical source: https://wiki.openstreetmap.org/wiki/Key:highway
+   *
+   * These tag values are defined by the OSM community and have been stable for
+   * 15+ years. Breaking changes are extremely rare — the wiki documents any
+   * deprecations (e.g., `bridleway` → `path` + `horse=designated`).
+   *
+   * We use the StreetType enum directly to ensure compile-time safety.
+   */
   const mapping: Record<string, StreetType> = {
-    motorway: 'motorway' as StreetType,
-    motorway_link: 'motorway_link' as StreetType,
-    primary: 'primary' as StreetType,
-    secondary: 'secondary' as StreetType,
-    tertiary: 'tertiary' as StreetType,
-    residential: 'residential' as StreetType,
-    unclassified: 'unclassified' as StreetType,
-    service: 'service' as StreetType,
-    living_street: 'living_street' as StreetType,
-    pedestrian: 'pedestrian' as StreetType,
-    footway: 'footway' as StreetType,
-    cycleway: 'cycleway' as StreetType,
-    track: 'track' as StreetType,
-    path: 'path' as StreetType,
+    motorway: StreetType.MOTORWAY,
+    motorway_link: StreetType.MOTORWAY_LINK,
+    primary: StreetType.PRIMARY,
+    secondary: StreetType.SECONDARY,
+    tertiary: StreetType.TERTIARY,
+    residential: StreetType.RESIDENTIAL,
+    unclassified: StreetType.UNCLASSIFIED,
+    service: StreetType.SERVICE,
+    living_street: StreetType.LIVING_STREET,
+    pedestrian: StreetType.PEDESTRIAN,
+    footway: StreetType.FOOTWAY,
+    cycleway: StreetType.CYCLEWAY,
+    track: StreetType.TRACK,
+    path: StreetType.PATH,
   };
   return mapping[highway];
 }
@@ -209,6 +227,9 @@ function buildStreetGraph(ways: ParsedWay[]): StreetGraphResult {
   // Pre-compute intersection map for O(1) lookups (addresses PR review feedback)
   const epMap: Record<string, { wayIds: string[]; point: StreetPoint }> = {};
 
+  // Also build a way lookup for O(1) access
+  const wayMap = new Map(ways.map((w) => [w.id, w]));
+
   for (const way of ways) {
     const first = way.points[0];
     const last = way.points[way.points.length - 1];
@@ -220,14 +241,21 @@ function buildStreetGraph(ways: ParsedWay[]): StreetGraphResult {
     }
   }
 
-  // Build intersections
-  const intersections: Intersection[] = Object.entries(epMap).map(([key, data]) => ({
-    id: key,
-    latitude: data.point.latitude,
-    longitude: data.point.longitude,
-    streetNames: [...new Set(ways.filter((w) => data.wayIds.includes(w.id)).map((w) => w.name))],
-    connectedSegmentIds: [],
-  }));
+  // Build intersections with O(wayIds.length) street name lookup instead of O(ways × wayIds)
+  const intersections: Intersection[] = Object.entries(epMap).map(([key, data]) => {
+    const streetNames = [
+      ...new Set(
+        data.wayIds.map((wid) => wayMap.get(wid)?.name).filter((n): n is string => n !== undefined)
+      ),
+    ];
+    return {
+      id: key,
+      latitude: data.point.latitude,
+      longitude: data.point.longitude,
+      streetNames,
+      connectedSegmentIds: [],
+    };
+  });
 
   // Build a lookup map for O(1) intersection access
   const intersectionMap = new Map(intersections.map((i) => [i.id, i]));

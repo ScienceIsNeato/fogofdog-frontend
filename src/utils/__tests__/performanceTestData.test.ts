@@ -5,6 +5,87 @@ import {
 } from '../performanceTestData';
 import type { StreetSegment, Intersection } from '../../types/street';
 
+// ---------------------------------------------------------------------------
+// Test Fixture Constants
+// ---------------------------------------------------------------------------
+
+/**
+ * Eugene South Hills base coordinates — the canonical test location for
+ * FogOfDog. All street graph fixtures are centred here.
+ */
+const EUGENE_SOUTH_HILLS = {
+  latitude: 44.0462,
+  longitude: -123.0236,
+} as const;
+
+/** Reasonable latitude/longitude bounds for Eugene, OR test region */
+const EUGENE_BOUNDS = {
+  latMin: 43,
+  latMax: 45,
+  lonMin: -124,
+  lonMax: -122,
+} as const;
+
+/**
+ * Fixture for a T-shaped intersection graph:
+ *
+ *            int_3
+ *              |
+ *           seg_b (110m)
+ *              |
+ *   int_1 ---seg_a (80m)--- int_2
+ */
+const T_GRAPH = {
+  /** Intersection at the T-junction centre (Main St & Oak Ave) */
+  INT_1: {
+    id: 'int_1',
+    latitude: EUGENE_SOUTH_HILLS.latitude,
+    longitude: EUGENE_SOUTH_HILLS.longitude,
+    streetNames: ['Main St', 'Oak Ave'],
+    connectedSegmentIds: ['seg_a', 'seg_b'],
+  },
+  /** Intersection east of int_1 (Main St endpoint) */
+  INT_2: {
+    id: 'int_2',
+    latitude: EUGENE_SOUTH_HILLS.latitude,
+    longitude: -123.0226,
+    streetNames: ['Main St'],
+    connectedSegmentIds: ['seg_a'],
+  },
+  /** Intersection north of int_1 (Oak Ave endpoint) */
+  INT_3: {
+    id: 'int_3',
+    latitude: 44.0472,
+    longitude: EUGENE_SOUTH_HILLS.longitude,
+    streetNames: ['Oak Ave'],
+    connectedSegmentIds: ['seg_b'],
+  },
+  /** East–West segment (Main St) */
+  SEG_A: {
+    id: 'seg_a',
+    name: 'Main St',
+    points: [
+      { latitude: EUGENE_SOUTH_HILLS.latitude, longitude: EUGENE_SOUTH_HILLS.longitude },
+      { latitude: EUGENE_SOUTH_HILLS.latitude, longitude: -123.0226 },
+    ],
+    startNodeId: 'int_1',
+    endNodeId: 'int_2',
+    lengthMeters: 80,
+  },
+  /** North–South segment (Oak Ave) */
+  SEG_B: {
+    id: 'seg_b',
+    name: 'Oak Ave',
+    points: [
+      { latitude: EUGENE_SOUTH_HILLS.latitude, longitude: EUGENE_SOUTH_HILLS.longitude },
+      { latitude: 44.0472, longitude: EUGENE_SOUTH_HILLS.longitude },
+    ],
+    startNodeId: 'int_1',
+    endNodeId: 'int_3',
+    lengthMeters: 110,
+  },
+};
+
 describe('performanceTestData', () => {
   describe('generatePerformanceTestData', () => {
     it('should generate single point', () => {
@@ -41,8 +122,8 @@ describe('performanceTestData', () => {
 
       expect(points).toHaveLength(3);
       // First point should be at base coordinates (Eugene South Hills)
-      expect(points[0]!.latitude).toBeCloseTo(44.0462, 3);
-      expect(points[0]!.longitude).toBeCloseTo(-123.0236, 3);
+      expect(points[0]!.latitude).toBeCloseTo(EUGENE_SOUTH_HILLS.latitude, 3);
+      expect(points[0]!.longitude).toBeCloseTo(EUGENE_SOUTH_HILLS.longitude, 3);
 
       // Subsequent points should be different
       expect(points[1]!.latitude).not.toBe(points[0]!.latitude);
@@ -76,10 +157,10 @@ describe('performanceTestData', () => {
       expect(points).toHaveLength(8);
       // Should have coordinates within reasonable bounds
       points.forEach((point) => {
-        expect(point.latitude).toBeGreaterThan(43);
-        expect(point.latitude).toBeLessThan(45);
-        expect(point.longitude).toBeGreaterThan(-124);
-        expect(point.longitude).toBeLessThan(-122);
+        expect(point.latitude).toBeGreaterThan(EUGENE_BOUNDS.latMin);
+        expect(point.latitude).toBeLessThan(EUGENE_BOUNDS.latMax);
+        expect(point.longitude).toBeGreaterThan(EUGENE_BOUNDS.lonMin);
+        expect(point.longitude).toBeLessThan(EUGENE_BOUNDS.lonMax);
       });
 
       // At least some points should be different from the first
@@ -94,10 +175,10 @@ describe('performanceTestData', () => {
 
       expect(points).toHaveLength(4);
       points.forEach((point) => {
-        expect(point.latitude).toBeGreaterThan(43);
-        expect(point.latitude).toBeLessThan(45);
-        expect(point.longitude).toBeGreaterThan(-124);
-        expect(point.longitude).toBeLessThan(-122);
+        expect(point.latitude).toBeGreaterThan(EUGENE_BOUNDS.latMin);
+        expect(point.latitude).toBeLessThan(EUGENE_BOUNDS.latMax);
+        expect(point.longitude).toBeGreaterThan(EUGENE_BOUNDS.lonMin);
+        expect(point.longitude).toBeLessThan(EUGENE_BOUNDS.lonMax);
       });
     });
 
@@ -160,55 +241,9 @@ describe('performanceTestData', () => {
   });
 
   describe('generateStreetAlignedTestData', () => {
-    // T-shaped graph: int_1 connects to int_2 (East) via seg_a and to int_3 (North) via seg_b
-    const segments: StreetSegment[] = [
-      {
-        id: 'seg_a',
-        name: 'Main St',
-        points: [
-          { latitude: 44.0462, longitude: -123.0236 },
-          { latitude: 44.0462, longitude: -123.0226 },
-        ],
-        startNodeId: 'int_1',
-        endNodeId: 'int_2',
-        lengthMeters: 80,
-      },
-      {
-        id: 'seg_b',
-        name: 'Oak Ave',
-        points: [
-          { latitude: 44.0462, longitude: -123.0236 },
-          { latitude: 44.0472, longitude: -123.0236 },
-        ],
-        startNodeId: 'int_1',
-        endNodeId: 'int_3',
-        lengthMeters: 110,
-      },
-    ];
-
-    const intersections: Intersection[] = [
-      {
-        id: 'int_1',
-        latitude: 44.0462,
-        longitude: -123.0236,
-        streetNames: ['Main St', 'Oak Ave'],
-        connectedSegmentIds: ['seg_a', 'seg_b'],
-      },
-      {
-        id: 'int_2',
-        latitude: 44.0462,
-        longitude: -123.0226,
-        streetNames: ['Main St'],
-        connectedSegmentIds: ['seg_a'],
-      },
-      {
-        id: 'int_3',
-        latitude: 44.0472,
-        longitude: -123.0236,
-        streetNames: ['Oak Ave'],
-        connectedSegmentIds: ['seg_b'],
-      },
-    ];
+    // Use T_GRAPH constants for the test fixtures
+    const segments: StreetSegment[] = [T_GRAPH.SEG_A, T_GRAPH.SEG_B];
+    const intersections: Intersection[] = [T_GRAPH.INT_1, T_GRAPH.INT_2, T_GRAPH.INT_3];
 
     it('should generate valid GeoPoints along street graph', () => {
       const points = generateStreetAlignedTestData(5, { segments, intersections });
@@ -224,7 +259,11 @@ describe('performanceTestData', () => {
     });
 
     it('should use custom starting location', () => {
-      const start = { latitude: 44.0462, longitude: -123.0231 };
+      // Start slightly east of the T-junction on Main St
+      const start = {
+        latitude: EUGENE_SOUTH_HILLS.latitude,
+        longitude: (EUGENE_SOUTH_HILLS.longitude + T_GRAPH.INT_2.longitude) / 2,
+      };
       const points = generateStreetAlignedTestData(
         3,
         { segments, intersections },
@@ -262,31 +301,34 @@ describe('performanceTestData', () => {
 
     it('should stop at dead-end intersections before reaching count', () => {
       // Single isolated segment — both endpoints are dead ends
+      const DEAD_END_EAST_LON = -123.022;
+      const SOLO_SEGMENT_LENGTH = 140;
+
       const soloSeg: StreetSegment[] = [
         {
           id: 'solo',
           name: 'Solo St',
           points: [
-            { latitude: 44.0462, longitude: -123.0236 },
-            { latitude: 44.0462, longitude: -123.022 },
+            { latitude: EUGENE_SOUTH_HILLS.latitude, longitude: EUGENE_SOUTH_HILLS.longitude },
+            { latitude: EUGENE_SOUTH_HILLS.latitude, longitude: DEAD_END_EAST_LON },
           ],
           startNodeId: 'end_a',
           endNodeId: 'end_b',
-          lengthMeters: 140,
+          lengthMeters: SOLO_SEGMENT_LENGTH,
         },
       ];
       const soloInt: Intersection[] = [
         {
           id: 'end_a',
-          latitude: 44.0462,
-          longitude: -123.0236,
+          latitude: EUGENE_SOUTH_HILLS.latitude,
+          longitude: EUGENE_SOUTH_HILLS.longitude,
           streetNames: ['Solo St'],
           connectedSegmentIds: ['solo'],
         },
         {
           id: 'end_b',
-          latitude: 44.0462,
-          longitude: -123.022,
+          latitude: EUGENE_SOUTH_HILLS.latitude,
+          longitude: DEAD_END_EAST_LON,
           streetNames: ['Solo St'],
           connectedSegmentIds: ['solo'],
         },
@@ -330,24 +372,27 @@ describe('performanceTestData', () => {
 
     it('should break gracefully when targeted intersection is missing', () => {
       // seg_x.endNodeId points to a non-existent intersection
+      const BROKEN_NORTH_LAT = 44.0465;
+      const BROKEN_SEGMENT_LENGTH = 33;
+
       const brokenSeg: StreetSegment[] = [
         {
           id: 'seg_x',
           name: 'Broken St',
           points: [
-            { latitude: 44.0462, longitude: -123.0236 },
-            { latitude: 44.0465, longitude: -123.0236 },
+            { latitude: EUGENE_SOUTH_HILLS.latitude, longitude: EUGENE_SOUTH_HILLS.longitude },
+            { latitude: BROKEN_NORTH_LAT, longitude: EUGENE_SOUTH_HILLS.longitude },
           ],
           startNodeId: 'int_ok',
           endNodeId: 'int_missing',
-          lengthMeters: 33,
+          lengthMeters: BROKEN_SEGMENT_LENGTH,
         },
       ];
       const partialInt: Intersection[] = [
         {
           id: 'int_ok',
-          latitude: 44.0462,
-          longitude: -123.0236,
+          latitude: EUGENE_SOUTH_HILLS.latitude,
+          longitude: EUGENE_SOUTH_HILLS.longitude,
           streetNames: ['Broken St'],
           connectedSegmentIds: ['seg_x'],
         },
@@ -360,7 +405,7 @@ describe('performanceTestData', () => {
           segments: brokenSeg,
           intersections: partialInt,
         },
-        { startingLocation: { latitude: 44.0465, longitude: -123.0236 } }
+        { startingLocation: { latitude: BROKEN_NORTH_LAT, longitude: EUGENE_SOUTH_HILLS.longitude } }
       );
 
       expect(points.length).toBeGreaterThan(0);
