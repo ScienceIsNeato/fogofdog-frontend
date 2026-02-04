@@ -151,7 +151,7 @@ echo -e "${GREEN}🔨 Building and deploying to simulator...${NC}"
 if [ "$TARGET_SIMULATOR" = "$DEFAULT_SIMULATOR" ]; then
     echo "Command: npx expo run:ios --configuration Debug"
 else
-    echo "Command: npx expo run:ios --device \"$TARGET_SIMULATOR\" --configuration Debug"
+    echo "Command: npx expo run:ios --simulator \"$TARGET_SIMULATOR\" --configuration Debug"
 fi
 echo ""
 
@@ -169,7 +169,7 @@ if [ "$TARGET_SIMULATOR" = "$DEFAULT_SIMULATOR" ]; then
     }
 else
     # Use specific simulator
-    timeout 300 npx expo run:ios --device "$TARGET_SIMULATOR" --configuration Debug || {
+    timeout 300 npx expo run:ios --simulator "$TARGET_SIMULATOR" --configuration Debug || {
         exit_code=$?
         if [ $exit_code -eq 124 ]; then
             echo -e "${RED}❌ Deployment timed out after 5 minutes${NC}"
@@ -200,8 +200,13 @@ else
   echo -e "${BLUE}🚀 Starting persistent Metro development server with live logging...${NC}"
   echo "$(date '+%Y-%m-%d %H:%M:%S') - FogOfDog Metro Server Started for $TARGET_SIMULATOR" > "$LIVE_LOG_FILE"
 
-  # Start Metro server in background with live logging (non-interactive for CI/automation)
-  CI=true nohup npx expo start --dev-client 2>&1 >> "$LIVE_LOG_FILE" &
+  # Start Metro server in background with live logging
+  # In CI mode, suppress terminal output; otherwise use tee for real-time visibility
+  if [ "${CI:-}" = "true" ]; then
+    nohup npx expo start --dev-client 2>&1 >> "$LIVE_LOG_FILE" &
+  else
+    nohup npx expo start --dev-client 2>&1 | tee -a "$LIVE_LOG_FILE" > /dev/null &
+  fi
   METRO_SERVER_PID=$!
 fi
 
