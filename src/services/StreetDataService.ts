@@ -320,7 +320,8 @@ function walkRightLoop(params: {
     if (!nextSeg) return makeLoopFailure(waypoints, totalDist, 'dead_end');
 
     totalDist += nextSeg.lengthMeters;
-    if (totalDist > maxDistMeters) return makeLoopFailure(waypoints, totalDist, 'max_distance_exceeded');
+    if (totalDist > maxDistMeters)
+      return makeLoopFailure(waypoints, totalDist, 'max_distance_exceeded');
 
     // Determine next intersection
     const otherId = nextSeg.startNodeId === current.id ? nextSeg.endNodeId : nextSeg.startNodeId;
@@ -330,7 +331,12 @@ function walkRightLoop(params: {
     waypoints.push({
       intersectionId: nextInt.id,
       segmentId: nextSegId,
-      direction: cardinalDirection(current.latitude, current.longitude, nextInt.latitude, nextInt.longitude),
+      direction: cardinalDirection(
+        current.latitude,
+        current.longitude,
+        nextInt.latitude,
+        nextInt.longitude
+      ),
       distanceFromStart: totalDist,
     });
 

@@ -189,18 +189,20 @@ async function fetchFromOverpassAPIWithRetry(
 }
 
 function hasGeometry(el: OSMElement): el is OSMWayElementWithGeometry {
-  return el.type === 'way' && Array.isArray((el as OSMWayElement).geometry) && ((el as OSMWayElement).geometry?.length ?? 0) >= 2;
+  return (
+    el.type === 'way' &&
+    Array.isArray((el as OSMWayElement).geometry) &&
+    ((el as OSMWayElement).geometry?.length ?? 0) >= 2
+  );
 }
 
 function parseWays(elements: OSMElement[]): ParsedWay[] {
-  return elements
-    .filter(hasGeometry)
-    .map((el) => ({
-      id: String(el.id),
-      name: el.tags?.name ?? 'Unnamed Road',
-      streetType: parseHighwayType(el.tags?.highway),
-      points: el.geometry.map((g) => ({ latitude: g.lat, longitude: g.lon })),
-    }));
+  return elements.filter(hasGeometry).map((el) => ({
+    id: String(el.id),
+    name: el.tags?.name ?? 'Unnamed Road',
+    streetType: parseHighwayType(el.tags?.highway),
+    points: el.geometry.map((g) => ({ latitude: g.lat, longitude: g.lon })),
+  }));
 }
 
 function buildStreetGraph(ways: ParsedWay[]): StreetGraphResult {
@@ -357,4 +359,3 @@ export function clearOverpassCache(): void {
 export function getOverpassCacheStats(): { size: number; maxSize: number } {
   return { size: responseCache.size, maxSize: MAX_CACHE_ENTRIES };
 }
-
