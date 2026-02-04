@@ -201,7 +201,12 @@ else
   echo "$(date '+%Y-%m-%d %H:%M:%S') - FogOfDog Metro Server Started for $TARGET_SIMULATOR" > "$LIVE_LOG_FILE"
 
   # Start Metro server in background with live logging
-  nohup npx expo start --dev-client 2>&1 | tee -a "$LIVE_LOG_FILE" > /dev/null &
+  # In CI mode, suppress terminal output; otherwise use tee for real-time visibility
+  if [ "${CI:-}" = "true" ]; then
+    nohup npx expo start --dev-client 2>&1 >> "$LIVE_LOG_FILE" &
+  else
+    nohup npx expo start --dev-client 2>&1 | tee -a "$LIVE_LOG_FILE" > /dev/null &
+  fi
   METRO_SERVER_PID=$!
 fi
 
