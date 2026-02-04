@@ -158,6 +158,7 @@
 - [ ] **Action**: Replace center button logic with toggle logic
 - [ ] **Files**: `src/screens/Map/index.tsx`
 - [ ] **Code Changes**:
+
   ```typescript
   const handleFollowModeToggle = () => {
     const newFollowMode = !isFollowModeEnabled;
@@ -175,6 +176,7 @@
     }
   };
   ```
+
 - [ ] **Test**: Unit tests for toggle handler
 - [ ] **Validation**: Follow Mode toggles correctly
 
@@ -183,6 +185,7 @@
 - [ ] **Action**: Auto-disable Follow Mode when user pans/zooms
 - [ ] **Files**: `src/screens/Map/index.tsx`
 - [ ] **Code Changes**: Update `onRegionChange` to detect manual gestures:
+
   ```typescript
   const onRegionChange = (region: Region) => {
     setCurrentRegion(region);
@@ -199,6 +202,7 @@
     }
   };
   ```
+
 - [ ] **Test**: Manual gesture detection tests
 - [ ] **Validation**: Follow Mode auto-disables on pan/zoom
 

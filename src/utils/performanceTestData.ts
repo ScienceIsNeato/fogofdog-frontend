@@ -1,4 +1,6 @@
 import { GeoPoint } from '../types/user';
+import type { StreetSegment, Intersection } from '../types/street';
+import { walkStreets } from '../services/StreetDataService';
 
 /**
  * Performance test data generators for interactive testing
@@ -19,6 +21,7 @@ export const TestPatterns = {
   GRID_PATTERN: 'grid',
   REALISTIC_DRIVE: 'realistic_drive',
   HIKING_TRAIL: 'hiking_trail',
+  STREET_ALIGNED: 'street_aligned',
 } as const;
 
 export type TestPattern = (typeof TestPatterns)[keyof typeof TestPatterns];
@@ -158,4 +161,48 @@ export const generatePerformanceTestData = (
   }
 
   return points;
+};
+
+// ---------------------------------------------------------------------------
+// Street-aligned test-data generation
+// ---------------------------------------------------------------------------
+
+/**
+ * Generate GPS points that follow the provided street graph.
+ * Delegates the actual walk to `walkStreets` and wraps each point with a timestamp.
+ */
+export const generateStreetAlignedTestData = (
+  count: number,
+  streetData: { segments: StreetSegment[]; intersections: Intersection[] },
+  options: {
+    startingLocation?: { latitude: number; longitude: number };
+    intervalSeconds?: number;
+    startTime?: number;
+    preferUnexplored?: boolean;
+    exploredSegmentIds?: string[];
+  } = {}
+): GeoPoint[] => {
+  const {
+    startingLocation,
+    intervalSeconds = 30,
+    startTime = Date.now(),
+    preferUnexplored = false,
+    exploredSegmentIds = [],
+  } = options;
+
+  const segMap: Record<string, StreetSegment> = Object.fromEntries(
+    streetData.segments.map((s) => [s.id, s])
+  );
+  const intMap: Record<string, Intersection> = Object.fromEntries(
+    streetData.intersections.map((i) => [i.id, i])
+  );
+
+  const start = startingLocation ?? BASE_COORDINATES;
+  const path = walkStreets({ start, segMap, intMap, count, preferUnexplored, exploredSegmentIds });
+
+  return path.slice(0, count).map((pt, idx) => ({
+    latitude: pt.latitude,
+    longitude: pt.longitude,
+    timestamp: startTime + idx * intervalSeconds * 1000,
+  }));
 };

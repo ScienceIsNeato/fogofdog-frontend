@@ -22,7 +22,7 @@ appId: com.fogofdog.app
 # === PHASE 1: COMPLETE ONBOARDING TUTORIAL (ALL 6 STEPS) ===
 # Navigate through the complete 6-step onboarding sequence
 - assertVisible:
-    id: "onboarding-overlay"
+    id: 'onboarding-overlay'
 
 # Wait for onboarding to fully load
 - waitForAnimationToEnd:
@@ -36,37 +36,37 @@ appId: com.fogofdog.app
 
 # Step 1: Tap Continue button (bottom right area of modal)
 - tapOn:
-    point: "80%,85%"  # Bottom right area where Continue button should be
+    point: '80%,85%' # Bottom right area where Continue button should be
 - waitForAnimationToEnd:
     timeout: 500
 
-# Step 2: Tap Continue button  
+# Step 2: Tap Continue button
 - tapOn:
-    point: "80%,85%"
+    point: '80%,85%'
 - waitForAnimationToEnd:
     timeout: 500
 
 # Step 3: Tap Continue button
 - tapOn:
-    point: "80%,85%"
+    point: '80%,85%'
 - waitForAnimationToEnd:
     timeout: 500
 
 # Step 4: Tap Continue button
 - tapOn:
-    point: "80%,85%"
+    point: '80%,85%'
 - waitForAnimationToEnd:
     timeout: 500
 
 # Step 5: Tap Continue button
 - tapOn:
-    point: "80%,85%"
+    point: '80%,85%'
 - waitForAnimationToEnd:
     timeout: 500
 
 # Step 6: Final step - Get Started button (should be in same location)
 - tapOn:
-    point: "80%,85%"
+    point: '80%,85%'
 - waitForAnimationToEnd:
     timeout: 500
 
@@ -80,7 +80,7 @@ appId: com.fogofdog.app
 - runFlow:
     when:
       visible:
-        text: "Checking Location Permissions"
+        text: 'Checking Location Permissions'
     commands:
       - waitForAnimationToEnd:
           timeout: 2000
@@ -88,9 +88,9 @@ appId: com.fogofdog.app
 # Handle initial location permission dialog
 - runFlow:
     when:
-      visible: "Allow"
+      visible: 'Allow'
     commands:
-      - tapOn: "Allow While Using App"
+      - tapOn: 'Allow While Using App'
       - waitForAnimationToEnd:
           timeout: 1000
 
@@ -98,18 +98,18 @@ appId: com.fogofdog.app
 - runFlow:
     when:
       visible:
-        text: "Allow \"FogOfDog\" to also use your location even when you are not using the app?"
+        text: 'Allow "FogOfDog" to also use your location even when you are not using the app?'
     commands:
-      - tapOn: "Change to Always Allow"
+      - tapOn: 'Change to Always Allow'
       - waitForAnimationToEnd:
           timeout: 2000
 
 # Alternative background permission handling
 - runFlow:
     when:
-      visible: "Always Allow"
+      visible: 'Always Allow'
     commands:
-      - tapOn: "Always Allow"
+      - tapOn: 'Always Allow'
       - waitForAnimationToEnd:
           timeout: 2000
 
@@ -125,16 +125,16 @@ appId: com.fogofdog.app
 - runFlow:
     when:
       visible:
-        text: "Getting your location..."
+        text: 'Getting your location...'
     commands:
       - waitForAnimationToEnd:
-          timeout: 3000  # Wait to see how long it persists
+          timeout: 3000 # Wait to see how long it persists
 
-# Check if we see the loading screen  
+# Check if we see the loading screen
 - runFlow:
     when:
       visible:
-        text: "Clearing the fog..."
+        text: 'Clearing the fog...'
     commands:
       - waitForAnimationToEnd:
           timeout: 2000
@@ -142,19 +142,19 @@ appId: com.fogofdog.app
 # === PHASE 4: MAP RENDERING & ANIMATION ===
 # CRITICAL: Verify we're NOT stuck on loading screen
 - assertNotVisible:
-    text: "Getting your location..."
+    text: 'Getting your location...'
 
 # CRITICAL: Verify actual map content is rendered (fog overlay should be present)
 # The map should show actual geographic content, not just a loading state
 - waitForAnimationToEnd:
     timeout: 2000
 - assertVisible:
-    id: "map-screen"
+    id: 'map-screen'
 
 # Verify location button is present and functional
 - waitForAnimationToEnd
 - assertVisible:
-    id: "location-button"
+    id: 'location-button'
 
 # CRITICAL: Verify we have actual GPS coordinates (not just loading state)
 # The map should be centered on a real location, not showing default/null state
@@ -169,13 +169,13 @@ appId: com.fogofdog.app
 
 # Verify map is interactive after animation
 - tapOn:
-    id: "location-button"
+    id: 'location-button'
 - waitForAnimationToEnd:
     timeout: 1000
 
 # Test that location updates work
 - setLocation:
-    latitude: 37.7849  # Move slightly north
+    latitude: 37.7849 # Move slightly north
     longitude: -122.4194
 - waitForAnimationToEnd:
     timeout: 2000
@@ -183,26 +183,25 @@ appId: com.fogofdog.app
 # Verify the map responds to location changes
 - waitForAnimationToEnd
 - assertVisible:
-    text: "Woof!"
+    text: 'Woof!'
 
 # === PHASE 6: FINAL VALIDATION ===
 # Ensure all core functionality works after the first-time flow
 - tapOn:
-    id: "location-button"
+    id: 'location-button'
 - waitForAnimationToEnd:
     timeout: 1000
 
 # Test settings access
 - tapOn:
-    id: "settings-button"  
+    id: 'settings-button'
 - waitForAnimationToEnd:
     timeout: 1000
 
 # Close settings if opened
 - runFlow:
     when:
-      visible: "Close"
+      visible: 'Close'
     commands:
-      - tapOn: "Close"
-
+      - tapOn: 'Close'
 # Test complete - first-time user flow validated

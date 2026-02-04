@@ -43,6 +43,7 @@ import { SettingsButton } from '../../components/SettingsButton';
 import UnifiedSettingsModal from '../../components/UnifiedSettingsModal';
 import { HUDStatsPanel } from '../../components/HUDStatsPanel';
 import { GPSInjectionIndicator } from '../../components/GPSInjectionIndicator';
+import { ExplorationNudge } from '../../components/ExplorationNudge';
 import { MapDistanceScale } from '../../components/MapDistanceScale';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { logger } from '../../utils/logger';
@@ -1959,13 +1960,7 @@ const MapScreenUI: React.FC<{
       />
 
       {/* Tracking Control Button */}
-      <TrackingControlButton
-        style={{
-          position: 'absolute',
-          bottom: 180, // Positioned for equal spacing with HUD separator
-          alignSelf: 'center',
-        }}
-      />
+      <TrackingControlButton style={styles.trackingControlButton} />
 
       {/* HUD Stats Panel */}
       <HUDStatsPanel />
@@ -2300,6 +2295,7 @@ export const MapScreen = () => {
     <>
       <MapScreenUI {...uiProps} canStartCinematicAnimation={canStartCinematicAnimation} />
       <HUDStatsPanel />
+      <ExplorationNudge />
       <OnboardingOverlay
         visible={showOnboarding}
         onComplete={handleOnboardingComplete}
@@ -2480,5 +2476,10 @@ const styles = StyleSheet.create({
     color: '#666',
     fontSize: 16,
     fontWeight: '600',
+  },
+  trackingControlButton: {
+    position: 'absolute',
+    bottom: 180, // Positioned for equal spacing with HUD separator
+    alignSelf: 'center',
   },
 });

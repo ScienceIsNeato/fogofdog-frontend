@@ -6,6 +6,7 @@ import { MapScreen } from '../index';
 import explorationSlice from '../../../store/slices/explorationSlice';
 import userSlice from '../../../store/slices/userSlice';
 import statsSlice from '../../../store/slices/statsSlice';
+import streetSlice from '../../../store/slices/streetSlice';
 import { BackgroundLocationService } from '../../../services/BackgroundLocationService';
 import * as Location from 'expo-location';
 
@@ -55,6 +56,7 @@ describe('MapScreen - Background Location Integration', () => {
         exploration: explorationSlice,
         user: userSlice,
         stats: statsSlice,
+        street: streetSlice,
       },
     });
 

@@ -18,6 +18,26 @@ env:
 
 jobs:
   # Foundation Layer - Basic Code Quality (run in parallel)
+  check-pr-comments:
+    name: 💬 Check PR Comments
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    if: github.event_name == 'pull_request'
+
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - name: 🧹 Install slop-mop
+        run: pip3 install -e ./slop-mop --break-system-packages --quiet
+
+      - name: 💬 Check for unresolved PR comments
+        run: sm validate --quality-gates pr:comments
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
   format-code:
     name: 📝 Format Code
     runs-on: ubuntu-latest

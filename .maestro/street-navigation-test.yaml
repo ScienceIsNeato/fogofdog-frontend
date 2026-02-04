@@ -1,0 +1,227 @@
+appId: com.fogofdog.app
+---
+# Street Navigation Integration Test (Enhanced)
+# Verifies the full street-data integration flow including:
+# - Loading sample and real street data from Overpass API
+# - ExplorationNudge visibility with street name, distance, and direction
+# - Developer toggles for prefer-streets / prefer-unexplored
+#
+# GPS anchor: Eugene South Hills (44.0462, -123.0236)
+
+# Anchor GPS at Eugene South Hills centre
+- setLocation:
+    latitude: 44.0462
+    longitude: -123.0236
+
+# Launch fresh
+- launchApp:
+    appId: com.fogofdog.app
+    clearState: true
+- waitForAnimationToEnd:
+    timeout: 1000
+
+# Handle onboarding if present
+- runFlow:
+    file: shared/handle-onboarding.yaml
+
+# Login
+- assertVisible:
+    text: 'Sign In'
+- tapOn:
+    id: 'signInButton'
+
+# Grant location permission if prompted
+- runFlow:
+    when:
+      visible: 'Allow'
+    commands:
+      - tapOn: 'Allow While Using App'
+
+# Wait for map screen
+- waitForAnimationToEnd:
+    timeout: 3000
+- assertVisible:
+    id: 'map-screen'
+- takeScreenshot: '00-map-initial'
+
+# ---------------------------------------------------------------------------
+# PART 1: Open Settings → Developer Settings
+# ---------------------------------------------------------------------------
+- tapOn:
+    id: 'settings-button'
+- waitForAnimationToEnd:
+    timeout: 1000
+- assertVisible:
+    text: 'Developer Settings'
+- tapOn:
+    text: 'Developer Settings'
+- waitForAnimationToEnd:
+    timeout: 1000
+
+# Verify Street Navigation section is visible (including new Overpass button)
+- assertVisible:
+    text: 'Street Navigation'
+- assertVisible:
+    text: 'Prefer Streets'
+- assertVisible:
+    text: 'Prefer Unexplored'
+- assertVisible:
+    text: 'Load Sample Streets'
+- assertVisible:
+    text: 'Load Real Streets (Overpass)'
+- takeScreenshot: '01-dev-settings-initial'
+
+# ---------------------------------------------------------------------------
+# PART 2: Load Sample Streets and verify nudge with known street grid
+# ---------------------------------------------------------------------------
+- tapOn:
+    id: 'load-sample-streets'
+- waitForAnimationToEnd:
+    timeout: 1000
+
+# Dismiss the alert ("Sample Streets loaded…")
+- runFlow:
+    when:
+      visible: 'Sample Streets'
+    commands:
+      - tapOn: 'OK'
+- waitForAnimationToEnd:
+    timeout: 500
+
+# Verify info display appears after load (12 segments in 3×3 grid)
+- assertVisible:
+    id: 'street-info-loaded'
+- assertVisible:
+    text: '12 segments loaded'
+- takeScreenshot: '02-sample-streets-loaded'
+
+# Go back to map and verify ExplorationNudge is visible
+- tapOn:
+    id: 'back-button'
+- waitForAnimationToEnd:
+    timeout: 500
+- tapOn:
+    id: 'back-button'
+- waitForAnimationToEnd:
+    timeout: 1000
+
+# Nudge should be visible with sample street data
+# User is at Cedar St & Elm Ave (44.0462, -123.0236)
+# Birch St is north, Maple St is south; Oak Ave west, Pine Ave east
+- assertVisible:
+    id: 'exploration-nudge'
+- assertVisible:
+    id: 'nudge-street-name'
+- assertVisible:
+    id: 'nudge-distance-direction'
+- assertVisible:
+    id: 'nudge-progress'
+# Progress should show 0 / 12 streets explored initially
+- assertVisible:
+    text: '0 / 12 streets explored'
+- takeScreenshot: '03-nudge-with-sample-streets'
+
+# ---------------------------------------------------------------------------
+# PART 3: Load Real Streets from Overpass API
+# ---------------------------------------------------------------------------
+- tapOn:
+    id: 'settings-button'
+- waitForAnimationToEnd:
+    timeout: 1000
+- tapOn:
+    text: 'Developer Settings'
+- waitForAnimationToEnd:
+    timeout: 1000
+
+# Tap "Load Real Streets" - this calls Overpass API
+- tapOn:
+    id: 'load-real-streets'
+
+# Wait for network call (may take a few seconds)
+- waitForAnimationToEnd:
+    timeout: 10000
+
+# Dismiss the alert ("Real Streets Loaded…")
+- runFlow:
+    when:
+      visible: 'Real Streets Loaded'
+    commands:
+      - tapOn: 'OK'
+- waitForAnimationToEnd:
+    timeout: 500
+
+# Verify streets were loaded (count will vary based on actual OSM data)
+- assertVisible:
+    id: 'street-info-loaded'
+- takeScreenshot: '04-real-streets-loaded'
+
+# Go back to map and verify ExplorationNudge shows real street data
+- tapOn:
+    id: 'back-button'
+- waitForAnimationToEnd:
+    timeout: 500
+- tapOn:
+    id: 'back-button'
+- waitForAnimationToEnd:
+    timeout: 1000
+
+# Nudge should be visible with real street data
+- assertVisible:
+    id: 'exploration-nudge'
+- assertVisible:
+    id: 'nudge-street-name'
+- assertVisible:
+    id: 'nudge-distance-direction'
+- takeScreenshot: '05-nudge-with-real-streets'
+
+# ---------------------------------------------------------------------------
+# PART 4: Test toggle interactions
+# ---------------------------------------------------------------------------
+- tapOn:
+    id: 'settings-button'
+- waitForAnimationToEnd:
+    timeout: 1000
+- tapOn:
+    text: 'Developer Settings'
+- waitForAnimationToEnd:
+    timeout: 1000
+
+# Toggle "Prefer Streets" ON
+- tapOn:
+    id: 'prefer-streets-toggle'
+- waitForAnimationToEnd:
+    timeout: 500
+- takeScreenshot: '06-prefer-streets-on'
+
+# Toggle "Prefer Unexplored" ON (should now be enabled)
+- tapOn:
+    id: 'prefer-unexplored-toggle'
+- waitForAnimationToEnd:
+    timeout: 500
+- takeScreenshot: '07-prefer-unexplored-on'
+
+# Verify both toggles remain visible (no crash)
+- assertVisible:
+    text: 'Prefer Streets'
+- assertVisible:
+    text: 'Prefer Unexplored'
+- assertVisible:
+    id: 'street-info-loaded'
+
+# Toggle "Prefer Streets" OFF — "Prefer Unexplored" should be disabled
+- tapOn:
+    id: 'prefer-streets-toggle'
+- waitForAnimationToEnd:
+    timeout: 500
+- takeScreenshot: '08-prefer-streets-off'
+
+# Back to main settings, then close
+- tapOn:
+    id: 'back-button'
+- waitForAnimationToEnd:
+    timeout: 500
+
+# App should still be functional
+- assertVisible:
+    id: 'map-screen'
+- takeScreenshot: '09-final-map-state'

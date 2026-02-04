@@ -186,7 +186,7 @@ export const SettingsHistoryView: React.FC<SettingsHistoryViewProps> = ({
           <MaterialIcons name="arrow-back" size={24} color="#007AFF" />
         </TouchableOpacity>
         <Text style={styles.title}>Exploration Data Management</Text>
-        <View style={{ width: 24 }} />
+        <View style={styles.headerSpacer} />
       </View>
 
       <View style={styles.content}>

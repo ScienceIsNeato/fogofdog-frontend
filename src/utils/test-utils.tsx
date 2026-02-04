@@ -4,6 +4,8 @@ import { Provider } from 'react-redux';
 import { configureStore } from '@reduxjs/toolkit';
 import userReducer from '../store/slices/userSlice';
 import explorationReducer from '../store/slices/explorationSlice';
+import statsReducer from '../store/slices/statsSlice';
+import streetReducer from '../store/slices/streetSlice';
 import { NavigationContainer } from '@react-navigation/native';
 
 const createTestStore = (initialState = {}) => {
@@ -11,6 +13,8 @@ const createTestStore = (initialState = {}) => {
     reducer: {
       user: userReducer,
       exploration: explorationReducer,
+      stats: statsReducer,
+      street: streetReducer,
     },
     preloadedState: initialState,
   });
