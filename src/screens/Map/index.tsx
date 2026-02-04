@@ -1960,13 +1960,7 @@ const MapScreenUI: React.FC<{
       />
 
       {/* Tracking Control Button */}
-      <TrackingControlButton
-        style={{
-          position: 'absolute',
-          bottom: 180, // Positioned for equal spacing with HUD separator
-          alignSelf: 'center',
-        }}
-      />
+      <TrackingControlButton style={styles.trackingControlButton} />
 
       {/* HUD Stats Panel */}
       <HUDStatsPanel />
@@ -2482,5 +2476,10 @@ const styles = StyleSheet.create({
     color: '#666',
     fontSize: 16,
     fontWeight: '600',
+  },
+  trackingControlButton: {
+    position: 'absolute',
+    bottom: 180, // Positioned for equal spacing with HUD separator
+    alignSelf: 'center',
   },
 });

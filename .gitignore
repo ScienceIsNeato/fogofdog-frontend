@@ -84,6 +84,9 @@ currules.json
 cursor-rules/
 .cursor
 
+# GitHub Copilot instructions (generated from cursor-rules)
+.github/instructions/
+
 # Native directories (using Expo CNG/Prebuild)
 /android
 /ios

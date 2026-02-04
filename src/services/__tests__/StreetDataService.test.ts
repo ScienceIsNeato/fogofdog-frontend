@@ -12,9 +12,6 @@ import {
 } from '../StreetDataService';
 import type { StreetPoint } from '../../types/street';
 
-// ===========================================================================
-// 1. haversineDistance
-// ===========================================================================
 describe('haversineDistance', () => {
   it('returns 0 for identical points', () => {
     expect(haversineDistance(44.0462, -123.0236, 44.0462, -123.0236)).toBe(0);
@@ -40,9 +37,6 @@ describe('haversineDistance', () => {
   });
 });
 
-// ===========================================================================
-// 2. bearingBetween
-// ===========================================================================
 describe('bearingBetween', () => {
   const origin: StreetPoint = { latitude: 44.0, longitude: -123.0 };
 
@@ -63,9 +57,6 @@ describe('bearingBetween', () => {
   });
 });
 
-// ===========================================================================
-// 3. cardinalDirection
-// ===========================================================================
 describe('cardinalDirection', () => {
   it('maps due-north to N', () => {
     expect(cardinalDirection(44.0, -123.0, 44.1, -123.0)).toBe('N');
@@ -88,9 +79,6 @@ describe('cardinalDirection', () => {
   });
 });
 
-// ===========================================================================
-// 4. closestPointOnSegment
-// ===========================================================================
 describe('closestPointOnSegment', () => {
   it('returns Infinity for an empty polyline', () => {
     const { distance } = closestPointOnSegment({ latitude: 0, longitude: 0 }, []);
@@ -128,9 +116,6 @@ describe('closestPointOnSegment', () => {
   });
 });
 
-// ===========================================================================
-// 5. computeSegmentLength
-// ===========================================================================
 describe('computeSegmentLength', () => {
   it('returns 0 for empty array', () => {
     expect(computeSegmentLength([])).toBe(0);
@@ -162,9 +147,6 @@ describe('computeSegmentLength', () => {
   });
 });
 
-// ===========================================================================
-// 6. getSampleStreetData – structural invariants
-// ===========================================================================
 describe('getSampleStreetData', () => {
   it('returns 9 intersections and 12 segments', () => {
     const { segments, intersections } = getSampleStreetData();
@@ -225,9 +207,6 @@ describe('getSampleStreetData', () => {
   });
 });
 
-// ===========================================================================
-// 7. findClosestStreets
-// ===========================================================================
 describe('findClosestStreets', () => {
   const { segments, intersections: _ints } = getSampleStreetData();
   const exploredIds = ['ew_0_0', 'ns_0_0'];
@@ -297,9 +276,6 @@ describe('findClosestStreets', () => {
   });
 });
 
-// ===========================================================================
-// 8. findClosestIntersections
-// ===========================================================================
 describe('findClosestIntersections', () => {
   const { intersections } = getSampleStreetData();
   const centre: StreetPoint = { latitude: 44.0462, longitude: -123.0236 };
@@ -364,9 +340,6 @@ describe('findClosestIntersections', () => {
   });
 });
 
-// ===========================================================================
-// 9. findShortestLoop
-// ===========================================================================
 describe('findShortestLoop', () => {
   const { segments: segArr, intersections: intArr } = getSampleStreetData();
   const segments = Object.fromEntries(segArr.map((s) => [s.id, s]));
@@ -457,9 +430,6 @@ describe('findShortestLoop', () => {
   });
 });
 
-// ===========================================================================
-// 10. computeExploredIds
-// ===========================================================================
 describe('computeExploredIds', () => {
   const { segments, intersections } = getSampleStreetData();
 

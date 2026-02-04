@@ -274,6 +274,20 @@ function selectRightmostExit(params: {
   return candidates[0]?.id ?? null;
 }
 
+/** Create a failure result for walkRightLoop */
+function makeLoopFailure(
+  waypoints: LoopWaypoint[],
+  totalDist: number,
+  error: 'dead_end' | 'max_distance_exceeded'
+): LoopResult {
+  return {
+    success: false,
+    waypoints,
+    totalDistanceMiles: totalDist / METERS_PER_MILE,
+    error,
+  };
+}
+
 /** Walk the always-turn-right loop starting from `startIntersection`. */
 function walkRightLoop(params: {
   startIntersection: Intersection;
@@ -300,56 +314,23 @@ function walkRightLoop(params: {
       allSegments,
     });
 
-    if (!nextSegId) {
-      return {
-        success: false,
-        waypoints,
-        totalDistanceMiles: totalDist / METERS_PER_MILE,
-        error: 'dead_end',
-      };
-    }
+    if (!nextSegId) return makeLoopFailure(waypoints, totalDist, 'dead_end');
 
     const nextSeg = allSegments[nextSegId];
-    if (!nextSeg) {
-      return {
-        success: false,
-        waypoints,
-        totalDistanceMiles: totalDist / METERS_PER_MILE,
-        error: 'dead_end',
-      };
-    }
+    if (!nextSeg) return makeLoopFailure(waypoints, totalDist, 'dead_end');
 
     totalDist += nextSeg.lengthMeters;
-    if (totalDist > maxDistMeters) {
-      return {
-        success: false,
-        waypoints,
-        totalDistanceMiles: totalDist / METERS_PER_MILE,
-        error: 'max_distance_exceeded',
-      };
-    }
+    if (totalDist > maxDistMeters) return makeLoopFailure(waypoints, totalDist, 'max_distance_exceeded');
 
     // Determine next intersection
     const otherId = nextSeg.startNodeId === current.id ? nextSeg.endNodeId : nextSeg.startNodeId;
     const nextInt = allIntersections[otherId];
-    if (!nextInt) {
-      return {
-        success: false,
-        waypoints,
-        totalDistanceMiles: totalDist / METERS_PER_MILE,
-        error: 'dead_end',
-      };
-    }
+    if (!nextInt) return makeLoopFailure(waypoints, totalDist, 'dead_end');
 
     waypoints.push({
       intersectionId: nextInt.id,
       segmentId: nextSegId,
-      direction: cardinalDirection(
-        current.latitude,
-        current.longitude,
-        nextInt.latitude,
-        nextInt.longitude
-      ),
+      direction: cardinalDirection(current.latitude, current.longitude, nextInt.latitude, nextInt.longitude),
       distanceFromStart: totalDist,
     });
 
@@ -363,12 +344,7 @@ function walkRightLoop(params: {
     current = nextInt;
   }
 
-  return {
-    success: false,
-    waypoints,
-    totalDistanceMiles: totalDist / METERS_PER_MILE,
-    error: 'max_distance_exceeded',
-  };
+  return makeLoopFailure(waypoints, totalDist, 'max_distance_exceeded');
 }
 
 /**
@@ -638,16 +614,12 @@ export function getSampleStreetData(): {
   // E–W segments (each row has 2 segments connecting 3 intersections)
   for (let r = 0; r < 3; r++) {
     for (let c = 0; c < 2; c++) {
-      const seg = makeSampleSegment(
-        `ew_${r}_${c}`,
-        ewNames[r]!,
-        rows[r]!,
-        cols[c]!,
-        rows[r]!,
-        cols[c + 1]!,
-        idAt(r, c),
-        idAt(r, c + 1)
-      );
+      const seg = makeSampleSegment({
+        id: `ew_${r}_${c}`,
+        name: ewNames[r]!,
+        start: { lat: rows[r]!, lon: cols[c]!, nodeId: idAt(r, c) },
+        end: { lat: rows[r]!, lon: cols[c + 1]!, nodeId: idAt(r, c + 1) },
+      });
       segments.push(seg);
       wires(intersections, seg);
     }
@@ -656,16 +628,12 @@ export function getSampleStreetData(): {
   // N–S segments (each column has 2 segments connecting 3 intersections)
   for (let c = 0; c < 3; c++) {
     for (let r = 0; r < 2; r++) {
-      const seg = makeSampleSegment(
-        `ns_${c}_${r}`,
-        nsNames[c]!,
-        rows[r]!,
-        cols[c]!,
-        rows[r + 1]!,
-        cols[c]!,
-        idAt(r, c),
-        idAt(r + 1, c)
-      );
+      const seg = makeSampleSegment({
+        id: `ns_${c}_${r}`,
+        name: nsNames[c]!,
+        start: { lat: rows[r]!, lon: cols[c]!, nodeId: idAt(r, c) },
+        end: { lat: rows[r + 1]!, lon: cols[c]!, nodeId: idAt(r + 1, c) },
+      });
       segments.push(seg);
       wires(intersections, seg);
     }
@@ -674,21 +642,27 @@ export function getSampleStreetData(): {
   return { segments, intersections };
 }
 
-function makeSampleSegment(
-  id: string,
-  name: string,
-  sLat: number,
-  sLon: number,
-  eLat: number,
-  eLon: number,
-  startNodeId: string,
-  endNodeId: string
-): StreetSegment {
+/** Options for creating a sample segment */
+interface SampleSegmentOptions {
+  id: string;
+  name: string;
+  start: { lat: number; lon: number; nodeId: string };
+  end: { lat: number; lon: number; nodeId: string };
+}
+
+function makeSampleSegment(opts: SampleSegmentOptions): StreetSegment {
   const points: StreetPoint[] = [
-    { latitude: sLat, longitude: sLon },
-    { latitude: eLat, longitude: eLon },
+    { latitude: opts.start.lat, longitude: opts.start.lon },
+    { latitude: opts.end.lat, longitude: opts.end.lon },
   ];
-  return { id, name, points, startNodeId, endNodeId, lengthMeters: computeSegmentLength(points) };
+  return {
+    id: opts.id,
+    name: opts.name,
+    points,
+    startNodeId: opts.start.nodeId,
+    endNodeId: opts.end.nodeId,
+    lengthMeters: computeSegmentLength(points),
+  };
 }
 
 function wires(intersections: Intersection[], seg: StreetSegment): void {

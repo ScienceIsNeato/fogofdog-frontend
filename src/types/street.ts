@@ -4,6 +4,90 @@
  * and cached locally for offline / dev use.
  */
 
+// ---------------------------------------------------------------------------
+// OpenStreetMap / Overpass Types
+// ---------------------------------------------------------------------------
+
+/**
+ * OSM highway classifications from the Overpass API.
+ * These map to the OSM `highway` tag values we query for.
+ * @see https://wiki.openstreetmap.org/wiki/Key:highway
+ */
+export enum StreetType {
+  /** Major divided highway (limited access) */
+  MOTORWAY = 'motorway',
+  /** Major highway links / ramps */
+  MOTORWAY_LINK = 'motorway_link',
+  /** Major arterial roads */
+  PRIMARY = 'primary',
+  /** Collector roads */
+  SECONDARY = 'secondary',
+  /** Minor through roads */
+  TERTIARY = 'tertiary',
+  /** Residential streets */
+  RESIDENTIAL = 'residential',
+  /** Minor public roads with no specific classification */
+  UNCLASSIFIED = 'unclassified',
+  /** Access roads (driveways, parking lots, alleys) */
+  SERVICE = 'service',
+  /** Low-speed residential areas (shared space) */
+  LIVING_STREET = 'living_street',
+  /** Pedestrian-only ways */
+  PEDESTRIAN = 'pedestrian',
+  /** Designated foot paths */
+  FOOTWAY = 'footway',
+  /** Designated cycle paths */
+  CYCLEWAY = 'cycleway',
+  /** Unpaved rural roads */
+  TRACK = 'track',
+  /** Generic path (walking, cycling) */
+  PATH = 'path',
+}
+
+/**
+ * Base OSM element returned from Overpass API.
+ * All elements (nodes, ways, relations) share these fields.
+ */
+export interface OSMElement {
+  type: 'node' | 'way' | 'relation';
+  id: number;
+  tags?: Record<string, string>;
+}
+
+/** OSM node element — a single point */
+export interface OSMNodeElement extends OSMElement {
+  type: 'node';
+  lat: number;
+  lon: number;
+}
+
+/** OSM way element — an ordered list of node references with inline geometry */
+export interface OSMWayElement extends OSMElement {
+  type: 'way';
+  nodes?: number[];
+  geometry?: { lat: number; lon: number }[];
+}
+
+/** OSM way element with guaranteed geometry (for type guards after filtering) */
+export interface OSMWayElementWithGeometry extends OSMWayElement {
+  geometry: { lat: number; lon: number }[];
+}
+
+/** Full Overpass API JSON response envelope */
+export interface OSMResponse {
+  version: number;
+  generator: string;
+  osm3s: {
+    timestamp_osm_base: string;
+    copyright: string;
+  };
+  elements: OSMElement[];
+}
+
+// ---------------------------------------------------------------------------
+// Street Domain Types
+// ---------------------------------------------------------------------------
+
 /** A geographic coordinate on a street */
 export interface StreetPoint {
   latitude: number;
@@ -16,6 +100,8 @@ export interface StreetSegment {
   id: string;
   /** Human-readable street name */
   name: string;
+  /** OSM highway classification (optional — populated from Overpass data) */
+  streetType?: StreetType;
   /** Ordered geometry points forming the polyline */
   points: StreetPoint[];
   /** ID of the intersection / endpoint at the start of `points` */
