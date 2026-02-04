@@ -19,7 +19,7 @@ elif [ -f .env ]; then
 fi
 
 # slop-mop quality gate (replaces ship_it.py)
-# Installs slop-mop if not already on PATH, then runs lint-format validation.
+# Installs slop-mop if not already on PATH, then runs lint-format and type validation.
 # Note: we invoke --quality-gates explicitly rather than the "commit" alias
 # because the alias is hardcoded in slop-mop to include security:local which
 # requires detect-secrets and does not respect security.enabled in the config.
@@ -29,4 +29,4 @@ if ! command -v sm >/dev/null 2>&1; then
   pip install -e ./slop-mop --break-system-packages --quiet 2>/dev/null
 fi
 
-sm validate --quality-gates javascript:lint-format
+sm validate --quality-gates javascript:lint-format javascript:types

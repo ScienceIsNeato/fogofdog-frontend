@@ -177,12 +177,12 @@
     }
   },
   "pr": {
-    "enabled": false,
+    "enabled": true,
     "include_dirs": [],
     "exclude_dirs": [],
     "gates": {
       "comments": {
-        "enabled": false,
+        "enabled": true,
         "auto_fix": false,
         "config_file_path": null,
         "fail_on_unresolved": true

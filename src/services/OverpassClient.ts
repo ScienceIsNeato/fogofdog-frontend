@@ -199,8 +199,8 @@ function hasGeometry(el: OSMElement): el is OSMWayElementWithGeometry {
 function parseWays(elements: OSMElement[]): ParsedWay[] {
   return elements.filter(hasGeometry).map((el) => ({
     id: String(el.id),
-    name: el.tags?.name ?? 'Unnamed Road',
-    streetType: parseHighwayType(el.tags?.highway),
+    name: el.tags?.['name'] ?? 'Unnamed Road',
+    streetType: parseHighwayType(el.tags?.['highway']),
     points: el.geometry.map((g) => ({ latitude: g.lat, longitude: g.lon })),
   }));
 }
