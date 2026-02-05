@@ -5,7 +5,7 @@
 ### 🎯 **LATEST: EXPO SDK 54 UPGRADE & ANDROID DEVELOPMENT ENVIRONMENT**
 
 **Branch**: `fix/CI-version`  
-**Status**: SDK 54 upgrade complete, Android build working on Pixel 8 Pro emulator
+**Status**: SDK 54 upgrade complete, Android build working on Pixel 8 Pro emulator with Google Maps
 **Previous Work**: PR #53 created for App Store ITMS-90189 fix
 **Session Goal**: Enable cross-platform Maestro testing (Android + iOS)
 
@@ -21,6 +21,7 @@
 - ✅ **Android SDK**: API 36 (Baklava), Build Tools 36.0.0
 - ✅ **NDK**: 27.1.12297006 (reinstalled after corruption)
 - ✅ **Emulator**: Pixel 8 Pro with API 36, ARM64 architecture
+- ✅ **Google Maps API Key**: Configured via `GOOGLE_MAPS_API_KEY` env var
 
 ### **🔄 SDK Upgrade Path**
 
@@ -48,21 +49,38 @@
 - ✅ **Build**: Successful via `npx expo run:android`
 - ✅ **Emulator**: App running on Pixel 8 Pro (API 36)
 - ✅ **Metro**: Bundling and connecting to emulator
+- ✅ **Google Maps**: Working with API key from env var
 - ⚠️ **GPS Simulation**: Not working on Android emulator (foreground service limitation when app in background)
+
+### **🔧 Scripts for Server Management**
+
+**Use these scripts instead of ad-hoc CLI commands**:
+
+| Command | Description |
+|---------|-------------|
+| `./scripts/dev-server.sh start ios` | Start Metro + open iOS Simulator |
+| `./scripts/dev-server.sh start android` | Start Metro + open Android Emulator |
+| `./scripts/dev-server.sh start both` | Start Metro + open both platforms |
+| `./scripts/dev-server.sh stop` | Kill all Metro processes |
+| `./scripts/dev-server.sh restart` | Stop then start |
+| `./scripts/dev-server.sh status` | Check server and device status |
+| `./scripts/dev-server.sh logs` | Tail Metro logs |
+| `./scripts/launch-device.sh ios` | Boot iOS Simulator only |
+| `./scripts/launch-device.sh android` | Boot Android Emulator only |
+| `./scripts/run_integration_tests.sh <test.yaml>` | Run Maestro tests (iOS) |
+
+### **📦 Commits This Session**
+
+1. `990fcf8` - feat: upgrade to Expo SDK 54 with Android support
+2. `5a39c9b` - feat: add unified dev-server and launch-device scripts for cross-platform dev
+3. `02fec73` - feat: add Google Maps API key for Android from env var
+4. `3eb5c3e` - chore: update secrets baseline for GOOGLE_MAPS_API_KEY
 
 ### **🔧 Known Issues**
 
-1. **GPS Simulation on Android**: `ExpoLocation.startLocationUpdatesAsync` fails with "Foreground service cannot be started when application is in background" - this is an Android platform limitation, not a bug
-2. **Maestro on Android**: Initial 4/17 steps passing, but app loads and runs correctly
-3. **expo-file-system deprecation warning**: `getInfoAsync` deprecated, should migrate to new `File`/`Directory` API
-
-### **📂 Scripts for Server Maintenance**
-
-**Use these scripts instead of ad-hoc CLI commands**:
-- `./scripts/refresh-metro.sh` - Kill and restart Metro with logging
-- `./scripts/monitor-metro-logs.sh` - Monitor Metro output
-- `./scripts/run_integration_tests.sh` - Run Maestro tests (iOS-focused)
-- `./scripts/bundle-check.sh` - Check app bundle readiness
+1. **GPS Simulation on Android**: `ExpoLocation.startLocationUpdatesAsync` fails with "Foreground service cannot be started when application is in background" - Android platform limitation
+2. **expo-file-system deprecation warning**: `getInfoAsync` deprecated, should migrate to new `File`/`Directory` API
+3. **Require cycle warning**: `src/screens/Map/index.tsx` ↔ `src/screens/Map/hooks/useCinematicZoom.ts` - cosmetic issue
 
 ---
 
