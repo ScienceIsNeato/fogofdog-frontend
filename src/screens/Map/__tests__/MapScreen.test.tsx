@@ -36,6 +36,18 @@ jest.mock('../../../services/GPSInjectionService', () => ({
   },
 }));
 
+// Mock BackgroundLocationService to prevent unmount errors
+jest.mock('../../../services/BackgroundLocationService', () => ({
+  BackgroundLocationService: {
+    startBackgroundLocationTracking: jest.fn().mockResolvedValue(undefined),
+    stopBackgroundLocationTracking: jest.fn().mockResolvedValue(undefined),
+    isBackgroundTrackingActive: jest.fn().mockReturnValue(false),
+    handleLocationUpdate: jest.fn(),
+    initialize: jest.fn().mockResolvedValue(undefined),
+    processStoredLocations: jest.fn().mockResolvedValue([]),
+  },
+}));
+
 // Mock onboarding context to simulate completed onboarding in tests
 jest.mock('../../../contexts/OnboardingContext', () => ({
   useOnboardingContext: () => ({

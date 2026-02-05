@@ -77,7 +77,16 @@ jest.mock('../../../services/OnboardingService', () => ({
   },
 }));
 
-jest.mock('../../../services/BackgroundLocationService');
+jest.mock('../../../services/BackgroundLocationService', () => ({
+  BackgroundLocationService: {
+    startBackgroundLocationTracking: jest.fn().mockResolvedValue(undefined),
+    stopBackgroundLocationTracking: jest.fn().mockResolvedValue(undefined),
+    isBackgroundTrackingActive: jest.fn().mockReturnValue(false),
+    handleLocationUpdate: jest.fn(),
+    initialize: jest.fn().mockResolvedValue(undefined),
+    processStoredLocations: jest.fn().mockResolvedValue([]),
+  },
+}));
 jest.mock('../../../services/AuthPersistenceService');
 jest.mock('../../../services/DataClearingService');
 
