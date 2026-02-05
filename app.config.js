@@ -1,4 +1,12 @@
 module.exports = ({ config }) => ({
   ...config,
-  // Removed sdkVersion override - let Expo auto-detect from package version
+  android: {
+    ...config.android,
+    config: {
+      ...config.android?.config,
+      googleMaps: {
+        apiKey: process.env.GOOGLE_MAPS_API_KEY,
+      },
+    },
+  },
 });
