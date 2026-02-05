@@ -1,6 +1,21 @@
 {
   "version": "1.0",
-  "default_profile": "pr",
+  "default_profile": "javascript",
+  "profiles": {
+    "commit": [
+      "javascript:lint-format",
+      "javascript:types",
+      "javascript:tests",
+      "javascript:coverage"
+    ],
+    "pr": [
+      "javascript:lint-format",
+      "javascript:types",
+      "javascript:tests",
+      "javascript:coverage",
+      "quality:duplication"
+    ]
+  },
   "python": {
     "enabled": false,
     "include_dirs": [],

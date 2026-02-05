@@ -98,8 +98,7 @@ const explorationSlice = createSlice({
 
       // Check if this is the exact same location as current location (avoid redundant processing)
       if (
-        state.currentLocation &&
-        state.currentLocation.latitude === newPoint.latitude &&
+        state.currentLocation?.latitude === newPoint.latitude &&
         state.currentLocation.longitude === newPoint.longitude
       ) {
         // Skip logging for identical location updates to reduce log noise

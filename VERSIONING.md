@@ -11,6 +11,7 @@ FogOfDog uses **semantic versioning** (SemVer) with automated patch version incr
 **`app.json` is the single source of truth for versions.**
 
 When you open `app.json`, you see exactly what's deployed:
+
 - `expo.version`: The semantic version (e.g., `1.1.3`)
 - `expo.ios.buildNumber`: The iOS build number (e.g., `7`)
 - `expo.android.versionCode`: The Android version code (e.g., `7`)
@@ -61,6 +62,7 @@ No cloud magic, no guessing. The repo tells you the truth.
 ```
 
 **Key Design Decisions:**
+
 - EAS build triggers AFTER version bump completes (no race condition)
 - EAS reads version from `app.json` (never modifies it)
 - `autoIncrement` disabled in `eas.json` (repo is authoritative)

@@ -184,7 +184,7 @@ describe('useCinematicZoom', () => {
       exploration: { path: mockPath },
     });
 
-    const nullMapRef = { current: null };
+    const nullMapRef: React.RefObject<any> = { current: null };
 
     renderHook(() => useCinematicZoom({ mapRef: nullMapRef, currentLocation }), {
       wrapper: createWrapper(store),

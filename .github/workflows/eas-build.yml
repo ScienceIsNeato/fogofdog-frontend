@@ -3,7 +3,7 @@ name: EAS Build & Deploy
 on:
   # Trigger after version-bump workflow completes (PR merge flow)
   workflow_run:
-    workflows: ["Auto Version Bump"]
+    workflows: ['Auto Version Bump']
     types: [completed]
     branches: [main]
   # Production releases via tags
@@ -83,7 +83,7 @@ jobs:
         if: github.event_name != 'workflow_dispatch' || github.event.inputs.skip_tests != 'true'
         run: npm run test:ci
 
-      - name:  Build Info
+      - name: Build Info
         run: |
           echo "🏗️ Build Information:"
           echo "Branch: ${{ github.ref_name }}"

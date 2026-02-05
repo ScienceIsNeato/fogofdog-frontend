@@ -14,11 +14,11 @@ platform. This unlocks:
 
 ## Current State
 
-| Aspect | iOS | Android |
-|--------|-----|---------|
-| Local builds | ✅ Working | ❓ Unknown |
-| CI builds | ✅ EAS testflight | ❌ Not configured |
-| Maestro tests | ✅ Local only | ❌ Not tested |
+| Aspect             | iOS                | Android            |
+| ------------------ | ------------------ | ------------------ |
+| Local builds       | ✅ Working         | ❓ Unknown         |
+| CI builds          | ✅ EAS testflight  | ❌ Not configured  |
+| Maestro tests      | ✅ Local only      | ❌ Not tested      |
 | Emulator/Simulator | ✅ Xcode Simulator | ❓ Android Studio? |
 
 ---
@@ -29,15 +29,16 @@ platform. This unlocks:
 
 **Goal:** Any developer can build and run Android locally.
 
-| Task | Description | Effort |
-|------|-------------|--------|
-| Document Android Studio installation | Step-by-step for macOS | 1hr |
-| Configure `ANDROID_HOME` environment | In `.envrc` or shell profile | 30min |
-| Verify Expo Android build | `npx expo run:android` | 1hr |
-| Create Android emulator AVD | Standard device (Pixel 7?) | 30min |
-| Add Android to `.gitignore` review | Ensure build artifacts ignored | 15min |
+| Task                                 | Description                    | Effort |
+| ------------------------------------ | ------------------------------ | ------ |
+| Document Android Studio installation | Step-by-step for macOS         | 1hr    |
+| Configure `ANDROID_HOME` environment | In `.envrc` or shell profile   | 30min  |
+| Verify Expo Android build            | `npx expo run:android`         | 1hr    |
+| Create Android emulator AVD          | Standard device (Pixel 7?)     | 30min  |
+| Add Android to `.gitignore` review   | Ensure build artifacts ignored | 15min  |
 
 **Acceptance Criteria:**
+
 ```bash
 # This should work from scratch on a new dev machine
 npx expo run:android --device "Pixel_7_API_34"
@@ -47,14 +48,15 @@ npx expo run:android --device "Pixel_7_API_34"
 
 **Goal:** Android builds work identically to iOS builds.
 
-| Task | Description | Effort |
-|------|-------------|--------|
-| Verify `app.json` Android config | Bundle ID, permissions, icons | 30min |
-| Test location permissions | Background GPS on Android | 2hr |
-| Verify all native modules | expo-location, etc. | 1hr |
-| Test release build | `npx expo run:android --configuration Release` | 1hr |
+| Task                             | Description                                    | Effort |
+| -------------------------------- | ---------------------------------------------- | ------ |
+| Verify `app.json` Android config | Bundle ID, permissions, icons                  | 30min  |
+| Test location permissions        | Background GPS on Android                      | 2hr    |
+| Verify all native modules        | expo-location, etc.                            | 1hr    |
+| Test release build               | `npx expo run:android --configuration Release` | 1hr    |
 
 **Known Differences to Investigate:**
+
 - Background location behavior (Android foreground service vs iOS background modes)
 - Map tile rendering (same MapView but different native impl)
 - Permission flow UX
@@ -67,30 +69,32 @@ npx expo run:android --device "Pixel_7_API_34"
 
 **Goal:** Identify platform-specific selectors or behaviors.
 
-| Test File | iOS-Specific? | Notes |
-|-----------|---------------|-------|
-| `login-to-map-test.yaml` | TBD | Audit selectors |
-| `background-gps-test.yaml` | TBD | Background behavior differs |
-| `*.yaml` | TBD | Full audit needed |
+| Test File                  | iOS-Specific? | Notes                       |
+| -------------------------- | ------------- | --------------------------- |
+| `login-to-map-test.yaml`   | TBD           | Audit selectors             |
+| `background-gps-test.yaml` | TBD           | Background behavior differs |
+| `*.yaml`                   | TBD           | Full audit needed           |
 
 **Common Platform Differences:**
+
 ```yaml
 # iOS uses accessibilityIdentifier, Android uses contentDescription
 # Maestro abstracts this, but verify:
 - tapOn:
-    id: "login-button"  # Should work on both if testID set correctly
+    id: 'login-button' # Should work on both if testID set correctly
 ```
 
 ### 2.2 Test Infrastructure Updates
 
-| Task | Description | Effort |
-|------|-------------|--------|
-| Add platform detection to test runner | `--platform ios\|android` flag | 1hr |
-| Update `run_integration_tests.sh` | Support Android emulator | 2hr |
-| Create platform-specific test variants | If absolutely needed | TBD |
-| Add `bundle-check.sh` Android equivalent | Verify app is running | 1hr |
+| Task                                     | Description                    | Effort |
+| ---------------------------------------- | ------------------------------ | ------ |
+| Add platform detection to test runner    | `--platform ios\|android` flag | 1hr    |
+| Update `run_integration_tests.sh`        | Support Android emulator       | 2hr    |
+| Create platform-specific test variants   | If absolutely needed           | TBD    |
+| Add `bundle-check.sh` Android equivalent | Verify app is running          | 1hr    |
 
 **Proposed Script Interface:**
+
 ```bash
 # Run on iOS (current behavior)
 ./scripts/run_integration_tests.sh --platform ios
@@ -104,11 +108,11 @@ npx expo run:android --device "Pixel_7_API_34"
 
 ### 2.3 Test Data & Fixtures
 
-| Task | Description | Effort |
-|------|-------------|--------|
-| Verify GPS injection works on Android | Maestro `setLocation` | 1hr |
-| Test mock data injection | Same AsyncStorage? | 30min |
-| Verify screenshot paths | For test artifacts | 30min |
+| Task                                  | Description           | Effort |
+| ------------------------------------- | --------------------- | ------ |
+| Verify GPS injection works on Android | Maestro `setLocation` | 1hr    |
+| Test mock data injection              | Same AsyncStorage?    | 30min  |
+| Verify screenshot paths               | For test artifacts    | 30min  |
 
 ---
 
@@ -118,23 +122,24 @@ npx expo run:android --device "Pixel_7_API_34"
 
 **Goal:** Run Maestro tests on Android in CI using Linux runners.
 
-| Task | Description | Effort |
-|------|-------------|--------|
-| Add Android emulator action | `reactivecircus/android-emulator-runner` | 2hr |
-| Configure AVD in CI | API level, device profile | 1hr |
-| Cache Android SDK/Gradle | Reduce build time | 2hr |
-| Build Android app in CI | Expo prebuild + gradle | 2hr |
+| Task                        | Description                              | Effort |
+| --------------------------- | ---------------------------------------- | ------ |
+| Add Android emulator action | `reactivecircus/android-emulator-runner` | 2hr    |
+| Configure AVD in CI         | API level, device profile                | 1hr    |
+| Cache Android SDK/Gradle    | Reduce build time                        | 2hr    |
+| Build Android app in CI     | Expo prebuild + gradle                   | 2hr    |
 
 **Proposed Workflow Addition:**
+
 ```yaml
 run-maestro-android:
   name: 🤖 Maestro Integration Tests (Android)
-  runs-on: ubuntu-latest  # $0.008/min vs $0.08/min for macOS
+  runs-on: ubuntu-latest # $0.008/min vs $0.08/min for macOS
   timeout-minutes: 30
 
   steps:
     - uses: actions/checkout@v4
-    
+
     - name: Setup Android Emulator
       uses: reactivecircus/android-emulator-runner@v2
       with:
@@ -152,13 +157,14 @@ run-maestro-android:
 
 **Goal:** Platform selection via workflow inputs.
 
-| Task | Description | Effort |
-|------|-------------|--------|
-| Add `platform` input to quality-gate | `ios`, `android`, `both` | 1hr |
-| Conditional job execution | Matrix or if conditions | 1hr |
-| Update PR checks | Which platform(s) required? | 30min |
+| Task                                 | Description                 | Effort |
+| ------------------------------------ | --------------------------- | ------ |
+| Add `platform` input to quality-gate | `ios`, `android`, `both`    | 1hr    |
+| Conditional job execution            | Matrix or if conditions     | 1hr    |
+| Update PR checks                     | Which platform(s) required? | 30min  |
 
 **Proposed Configuration:**
+
 ```yaml
 on:
   pull_request:
@@ -169,19 +175,19 @@ on:
         description: 'Platform for integration tests'
         type: choice
         options:
-          - android  # Default - cheap
-          - ios      # Expensive, manual only
-          - both     # Full validation
+          - android # Default - cheap
+          - ios # Expensive, manual only
+          - both # Full validation
         default: android
 ```
 
 ### 3.3 Cost Analysis
 
-| Scenario | Platform | Runner | Cost/Run | Monthly (20 PRs) |
-|----------|----------|--------|----------|------------------|
-| Current | iOS | macOS | ~$4.80 | $96 |
-| Proposed Default | Android | Linux | ~$0.24 | $4.80 |
-| Full Validation | Both | Both | ~$5.04 | $100.80 |
+| Scenario         | Platform | Runner | Cost/Run | Monthly (20 PRs) |
+| ---------------- | -------- | ------ | -------- | ---------------- |
+| Current          | iOS      | macOS  | ~$4.80   | $96              |
+| Proposed Default | Android  | Linux  | ~$0.24   | $4.80            |
+| Full Validation  | Both     | Both   | ~$5.04   | $100.80          |
 
 **Recommendation:** Default to Android for PRs, iOS for pre-release only.
 
@@ -191,21 +197,21 @@ on:
 
 ### 4.1 Local Testing Scripts
 
-| Task | Description | Effort |
-|------|-------------|--------|
-| Update README with Android setup | Installation guide | 1hr |
-| Add `npm run test:e2e:android` | Convenience script | 30min |
-| Add `npm run test:e2e:ios` | Explicit iOS | 30min |
-| Platform auto-detection | Detect running emulator/simulator | 1hr |
+| Task                             | Description                       | Effort |
+| -------------------------------- | --------------------------------- | ------ |
+| Update README with Android setup | Installation guide                | 1hr    |
+| Add `npm run test:e2e:android`   | Convenience script                | 30min  |
+| Add `npm run test:e2e:ios`       | Explicit iOS                      | 30min  |
+| Platform auto-detection          | Detect running emulator/simulator | 1hr    |
 
 ### 4.2 Documentation
 
-| Document | Content | Effort |
-|----------|---------|--------|
-| `docs/ANDROID_SETUP.md` | Full Android dev environment setup | 2hr |
-| `docs/MAESTRO_TESTING.md` | Cross-platform test guide | 1hr |
-| Update `CLAUDE.md` | AI assistant context for Android | 30min |
-| Update cursor rules | Android-specific guidance | 30min |
+| Document                  | Content                            | Effort |
+| ------------------------- | ---------------------------------- | ------ |
+| `docs/ANDROID_SETUP.md`   | Full Android dev environment setup | 2hr    |
+| `docs/MAESTRO_TESTING.md` | Cross-platform test guide          | 1hr    |
+| Update `CLAUDE.md`        | AI assistant context for Android   | 30min  |
+| Update cursor rules       | Android-specific guidance          | 30min  |
 
 ---
 
@@ -215,44 +221,48 @@ on:
 
 Once we can build and test Android, audit for feature gaps:
 
-| Feature | iOS | Android | Notes |
-|---------|-----|---------|-------|
-| Background GPS | ✅ | ❓ | Foreground service needed |
-| Map rendering | ✅ | ❓ | Verify fog overlay |
-| Push notifications | ❓ | ❓ | Future feature |
-| Deep links | ✅ | ❓ | Scheme handling |
+| Feature            | iOS | Android | Notes                     |
+| ------------------ | --- | ------- | ------------------------- |
+| Background GPS     | ✅  | ❓      | Foreground service needed |
+| Map rendering      | ✅  | ❓      | Verify fog overlay        |
+| Push notifications | ❓  | ❓      | Future feature            |
+| Deep links         | ✅  | ❓      | Scheme handling           |
 
 ### 5.2 Play Store Preparation
 
-| Task | Description | Effort |
-|------|-------------|--------|
-| EAS Android build profile | `eas.json` production Android | 1hr |
-| Play Store listing | Screenshots, description | 2hr |
-| Internal testing track | Alpha/beta distribution | 1hr |
-| Play Store submission | Review process | Varies |
+| Task                      | Description                   | Effort |
+| ------------------------- | ----------------------------- | ------ |
+| EAS Android build profile | `eas.json` production Android | 1hr    |
+| Play Store listing        | Screenshots, description      | 2hr    |
+| Internal testing track    | Alpha/beta distribution       | 1hr    |
+| Play Store submission     | Review process                | Varies |
 
 ---
 
 ## Implementation Order
 
 ### Sprint 1: Foundation (3-4 hours)
+
 1. ✅ Document Android Studio setup
 2. ✅ Verify `npx expo run:android` works locally
 3. ✅ Create standard AVD configuration
 4. ✅ Run one Maestro test against Android locally
 
 ### Sprint 2: Test Portability (2-3 hours)
+
 1. Audit all Maestro tests for platform-specific code
 2. Update `run_integration_tests.sh` with `--platform` flag
 3. Verify all tests pass on Android locally
 
 ### Sprint 3: CI Integration (4-5 hours)
+
 1. Add Android emulator job to `quality-gate.yml`
 2. Configure caching for Android SDK
 3. Make Android the default for PR integration tests
 4. Keep iOS as manual/pre-release option
 
 ### Sprint 4: Polish (2-3 hours)
+
 1. Documentation updates
 2. Developer convenience scripts
 3. Cost monitoring/alerts
@@ -261,12 +271,12 @@ Once we can build and test Android, audit for feature gaps:
 
 ## Risks & Mitigations
 
-| Risk | Impact | Mitigation |
-|------|--------|------------|
+| Risk                         | Impact              | Mitigation                                  |
+| ---------------------------- | ------------------- | ------------------------------------------- |
 | Android emulator flaky in CI | Tests fail randomly | Use hardware acceleration, stable API level |
-| Platform-specific bugs | False confidence | Run iOS pre-release |
-| Android build time | Slow CI | Aggressive caching, prebuild |
-| Background GPS differs | Core feature broken | Dedicated Android GPS test |
+| Platform-specific bugs       | False confidence    | Run iOS pre-release                         |
+| Android build time           | Slow CI             | Aggressive caching, prebuild                |
+| Background GPS differs       | Core feature broken | Dedicated Android GPS test                  |
 
 ---
 

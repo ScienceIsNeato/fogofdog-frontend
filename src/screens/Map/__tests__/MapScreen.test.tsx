@@ -39,12 +39,12 @@ jest.mock('../../../services/GPSInjectionService', () => ({
 // Mock BackgroundLocationService to prevent unmount errors
 jest.mock('../../../services/BackgroundLocationService', () => ({
   BackgroundLocationService: {
-    startBackgroundLocationTracking: jest.fn().mockResolvedValue(undefined),
-    stopBackgroundLocationTracking: jest.fn().mockResolvedValue(undefined),
+    startBackgroundLocationTracking: jest.fn<() => Promise<void>>().mockResolvedValue(undefined),
+    stopBackgroundLocationTracking: jest.fn<() => Promise<void>>().mockResolvedValue(undefined),
     isBackgroundTrackingActive: jest.fn().mockReturnValue(false),
     handleLocationUpdate: jest.fn(),
-    initialize: jest.fn().mockResolvedValue(undefined),
-    processStoredLocations: jest.fn().mockResolvedValue([]),
+    initialize: jest.fn<() => Promise<void>>().mockResolvedValue(undefined),
+    processStoredLocations: jest.fn<() => Promise<unknown[]>>().mockResolvedValue([]),
   },
 }));
 
@@ -341,7 +341,7 @@ jest.mock('../../../components/LocationButton', () => {
       TouchableOpacity,
       {
         testID: 'mock-location-button',
-        onPress: () => props.onPress && props.onPress(),
+        onPress: () => props.onPress?.(),
       } as TouchableOpacityProps,
       React.createElement(Text, {}, 'Location Button')
     );

@@ -80,7 +80,6 @@ gps-injection.json
 .cursorignore
 .cursorpaths.json
 currules.json
-.cursorrules
 cursor-rules/
 .cursor
 
@@ -99,3 +98,6 @@ metro.log
 nohup.out
 
 build/
+
+# Generated Copilot instructions (from cursor-rules)
+.github/instructions/*.instructions.md

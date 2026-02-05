@@ -125,7 +125,7 @@ interface SafeAreaInsets {
 interface HandleLocationUpdateOptions {
   location: GeoPoint;
   dispatch: ReturnType<typeof useAppDispatch>;
-  mapRef: React.RefObject<MapView>;
+  mapRef: React.RefObject<MapView | null>;
   isMapCenteredOnUser: boolean;
   isFollowModeActive: boolean;
   currentRegion: Region | undefined;
@@ -267,12 +267,7 @@ async function startForegroundLocationUpdates(): Promise<void> {
         longitude: location.coords.longitude,
       };
 
-      logger.debug('Emitting locationUpdate event from foreground service', {
-        component: 'MapScreen',
-        action: 'startForegroundLocationUpdates',
-        coordinate: `${locationUpdate.latitude.toFixed(6)}, ${locationUpdate.longitude.toFixed(6)}`,
-      });
-
+      // Note: Removed per-update log to reduce noise (fires every 100ms)
       DeviceEventEmitter.emit('locationUpdate', locationUpdate);
     }
   );
@@ -354,7 +349,7 @@ async function startLocationUpdates(backgroundGranted: boolean = false) {
 const createLocationUpdateCallback = (params: {
   isActiveRef: { current: boolean };
   dispatch: ReturnType<typeof useAppDispatch>;
-  mapRef: React.RefObject<MapView>;
+  mapRef: React.RefObject<MapView | null>;
   isMapCenteredOnUser: boolean;
   isFollowModeActive: boolean;
   currentRegion: Region | undefined;
@@ -386,7 +381,7 @@ const createLocationUpdateCallback = (params: {
 const createGPSInjectionCallback = (params: {
   isActiveRef: { current: boolean };
   dispatch: ReturnType<typeof useAppDispatch>;
-  mapRef: React.RefObject<MapView>;
+  mapRef: React.RefObject<MapView | null>;
   isMapCenteredOnUser: boolean;
   isFollowModeActive: boolean;
   currentRegion: Region | undefined;
@@ -454,7 +449,7 @@ function setupLocationListeners({
 }: {
   isActiveRef: { current: boolean };
   dispatch: ReturnType<typeof useAppDispatch>;
-  mapRef: React.RefObject<MapView>;
+  mapRef: React.RefObject<MapView | null>;
   isMapCenteredOnUser: boolean;
   isFollowModeActive: boolean;
   currentRegion: Region | undefined;
@@ -507,7 +502,7 @@ async function getInitialLocation({
 }: {
   isActiveRef: { current: boolean };
   dispatch: ReturnType<typeof useAppDispatch>;
-  mapRef: React.RefObject<MapView>;
+  mapRef: React.RefObject<MapView | null>;
   isMapCenteredOnUser: boolean;
   isFollowModeActive: boolean;
   currentRegion: Region | undefined;
@@ -595,7 +590,7 @@ const initializeLocationServices = async (
   locationParams: {
     isActiveRef: { current: boolean };
     dispatch: ReturnType<typeof useAppDispatch>;
-    mapRef: React.RefObject<MapView>;
+    mapRef: React.RefObject<MapView | null>;
     isMapCenteredOnUser: boolean;
     isFollowModeActive: boolean;
     currentRegion: Region | undefined;
@@ -635,7 +630,7 @@ const initializeLocationServicesWithVerifiedPermissions = async ({
 }: {
   isActiveRef: { current: boolean };
   dispatch: ReturnType<typeof useAppDispatch>;
-  mapRef: React.RefObject<MapView>;
+  mapRef: React.RefObject<MapView | null>;
   isMapCenteredOnUser: boolean;
   isFollowModeActive: boolean;
   currentRegion: Region | undefined;
@@ -675,7 +670,7 @@ const initializeLocationServicesWithVerifiedPermissions = async ({
 
 // Configuration interface for location service
 interface LocationServiceConfig {
-  mapRef: React.RefObject<MapView>;
+  mapRef: React.RefObject<MapView | null>;
   isMapCenteredOnUser: boolean;
   isFollowModeActive: boolean;
   currentRegion: Region | undefined;
@@ -890,7 +885,7 @@ const createCenterOnUserHandler =
   (options: {
     currentLocation: GeoPoint | null;
     currentRegion: Region | undefined;
-    mapRef: React.RefObject<MapView>;
+    mapRef: React.RefObject<MapView | null>;
     dispatch: ReturnType<typeof useAppDispatch>;
     isFollowModeActive: boolean;
   }) =>
@@ -953,7 +948,7 @@ function handlePanDrag({
   mapRef,
   dispatch,
 }: {
-  mapRef: React.RefObject<MapView>;
+  mapRef: React.RefObject<MapView | null>;
   dispatch: ReturnType<typeof useAppDispatch>;
 }) {
   // User is panning/dragging - disable both centered state and follow mode
@@ -992,7 +987,7 @@ function handleRegionChangeComplete({
   region: Region;
   setCurrentRegion: (region: Region) => void;
   handleZoomChange: (zoom: number) => void;
-  mapRef: React.RefObject<MapView>;
+  mapRef: React.RefObject<MapView | null>;
 }) {
   // Constrain the region to prevent zooming out beyond 20km
   const constrainedRegion = constrainRegion(region);
@@ -1023,7 +1018,7 @@ const useMapEventHandlers = (options: {
   currentRegion: Region | undefined;
   isMapCenteredOnUser: boolean;
   isFollowModeActive: boolean;
-  mapRef: React.RefObject<MapView>;
+  mapRef: React.RefObject<MapView | null>;
   setCurrentRegion: (region: Region) => void;
   setCurrentFogRegion: (region: (Region & { width: number; height: number }) | undefined) => void;
   mapDimensions: { width: number; height: number };
@@ -1113,7 +1108,7 @@ const getSettingsButtonStyle = (insets: SafeAreaInsets) => ({
 
 // Type definition for MapScreenRenderer props
 interface MapScreenRendererProps {
-  mapRef: React.RefObject<MapView>;
+  mapRef: React.RefObject<MapView | null>;
   currentLocation: GeoPoint | null;
   insets: SafeAreaInsets;
   isMapCenteredOnUser: boolean;
@@ -1220,7 +1215,7 @@ const MapViewWithMarker = ({
   onPanDrag,
   onRegionChangeComplete,
 }: {
-  mapRef: React.RefObject<MapView>;
+  mapRef: React.RefObject<MapView | null>;
   initialRegion: any;
   currentLocation: GeoPoint | null;
   currentRegion?: Region | undefined;
@@ -1251,6 +1246,10 @@ const MapViewWithMarker = ({
       showsMyLocationButton={false}
       rotateEnabled={false}
       pitchEnabled={false}
+      scrollEnabled={true}
+      zoomEnabled={true}
+      zoomTapEnabled={true}
+      zoomControlEnabled={true}
     >
       {currentLocation && adjustedCoordinate && (
         <Marker
@@ -1420,7 +1419,7 @@ const processStoredBackgroundLocations = async (
     dispatch: ReturnType<typeof useAppDispatch>;
     isMapCenteredOnUser: boolean;
     currentRegion: Region | undefined;
-    mapRef: React.RefObject<MapView>;
+    mapRef: React.RefObject<MapView | null>;
   }
 ) => {
   const { dispatch, isMapCenteredOnUser, currentRegion, mapRef } = options;
@@ -1457,7 +1456,7 @@ const useAppStateChangeHandler = (
   dispatch: ReturnType<typeof useAppDispatch>,
   isMapCenteredOnUser: boolean,
   currentRegion: Region | undefined,
-  mapRef: React.RefObject<MapView>
+  mapRef: React.RefObject<MapView | null>
 ) => {
   useEffect(() => {
     const handleAppStateChange = async (nextAppState: string) => {
@@ -1497,7 +1496,7 @@ const refetchLocationAfterClear = async (
   type: ClearType,
   options: {
     dispatch: ReturnType<typeof useAppDispatch>;
-    mapRef: React.RefObject<MapView>;
+    mapRef: React.RefObject<MapView | null>;
     isMapCenteredOnUser: boolean;
     currentRegion: Region | undefined;
   }
@@ -1531,7 +1530,7 @@ const createDataClearHandler = (
   },
   config: {
     dispatch: ReturnType<typeof useAppDispatch>;
-    mapRef: React.RefObject<MapView>;
+    mapRef: React.RefObject<MapView | null>;
     isMapCenteredOnUser: boolean;
     currentRegion: Region | undefined;
   }
@@ -1576,7 +1575,7 @@ const createDataClearHandler = (
 const useDataClearing = (
   dispatch: ReturnType<typeof useAppDispatch>,
   mapConfig: {
-    mapRef: React.RefObject<MapView>;
+    mapRef: React.RefObject<MapView | null>;
     isMapCenteredOnUser: boolean;
     currentRegion: Region | undefined;
   },
@@ -1764,7 +1763,7 @@ const useMapScreenState = () => {
 
 // Configuration for MapScreen services
 interface MapScreenServicesConfig {
-  mapRef: React.RefObject<MapView>;
+  mapRef: React.RefObject<MapView | null>;
   isMapCenteredOnUser: boolean;
   isFollowModeActive: boolean;
   currentRegion: Region | undefined;
@@ -1896,7 +1895,7 @@ const useMapScreenReduxState = () => {
 
 // Component for rendering MapScreen UI elements
 const MapScreenUI: React.FC<{
-  mapRef: React.RefObject<MapView>;
+  mapRef: React.RefObject<MapView | null>;
   currentLocation: GeoPoint | null;
   insets: any;
   isMapCenteredOnUser: boolean;

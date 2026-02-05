@@ -34,12 +34,9 @@ appId: com.fogofdog.app
 - tapOn:
     id: 'signInButton'
 
-# Handle location permission if needed
+# Handle location permissions (cross-platform iOS/Android)
 - runFlow:
-    when:
-      visible: 'Allow'
-    commands:
-      - tapOn: 'Allow While Using App'
+    file: shared/handle-location-permissions.yaml
 
 # Verify map loads
 - waitForAnimationToEnd:

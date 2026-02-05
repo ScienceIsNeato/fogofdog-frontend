@@ -1,7 +1,7 @@
 import React, { useMemo, useEffect } from 'react';
 import { Skia, Canvas, Path, Fill, Mask, Rect, Group } from '@shopify/react-native-skia';
 import type { SkPath } from '@shopify/react-native-skia';
-import { StyleSheet } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { useSelector } from 'react-redux';
 import type { RootState } from '../store';
 import { calculateMetersPerPixel, geoPointToPixel } from '../utils/mapUtils';
@@ -292,32 +292,37 @@ const OptimizedFogOverlay: React.FC<OptimizedFogOverlayProps> = ({ mapRegion, sa
   }, [originalPointCount, finalPoints.length, radiusPixels]);
 
   return (
-    <Canvas style={styles.canvas} pointerEvents="none" testID="optimized-fog-overlay-canvas">
-      <Mask
-        mode="luminance"
-        mask={
-          <OptimizedFogMask
-            pixelCoordinates={pixelCoordinates}
-            radiusPixels={radiusPixels}
-            skiaPath={skiaPath}
-            strokeWidth={strokeWidth}
+    <View style={styles.canvasWrapper} pointerEvents="none">
+      <Canvas style={styles.canvas} testID="optimized-fog-overlay-canvas">
+        <Mask
+          mode="luminance"
+          mask={
+            <OptimizedFogMask
+              pixelCoordinates={pixelCoordinates}
+              radiusPixels={radiusPixels}
+              skiaPath={skiaPath}
+              strokeWidth={strokeWidth}
+            />
+          }
+        >
+          {/* The actual fog rectangle covering the entire screen */}
+          <Rect
+            x={0}
+            y={0}
+            width={mapRegion.width}
+            height={mapRegion.height}
+            color={FOG_CONFIG.COLOR}
           />
-        }
-      >
-        {/* The actual fog rectangle covering the entire screen */}
-        <Rect
-          x={0}
-          y={0}
-          width={mapRegion.width}
-          height={mapRegion.height}
-          color={FOG_CONFIG.COLOR}
-        />
-      </Mask>
-    </Canvas>
+        </Mask>
+      </Canvas>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
+  canvasWrapper: {
+    ...StyleSheet.absoluteFillObject,
+  },
   canvas: {
     flex: 1,
     position: 'absolute',

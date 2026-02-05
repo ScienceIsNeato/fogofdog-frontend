@@ -3,7 +3,7 @@ import * as Location from 'expo-location';
 import { LocationStorageService, StoredLocationData } from './LocationStorageService';
 import { CoordinateDeduplicationService } from './CoordinateDeduplicationService';
 import { logger } from '../utils/logger';
-import { AppState } from 'react-native';
+import { AppState, Platform } from 'react-native';
 
 const BACKGROUND_LOCATION_TASK = 'background-location-task';
 
@@ -231,18 +231,45 @@ export class BackgroundLocationService {
       }
 
       // Start location updates with enhanced configuration
-      await Location.startLocationUpdatesAsync(BACKGROUND_LOCATION_TASK, {
-        accuracy: Location.Accuracy.High, // Higher accuracy for better tracking
-        timeInterval: 30000, // 30 seconds - longer than foreground
-        distanceInterval: 10, // 10 meters - more frequent updates
-        foregroundService: {
-          notificationTitle: 'FogOfDog Tracking',
-          notificationBody: 'Recording your route in the background',
-          killServiceOnDestroy: false,
-        },
-        showsBackgroundLocationIndicator: true, // iOS
-        pausesUpdatesAutomatically: false, // iOS
-      });
+      // Android-specific: retry with delay if foreground service fails to start
+      const startLocationUpdates = async (retryCount = 0): Promise<void> => {
+        try {
+          await Location.startLocationUpdatesAsync(BACKGROUND_LOCATION_TASK, {
+            accuracy: Location.Accuracy.High, // Higher accuracy for better tracking
+            timeInterval: 30000, // 30 seconds - longer than foreground
+            distanceInterval: 10, // 10 meters - more frequent updates
+            foregroundService: {
+              notificationTitle: 'FogOfDog Tracking',
+              notificationBody: 'Recording your route in the background',
+              killServiceOnDestroy: false,
+            },
+            showsBackgroundLocationIndicator: true, // iOS
+            pausesUpdatesAutomatically: false, // iOS
+          });
+        } catch (startError) {
+          const errorMessage = (startError as Error)?.message || '';
+          const isAndroidForegroundServiceError =
+            Platform.OS === 'android' &&
+            errorMessage.includes('Foreground service cannot be started');
+
+          // On Android, retry with delay if foreground service fails (app transitioning to foreground)
+          if (isAndroidForegroundServiceError && retryCount < 3) {
+            logger.warn(
+              `Android foreground service start failed, retrying in ${(retryCount + 1) * 500}ms (attempt ${retryCount + 1}/3)`,
+              {
+                component: 'BackgroundLocationService',
+                action: 'startBackgroundLocationTracking',
+                retryCount,
+              }
+            );
+            await new Promise((resolve) => setTimeout(resolve, (retryCount + 1) * 500));
+            return startLocationUpdates(retryCount + 1);
+          }
+          throw startError;
+        }
+      };
+
+      await startLocationUpdates();
 
       // Add AppState listener to process stored locations
       this.appStateSubscription = AppState.addEventListener('change', this.handleAppStateChange);
@@ -275,20 +302,31 @@ export class BackgroundLocationService {
             component: 'BackgroundLocationService',
             action: 'stopBackgroundLocationTracking',
           });
-        } catch (stopError: any) {
+        } catch (stopError: unknown) {
           // Handle the specific case where task is not found (already stopped)
-          if (
-            stopError?.code === 'E_TASK_NOT_FOUND' ||
-            stopError?.message?.includes('E_TASK_NOT_FOUND')
-          ) {
+          // This can happen on Android with TaskNotFoundException or expo's E_TASK_NOT_FOUND
+          const err = stopError instanceof Error ? stopError : new Error(String(stopError));
+          const errorCode = (stopError as { code?: string })?.code;
+          const errorMessage = err.message;
+          const isTaskNotFound =
+            errorCode === 'E_TASK_NOT_FOUND' ||
+            errorMessage.includes('E_TASK_NOT_FOUND') ||
+            errorMessage.includes('TaskNotFoundException') ||
+            (errorMessage.includes('Task') && errorMessage.includes('not found'));
+
+          if (isTaskNotFound) {
             logger.info('Background location task was already stopped', {
               component: 'BackgroundLocationService',
               action: 'stopBackgroundLocationTracking',
-              note: 'Task not found - already stopped',
+              note: 'Task not found - already stopped or never started',
             });
           } else {
-            // Re-throw other errors
-            throw stopError;
+            // Log but don't throw - stopping should be best-effort
+            logger.warn('Error stopping background location (non-fatal)', {
+              component: 'BackgroundLocationService',
+              action: 'stopBackgroundLocationTracking',
+              error: errorMessage,
+            });
           }
         }
       } else {

@@ -97,13 +97,7 @@ const statsSlice = createSlice({
     processGPSPoint: (state, action: PayloadAction<ProcessGPSPointPayload>) => {
       const { gpsEvent } = action.payload;
 
-      logger.debug('Processing GPS point in Redux', {
-        component: 'statsSlice',
-        action: 'processGPSPoint',
-        latitude: gpsEvent.latitude,
-        longitude: gpsEvent.longitude,
-      });
-
+      // Note: Removed per-point log to reduce noise
       // Use the calculation service to update stats
       const updatedStats = StatsCalculationService.incrementStats(state, gpsEvent);
 
@@ -126,13 +120,7 @@ const statsSlice = createSlice({
       // Convert GeoPoint to GPSEvent and process
       const gpsEvent = StatsCalculationService.geoPointToGPSEvent(geoPoint);
 
-      logger.debug('Processing GeoPoint in Redux', {
-        component: 'statsSlice',
-        action: 'processGeoPoint',
-        latitude: geoPoint.latitude,
-        longitude: geoPoint.longitude,
-      });
-
+      // Note: Removed per-point log to reduce noise
       const updatedStats = StatsCalculationService.incrementStats(state, gpsEvent);
       Object.assign(state, updatedStats);
       updateFormattedStats(state);

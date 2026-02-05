@@ -108,13 +108,11 @@ Fog of Dog is a mobile game that implements a fog-of-war mechanic for real-world
 ### **Fog of War Implementation Details**
 
 1. **State Management**:
-
    - `explorationSlice.ts` manages explored areas and GPS path
    - Real-time location updates trigger Redux actions
    - Minimum 25m distance threshold for new exploration areas
 
 2. **Rendering Pipeline**:
-
    - React Native Skia canvas for fog overlay rendering
    - Geographic to screen coordinate conversion via `mapUtils.ts`
    - Luminance masking creates transparent holes in fog layer

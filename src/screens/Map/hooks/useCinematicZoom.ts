@@ -24,7 +24,7 @@ const DEFAULT_ZOOM_DELTAS = {
 };
 
 interface UseCinematicZoomProps {
-  mapRef: React.RefObject<MapView>;
+  mapRef: React.RefObject<MapView | null>;
   currentLocation: GeoPoint | null;
   canStartAnimation?: boolean; // Only start animation when onboarding + permissions complete
 }
@@ -297,7 +297,7 @@ const calculateCinematicStartRegion = (
  * Map rendering delayed until animation starts to eliminate visible positioning jump
  */
 const startCinematicPanAnimation = (
-  mapRef: React.RefObject<MapView>,
+  mapRef: React.RefObject<MapView | null>,
   explorationPath: GeoPoint[],
   currentLocation: GeoPoint
 ) => {

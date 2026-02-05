@@ -8,12 +8,12 @@ read-only query interface to the OSM planet database.
 
 ## Why Overpass?
 
-| Consideration           | Decision                                                                 |
-| ----------------------- | ------------------------------------------------------------------------ |
+| Consideration           | Decision                                                                                |
+| ----------------------- | --------------------------------------------------------------------------------------- |
 | **Map-tile limitation** | `react-native-maps` renders tiles but does **not** expose street geometry in its JS API |
-| **Cost**                | Overpass is free; no API key required                                    |
-| **Coverage**            | Global, community-maintained street data                                 |
-| **Offline needs**       | Responses can be cached locally or bundled as fixtures                   |
+| **Cost**                | Overpass is free; no API key required                                                   |
+| **Coverage**            | Global, community-maintained street data                                                |
+| **Offline needs**       | Responses can be cached locally or bundled as fixtures                                  |
 
 ---
 
@@ -37,22 +37,22 @@ out geom;
 
 The `highway` tag values we query correspond to the **OSM Highway Key**:
 
-| Value            | Meaning                                     |
-| ---------------- | ------------------------------------------- |
-| `motorway`       | Major divided highway (limited access)      |
-| `motorway_link`  | Highway ramps                               |
-| `primary`        | Major arterial roads                        |
-| `secondary`      | Collector roads                             |
-| `tertiary`       | Minor through roads                         |
-| `residential`    | Residential streets                         |
-| `unclassified`   | Minor public roads without classification   |
-| `service`        | Access roads (driveways, parking, alleys)   |
-| `living_street`  | Low-speed residential shared-space          |
-| `pedestrian`     | Pedestrian-only ways                        |
-| `footway`        | Designated foot paths                       |
-| `cycleway`       | Designated cycle paths                      |
-| `track`          | Unpaved rural roads                         |
-| `path`           | Generic walking / cycling paths             |
+| Value           | Meaning                                   |
+| --------------- | ----------------------------------------- |
+| `motorway`      | Major divided highway (limited access)    |
+| `motorway_link` | Highway ramps                             |
+| `primary`       | Major arterial roads                      |
+| `secondary`     | Collector roads                           |
+| `tertiary`      | Minor through roads                       |
+| `residential`   | Residential streets                       |
+| `unclassified`  | Minor public roads without classification |
+| `service`       | Access roads (driveways, parking, alleys) |
+| `living_street` | Low-speed residential shared-space        |
+| `pedestrian`    | Pedestrian-only ways                      |
+| `footway`       | Designated foot paths                     |
+| `cycleway`      | Designated cycle paths                    |
+| `track`         | Unpaved rural roads                       |
+| `path`          | Generic walking / cycling paths           |
 
 **Canonical reference:** <https://wiki.openstreetmap.org/wiki/Key:highway>
 
@@ -77,11 +77,11 @@ If the primary endpoint is overloaded:
 
 All network access lives in **`src/services/OverpassClient.ts`**:
 
-| Export                | Responsibility                                |
-| --------------------- | --------------------------------------------- |
-| `fetchStreetGraph()`  | Fetches + parses response, returns `{ segments, intersections }` |
-| Internal cache        | In-memory LRU (max 50 entries, 5-minute TTL)  |
-| Retry logic           | Exponential back-off (1 s → 2 s → 4 s)        |
+| Export               | Responsibility                                                   |
+| -------------------- | ---------------------------------------------------------------- |
+| `fetchStreetGraph()` | Fetches + parses response, returns `{ segments, intersections }` |
+| Internal cache       | In-memory LRU (max 50 entries, 5-minute TTL)                     |
+| Retry logic          | Exponential back-off (1 s → 2 s → 4 s)                           |
 
 The client does **not** touch Redux; callers dispatch results themselves.
 
@@ -98,13 +98,13 @@ The client does **not** touch Redux; callers dispatch results themselves.
 
 ## Known Limitations & Risks
 
-| Issue                            | Impact                                          | Mitigation                               |
-| -------------------------------- | ----------------------------------------------- | ---------------------------------------- |
-| **Network dependency**           | App needs connectivity for initial fetch        | Bundle sample grid; cache aggressively   |
-| **Fair-use rate limits**         | Heavy usage could be throttled                  | Only fetch on explicit user action (dev tool) or map-centre change (future) |
-| **Data freshness**               | OSM data can lag reality by days/weeks          | Acceptable for exploration app           |
-| **Response size**                | Large radius → large payload                    | Cap radius; paginate or stream (future)  |
-| **Schema changes**               | OSM tags are community-defined; could evolve    | Pin to known `highway` values; monitor OSM changelog |
+| Issue                    | Impact                                       | Mitigation                                                                  |
+| ------------------------ | -------------------------------------------- | --------------------------------------------------------------------------- |
+| **Network dependency**   | App needs connectivity for initial fetch     | Bundle sample grid; cache aggressively                                      |
+| **Fair-use rate limits** | Heavy usage could be throttled               | Only fetch on explicit user action (dev tool) or map-centre change (future) |
+| **Data freshness**       | OSM data can lag reality by days/weeks       | Acceptable for exploration app                                              |
+| **Response size**        | Large radius → large payload                 | Cap radius; paginate or stream (future)                                     |
+| **Schema changes**       | OSM tags are community-defined; could evolve | Pin to known `highway` values; monitor OSM changelog                        |
 
 ---
 
@@ -118,9 +118,9 @@ The client does **not** touch Redux; callers dispatch results themselves.
 
 ## Related Files
 
-| File                              | Purpose                                      |
-| --------------------------------- | -------------------------------------------- |
-| `src/services/OverpassClient.ts`  | Network fetch + cache                        |
-| `src/services/StreetDataService.ts` | Pure query functions over cached data       |
-| `src/types/street.ts`             | Type definitions (see header docblock)       |
-| `src/store/slices/streetSlice.ts` | Redux state for exploration tracking         |
+| File                                | Purpose                                |
+| ----------------------------------- | -------------------------------------- |
+| `src/services/OverpassClient.ts`    | Network fetch + cache                  |
+| `src/services/StreetDataService.ts` | Pure query functions over cached data  |
+| `src/types/street.ts`               | Type definitions (see header docblock) |
+| `src/store/slices/streetSlice.ts`   | Redux state for exploration tracking   |

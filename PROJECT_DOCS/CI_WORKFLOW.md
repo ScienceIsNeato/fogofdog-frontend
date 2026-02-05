@@ -149,7 +149,6 @@ You can manually trigger production builds on any branch for debugging and testi
 2. **Click "EAS Build & Deploy"** workflow
 3. **Click "Run workflow"** button
 4. **Configure your build:**
-
    - **Branch**: Choose any branch to build from
    - **Platform**: iOS, Android, or both
    - **Profile**: preview, testflight, or production

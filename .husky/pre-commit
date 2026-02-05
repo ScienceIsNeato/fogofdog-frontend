@@ -28,4 +28,4 @@ if ! command -v sm >/dev/null 2>&1; then
   pip install -e ./slop-mop --break-system-packages --quiet 2>/dev/null
 fi
 
-sm validate -g quality:complexity,security:local
+sm validate javascript

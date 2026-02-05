@@ -1,21 +1,79 @@
 # FogOfDog Frontend Status
 
-## Current Status: ✅ SDK 54 UPGRADE COMPLETE - ANDROID WORKING
+## Current Status: 🔧 AI INSTRUCTIONS OVERHAULED — UNSTAGED WORK PENDING COMMIT
 
-### 🎯 **LATEST: EXPO SDK 54 UPGRADE & ANDROID DEVELOPMENT ENVIRONMENT**
+### 🎯 **LATEST: AI AGENT INSTRUCTIONS OVERHAUL + UNSTAGED WORK FROM SDK 54 SESSION**
 
 **Branch**: `fix/CI-version`  
-**Status**: SDK 54 upgrade complete, Android build working on Pixel 8 Pro emulator with Google Maps
+**5 unpushed commits** on branch (SDK 54 upgrade work)  
+**Staged**: `git rm CLAUDE.md` (ready to commit)  
 **Previous Work**: PR #53 created for App Store ITMS-90189 fix
-**Session Goal**: Enable cross-platform Maestro testing (Android + iOS)
 
 ---
 
-## 🆕 **SESSION: EXPO SDK 52 → 54 UPGRADE** ✅
+## 🆕 **SESSION: AI INSTRUCTIONS OVERHAUL** ✅
+
+### What Was Done
+
+Rewrote `cursor-rules/.cursor/rules/projects/fogofdog_frontend.mdc` (409→225 lines, -45%):
+
+- **slop-mop** made THE single validation authority — `sm validate commit` is the only validation command
+- **Project scripts** made MANDATORY for server management with explicit FORBIDDEN list of ad-hoc commands
+- Removed all generic content already covered by other instruction files (--no-verify, SOLID, etc.)
+- Removed all copy-pasteable raw commands that AI agents were using instead of scripts
+- Updated `.vscode/tasks.json` default build task from non-existent `maintainAIbility-gate.sh` → `sm validate commit`
+- `CLAUDE.md` removed (`git rm`, staged but not committed)
+- **Committed & pushed** to cursor-rules repo (commit `99b9f42`)
+- ⚠️ Run cursor-rules setup script to regenerate `.github/instructions/` output files
+
+### ⚠️ REMAINING TODO: Unstaged Work Needs Committing
+
+**5 themes of unstaged changes from the previous SDK 54 session** — none committed yet:
+
+1. **Cross-platform Maestro test infrastructure**
+   - New: `.maestro/shared/robust-login.yaml`, `.maestro/shared/handle-location-permissions.yaml`
+   - Modified: `background-gps-test.yaml`, `comprehensive-persistence-test.yaml`, `smoke-test.yaml` (path fixes)
+
+2. **Android resilience fixes**
+   - `BackgroundLocationService.ts`: Foreground service retry logic, stop error handling
+   - `GPSInjectionService.ts`: Null-safe `documentDirectory` access
+
+3. **Log noise reduction**
+   - `StatsCalculationService.ts`, `GPSConnectionService.ts`, `statsSlice.ts`, `MapScreen/index.tsx`: Reduced verbose logging
+
+4. **Fog overlay touch-through fix**
+   - `OptimizedFogOverlay.tsx`: Wrapped Canvas in View for `pointerEvents="none"` (map interaction passthrough)
+
+5. **Dev tooling improvements**
+   - `dev-server.sh`: Added `fresh`/`clear` commands, `.envrc` sourcing
+   - `.secrets.baseline`: Updated for GOOGLE_MAPS_API_KEY
+
+### ⚠️ REMAINING TODO: TypeScript Errors
+
+Multiple TS errors exist in the codebase (identified but NOT fixed this session):
+
+- `GPSInjectionService.ts` / `DataImportExportService.ts`: expo-file-system `documentDirectory` API changed in SDK 54
+- `OptimizedFogOverlay.tsx`: Missing `canvasWrapper` style in stylesheet
+- `MapScreen/index.tsx`: `MapView` RefObject nullability
+- Test files: `MapScreen.test.tsx` type errors, `useCinematicZoom.test.tsx` RefObject type
+
+### 🔑 KEY CONTEXT FOR NEXT SESSION
+
+- **USE `sm validate commit`** for all validation — never ad-hoc npm/npx commands
+- **USE `./scripts/dev-server.sh`** for all server management — never raw expo/kill/lsof
+- The instructions file overhaul is the ROOT CAUSE FIX for AI agents running ad-hoc commands
+- Unstaged work should be organized into clean atomic commits per theme (see 5 themes above)
+- Run `sm validate commit` before committing anything
+- Tests: 875/875 passing (but TS errors exist — tests pass because tsc isn't in the test pipeline)
+
+---
+
+## 🔙 **PREVIOUS: EXPO SDK 52 → 54 UPGRADE** ✅
 
 ### **📱 Android Development Environment Setup**
 
 **Environment Configured**:
+
 - ✅ **Java**: OpenJDK 17.0.17 (Homebrew) - required for Gradle 8.x
 - ✅ **Android Studio**: 2025.2.2.8 "Otter 3"
 - ✅ **Android SDK**: API 36 (Baklava), Build Tools 36.0.0
@@ -26,6 +84,7 @@
 ### **🔄 SDK Upgrade Path**
 
 **From SDK 52 → SDK 54** (skipped 53 intermediate step):
+
 - ✅ **expo**: ^52.0.0 → ^54.0.33
 - ✅ **react**: 18.3.1 → 19.0.0
 - ✅ **react-native**: 0.76.9 → 0.81.5
@@ -41,6 +100,7 @@
 ### **🧪 Test Suite: 875/875 Passing**
 
 **Fixes Applied**:
+
 1. ✅ **SafeAreaView Deprecation**: Changed import in `OnboardingOverlay.tsx` from `react-native` to `react-native-safe-area-context` (RN 0.81 deprecation)
 2. ✅ **BackgroundLocationService Mocks**: Added proper mocks to `MapScreen.test.tsx` and `first-time-user-flow.test.tsx`
 
@@ -56,18 +116,18 @@
 
 **Use these scripts instead of ad-hoc CLI commands**:
 
-| Command | Description |
-|---------|-------------|
-| `./scripts/dev-server.sh start ios` | Start Metro + open iOS Simulator |
-| `./scripts/dev-server.sh start android` | Start Metro + open Android Emulator |
-| `./scripts/dev-server.sh start both` | Start Metro + open both platforms |
-| `./scripts/dev-server.sh stop` | Kill all Metro processes |
-| `./scripts/dev-server.sh restart` | Stop then start |
-| `./scripts/dev-server.sh status` | Check server and device status |
-| `./scripts/dev-server.sh logs` | Tail Metro logs |
-| `./scripts/launch-device.sh ios` | Boot iOS Simulator only |
-| `./scripts/launch-device.sh android` | Boot Android Emulator only |
-| `./scripts/run_integration_tests.sh <test.yaml>` | Run Maestro tests (iOS) |
+| Command                                          | Description                         |
+| ------------------------------------------------ | ----------------------------------- |
+| `./scripts/dev-server.sh start ios`              | Start Metro + open iOS Simulator    |
+| `./scripts/dev-server.sh start android`          | Start Metro + open Android Emulator |
+| `./scripts/dev-server.sh start both`             | Start Metro + open both platforms   |
+| `./scripts/dev-server.sh stop`                   | Kill all Metro processes            |
+| `./scripts/dev-server.sh restart`                | Stop then start                     |
+| `./scripts/dev-server.sh status`                 | Check server and device status      |
+| `./scripts/dev-server.sh logs`                   | Tail Metro logs                     |
+| `./scripts/launch-device.sh ios`                 | Boot iOS Simulator only             |
+| `./scripts/launch-device.sh android`             | Boot Android Emulator only          |
+| `./scripts/run_integration_tests.sh <test.yaml>` | Run Maestro tests (iOS)             |
 
 ### **📦 Commits This Session**
 

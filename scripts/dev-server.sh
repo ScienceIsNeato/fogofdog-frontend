@@ -37,6 +37,12 @@ APP_BUNDLE_ID_IOS="com.fogofdog.app"
 APP_BUNDLE_ID_ANDROID="com.fogofdog.app"
 PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
+# Source environment variables (for API keys, etc.)
+if [ -f "$PROJECT_DIR/.envrc" ]; then
+    # shellcheck source=/dev/null
+    source "$PROJECT_DIR/.envrc"
+fi
+
 # Parse arguments
 COMMAND="${1:-start}"
 PLATFORM="${2:-ios}"
@@ -219,6 +225,39 @@ show_logs() {
     fi
 }
 
+clear_app_data() {
+    log_info "Clearing app data..."
+    
+    case "$PLATFORM" in
+        ios)
+            # Clear iOS simulator app data
+            local device_udid=$(xcrun simctl list devices booted --json 2>/dev/null | jq -r '.devices | to_entries[] | .value[] | select(.state == "Booted") | .udid' 2>/dev/null | head -1)
+            if [ -n "$device_udid" ]; then
+                xcrun simctl terminate "$device_udid" "$APP_BUNDLE_ID_IOS" 2>/dev/null || true
+                # Uninstall and reinstall clears all data
+                log_info "Uninstalling app to clear data..."
+                xcrun simctl uninstall "$device_udid" "$APP_BUNDLE_ID_IOS" 2>/dev/null || true
+                log_success "iOS app data cleared (app uninstalled)"
+            else
+                log_warning "No booted iOS simulator found"
+            fi
+            ;;
+        android)
+            # Clear Android app data
+            if check_android_emulator; then
+                adb shell pm clear "$APP_BUNDLE_ID_ANDROID" 2>/dev/null || true
+                log_success "Android app data cleared"
+            else
+                log_warning "No connected Android device found"
+            fi
+            ;;
+        both)
+            PLATFORM="ios" clear_app_data
+            PLATFORM="android" clear_app_data
+            ;;
+    esac
+}
+
 show_help() {
     echo "Dev Server - Unified Metro/Expo Management"
     echo ""
@@ -228,6 +267,8 @@ show_help() {
     echo "  start    Start Metro server (default)"
     echo "  stop     Stop all Metro/Expo processes"
     echo "  restart  Stop then start"
+    echo "  fresh    Clear app data + restart (clean slate)"
+    echo "  clear    Clear app data on device (keeps server running)"
     echo "  status   Show server and device status"
     echo "  logs     Tail current Metro log file"
     echo "  help     Show this help"
@@ -242,6 +283,7 @@ show_help() {
     echo "  ./scripts/dev-server.sh                    # Start + iOS"
     echo "  ./scripts/dev-server.sh start android      # Start + Android"
     echo "  ./scripts/dev-server.sh restart both       # Restart + both"
+    echo "  ./scripts/dev-server.sh fresh android      # Clear data + restart Android"
     echo "  ./scripts/dev-server.sh status             # Check status"
 }
 
@@ -265,6 +307,25 @@ case "$COMMAND" in
         stop_metro
         sleep 2
         start_metro
+        ;;
+    fresh)
+        # Full reset: stop server, clear app data, restart
+        stop_metro
+        clear_app_data
+        sleep 2
+        start_metro
+        ;;
+    clear)
+        # Just clear app data without restarting server
+        clear_app_data
+        # Relaunch the app
+        if [ "$PLATFORM" = "android" ] && check_android_emulator; then
+            log_info "Relaunching Android app..."
+            adb shell am start -n "$APP_BUNDLE_ID_ANDROID/.MainActivity" 2>/dev/null || true
+        elif [ "$PLATFORM" = "ios" ] && check_ios_simulator; then
+            log_info "Relaunching iOS app..."
+            xcrun simctl launch booted "$APP_BUNDLE_ID_IOS" 2>/dev/null || true
+        fi
         ;;
     status)
         show_status
