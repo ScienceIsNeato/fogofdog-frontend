@@ -101,3 +101,7 @@ build/
 
 # Generated Copilot instructions (from cursor-rules)
 .github/instructions/*.instructions.md
+
+# Native build fingerprints (local machine state)
+.native-fingerprint-ios
+.native-fingerprint-android

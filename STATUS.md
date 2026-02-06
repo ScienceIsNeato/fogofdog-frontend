@@ -1,13 +1,90 @@
 # FogOfDog Frontend Status
 
-## Current Status: 🔧 AI INSTRUCTIONS OVERHAULED — UNSTAGED WORK PENDING COMMIT
+## Current Status: 🔧 DEPLOY SCRIPT COMPLETE — READY FOR DEPLOYMENT
 
-### 🎯 **LATEST: AI AGENT INSTRUCTIONS OVERHAUL + UNSTAGED WORK FROM SDK 54 SESSION**
+### 🎯 **LATEST: deploy_app.sh Overhaul Complete**
 
 **Branch**: `fix/CI-version`  
-**5 unpushed commits** on branch (SDK 54 upgrade work)  
-**Staged**: `git rm CLAUDE.md` (ready to commit)  
-**Previous Work**: PR #53 created for App Store ITMS-90189 fix
+**All JS quality gates passing**: 888 tests, lint clean, types clean  
+**Deploy script tests**: 21/21 passing (`sm validate general:deploy-tests`)  
+**Unstaged work**: Android GPS fixes, deploy_app.sh + tests, slop-mop gate, project instructions
+
+---
+
+## 🆕 **SESSION: DEPLOY_APP.SH OVERHAUL**
+
+### What Was Done
+
+#### 1. deploy_app.sh Script Overhaul (COMPLETED)
+
+Rewrote the script per the "Deployment Bible" tenets:
+
+- **5-minute global timeout** — Script won't hang indefinitely
+- **Minimal steps** — Only runs what's needed (skips Metro kill if not running, skips build if app installed)
+- **Returns with running app** — Verifies app is interactive before exiting
+- **Actionable output** — Shows exact commands for:
+  - `tail -f /tmp/metro_<device>_<timestamp>.log` (log tailing)
+  - `adb emu geo fix <lon> <lat>` or `xcrun simctl location booted set <lat>,<lon>` (GPS injection)
+- **Non-greedy cleanup** — Only kills processes on port 8081, not scorched-earth pkill
+- **Dry-run mode** — `--dry-run` flag shows what would happen without doing it
+- **Unit tested** — 21 tests in `scripts/__tests__/deploy_app.test.sh`
+- **Included in gates** — Added `general:deploy-tests` to slop-mop commit/pr profiles
+
+#### 2. slop-mop Integration (COMPLETED)
+
+- Created `slop-mop/slopmop/checks/general/deploy_tests.py` — new gate class
+- Registered in `slop-mop/slopmop/checks/__init__.py`
+- Added to `.sb_config.json`:
+  - `general.enabled = true`
+  - `general.gates.deploy-tests.enabled = true`
+  - Added `general:deploy-tests` to both `commit` and `pr` profiles
+
+#### 3. Project Instructions Updated (COMPLETED)
+
+Added "Deployment Bible Philosophy" section with the 7 core tenets:
+1. INCLUDED IN GATES
+2. UNIT TESTED
+3. 5-MINUTE GLOBAL TIMEOUT
+4. MINIMAL STEPS
+5. RETURNS WITH RUNNING APP
+6. ACTIONABLE OUTPUT
+7. NON-GREEDY CLEANUP
+
+Added "The Iron Rule": If something doesn't work with deploy_app.sh, you FIX OR EXPAND THE SCRIPT — you don't run one-off commands.
+
+### Files Modified
+- `scripts/deploy_app.sh` — Complete overhaul
+- `slop-mop/slopmop/checks/__init__.py` — Registered DeployScriptTestsCheck
+- `.sb_config.json` — Added general:deploy-tests gate, updated profiles
+- `.github/instructions/project-fogofdog_frontend.instructions.md` — Deployment bible section
+
+### Files Created
+- `scripts/__tests__/deploy_app.test.sh` — 21 unit tests
+- `slop-mop/slopmop/checks/general/deploy_tests.py` — slop-mop gate class
+
+### ⚠️ NEXT STEPS
+
+1. **Deploy to Android emulator**: `./scripts/deploy_app.sh --device android --mode development --data current --force`
+2. **Verify on device**: No white screen, GPS diagnostics log, permission flow, GPS injection
+3. **Commit all changes**: Organize into clean atomic commits
+
+---
+
+## 🔄 **PREVIOUS SESSION: ANDROID GPS PLATFORM FIXES**
+
+### What Was Done
+
+#### 1. All 4 Android GPS Fixes (COMPLETED)
+
+- **PermissionVerificationService.ts**: Split `handleDialog2()` into `handleDialog2Android()` (no polling, direct result) and `handleDialog2iOS()` (keeps polling). Android warning directs to "Settings > Location > FogOfDog".
+- **GPSDiagnosticsService.ts** (NEW): Surfaces GPS hardware/services status at init. Detects emulator, logs `adb emu geo fix` instructions. Integrated into MapScreen init flow.
+- **BackgroundLocationService.ts**: Added 4 Android transient error patterns (`LocationUnavailableException`, `Location request was denied`, `Provider is disabled`, `GooglePlayServicesNotAvailableException`).
+- **MapScreen/index.tsx**: Added retry logic for `startBackgroundLocationUpdates()` on Android (3 retries, increasing delays, fallback to foreground-only). Added GPS diagnostics call at init.
+
+#### 2. White Screen Fix (COMPLETED)
+
+- `useCinematicZoom.ts`: Fallback region from `AuthPersistenceService` or world-view default
+- `GPSAcquisitionOverlay.tsx` (NEW): Pulsing 📡 overlay while GPS acquires
 
 ---
 
@@ -45,7 +122,7 @@ Rewrote `cursor-rules/.cursor/rules/projects/fogofdog_frontend.mdc` (409→225 l
    - `OptimizedFogOverlay.tsx`: Wrapped Canvas in View for `pointerEvents="none"` (map interaction passthrough)
 
 5. **Dev tooling improvements**
-   - `dev-server.sh`: Added `fresh`/`clear` commands, `.envrc` sourcing
+   - `deploy_app.sh`: Consolidated all deployment functionality (formerly dev-server.sh)
    - `.secrets.baseline`: Updated for GOOGLE_MAPS_API_KEY
 
 ### ⚠️ REMAINING TODO: TypeScript Errors
@@ -60,7 +137,7 @@ Multiple TS errors exist in the codebase (identified but NOT fixed this session)
 ### 🔑 KEY CONTEXT FOR NEXT SESSION
 
 - **USE `sm validate commit`** for all validation — never ad-hoc npm/npx commands
-- **USE `./scripts/dev-server.sh`** for all server management — never raw expo/kill/lsof
+- **USE `./scripts/deploy_app.sh`** for all app management — never raw expo/kill/lsof
 - The instructions file overhaul is the ROOT CAUSE FIX for AI agents running ad-hoc commands
 - Unstaged work should be organized into clean atomic commits per theme (see 5 themes above)
 - Run `sm validate commit` before committing anything
@@ -112,22 +189,21 @@ Multiple TS errors exist in the codebase (identified but NOT fixed this session)
 - ✅ **Google Maps**: Working with API key from env var
 - ⚠️ **GPS Simulation**: Not working on Android emulator (foreground service limitation when app in background)
 
-### **🔧 Scripts for Server Management**
+### **🔧 Scripts for App Management**
 
-**Use these scripts instead of ad-hoc CLI commands**:
+**Use deploy_app.sh for ALL app operations**:
 
-| Command                                          | Description                         |
-| ------------------------------------------------ | ----------------------------------- |
-| `./scripts/dev-server.sh start ios`              | Start Metro + open iOS Simulator    |
-| `./scripts/dev-server.sh start android`          | Start Metro + open Android Emulator |
-| `./scripts/dev-server.sh start both`             | Start Metro + open both platforms   |
-| `./scripts/dev-server.sh stop`                   | Kill all Metro processes            |
-| `./scripts/dev-server.sh restart`                | Stop then start                     |
-| `./scripts/dev-server.sh status`                 | Check server and device status      |
-| `./scripts/dev-server.sh logs`                   | Tail Metro logs                     |
-| `./scripts/launch-device.sh ios`                 | Boot iOS Simulator only             |
-| `./scripts/launch-device.sh android`             | Boot Android Emulator only          |
-| `./scripts/run_integration_tests.sh <test.yaml>` | Run Maestro tests (iOS)             |
+| Command                                                                    | Description                              |
+| -------------------------------------------------------------------------- | ---------------------------------------- |
+| `./scripts/deploy_app.sh --device android --mode development --data current` | Full deploy (build if needed + Metro)  |
+| `./scripts/deploy_app.sh metro --device android`                           | Start Metro + open app (skip build)      |
+| `./scripts/deploy_app.sh metro --device ios`                               | Start Metro + open app (skip build)      |
+| `./scripts/deploy_app.sh status`                                           | Check Metro + device status              |
+| `./scripts/deploy_app.sh logs`                                             | Tail Metro logs                          |
+| `./scripts/deploy_app.sh stop`                                             | Stop Metro server                        |
+| `./scripts/launch-device.sh ios`                                           | Boot iOS Simulator only                  |
+| `./scripts/launch-device.sh android`                                       | Boot Android Emulator only               |
+| `./scripts/run_integration_tests.sh <test.yaml>`                           | Run Maestro tests (iOS)                  |
 
 ### **📦 Commits This Session**
 

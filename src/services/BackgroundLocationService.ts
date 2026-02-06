@@ -7,6 +7,68 @@ import { AppState, Platform } from 'react-native';
 
 const BACKGROUND_LOCATION_TASK = 'background-location-task';
 
+/**
+ * CRITICAL: Task definition MUST be at module top-level!
+ *
+ * expo-task-manager requires TaskManager.defineTask() to be called during
+ * module initialization (not inside a function that runs later). If the task
+ * is registered with the OS from a previous session but the handler isn't
+ * defined yet, the OS will execute the task and fail with:
+ * "Task X has been executed but looks like it is not defined"
+ *
+ * This must run immediately when the module loads, before any async code.
+ */
+TaskManager.defineTask(BACKGROUND_LOCATION_TASK, async ({ data, error }) => {
+  // Use trace for per-tick task execution (noisy in normal dev)
+  logger.trace('Background location task executed', {
+    component: 'BackgroundLocationService',
+    action: 'backgroundTask',
+    appState: AppState.currentState,
+    locationsReceived: (data as { locations?: Location.LocationObject[] })?.locations?.length ?? 0,
+    timestamp: new Date().toISOString(),
+  });
+
+  if (error) {
+    // Check if this is a transient location error that we can ignore
+    const errorMessage = error.message || '';
+    const isTransientLocationError =
+      // iOS transient errors
+      errorMessage.includes('kCLErrorDomain Code=0') ||
+      errorMessage.includes('kCLErrorLocationUnknown') ||
+      // Android transient errors
+      errorMessage.includes('LocationUnavailableException') ||
+      errorMessage.includes('Location request was denied') ||
+      errorMessage.includes('Provider is disabled') ||
+      errorMessage.includes('GooglePlayServicesNotAvailableException');
+
+    if (isTransientLocationError) {
+      // Log as warning instead of error for transient location issues
+      logger.warn('Transient background location error (location service not ready)', {
+        component: 'BackgroundLocationService',
+        action: 'backgroundTask',
+        error: errorMessage,
+        note: 'This is usually temporary and resolves automatically',
+      });
+      return;
+    }
+
+    // Log other errors as actual errors
+    logger.error('Background location task error', {
+      component: 'BackgroundLocationService',
+      action: 'backgroundTask',
+      errorMessage: error?.message || 'Unknown error',
+      errorType: typeof error,
+    });
+    return;
+  }
+
+  if (data) {
+    const { locations } = data as { locations: Location.LocationObject[] };
+    // Call the static method directly (not via `this` since we're at module scope)
+    await BackgroundLocationService.handleBackgroundLocations(locations);
+  }
+});
+
 export interface BackgroundLocationServiceStatus {
   isRunning: boolean;
   hasPermission: boolean;
@@ -34,71 +96,39 @@ export class BackgroundLocationService {
 
   /**
    * Initialize the background location service
-   * This should be called early in the app lifecycle
+   * Note: Task definition now happens at module top-level
+   * This method ensures the current Metro session's handler is connected
+   * by stopping any stale OS-level tracking and re-registering
    */
   static async initialize(): Promise<void> {
     if (this.isInitialized) {
       return;
     }
 
+    // Check if OS thinks location updates are running from a previous session
+    // If so, we need to stop and restart to connect the current handler
     try {
-      // Define the background task
-      TaskManager.defineTask(BACKGROUND_LOCATION_TASK, async ({ data, error }) => {
-        // Enhanced logging for debugging
-        logger.info('Background location task executed', {
+      const wasRunning = await Location.hasStartedLocationUpdatesAsync(BACKGROUND_LOCATION_TASK);
+      if (wasRunning) {
+        logger.info('Stopping stale location updates from previous session', {
           component: 'BackgroundLocationService',
-          action: 'backgroundTask',
-          appState: AppState.currentState,
-          locationsReceived: (data as any)?.locations?.length ?? 0,
-          timestamp: new Date().toISOString(),
+          action: 'initialize',
         });
-
-        if (error) {
-          // Check if this is a transient location error that we can ignore
-          const errorMessage = error.message || '';
-          const isTransientLocationError =
-            errorMessage.includes('kCLErrorDomain Code=0') ||
-            errorMessage.includes('kCLErrorLocationUnknown');
-
-          if (isTransientLocationError) {
-            // Log as warning instead of error for transient location issues
-            logger.warn('Transient background location error (location service not ready)', {
-              component: 'BackgroundLocationService',
-              action: 'backgroundTask',
-              error: errorMessage,
-              note: 'This is usually temporary and resolves automatically',
-            });
-            return;
-          }
-
-          // Log other errors as actual errors
-          logger.error('Background location task error', {
-            component: 'BackgroundLocationService',
-            action: 'backgroundTask',
-            errorMessage: error?.message || 'Unknown error',
-            errorType: typeof error,
-          });
-          return;
-        }
-
-        if (data) {
-          const { locations } = data as { locations: Location.LocationObject[] };
-          await this.handleBackgroundLocations(locations);
-        }
-      });
-
-      this.isInitialized = true;
-      logger.info('Background location service initialized', {
-        component: 'BackgroundLocationService',
-        action: 'initialize',
-      });
+        await Location.stopLocationUpdatesAsync(BACKGROUND_LOCATION_TASK);
+      }
     } catch (error) {
-      logger.error('Failed to initialize background location service', error, {
+      // Ignore errors during cleanup - may not have been running
+      logger.debug('No stale location updates to clean up', {
         component: 'BackgroundLocationService',
         action: 'initialize',
       });
-      throw error;
     }
+
+    this.isInitialized = true;
+    logger.info('Background location service initialized', {
+      component: 'BackgroundLocationService',
+      action: 'initialize',
+    });
   }
 
   /**
@@ -219,10 +249,14 @@ export class BackgroundLocationService {
         return false;
       }
 
-      // Check if task is already running
-      const isTaskRunning = await TaskManager.isTaskRegisteredAsync(BACKGROUND_LOCATION_TASK);
-      if (isTaskRunning) {
-        logger.info('Background location task already running', {
+      // Check if location updates are already actively running
+      // NOTE: isTaskRegisteredAsync only checks if task is DEFINED, not if it's actively tracking
+      // We need hasStartedLocationUpdatesAsync to check if OS is actually sending updates
+      const isLocationUpdatesActive = await Location.hasStartedLocationUpdatesAsync(
+        BACKGROUND_LOCATION_TASK
+      );
+      if (isLocationUpdatesActive) {
+        logger.info('Background location updates already active', {
           component: 'BackgroundLocationService',
           action: 'startBackgroundLocationTracking',
         });
@@ -248,21 +282,31 @@ export class BackgroundLocationService {
           });
         } catch (startError) {
           const errorMessage = (startError as Error)?.message || '';
-          const isAndroidForegroundServiceError =
-            Platform.OS === 'android' &&
-            errorMessage.includes('Foreground service cannot be started');
+          const isAndroid = Platform.OS === 'android';
 
-          // On Android, retry with delay if foreground service fails (app transitioning to foreground)
-          if (isAndroidForegroundServiceError && retryCount < 3) {
+          // Android transient errors that can be resolved with retry
+          const isAndroidForegroundServiceError =
+            isAndroid && errorMessage.includes('Foreground service cannot be started');
+
+          // SharedPreferences null = native module not fully initialized yet (race condition)
+          const isSharedPreferencesError =
+            isAndroid && errorMessage.includes('SharedPreferences.getAll()');
+
+          const isTransientAndroidError = isAndroidForegroundServiceError || isSharedPreferencesError;
+
+          // On Android, retry with delay for transient native module errors
+          if (isTransientAndroidError && retryCount < 5) {
+            const delayMs = (retryCount + 1) * 1000; // Longer delays: 1s, 2s, 3s, 4s, 5s
             logger.warn(
-              `Android foreground service start failed, retrying in ${(retryCount + 1) * 500}ms (attempt ${retryCount + 1}/3)`,
+              `Android native module error, retrying in ${delayMs}ms (attempt ${retryCount + 1}/5)`,
               {
                 component: 'BackgroundLocationService',
                 action: 'startBackgroundLocationTracking',
                 retryCount,
+                errorType: isSharedPreferencesError ? 'SharedPreferences' : 'ForegroundService',
               }
             );
-            await new Promise((resolve) => setTimeout(resolve, (retryCount + 1) * 500));
+            await new Promise((resolve) => setTimeout(resolve, delayMs));
             return startLocationUpdates(retryCount + 1);
           }
           throw startError;
@@ -359,11 +403,14 @@ export class BackgroundLocationService {
     try {
       const { status } = await Location.getBackgroundPermissionsAsync();
       const hasPermission = status === 'granted';
-      const isTaskRunning = await TaskManager.isTaskRegisteredAsync(BACKGROUND_LOCATION_TASK);
+      // Use hasStartedLocationUpdatesAsync for accurate "is actively tracking" status
+      const isLocationUpdatesActive = await Location.hasStartedLocationUpdatesAsync(
+        BACKGROUND_LOCATION_TASK
+      );
       const storedLocationCount = await LocationStorageService.getStoredLocationCount();
 
       return {
-        isRunning: isTaskRunning && this.isRunning,
+        isRunning: isLocationUpdatesActive && this.isRunning,
         hasPermission,
         storedLocationCount,
       };
@@ -382,8 +429,9 @@ export class BackgroundLocationService {
 
   /**
    * Handle background location updates
+   * Note: Called from module-level task handler, so must be accessible (not private)
    */
-  private static async handleBackgroundLocations(
+  static async handleBackgroundLocations(
     locations: Location.LocationObject[]
   ): Promise<void> {
     try {

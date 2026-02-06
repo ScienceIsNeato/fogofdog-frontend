@@ -1,4 +1,5 @@
 import * as Location from 'expo-location';
+import { Platform } from 'react-native';
 import { logger } from '../utils/logger';
 
 export type PermissionLevel = 'always' | 'whenInUse' | 'denied' | 'undetermined';
@@ -112,16 +113,22 @@ export class PermissionVerificationService {
 
   /**
    * Dialog 2: Handle background permission upgrade request
-   * iOS may or may not automatically show this dialog after user grants foreground permission
-   * System shows: "Allow FogOfDog to also use your location even when not using the app?"
-   * Options: "Keep Only While Using", "Change to Always Allow"
+   *
+   * Platform differences:
+   * - iOS: May show an inline dialog ("Change to Always Allow" / "Keep Only While Using").
+   *   requestBackgroundPermissionsAsync() doesn't block, so we poll for the result.
+   * - Android: requestBackgroundPermissionsAsync() returns the result directly.
+   *   On Android 11+ (API 30+), this opens the Settings app for "Allow all the time"
+   *   permission — the result reflects whether permission was already granted.
+   *   The user may need to manually toggle the setting and return to the app.
    */
   private static async handleDialog2(): Promise<PermissionVerificationResult> {
     try {
       // First, check current background permission status
       const initialBackgroundStatus = await Location.getBackgroundPermissionsAsync();
 
-      logger.info('Checking if iOS will show background permission dialog', {
+      logger.info('Checking background permission status for upgrade dialog', {
+        platform: Platform.OS,
         initialStatus: initialBackgroundStatus.status,
         granted: initialBackgroundStatus.granted,
       });
@@ -129,6 +136,7 @@ export class PermissionVerificationService {
       // If background permission is already determined (granted or denied), no dialog will show
       if (initialBackgroundStatus.status !== 'undetermined') {
         logger.info('Background permission already determined - no dialog needed', {
+          platform: Platform.OS,
           status: initialBackgroundStatus.status,
           granted: initialBackgroundStatus.granted,
         });
@@ -146,42 +154,18 @@ export class PermissionVerificationService {
         return result;
       }
 
-      // Background permission is undetermined - iOS might show a dialog
-      // Try requesting it and see if a dialog appears
-      logger.info(
-        'Background permission undetermined - requesting and waiting for potential dialog'
-      );
+      // Background permission is undetermined — request it
+      logger.info('Background permission undetermined - requesting upgrade', {
+        platform: Platform.OS,
+      });
 
-      await Location.requestBackgroundPermissionsAsync();
-
-      // Wait a short time to see if iOS shows the dialog
-      await this.waitForBackgroundDialogCompletion();
-
-      // Check final permission status after potential user response
-      const finalResult = await Location.getBackgroundPermissionsAsync();
-
-      if (finalResult.granted) {
-        // User selected "Change to Always Allow"
-        logger.info('Background permission granted by user');
-        return {
-          canProceed: true,
-          hasBackgroundPermission: true,
-        };
+      if (Platform.OS === 'android') {
+        return await this.handleDialog2Android();
       } else {
-        // User selected "Keep Only While Using" or iOS didn't show dialog
-        logger.info('Background permission not granted', {
-          finalStatus: finalResult.status,
-          reason: finalResult.status === 'denied' ? 'user_denied' : 'no_dialog_shown',
-        });
-        return {
-          canProceed: true,
-          hasBackgroundPermission: false,
-          warningMessage:
-            'FogOfDog works best with "Always Allow" location access. With "While Using App" permission, the app won\'t track your activities when your phone is locked or the app is in the background.',
-        };
+        return await this.handleDialog2iOS();
       }
     } catch (error) {
-      logger.error('Dialog 2 failed', { error });
+      logger.error('Dialog 2 failed', { error, platform: Platform.OS });
       // Even if dialog 2 fails, we can proceed with foreground permission
       return {
         canProceed: true,
@@ -193,25 +177,108 @@ export class PermissionVerificationService {
   }
 
   /**
-   * Wait for user to complete the background permission dialog
-   * This is necessary because requestBackgroundPermissionsAsync doesn't block
-   * Uses shorter timeout since iOS might not show the dialog at all
+   * Android-specific background permission handling.
+   *
+   * On Android 11+ (API 30+), requestBackgroundPermissionsAsync() opens the
+   * system Settings screen for "Allow all the time". The API returns the current
+   * state immediately — it does NOT block until the user returns.
+   *
+   * We request once, check the result, and move on. The app works in
+   * foreground-only mode until the user manually enables background access.
+   */
+  private static async handleDialog2Android(): Promise<PermissionVerificationResult> {
+    const requestResult = await Location.requestBackgroundPermissionsAsync();
+
+    logger.info('Android background permission request result', {
+      status: requestResult.status,
+      granted: requestResult.granted,
+      canAskAgain: requestResult.canAskAgain,
+    });
+
+    if (requestResult.granted) {
+      logger.info('Android background permission granted');
+      return {
+        canProceed: true,
+        hasBackgroundPermission: true,
+      };
+    }
+
+    // On Android, if not granted, the user may need to go to Settings manually.
+    // We don't poll — just proceed with foreground-only mode.
+    logger.info('Android background permission not granted - proceeding with foreground only', {
+      status: requestResult.status,
+      canAskAgain: requestResult.canAskAgain,
+      note: 'User can enable "Allow all the time" in Settings > Location > FogOfDog',
+    });
+
+    return {
+      canProceed: true,
+      hasBackgroundPermission: false,
+      warningMessage:
+        'FogOfDog works best with "Always Allow" location access. To enable background tracking, go to Settings > Location > FogOfDog and select "Allow all the time".',
+    };
+  }
+
+  /**
+   * iOS-specific background permission handling.
+   *
+   * iOS may show an inline dialog after foreground permission is granted:
+   * "Allow FogOfDog to also use your location even when not using the app?"
+   * Options: "Keep Only While Using", "Change to Always Allow"
+   *
+   * requestBackgroundPermissionsAsync() doesn't block on iOS, so we poll
+   * to detect when the user responds to the dialog.
+   */
+  private static async handleDialog2iOS(): Promise<PermissionVerificationResult> {
+    await Location.requestBackgroundPermissionsAsync();
+
+    // Wait for iOS to show and the user to respond to the dialog
+    await this.waitForBackgroundDialogCompletion();
+
+    // Check final permission status after potential user response
+    const finalResult = await Location.getBackgroundPermissionsAsync();
+
+    if (finalResult.granted) {
+      logger.info('iOS background permission granted by user');
+      return {
+        canProceed: true,
+        hasBackgroundPermission: true,
+      };
+    } else {
+      logger.info('iOS background permission not granted', {
+        finalStatus: finalResult.status,
+        reason: finalResult.status === 'denied' ? 'user_denied' : 'no_dialog_shown',
+      });
+      return {
+        canProceed: true,
+        hasBackgroundPermission: false,
+        warningMessage:
+          'FogOfDog works best with "Always Allow" location access. With "While Using App" permission, the app won\'t track your activities when your phone is locked or the app is in the background.',
+      };
+    }
+  }
+
+  /**
+   * Wait for user to complete the iOS background permission dialog.
+   * This is iOS-only because requestBackgroundPermissionsAsync doesn't block on iOS.
+   * Uses shorter timeout since iOS might not show the dialog at all.
+   *
+   * Note: This method is NOT used on Android — Android's request returns immediately.
    */
   private static async waitForBackgroundDialogCompletion(): Promise<void> {
     return new Promise((resolve) => {
-      logger.info('Starting wait for background dialog completion');
+      logger.info('Starting wait for iOS background dialog completion');
 
       let checkCount = 0;
-      const maxChecks = 20; // 10 seconds maximum wait (shorter timeout)
+      const maxChecks = 20; // 10 seconds maximum wait
 
       const checkPermissionStatus = async () => {
         checkCount++;
 
         try {
-          // Check if permission status has stabilized
           const backgroundStatus = await Location.getBackgroundPermissionsAsync();
 
-          logger.debug('Checking background permission status during dialog wait', {
+          logger.debug('Checking background permission status during iOS dialog wait', {
             checkCount,
             granted: backgroundStatus.granted,
             status: backgroundStatus.status,
@@ -219,7 +286,7 @@ export class PermissionVerificationService {
 
           // If status is no longer undetermined, user has responded or iOS decided not to show dialog
           if (backgroundStatus.status !== 'undetermined') {
-            logger.info('Background dialog completed - permission status determined', {
+            logger.info('iOS background dialog completed - permission status determined', {
               granted: backgroundStatus.granted,
               status: backgroundStatus.status,
               checksRequired: checkCount,
@@ -228,18 +295,17 @@ export class PermissionVerificationService {
             return;
           }
 
-          // Continue checking if we haven't exceeded max checks
           if (checkCount < maxChecks) {
             setTimeout(checkPermissionStatus, 500);
           } else {
-            logger.info('Background dialog wait timeout - iOS likely did not show dialog', {
+            logger.info('iOS background dialog wait timeout - iOS likely did not show dialog', {
               maxChecksReached: maxChecks,
               note: 'This is normal - iOS may not show background permission dialog in all cases',
             });
             resolve();
           }
         } catch (error) {
-          logger.error('Error checking background permission during dialog wait', { error });
+          logger.error('Error checking background permission during iOS dialog wait', { error });
           resolve(); // Resolve anyway to prevent hanging
         }
       };

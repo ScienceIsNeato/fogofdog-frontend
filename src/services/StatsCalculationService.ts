@@ -90,7 +90,7 @@ export class StatsCalculationService {
     // a simple approximation that matches the visual fog clearing
     const totalArea = path.length * circleAreaSquareMeters;
 
-    logger.debug('Calculated fog-based area', {
+    logger.trace('Calculated fog-based area', {
       component: 'StatsCalculationService',
       action: 'calculateArea',
       pointCount: path.length,
@@ -465,7 +465,7 @@ export class StatsCalculationService {
 
       if (sessionPoints.length >= 3) {
         sessionArea = this.calculateArea(sessionPoints);
-        logger.debug('Calculated session area', {
+        logger.trace('Calculated session area', {
           component: 'StatsCalculationService',
           action: 'recalculateAreaFromSerializablePoints',
           sessionPointsCount: sessionPoints.length,
@@ -474,7 +474,7 @@ export class StatsCalculationService {
       }
     }
 
-    logger.debug('Recalculated areas from serializable GPS points', {
+    logger.trace('Recalculated areas from serializable GPS points', {
       component: 'StatsCalculationService',
       action: 'recalculateAreaFromSerializablePoints',
       pathLength: serializablePoints.length,

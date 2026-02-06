@@ -6,14 +6,16 @@
       "javascript:lint-format",
       "javascript:types",
       "javascript:tests",
-      "javascript:coverage"
+      "javascript:coverage",
+      "general:deploy-tests"
     ],
     "pr": [
       "javascript:lint-format",
       "javascript:types",
       "javascript:tests",
       "javascript:coverage",
-      "quality:duplication"
+      "quality:duplication",
+      "general:deploy-tests"
     ]
   },
   "python": {
@@ -153,7 +155,7 @@
     }
   },
   "general": {
-    "enabled": false,
+    "enabled": true,
     "include_dirs": [],
     "exclude_dirs": [],
     "gates": {
@@ -162,6 +164,12 @@
         "auto_fix": false,
         "config_file_path": null,
         "templates_dir": null
+      },
+      "deploy-tests": {
+        "enabled": true,
+        "auto_fix": false,
+        "config_file_path": null,
+        "test_script": "scripts/__tests__/deploy_app.test.sh"
       }
     }
   },

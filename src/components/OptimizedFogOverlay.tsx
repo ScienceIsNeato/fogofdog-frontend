@@ -1,4 +1,4 @@
-import React, { useMemo, useEffect } from 'react';
+import React, { useMemo, useEffect, useRef } from 'react';
 import { Skia, Canvas, Path, Fill, Mask, Rect, Group } from '@shopify/react-native-skia';
 import type { SkPath } from '@shopify/react-native-skia';
 import { StyleSheet, View } from 'react-native';
@@ -11,6 +11,50 @@ import { FOG_CONFIG } from '../config/fogConfig';
 import { GPSConnectionService } from '../services/GPSConnectionService';
 import { PathSimplificationService } from '../utils/pathSimplification';
 import { GeoPoint } from '../types/user';
+
+/**
+ * CRITICAL: Custom hook to manage Skia path lifecycle
+ *
+ * Skia paths created with Skia.Path.Make() allocate native memory that is NOT
+ * garbage collected by JavaScript. They MUST be explicitly disposed with .delete().
+ * Without this, every fog overlay re-render (map pan, GPS update) leaks memory,
+ * leading to 30GB+ native memory consumption and system crashes.
+ */
+const useManagedSkiaPath = (createPath: () => SkPath, deps: React.DependencyList): SkPath => {
+  const pathRef = useRef<SkPath | null>(null);
+
+  // Create new path when dependencies change
+  const path = useMemo(() => {
+    // Dispose previous path before creating new one
+    if (pathRef.current) {
+      try {
+        pathRef.current.delete();
+      } catch {
+        // Path may already be deleted - ignore
+      }
+    }
+    const newPath = createPath();
+    pathRef.current = newPath;
+    return newPath;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, deps);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (pathRef.current) {
+        try {
+          pathRef.current.delete();
+        } catch {
+          // Path may already be deleted - ignore
+        }
+        pathRef.current = null;
+      }
+    };
+  }, []);
+
+  return path;
+};
 
 interface OptimizedFogOverlayProps {
   mapRegion: MapRegion & { width: number; height: number };
@@ -164,39 +208,46 @@ const useOptimizedFogCalculations = (
   }, [finalPoints]);
 
   // Compute the Skia path from connected segments with smooth Bezier curves
-  const skiaPath = useMemo(() => {
-    const path = Skia.Path.Make();
+  // CRITICAL: Use managed hook to properly dispose native Skia memory
+  const skiaPath = useManagedSkiaPath(
+    () => {
+      const path = Skia.Path.Make();
 
-    if (connectedSegments.length === 0) {
+      if (connectedSegments.length === 0) {
+        return path;
+      }
+
+      // Build path using pre-calculated pixel coordinates
+      const pixelMap = new Map(
+        pixelCoordinates.map((item) => [
+          `${item.point.latitude}-${item.point.longitude}`,
+          item.pixel,
+        ])
+      );
+
+      // Build continuous path chains and simplify them using utility service
+      const segmentData = connectedSegments
+        .map((segment) => ({
+          start: pixelMap.get(`${segment.start.latitude}-${segment.start.longitude}`)!,
+          end: pixelMap.get(`${segment.end.latitude}-${segment.end.longitude}`)!,
+        }))
+        .filter((seg) => seg.start && seg.end);
+
+      const pathChains = PathSimplificationService.buildPathChains(segmentData);
+
+      // Use conservative tolerance for simplification
+      const tolerance = Math.max(1, radiusPixels * FOG_CONFIG.SIMPLIFICATION_TOLERANCE_FACTOR);
+      const simplifiedChains = pathChains.map((chain) =>
+        PathSimplificationService.simplifyPath(chain, tolerance)
+      );
+
+      // Draw smooth paths using utility service
+      PathSimplificationService.drawSmoothPath(path, simplifiedChains);
+
       return path;
-    }
-
-    // Build path using pre-calculated pixel coordinates
-    const pixelMap = new Map(
-      pixelCoordinates.map((item) => [`${item.point.latitude}-${item.point.longitude}`, item.pixel])
-    );
-
-    // Build continuous path chains and simplify them using utility service
-    const segmentData = connectedSegments
-      .map((segment) => ({
-        start: pixelMap.get(`${segment.start.latitude}-${segment.start.longitude}`)!,
-        end: pixelMap.get(`${segment.end.latitude}-${segment.end.longitude}`)!,
-      }))
-      .filter((seg) => seg.start && seg.end);
-
-    const pathChains = PathSimplificationService.buildPathChains(segmentData);
-
-    // Use conservative tolerance for simplification
-    const tolerance = Math.max(1, radiusPixels * FOG_CONFIG.SIMPLIFICATION_TOLERANCE_FACTOR);
-    const simplifiedChains = pathChains.map((chain) =>
-      PathSimplificationService.simplifyPath(chain, tolerance)
-    );
-
-    // Draw smooth paths using utility service
-    PathSimplificationService.drawSmoothPath(path, simplifiedChains);
-
-    return path;
-  }, [connectedSegments, pixelCoordinates, radiusPixels]);
+    },
+    [connectedSegments, pixelCoordinates, radiusPixels]
+  );
 
   // Calculate stroke width for path - match fog radius for smooth connections
   const strokeWidth = useMemo(() => {
@@ -238,7 +289,8 @@ const OptimizedFogMask: React.FC<{
   strokeWidth: number;
 }> = ({ pixelCoordinates, radiusPixels, skiaPath, strokeWidth }) => {
   // Create batched circle path for better performance
-  const batchedCirclePath = useMemo(
+  // CRITICAL: Use managed hook to properly dispose native Skia memory
+  const batchedCirclePath = useManagedSkiaPath(
     () => createBatchedCirclePath(pixelCoordinates, radiusPixels),
     [pixelCoordinates, radiusPixels]
   );

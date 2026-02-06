@@ -22,7 +22,8 @@ export class LocationStorageService {
 
       await AsyncStorage.setItem(BACKGROUND_LOCATIONS_KEY, JSON.stringify(updatedData));
 
-      logger.info(`Stored background location: ${location.latitude}, ${location.longitude}`, {
+      // Use trace for per-tick location storage (noisy in normal dev)
+      logger.trace(`Stored background location: ${location.latitude}, ${location.longitude}`, {
         component: 'LocationStorageService',
         action: 'storeBackgroundLocation',
         timestamp: location.timestamp,

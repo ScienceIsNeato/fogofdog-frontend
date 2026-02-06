@@ -320,7 +320,7 @@ const statsSlice = createSlice({
      * Recalculate area from current GPS path (called periodically during active sessions)
      */
     recalculateArea: (state, action: PayloadAction<SerializableGPSPoint[]>) => {
-      logger.debug('Recalculating area from current GPS path', {
+      logger.trace('Recalculating area from current GPS path', {
         component: 'statsSlice',
         action: 'recalculateArea',
         pathLength: action.payload.length,
