@@ -982,6 +982,24 @@ const createCenterOnUserHandler =
   };
 
 // Extracted event handler helpers for useMapEventHandlers
+
+/**
+ * Guard against bogus (0,0) regions from react-native-maps Fabric timing issue.
+ *
+ * When MKMapView initializes under the New Architecture (Fabric), it fires
+ * regionDidChangeAnimated: with its default region (near 0,0) BEFORE the
+ * initialRegion prop is applied via updateProps. If we accept that region,
+ * the fog overlay's viewport culling drops ALL GPS points (which are far from
+ * Null Island), resulting in a solid black screen.
+ *
+ * This guard rejects regions where both |lat| < 0.5 and |lng| < 0.5,
+ * which covers Null Island and its surroundings — a location no one is
+ * walking their dog.
+ */
+export function isNullIslandRegion(region: Region): boolean {
+  return Math.abs(region.latitude) < 0.5 && Math.abs(region.longitude) < 0.5;
+}
+
 function handleRegionChange({
   region,
   setCurrentRegion,
@@ -995,6 +1013,12 @@ function handleRegionChange({
   mapDimensions: { width: number; height: number };
   workletUpdateRegion: (region: Region & { width: number; height: number }) => void;
 }) {
+  // Reject bogus near-(0,0) regions from Fabric initialization timing issue.
+  // See isNullIslandRegion() for details.
+  if (isNullIslandRegion(region)) {
+    return;
+  }
+
   const regionWithDimensions = {
     ...region,
     width: mapDimensions.width,
@@ -1056,6 +1080,11 @@ function handleRegionChangeComplete({
   handleZoomChange: (zoom: number) => void;
   mapRef: React.RefObject<MapView | null>;
 }) {
+  // Reject bogus near-(0,0) regions from Fabric initialization timing issue.
+  if (isNullIslandRegion(region)) {
+    return;
+  }
+
   // Constrain the region to prevent zooming out beyond 20km
   const constrainedRegion = constrainRegion(region);
   const zoom = Math.round(Math.log(360 / constrainedRegion.latitudeDelta) / Math.LN2);

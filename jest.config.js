@@ -26,6 +26,7 @@ module.exports = {
     '!src/__tests__/**',
     '!src/**/__mocks__/**',
     '!src/**/index.{js,ts}',
+    '!src/test-helpers/**',
   ],
   coverageDirectory: 'coverage',
   coverageReporters: ['text', 'text-summary', 'lcov', 'html'],
