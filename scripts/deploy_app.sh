@@ -471,78 +471,11 @@ is_app_installed_android() {
 # =============================================================================
 # Pod sync detection (iOS only)
 # =============================================================================
-
-# Check if iOS Pods are out of sync with node_modules / Podfile changes
-pods_need_install() {
-    local pods_dir="$PROJECT_DIR/ios/Pods"
-    local podfile_lock="$PROJECT_DIR/ios/Podfile.lock"
-    local podfile="$PROJECT_DIR/ios/Podfile"
-    local podfile_props="$PROJECT_DIR/ios/Podfile.properties.json"
-    local package_lock="$PROJECT_DIR/package-lock.json"
-
-    # No Pods directory at all
-    if [ ! -d "$pods_dir" ]; then
-        info "ios/Pods directory missing — pod install needed"
-        return 0
-    fi
-
-    # No Podfile.lock
-    if [ ! -f "$podfile_lock" ]; then
-        info "ios/Podfile.lock missing — pod install needed"
-        return 0
-    fi
-
-    # Podfile changed since last pod install
-    if [ -f "$podfile" ] && [ "$podfile" -nt "$podfile_lock" ]; then
-        info "Podfile is newer than Podfile.lock — pod install needed"
-        return 0
-    fi
-
-    # Podfile.properties.json changed (e.g. newArchEnabled toggled)
-    if [ -f "$podfile_props" ] && [ "$podfile_props" -nt "$podfile_lock" ]; then
-        info "Podfile.properties.json changed — pod install needed"
-        return 0
-    fi
-
-    # npm install ran after last pod install (package-lock.json is newer)
-    if [ -f "$package_lock" ] && [ "$package_lock" -nt "$podfile_lock" ]; then
-        info "package-lock.json is newer than Podfile.lock — pod install needed"
-        return 0
-    fi
-
-    return 1  # pods are in sync
-}
-
-# Run pod install with proper error handling
-run_pod_install() {
-    info "Running 'pod install' in ios/..."
-    info "This may take a minute..."
-
-    cd "$PROJECT_DIR/ios"
-
-    # Timeout after 5 minutes — pod install shouldn't take longer
-    timeout 300 pod install 2>&1 || {
-        local exit_code=$?
-        cd "$PROJECT_DIR"
-        if [ $exit_code -eq 124 ]; then
-            die "pod install timed out after 5 minutes"
-        else
-            die "pod install failed (exit code $exit_code). Check Podfile and node_modules."
-        fi
-    }
-
-    cd "$PROJECT_DIR"
-    ok "Pod install complete"
-}
-
-# Ensure pods are in sync — call this before any iOS build
-ensure_pods_synced() {
-    if pods_need_install; then
-        run_pod_install
-    else
-        ok "iOS Pods are in sync"
-    fi
-}
+# NOTE: Manual 'pod install' was removed in RN 0.81+ migration.
+# 'expo run:ios' handles pod installation internally as part of its build
+# pipeline. Calling 'pod install' directly triggers a deprecation warning
+# and duplicates work that Expo already does.
+# See: https://reactnative.dev/blog - CocoaPods → Swift Package Manager migration
 
 # Files that indicate native code has changed and requires rebuild
 # Changes to these files mean the installed app is "dirty" even if present
@@ -1078,12 +1011,9 @@ else
     ok "Keeping current app data"
 fi
 
-# ── Step 4: Ensure pods are synced (iOS only) ────────────────────────────────
-
-if [ "$DEVICE" = "ios" ] && [ "$ACTION" != "metro" ]; then
-    step "Sync CocoaPods (if needed)"
-    run_step "ensure_pods_synced" ensure_pods_synced
-fi
+# ── Step 4: Pod sync handled by expo run:ios (RN 0.81+) ──────────────────────
+# Removed manual 'pod install' — expo run:ios handles this internally.
+# Direct calls trigger RN 0.81 deprecation warning and duplicate work.
 
 # ── Step 5: Build if needed ──────────────────────────────────────────────────
 
