@@ -1003,13 +1003,11 @@ export function isNullIslandRegion(region: Region): boolean {
 function handleRegionChange({
   region,
   setCurrentRegion,
-  setCurrentFogRegion,
   mapDimensions,
   workletUpdateRegion,
 }: {
   region: Region;
   setCurrentRegion: (region: Region) => void;
-  setCurrentFogRegion: (region: (Region & { width: number; height: number }) | undefined) => void;
   mapDimensions: { width: number; height: number };
   workletUpdateRegion: (region: Region & { width: number; height: number }) => void;
 }) {
@@ -1026,13 +1024,11 @@ function handleRegionChange({
   };
 
   // Update fog region immediately for synchronization with OptimizedFogOverlay
+  // (workletUpdateRegion IS setCurrentFogRegion — no separate call needed)
   workletUpdateRegion(regionWithDimensions);
 
   // Update region state for other components (async)
   setCurrentRegion(region);
-
-  // Legacy fog region update for backward compatibility
-  setCurrentFogRegion(regionWithDimensions);
 }
 
 function handlePanDrag({
@@ -1116,7 +1112,6 @@ const useMapEventHandlers = (options: {
   isFollowModeActive: boolean;
   mapRef: React.RefObject<MapView | null>;
   setCurrentRegion: (region: Region) => void;
-  setCurrentFogRegion: (region: (Region & { width: number; height: number }) | undefined) => void;
   mapDimensions: { width: number; height: number };
   workletUpdateRegion: (region: Region & { width: number; height: number }) => void;
 }) => {
@@ -1127,7 +1122,6 @@ const useMapEventHandlers = (options: {
     isFollowModeActive,
     mapRef,
     setCurrentRegion,
-    setCurrentFogRegion,
     mapDimensions,
     workletUpdateRegion,
   } = options;
@@ -1158,7 +1152,6 @@ const useMapEventHandlers = (options: {
       handleRegionChange({
         region,
         setCurrentRegion,
-        setCurrentFogRegion,
         mapDimensions,
         workletUpdateRegion,
       }),
@@ -1779,10 +1772,22 @@ const useFogRegionState = (
     }
   }, [initialWorkletRegion, currentFogRegion, memoizedMapRegion]);
 
-  // Simple region update for OptimizedFogOverlay synchronization
+  // Region update for OptimizedFogOverlay synchronization.
+  // Uses functional setState with epsilon comparison to prevent infinite
+  // re-render loops: onRegionChange → setState → re-render → onRegionChange.
   const updateFogRegion = useCallback((region: Region & { width: number; height: number }) => {
-    // Update fog region immediately for synchronization
-    setCurrentFogRegion(region);
+    setCurrentFogRegion((prev) => {
+      if (
+        prev &&
+        Math.abs(prev.latitude - region.latitude) < 0.00001 &&
+        Math.abs(prev.longitude - region.longitude) < 0.00001 &&
+        Math.abs(prev.latitudeDelta - region.latitudeDelta) < 0.00001 &&
+        Math.abs(prev.longitudeDelta - region.longitudeDelta) < 0.00001
+      ) {
+        return prev; // Same reference → React skips re-render
+      }
+      return region;
+    });
   }, []);
 
   return {
@@ -2177,7 +2182,6 @@ const useMapScreenServicesAndHandlers = (config: MapScreenServicesHandlersConfig
     isFollowModeActive: mapState.isFollowModeActive,
     mapRef: mapState.mapRef,
     setCurrentRegion: mapState.setCurrentRegion,
-    setCurrentFogRegion: mapState.setCurrentFogRegion,
     mapDimensions: mapState.mapDimensions,
     workletUpdateRegion: mapState.updateFogRegion,
   });

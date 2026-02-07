@@ -62,7 +62,7 @@
   "javascript": {
     "enabled": true,
     "include_dirs": [],
-    "exclude_dirs": [],
+    "exclude_dirs": ["slop-mop", "cursor-rules"],
     "gates": {
       "lint-format": {
         "enabled": true,
@@ -133,7 +133,15 @@
   "quality": {
     "enabled": true,
     "include_dirs": [],
-    "exclude_dirs": ["coverage", "ios", "android", "node_modules", ".git"],
+    "exclude_dirs": [
+      "coverage",
+      "ios",
+      "android",
+      "node_modules",
+      ".git",
+      "slop-mop",
+      "cursor-rules"
+    ],
     "gates": {
       "complexity": {
         "enabled": false,
