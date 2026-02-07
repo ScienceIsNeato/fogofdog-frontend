@@ -1,4 +1,4 @@
-import React, { useMemo, useEffect, useRef } from 'react';
+import React, { useMemo, useEffect, useRef, useState, useCallback } from 'react';
 import { Skia, Canvas, Path, Fill, Mask, Rect, Group } from '@shopify/react-native-skia';
 import type { SkPath } from '@shopify/react-native-skia';
 import { StyleSheet, View } from 'react-native';
@@ -13,45 +13,54 @@ import { PathSimplificationService } from '../utils/pathSimplification';
 import { GeoPoint } from '../types/user';
 
 /**
- * CRITICAL: Custom hook to manage Skia path lifecycle
+ * CRITICAL: Custom hook to manage Skia path lifecycle (React 19 safe)
  *
  * Skia paths created with Skia.Path.Make() allocate native memory that is NOT
- * garbage collected by JavaScript. They MUST be explicitly disposed with .delete().
- * Without this, every fog overlay re-render (map pan, GPS update) leaks memory,
- * leading to 30GB+ native memory consumption and system crashes.
+ * garbage collected by JavaScript. They MUST be explicitly disposed with .dispose().
+ *
+ * IMPORTANT: In React 19, useMemo can run during aborted renders (concurrent mode,
+ * StrictMode double-render). Native memory mutations (delete/allocate) MUST happen
+ * in useEffect, not useMemo, to avoid corrupting paths that are still referenced
+ * by committed renders.
  */
 const useManagedSkiaPath = (createPath: () => SkPath, deps: React.DependencyList): SkPath => {
+  // Stable empty path as initial value — avoids null checks downstream
+  const emptyPath = useMemo(() => Skia.Path.Make(), []);
+  const [path, setPath] = useState<SkPath>(emptyPath);
   const pathRef = useRef<SkPath | null>(null);
 
-  // Create new path when dependencies change
-  const path = useMemo(() => {
-    // Dispose previous path before creating new one
-    if (pathRef.current) {
+  // Memoize the path factory to detect dependency changes
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const memoizedFactory = useCallback(createPath, deps);
+
+  // Create/dispose paths in useEffect — safe from aborted renders
+  useEffect(() => {
+    const newPath = memoizedFactory();
+
+    // Dispose previous path AFTER new one is created (never leave a gap)
+    if (pathRef.current && pathRef.current !== emptyPath) {
       try {
-        pathRef.current.delete();
+        pathRef.current.dispose();
       } catch {
-        // Path may already be deleted - ignore
+        // Path may already be disposed - ignore
       }
     }
-    const newPath = createPath();
-    pathRef.current = newPath;
-    return newPath;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, deps);
 
-  // Cleanup on unmount
-  useEffect(() => {
+    pathRef.current = newPath;
+    setPath(newPath);
+
+    // Cleanup this specific path if effect re-runs or component unmounts
     return () => {
-      if (pathRef.current) {
-        try {
-          pathRef.current.delete();
-        } catch {
-          // Path may already be deleted - ignore
-        }
+      try {
+        newPath.dispose();
+      } catch {
+        // Path may already be disposed - ignore
+      }
+      if (pathRef.current === newPath) {
         pathRef.current = null;
       }
     };
-  }, []);
+  }, [memoizedFactory, emptyPath]);
 
   return path;
 };
@@ -130,6 +139,11 @@ const useOptimizedCoordinates = (
   safeAreaInsets?: { top: number; bottom: number; left: number; right: number }
 ) => {
   return useMemo(() => {
+    // Guard: skip processing when dimensions aren't available yet
+    if (!mapRegion.width || !mapRegion.height) {
+      return { finalPoints: [], pixelCoordinates: [] };
+    }
+
     const startTime = performance.now();
 
     // Step 1: Viewport culling
@@ -188,7 +202,11 @@ const useOptimizedFogCalculations = (
   );
 
   // Calculate radius in pixels based on the current zoom level (needed for path simplification)
+  // Guard: return safe default when dimensions aren't available yet (before onLayout)
   const radiusPixels = useMemo(() => {
+    if (!mapRegion.width || !mapRegion.height) {
+      return 0;
+    }
     const metersPerPixel = calculateMetersPerPixel(mapRegion);
     return FOG_CONFIG.RADIUS_METERS / metersPerPixel;
   }, [mapRegion]);
@@ -209,45 +227,39 @@ const useOptimizedFogCalculations = (
 
   // Compute the Skia path from connected segments with smooth Bezier curves
   // CRITICAL: Use managed hook to properly dispose native Skia memory
-  const skiaPath = useManagedSkiaPath(
-    () => {
-      const path = Skia.Path.Make();
+  const skiaPath = useManagedSkiaPath(() => {
+    const path = Skia.Path.Make();
 
-      if (connectedSegments.length === 0) {
-        return path;
-      }
-
-      // Build path using pre-calculated pixel coordinates
-      const pixelMap = new Map(
-        pixelCoordinates.map((item) => [
-          `${item.point.latitude}-${item.point.longitude}`,
-          item.pixel,
-        ])
-      );
-
-      // Build continuous path chains and simplify them using utility service
-      const segmentData = connectedSegments
-        .map((segment) => ({
-          start: pixelMap.get(`${segment.start.latitude}-${segment.start.longitude}`)!,
-          end: pixelMap.get(`${segment.end.latitude}-${segment.end.longitude}`)!,
-        }))
-        .filter((seg) => seg.start && seg.end);
-
-      const pathChains = PathSimplificationService.buildPathChains(segmentData);
-
-      // Use conservative tolerance for simplification
-      const tolerance = Math.max(1, radiusPixels * FOG_CONFIG.SIMPLIFICATION_TOLERANCE_FACTOR);
-      const simplifiedChains = pathChains.map((chain) =>
-        PathSimplificationService.simplifyPath(chain, tolerance)
-      );
-
-      // Draw smooth paths using utility service
-      PathSimplificationService.drawSmoothPath(path, simplifiedChains);
-
+    if (connectedSegments.length === 0) {
       return path;
-    },
-    [connectedSegments, pixelCoordinates, radiusPixels]
-  );
+    }
+
+    // Build path using pre-calculated pixel coordinates
+    const pixelMap = new Map(
+      pixelCoordinates.map((item) => [`${item.point.latitude}-${item.point.longitude}`, item.pixel])
+    );
+
+    // Build continuous path chains and simplify them using utility service
+    const segmentData = connectedSegments
+      .map((segment) => ({
+        start: pixelMap.get(`${segment.start.latitude}-${segment.start.longitude}`)!,
+        end: pixelMap.get(`${segment.end.latitude}-${segment.end.longitude}`)!,
+      }))
+      .filter((seg) => seg.start && seg.end);
+
+    const pathChains = PathSimplificationService.buildPathChains(segmentData);
+
+    // Use conservative tolerance for simplification
+    const tolerance = Math.max(1, radiusPixels * FOG_CONFIG.SIMPLIFICATION_TOLERANCE_FACTOR);
+    const simplifiedChains = pathChains.map((chain) =>
+      PathSimplificationService.simplifyPath(chain, tolerance)
+    );
+
+    // Draw smooth paths using utility service
+    PathSimplificationService.drawSmoothPath(path, simplifiedChains);
+
+    return path;
+  }, [connectedSegments, pixelCoordinates, radiusPixels]);
 
   // Calculate stroke width for path - match fog radius for smooth connections
   const strokeWidth = useMemo(() => {
@@ -342,6 +354,13 @@ const OptimizedFogOverlay: React.FC<OptimizedFogOverlayProps> = ({ mapRegion, sa
       2000 // 2 second interval
     );
   }, [originalPointCount, finalPoints.length, radiusPixels]);
+
+  // Guard: Don't render Skia Canvas into zero-sized surface
+  // This can happen before onLayout fires, especially with React 19's
+  // changed effect scheduling and Expo 54's startup timing
+  if (!mapRegion.width || !mapRegion.height) {
+    return null;
+  }
 
   return (
     <View style={styles.canvasWrapper} pointerEvents="none">

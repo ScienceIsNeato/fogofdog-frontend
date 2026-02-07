@@ -47,6 +47,7 @@ module.exports = {
     '^@expo/vector-icons$': '<rootDir>/__mocks__/@expo/vector-icons.ts',
     '^expo-haptics$': '<rootDir>/__mocks__/expo-haptics.ts',
     '^@shopify/react-native-skia$': '<rootDir>/__mocks__/@shopify/react-native-skia.ts',
+    '^react-native-maps$': '<rootDir>/__mocks__/react-native-maps.tsx',
     '^expo-file-system/legacy$': '<rootDir>/__mocks__/expo-file-system-legacy.ts',
   },
   testTimeout: 30000,

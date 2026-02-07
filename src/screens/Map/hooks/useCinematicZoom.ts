@@ -607,7 +607,6 @@ export const useCinematicZoom = ({
     return undefined;
     // Note: explorationPath intentionally not in deps - we use explorationPathRef to capture
     // the value at trigger time. Including it would cause GPS updates to cancel the animation.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [canStartAnimation, currentLocation, gpsInjectionStatus.isRunning, isMapReady, mapRef]);
 
   // Create initial region - use cinematic start position to eliminate jump

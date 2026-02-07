@@ -252,9 +252,8 @@ export class BackgroundLocationService {
       // Check if location updates are already actively running
       // NOTE: isTaskRegisteredAsync only checks if task is DEFINED, not if it's actively tracking
       // We need hasStartedLocationUpdatesAsync to check if OS is actually sending updates
-      const isLocationUpdatesActive = await Location.hasStartedLocationUpdatesAsync(
-        BACKGROUND_LOCATION_TASK
-      );
+      const isLocationUpdatesActive =
+        await Location.hasStartedLocationUpdatesAsync(BACKGROUND_LOCATION_TASK);
       if (isLocationUpdatesActive) {
         logger.info('Background location updates already active', {
           component: 'BackgroundLocationService',
@@ -292,7 +291,8 @@ export class BackgroundLocationService {
           const isSharedPreferencesError =
             isAndroid && errorMessage.includes('SharedPreferences.getAll()');
 
-          const isTransientAndroidError = isAndroidForegroundServiceError || isSharedPreferencesError;
+          const isTransientAndroidError =
+            isAndroidForegroundServiceError || isSharedPreferencesError;
 
           // On Android, retry with delay for transient native module errors
           if (isTransientAndroidError && retryCount < 5) {
@@ -404,9 +404,8 @@ export class BackgroundLocationService {
       const { status } = await Location.getBackgroundPermissionsAsync();
       const hasPermission = status === 'granted';
       // Use hasStartedLocationUpdatesAsync for accurate "is actively tracking" status
-      const isLocationUpdatesActive = await Location.hasStartedLocationUpdatesAsync(
-        BACKGROUND_LOCATION_TASK
-      );
+      const isLocationUpdatesActive =
+        await Location.hasStartedLocationUpdatesAsync(BACKGROUND_LOCATION_TASK);
       const storedLocationCount = await LocationStorageService.getStoredLocationCount();
 
       return {
@@ -431,9 +430,7 @@ export class BackgroundLocationService {
    * Handle background location updates
    * Note: Called from module-level task handler, so must be accessible (not private)
    */
-  static async handleBackgroundLocations(
-    locations: Location.LocationObject[]
-  ): Promise<void> {
+  static async handleBackgroundLocations(locations: Location.LocationObject[]): Promise<void> {
     try {
       // Log background performance
       this.logBackgroundPerformance(locations);

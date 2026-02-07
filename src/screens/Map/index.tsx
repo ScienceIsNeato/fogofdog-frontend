@@ -1510,11 +1510,7 @@ const processStoredBackgroundLocations = async (
 
   // Center map on new location if user tracking is enabled
   // Skip if cinematic zoom is active to prevent interrupting the animation
-  if (
-    isMapCenteredOnUser &&
-    mapRef.current &&
-    !(mapRef.current as any)?._cinematicZoomActive
-  ) {
+  if (isMapCenteredOnUser && mapRef.current && !(mapRef.current as any)?._cinematicZoomActive) {
     const newRegion = {
       latitude: mostRecent.latitude,
       longitude: mostRecent.longitude,
@@ -2355,7 +2351,11 @@ export const MapScreen = () => {
 
   // Pass permissions verification state and onboarding state to the logic hook
   // This ensures single source of truth for onboarding state (no duplicate hook calls)
-  const { uiProps } = useMapScreenLogic(onboardingHookState, permissionsVerified, backgroundGranted);
+  const { uiProps } = useMapScreenLogic(
+    onboardingHookState,
+    permissionsVerified,
+    backgroundGranted
+  );
 
   // Show permission verification screen while verifying OR if permissions are denied
   const showPermissionScreen =
