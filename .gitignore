@@ -83,6 +83,9 @@ gps-injection.json
 .currently_deployed_type
 .deployment_history
 
+# Claude Code
+.claude/
+
 # Cursor IDE specific files
 .cursorignore
 .cursorpaths.json
