@@ -1,0 +1,48 @@
+appId: com.fogofdog.app
+---
+# Test: Map Skinning Overlay
+# Purpose: Verify users can apply and remove map skins through settings
+#
+# Acceptance Criteria:
+# 1. User can open settings menu
+# 2. User can navigate to skin settings
+# 3. User can see available skins (or empty state for MVP)
+# 4. User can see active skin indicator (or "None" for MVP)
+# 5. User can return to map view
+#
+# Note: For MVP, no skins are available yet (tiles not generated).
+# This test validates the UI workflow is functional.
+
+- launchApp
+
+# Wait for app to initialize
+- waitForAnimationToEnd:
+    timeout: 5000
+
+# 1. Open Settings Menu
+- tapOn:
+    id: "settings-button"
+- assertVisible: "Settings"
+
+# 2. Navigate to Skin Settings
+- tapOn: "Skins"
+- assertVisible: "Map Skins"
+
+# 3. Verify skin settings view components
+- assertVisible: "Active Skin"
+- assertVisible: "None"  # No skin active in MVP
+
+# 4. Check for available skins section
+- assertVisible: "Available Skins"
+# For MVP: expect empty state or no skins listed
+
+# 5. Return to map view
+- tapOn:
+    point: "5%,5%"  # Tap back button (top-left)
+- assertVisible: "Settings"
+- tapOn:
+    point: "5%,5%"  # Tap back button again
+- assertVisible:
+    id: "map-view"
+
+# Test complete - skin settings UI is functional
