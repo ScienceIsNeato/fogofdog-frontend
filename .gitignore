@@ -63,6 +63,13 @@ background_test*.png
 # Coverage reports
 coverage/
 **/coverage/
+.coverage
+coverage.xml
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
 
 # SonarQube
 .scannerwork/
