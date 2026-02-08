@@ -175,4 +175,35 @@ describe('OptimizedFogOverlay', () => {
     const skiaCanvas = getByTestId('optimized-fog-overlay-canvas');
     expect(skiaCanvas).toBeTruthy();
   });
+
+  it('should not render canvas when dimensions are zero', () => {
+    const zeroDimensionRegion = {
+      ...mockMapRegion,
+      width: 0,
+      height: 0,
+    };
+
+    const { queryByTestId } = renderWithProviders(
+      <OptimizedFogOverlay mapRegion={zeroDimensionRegion} />,
+      { preloadedState: mockState }
+    );
+
+    // Should return null when dimensions are zero (guard against Skia crash)
+    expect(queryByTestId('optimized-fog-overlay-canvas')).toBeNull();
+  });
+
+  it('should not render canvas when width is zero', () => {
+    const zeroWidthRegion = {
+      ...mockMapRegion,
+      width: 0,
+      height: 800,
+    };
+
+    const { queryByTestId } = renderWithProviders(
+      <OptimizedFogOverlay mapRegion={zeroWidthRegion} />,
+      { preloadedState: mockState }
+    );
+
+    expect(queryByTestId('optimized-fog-overlay-canvas')).toBeNull();
+  });
 });

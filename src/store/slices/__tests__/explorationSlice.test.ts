@@ -19,10 +19,14 @@ import type { StoredLocationData } from '../../../services/LocationStorageServic
 // Mock the logger
 jest.mock('../../../utils/logger', () => ({
   logger: {
+    trace: jest.fn(),
     warn: jest.fn(),
     error: jest.fn(),
     info: jest.fn(),
     debug: jest.fn(),
+    throttledDebug: jest.fn(),
+    setTraceEnabled: jest.fn(),
+    isTraceEnabled: jest.fn().mockReturnValue(false),
   },
 }));
 

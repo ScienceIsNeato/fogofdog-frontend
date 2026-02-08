@@ -1,17 +1,60 @@
 # FogOfDog Frontend Status
 
-## Current Status: 🔧 DEPLOY SCRIPT COMPLETE — READY FOR DEPLOYMENT
+## Current Status: 🔧 BLACK SCREEN FIX — Null Island Guard
 
-### 🎯 **LATEST: deploy_app.sh Overhaul Complete**
+### 🎯 **LATEST: Fabric Timing Black Screen Fix (uncommitted)**
 
-**Branch**: `fix/CI-version`  
-**All JS quality gates passing**: 888 tests, lint clean, types clean  
-**Deploy script tests**: 21/21 passing (`sm validate general:deploy-tests`)  
-**Unstaged work**: Android GPS fixes, deploy_app.sh + tests, slop-mop gate, project instructions
+**Branch**: `spike/expo54-ios-crash-investigation`  
+**PR**: #54 (https://github.com/ScienceIsNeato/fogofdog-frontend/pull/54)  
+**All JS quality gates passing**: 71 test suites, 899 tests, lint clean, types clean
+
+#### Black Screen Root Cause
+
+react-native-maps 1.27.1 Fabric wrapper fires `onRegionChange` with coordinates near (0,0)
+BEFORE `initialRegion` prop is applied. The fog overlay's viewport culling drops ALL GPS
+points (which are at ~44, -123), resulting in a solid black screen.
+
+#### Fix Applied
+
+- Added `isNullIslandRegion()` guard to reject regions where both |lat| < 0.5 and |lng| < 0.5
+- Guard applied in both `handleRegionChange` and `handleRegionChangeComplete`
+- 5 tests added for the guard function
+- Removed temporary debug logging from OptimizedFogOverlay
+
+#### Previous Commit (3029d98)
+
+- fix: resolve Expo 54 iOS crash (Skia SIGSEGV + maps pre-Fabric + stale AppDelegate)
+
+#### Root Causes Fixed
+
+1. **@shopify/react-native-skia 2.2.12 SIGSEGV** → upgraded to 2.4.18, migrated `.delete()` → `.dispose()`, refactored useMemo side effects for React 19
+2. **react-native-maps 1.20.1 pre-Fabric** → upgraded to 1.27.1 (TurboModule architecture)
+3. **Stale ObjC AppDelegate** → clean prebuild generated Swift AppDelegate with ExpoReactNativeFactory
+
+#### Red Herring Rolled Back
+
+- expo-dev-launcher patch (autoSetup race condition was symptom of stale AppDelegate, not real issue)
+- Removed patch-package + patches/ directory
+
+#### Test Fixes
+
+- Created `__mocks__/react-native-maps.tsx` for TurboModule mock
+- Fixed explorationSlice logger mock (added trace, throttledDebug)
+- Updated BackgroundLocationService tests for source-test drift
+
+#### Tech Debt Noted
+
+- Pod install deprecation: React Native moving away from CocoaPods. `deploy_app.sh` `ensure_pods_synced()` calls `pod install` directly — should migrate to `npx expo run:ios` flow
+
+### ⚠️ NEXT STEPS
+
+1. **Push branch** when ready for PR/review
+2. **Address pod deprecation** in deploy_app.sh (future task)
+3. **Verify on physical device** if needed
 
 ---
 
-## 🆕 **SESSION: DEPLOY_APP.SH OVERHAUL**
+## 🔄 **PREVIOUS SESSION: DEPLOY_APP.SH OVERHAUL**
 
 ### What Was Done
 
@@ -42,6 +85,7 @@ Rewrote the script per the "Deployment Bible" tenets:
 #### 3. Project Instructions Updated (COMPLETED)
 
 Added "Deployment Bible Philosophy" section with the 7 core tenets:
+
 1. INCLUDED IN GATES
 2. UNIT TESTED
 3. 5-MINUTE GLOBAL TIMEOUT
@@ -53,12 +97,14 @@ Added "Deployment Bible Philosophy" section with the 7 core tenets:
 Added "The Iron Rule": If something doesn't work with deploy_app.sh, you FIX OR EXPAND THE SCRIPT — you don't run one-off commands.
 
 ### Files Modified
+
 - `scripts/deploy_app.sh` — Complete overhaul
 - `slop-mop/slopmop/checks/__init__.py` — Registered DeployScriptTestsCheck
 - `.sb_config.json` — Added general:deploy-tests gate, updated profiles
 - `.github/instructions/project-fogofdog_frontend.instructions.md` — Deployment bible section
 
 ### Files Created
+
 - `scripts/__tests__/deploy_app.test.sh` — 21 unit tests
 - `slop-mop/slopmop/checks/general/deploy_tests.py` — slop-mop gate class
 
@@ -193,17 +239,17 @@ Multiple TS errors exist in the codebase (identified but NOT fixed this session)
 
 **Use deploy_app.sh for ALL app operations**:
 
-| Command                                                                    | Description                              |
-| -------------------------------------------------------------------------- | ---------------------------------------- |
-| `./scripts/deploy_app.sh --device android --mode development --data current` | Full deploy (build if needed + Metro)  |
-| `./scripts/deploy_app.sh metro --device android`                           | Start Metro + open app (skip build)      |
-| `./scripts/deploy_app.sh metro --device ios`                               | Start Metro + open app (skip build)      |
-| `./scripts/deploy_app.sh status`                                           | Check Metro + device status              |
-| `./scripts/deploy_app.sh logs`                                             | Tail Metro logs                          |
-| `./scripts/deploy_app.sh stop`                                             | Stop Metro server                        |
-| `./scripts/launch-device.sh ios`                                           | Boot iOS Simulator only                  |
-| `./scripts/launch-device.sh android`                                       | Boot Android Emulator only               |
-| `./scripts/run_integration_tests.sh <test.yaml>`                           | Run Maestro tests (iOS)                  |
+| Command                                                                      | Description                           |
+| ---------------------------------------------------------------------------- | ------------------------------------- |
+| `./scripts/deploy_app.sh --device android --mode development --data current` | Full deploy (build if needed + Metro) |
+| `./scripts/deploy_app.sh metro --device android`                             | Start Metro + open app (skip build)   |
+| `./scripts/deploy_app.sh metro --device ios`                                 | Start Metro + open app (skip build)   |
+| `./scripts/deploy_app.sh status`                                             | Check Metro + device status           |
+| `./scripts/deploy_app.sh logs`                                               | Tail Metro logs                       |
+| `./scripts/deploy_app.sh stop`                                               | Stop Metro server                     |
+| `./scripts/launch-device.sh ios`                                             | Boot iOS Simulator only               |
+| `./scripts/launch-device.sh android`                                         | Boot Android Emulator only            |
+| `./scripts/run_integration_tests.sh <test.yaml>`                             | Run Maestro tests (iOS)               |
 
 ### **📦 Commits This Session**
 
