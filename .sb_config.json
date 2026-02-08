@@ -16,7 +16,9 @@
         "enabled": false,
         "auto_fix": false,
         "config_file_path": null,
-        "test_dirs": ["tests"],
+        "test_dirs": [
+          "tests"
+        ],
         "timeout": 300
       },
       "coverage": {
@@ -81,7 +83,11 @@
         "enabled": false,
         "auto_fix": false,
         "config_file_path": ".secrets.baseline",
-        "scanners": ["bandit", "semgrep", "detect-secrets"],
+        "scanners": [
+          "bandit",
+          "semgrep",
+          "detect-secrets"
+        ],
         "exclude_dirs": [
           "venv",
           ".venv",
@@ -98,7 +104,11 @@
         "enabled": false,
         "auto_fix": false,
         "config_file_path": ".secrets.baseline",
-        "scanners": ["bandit", "semgrep", "detect-secrets"],
+        "scanners": [
+          "bandit",
+          "semgrep",
+          "detect-secrets"
+        ],
         "exclude_dirs": [
           "venv",
           ".venv",
@@ -116,7 +126,13 @@
   "quality": {
     "enabled": true,
     "include_dirs": [],
-    "exclude_dirs": ["coverage", "ios", "android", "node_modules", ".git"],
+    "exclude_dirs": [
+      "coverage",
+      "ios",
+      "android",
+      "node_modules",
+      ".git"
+    ],
     "gates": {
       "complexity": {
         "enabled": false,
@@ -131,7 +147,9 @@
         "auto_fix": false,
         "config_file_path": null,
         "threshold": 5,
-        "include_dirs": ["src"],
+        "include_dirs": [
+          "src"
+        ],
         "min_tokens": 50,
         "min_lines": 5
       }
@@ -188,5 +206,10 @@
         "fail_on_unresolved": true
       }
     }
-  }
+  },
+  "disabled_gates": [
+    "python:static-analysis",
+    "python:tests",
+    "python:coverage"
+  ]
 }

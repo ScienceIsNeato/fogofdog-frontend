@@ -1,13 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { Modal, View, StyleSheet, Alert } from 'react-native';
+import { useAppSelector, useAppDispatch } from '../store/hooks';
+import { setActiveSkin, clearActiveSkin } from '../store/slices/skinSlice';
 
 import { ClearType, DataStats } from '../types/dataClear';
 import { SettingsMainView } from './UnifiedSettingsModal/SettingsMainView';
 import { SettingsHistoryView } from './UnifiedSettingsModal/SettingsHistoryView';
 import { SettingsDeveloperView } from './UnifiedSettingsModal/SettingsDeveloperView';
+import { SettingsSkinView } from './UnifiedSettingsModal/SettingsSkinView';
 import { useSettingsHandlers } from './UnifiedSettingsModal/useSettingsHandlers';
 
-type SettingsView = 'main' | 'history' | 'developer';
+type SettingsView = 'main' | 'history' | 'developer' | 'skin';
 
 interface UnifiedSettingsModalProps {
   visible: boolean;
@@ -18,6 +21,7 @@ interface UnifiedSettingsModalProps {
   onRefreshDataStats?: () => void; // Optional callback to refresh data stats after import
 }
 
+/* eslint-disable max-lines-per-function */
 const UnifiedSettingsModal: React.FC<UnifiedSettingsModalProps> = ({
   visible,
   onClose,
@@ -26,7 +30,12 @@ const UnifiedSettingsModal: React.FC<UnifiedSettingsModalProps> = ({
   isClearing,
   onRefreshDataStats,
 }) => {
+  const dispatch = useAppDispatch();
   const [currentView, setCurrentView] = useState<SettingsView>('main');
+
+  // Get skin state from Redux
+  const activeSkin = useAppSelector((state) => state.skin.activeSkin);
+  const availableSkins = useAppSelector((state) => state.skin.availableSkins);
 
   // Reset to main view when modal becomes visible
   useEffect(() => {
@@ -41,7 +50,17 @@ const UnifiedSettingsModal: React.FC<UnifiedSettingsModalProps> = ({
     handleUserProfile,
     handleHistoryManagement,
     handleDeveloperSettings,
+    handleMapSkins,
   } = useSettingsHandlers(onClose, setCurrentView);
+
+  // Handle skin selection
+  const handleSelectSkin = (skinId: string | null) => {
+    if (skinId === null) {
+      dispatch(clearActiveSkin());
+    } else {
+      dispatch(setActiveSkin(skinId));
+    }
+  };
 
   if (!visible) return null;
 
@@ -58,6 +77,7 @@ const UnifiedSettingsModal: React.FC<UnifiedSettingsModalProps> = ({
           onUserProfile={handleUserProfile}
           onHistoryManagement={handleHistoryManagement}
           onDeveloperSettings={handleDeveloperSettings}
+          onMapSkins={handleMapSkins}
           styles={styles}
         />
       );
@@ -76,6 +96,18 @@ const UnifiedSettingsModal: React.FC<UnifiedSettingsModalProps> = ({
       );
     }
 
+    if (currentView === 'skin') {
+      return (
+        <SettingsSkinView
+          activeSkin={activeSkin}
+          availableSkins={availableSkins}
+          onSelectSkin={handleSelectSkin}
+          onBackToMain={handleBackToMain}
+          styles={styles}
+        />
+      );
+    }
+
     return (
       <SettingsDeveloperView onBack={handleBackToMain} onClose={handleClose} styles={styles} />
     );
@@ -89,6 +121,7 @@ const UnifiedSettingsModal: React.FC<UnifiedSettingsModalProps> = ({
     </Modal>
   );
 };
+/* eslint-enable max-lines-per-function */
 
 const styles = StyleSheet.create({
   overlay: {

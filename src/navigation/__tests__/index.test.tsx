@@ -8,6 +8,7 @@ import { OnboardingService } from '../../services/OnboardingService';
 import { AuthPersistenceService } from '../../services/AuthPersistenceService';
 import userReducer from '../../store/slices/userSlice';
 import explorationReducer from '../../store/slices/explorationSlice';
+import skinReducer from '../../store/slices/skinSlice';
 
 // Mock navigation dependencies
 jest.mock('@react-navigation/native', () => ({
@@ -36,6 +37,20 @@ jest.mock('../../screens/Profile', () => ({
 // Mock services
 jest.mock('../../services/OnboardingService');
 jest.mock('../../services/AuthPersistenceService');
+jest.mock('../../services/SkinMetadataService', () => ({
+  SkinMetadataService: {
+    initialize: jest.fn().mockResolvedValue(undefined),
+    reset: jest.fn(),
+  },
+}));
+jest.mock('../../services/TileAssetManager', () => ({
+  TileAssetManager: {
+    initialize: jest.fn().mockResolvedValue(undefined),
+    isInitialized: jest.fn().mockReturnValue(true),
+    getUrlTemplate: jest.fn((skinId) => `file:///tiles/${skinId}/{z}/{x}/{y}.png`),
+    reset: jest.fn(),
+  },
+}));
 
 const mockOnboardingService = OnboardingService as jest.Mocked<typeof OnboardingService>;
 const mockAuthPersistenceService = AuthPersistenceService as jest.Mocked<
@@ -50,6 +65,7 @@ describe('Navigation', () => {
       reducer: {
         user: userReducer,
         exploration: explorationReducer,
+        skin: skinReducer,
       },
     });
 
@@ -211,6 +227,7 @@ describe('LoadingScreen', () => {
       reducer: {
         user: userReducer,
         exploration: explorationReducer,
+        skin: skinReducer,
       },
     });
 

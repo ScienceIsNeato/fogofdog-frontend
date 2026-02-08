@@ -1,6 +1,8 @@
 import os
 import re
+
 import chardet
+
 
 def collect_ts_files(start_path):
     ts_files = []

@@ -1,0 +1,16 @@
+{
+  "skinId": "cartoon",
+  "name": "Cartoon (Placeholder)",
+  "description": "Placeholder tiles for testing - replace with actual cartoon skin",
+  "tileCount": 14,
+  "generatedAt": "2026-02-08T03:24:57.994Z",
+  "isPlaceholder": true,
+  "coverage": {
+    "zoomLevels": [
+      14,
+      15,
+      16
+    ],
+    "area": "Dolores Park, SF (37.7599°N, 122.4271°W)"
+  }
+}

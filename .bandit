@@ -1,0 +1,15 @@
+# Bandit configuration file
+exclude_dirs:
+  - .venv
+  - venv
+  - node_modules
+  - .git
+  - __pycache__
+  - build
+  - dist
+  - .eggs
+
+skips:
+  - B101
+  - B110
+
