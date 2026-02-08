@@ -143,7 +143,8 @@ class TileAssetManagerClass {
    * @returns URL template with {z}, {x}, {y} placeholders
    */
   getUrlTemplate(skinId: string): string {
-    return `file://${this.tilesDirectory}${skinId}/{z}/{x}/{y}.png`;
+    // FileSystem.documentDirectory already includes file:// prefix
+    return `${this.tilesDirectory}${skinId}/{z}/{x}/{y}.png`;
   }
 
   /**
