@@ -43,6 +43,14 @@ jest.mock('../../services/SkinMetadataService', () => ({
     reset: jest.fn(),
   },
 }));
+jest.mock('../../services/TileAssetManager', () => ({
+  TileAssetManager: {
+    initialize: jest.fn().mockResolvedValue(undefined),
+    isInitialized: jest.fn().mockReturnValue(true),
+    getUrlTemplate: jest.fn((skinId) => `file:///tiles/${skinId}/{z}/{x}/{y}.png`),
+    reset: jest.fn(),
+  },
+}));
 
 const mockOnboardingService = OnboardingService as jest.Mocked<typeof OnboardingService>;
 const mockAuthPersistenceService = AuthPersistenceService as jest.Mocked<

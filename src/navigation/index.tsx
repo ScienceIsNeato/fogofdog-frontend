@@ -8,6 +8,7 @@ import { restorePersistedState } from '../store/slices/explorationSlice';
 import { AuthPersistenceService } from '../services/AuthPersistenceService';
 import { OnboardingService } from '../services/OnboardingService';
 import { SkinMetadataService } from '../services/SkinMetadataService';
+import { TileAssetManager } from '../services/TileAssetManager';
 import { RootStackParamList, MainStackParamList } from '../types/navigation';
 import { OnboardingContext } from '../contexts/OnboardingContext';
 
@@ -118,6 +119,9 @@ const useAppInitialization = (): InitializationHookResult => {
 
         // Initialize skin metadata
         await SkinMetadataService.initialize(dispatch);
+
+        // Initialize tile assets (extract to filesystem for UrlTile)
+        await TileAssetManager.initialize();
 
         logger.info('First-time user detection completed', {
           component: 'Navigation',
