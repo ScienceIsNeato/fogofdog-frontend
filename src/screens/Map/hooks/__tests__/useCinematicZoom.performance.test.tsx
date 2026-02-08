@@ -17,6 +17,7 @@ import { useCinematicZoom } from '../useCinematicZoom';
 import explorationReducer from '../../../../store/slices/explorationSlice';
 import statsReducer from '../../../../store/slices/statsSlice';
 import userReducer from '../../../../store/slices/userSlice';
+import skinReducer from '../../../../store/slices/skinSlice';
 
 // Mock dependencies
 jest.mock('../../../../utils/logger');
@@ -91,6 +92,7 @@ const createTestStore = (preloadedState = {}) => {
       exploration: explorationReducer,
       stats: statsReducer,
       user: userReducer,
+      skin: skinReducer,
     } as any,
     preloadedState: {
       ...defaultState,

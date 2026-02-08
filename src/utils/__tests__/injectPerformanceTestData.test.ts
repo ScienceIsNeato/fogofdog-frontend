@@ -292,9 +292,7 @@ describe('PerformanceTestDataInjector', () => {
         },
       })) as any;
 
-      mockGenerateData.mockReturnValue([
-        { latitude: 44.046, longitude: -123.024, timestamp: 0 },
-      ]);
+      mockGenerateData.mockReturnValue([{ latitude: 44.046, longitude: -123.024, timestamp: 0 }]);
 
       const injectionPromise = performanceTestInjector.injectRealTimeData(1);
       jest.runAllTimers();
@@ -323,9 +321,7 @@ describe('PerformanceTestDataInjector', () => {
         },
       })) as any;
 
-      mockGenerateData.mockReturnValue([
-        { latitude: 44.046, longitude: -123.024, timestamp: 0 },
-      ]);
+      mockGenerateData.mockReturnValue([{ latitude: 44.046, longitude: -123.024, timestamp: 0 }]);
 
       const injectionPromise = performanceTestInjector.injectRealTimeData(1);
       jest.runAllTimers();

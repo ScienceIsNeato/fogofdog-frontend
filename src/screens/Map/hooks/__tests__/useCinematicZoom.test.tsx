@@ -5,6 +5,7 @@ import { useCinematicZoom } from '../useCinematicZoom';
 import explorationReducer from '../../../../store/slices/explorationSlice';
 import statsReducer from '../../../../store/slices/statsSlice';
 import userReducer from '../../../../store/slices/userSlice';
+import skinReducer from '../../../../store/slices/skinSlice';
 import { logger } from '../../../../utils/logger';
 import * as mapZoomUtils from '../../../../utils/mapZoomUtils';
 import * as mapConstraints from '../../../../constants/mapConstraints';
@@ -32,6 +33,7 @@ const createTestStore = (initialState?: any) => {
       user: userReducer,
       exploration: explorationReducer,
       stats: statsReducer,
+      skin: skinReducer,
     },
     preloadedState: initialState,
   } as any);

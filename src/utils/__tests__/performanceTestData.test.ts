@@ -405,7 +405,9 @@ describe('performanceTestData', () => {
           segments: brokenSeg,
           intersections: partialInt,
         },
-        { startingLocation: { latitude: BROKEN_NORTH_LAT, longitude: EUGENE_SOUTH_HILLS.longitude } }
+        {
+          startingLocation: { latitude: BROKEN_NORTH_LAT, longitude: EUGENE_SOUTH_HILLS.longitude },
+        }
       );
 
       expect(points.length).toBeGreaterThan(0);
