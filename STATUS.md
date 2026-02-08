@@ -5,14 +5,17 @@
 ### 🎯 **LATEST: MapLibre GL Vector Tile Migration**
 
 **Branch**: `feature/map-skin-system-merged`  
-**Status**: Complete — all quality gates passing  
-**Goal**: Replace react-native-maps with @maplibre/maplibre-react-native for style-based map skinning
+**PR**: #57 — `feat: migrate map engine to MapLibre GL for vector-tile skinning`  
+**Status**: PR open, CI running. All local quality gates passing (933 tests, 0 TS errors, 7/7 slop-mop gates green).  
+**Goal**: Replace react-native-maps with @maplibre/maplibre-react-native for style-based map skinning  
+**Supersedes**: PRs #55 (Model A) and #56 (Model B) — will auto-close on merge
 
 ### **✅ What Was Done**
 
 **Architecture Change**: Migrated from react-native-maps (Google Maps raster tiles + bundled PNGs for skins) to MapLibre GL (vector tiles + Style JSON for skins). Each "skin" is now a ~50KB JSON file defining colors, line widths, and fills for OpenFreeMap vector tiles — no more thousands of raster PNG tiles.
 
 **Production Code Changes**:
+
 - Replaced `react-native-maps` with `@maplibre/maplibre-react-native ^10.x`
 - Created `src/types/map.ts` — engine-agnostic `MapRegion`, `LatLng`, helper functions
 - Created `src/services/SkinStyleService.ts` — maps `SkinId` → MapLibre style JSON
@@ -23,6 +26,7 @@
 - Threaded `cinematicZoomActiveRef` through 18+ interfaces/functions (replacing monkey-patched `_cinematicZoomActive`)
 
 **Deleted Files** (old raster tile infrastructure):
+
 - `src/components/SkinTileOverlay.tsx` and its tests
 - `src/services/SkinAssetService.ts`
 - `scripts/apply_skin.py` and `scripts/test_apply_skin.py`
@@ -30,6 +34,7 @@
 - `pytest.ini` (only existed for deleted Python tests)
 
 **Test Updates**:
+
 - Created `__mocks__/@maplibre/maplibre-react-native.tsx`
 - Updated mock blocks in 6 test files
 - Updated all `Region` → `MapRegion` type annotations
