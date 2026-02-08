@@ -33,6 +33,7 @@ import MapView, { Marker, Region } from 'react-native-maps';
 import * as Location from 'expo-location';
 import * as TaskManager from 'expo-task-manager';
 import OptimizedFogOverlay from '../../components/OptimizedFogOverlay';
+import SkinnedTileOverlay from '../../components/SkinnedTileOverlay';
 import LocationButton from '../../components/LocationButton';
 
 import { PermissionAlert } from '../../components/PermissionAlert';
@@ -1126,6 +1127,7 @@ interface MapScreenRendererProps {
   currentFogRegion: (Region & { width: number; height: number }) | undefined;
   handleSettingsPress: () => void;
   canStartCinematicAnimation?: boolean; // Control when cinematic animation can start
+  activeSkin: string | null; // Active skin ID for map tiles
   // workletMapRegion?: ReturnType<typeof useWorkletMapRegion>; // Available for future worklet integration
 }
 
@@ -1266,6 +1268,7 @@ const MapViewWithMarker = ({
   );
 };
 
+/* eslint-disable max-lines-per-function */
 const MapScreenRenderer = ({
   mapRef,
   currentLocation,
@@ -1280,6 +1283,7 @@ const MapScreenRenderer = ({
   currentFogRegion,
   handleSettingsPress,
   canStartCinematicAnimation = true, // New prop to control animation timing
+  activeSkin,
 }: MapScreenRendererProps) => {
   // Use the new cinematic zoom hook (must be before early return)
   const { initialRegion } = useCinematicZoom({
@@ -1329,6 +1333,15 @@ const MapScreenRenderer = ({
         onRegionChangeComplete={onRegionChangeComplete}
       />
 
+      {/* Skinned tile overlay (between map and fog) */}
+      {currentFogRegion && (
+        <SkinnedTileOverlay
+          mapRegion={currentFogRegion}
+          activeSkin={activeSkin}
+          safeAreaInsets={insets}
+        />
+      )}
+
       {/* Use OptimizedFogOverlay for better performance with many GPS points */}
       {currentFogRegion && (
         <OptimizedFogOverlay mapRegion={currentFogRegion} safeAreaInsets={insets} />
@@ -1349,6 +1362,7 @@ const MapScreenRenderer = ({
     </View>
   );
 };
+/* eslint-enable max-lines-per-function */
 
 // Custom hook for exploration state persistence
 const useExplorationStatePersistence = (explorationState: any) => {
@@ -1872,6 +1886,7 @@ const useMapScreenServices = (config: MapScreenServicesFullConfig) => {
 const useMapScreenReduxState = () => {
   const explorationState = useAppSelector((state) => state.exploration);
   const isTrackingPaused = useAppSelector((state) => state.exploration.isTrackingPaused);
+  const activeSkin = useAppSelector((state) => state.skin.activeSkin);
   const insets = useSafeAreaInsets();
 
   // DEBUG: Track currentLocation from Redux to identify GPS timing issues
@@ -1891,6 +1906,7 @@ const useMapScreenReduxState = () => {
     isTrackingPaused,
     insets,
     gpsInjectionStatus: explorationState.gpsInjectionStatus,
+    activeSkin,
   };
 };
 
@@ -1914,6 +1930,7 @@ const MapScreenUI: React.FC<{
   isSettingsModalVisible: boolean;
   setIsSettingsModalVisible: (visible: boolean) => void;
   canStartCinematicAnimation?: boolean; // Control when cinematic animation can start
+  activeSkin: string | null;
   gpsInjectionStatus: {
     isRunning: boolean;
     type: 'real-time' | 'historical' | null;
@@ -1938,6 +1955,7 @@ const MapScreenUI: React.FC<{
   isSettingsModalVisible,
   setIsSettingsModalVisible,
   canStartCinematicAnimation = true,
+  activeSkin,
   gpsInjectionStatus,
 }) => {
   return (
@@ -1956,6 +1974,7 @@ const MapScreenUI: React.FC<{
         currentFogRegion={currentFogRegion}
         handleSettingsPress={handleSettingsPress}
         canStartCinematicAnimation={canStartCinematicAnimation}
+        activeSkin={activeSkin}
         // workletMapRegion={workletMapRegion} // Available for future worklet integration
       />
 
@@ -2202,6 +2221,7 @@ const useMapScreenLogic = (
       handleSettingsPress: navigation.handleSettingsPress,
       isSettingsModalVisible: dataClearing.isSettingsModalVisible,
       setIsSettingsModalVisible: dataClearing.setIsSettingsModalVisible,
+      activeSkin: reduxState.activeSkin,
       gpsInjectionStatus: reduxState.gpsInjectionStatus,
     },
   };

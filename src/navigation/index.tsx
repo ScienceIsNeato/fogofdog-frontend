@@ -7,6 +7,7 @@ import { useAppSelector, useAppDispatch } from '../store/hooks';
 import { restorePersistedState } from '../store/slices/explorationSlice';
 import { AuthPersistenceService } from '../services/AuthPersistenceService';
 import { OnboardingService } from '../services/OnboardingService';
+import { SkinMetadataService } from '../services/SkinMetadataService';
 import { RootStackParamList, MainStackParamList } from '../types/navigation';
 import { OnboardingContext } from '../contexts/OnboardingContext';
 
@@ -50,6 +51,7 @@ interface InitializationHookResult {
   isFirstTimeUser: boolean;
 }
 
+/* eslint-disable max-lines-per-function */
 const useAppInitialization = (): InitializationHookResult => {
   const dispatch = useAppDispatch();
   const user = useAppSelector((state) => state.user);
@@ -114,6 +116,9 @@ const useAppInitialization = (): InitializationHookResult => {
           dispatch(restorePersistedState(convertedData));
         }
 
+        // Initialize skin metadata
+        await SkinMetadataService.initialize(dispatch);
+
         logger.info('First-time user detection completed', {
           component: 'Navigation',
           action: 'initializeApp',
@@ -140,6 +145,7 @@ const useAppInitialization = (): InitializationHookResult => {
 
   return { isInitializing, user, isFirstTimeUser };
 };
+/* eslint-enable max-lines-per-function */
 
 export default function Navigation() {
   const { isInitializing, isFirstTimeUser } = useAppInitialization();
