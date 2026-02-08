@@ -8,6 +8,7 @@ import { MapScreen } from '../index';
 import { OnboardingService } from '../../../services/OnboardingService';
 import userSlice from '../../../store/slices/userSlice';
 import explorationSlice from '../../../store/slices/explorationSlice';
+import skinReducer from '../../../store/slices/skinSlice';
 import { MainStackParamList } from '../../../types/navigation';
 
 // Mock the services and dependencies
@@ -73,6 +74,7 @@ const createTestStore = () => {
     reducer: {
       user: userSlice,
       exploration: explorationSlice,
+      skin: skinReducer,
     },
     preloadedState: {
       exploration: {

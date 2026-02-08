@@ -112,9 +112,7 @@ const useStreetNavigationSettings = () => {
       if (result.isOfflineFallback) {
         Alert.alert('Offline', 'Could not reach Overpass API. Using cached data if available.');
       }
-      dispatch(
-        loadStreetData({ segments: result.segments, intersections: result.intersections })
-      );
+      dispatch(loadStreetData({ segments: result.segments, intersections: result.intersections }));
       Alert.alert(
         'Real Streets Loaded',
         `Loaded ${result.segments.length} segments from Overpass API.`

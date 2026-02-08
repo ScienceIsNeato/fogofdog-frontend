@@ -1,0 +1,8 @@
+[run]
+omit =
+    scripts/minify_repo.py
+    */test_*.py
+    slop-mop/*
+    .claude/*
+    */node_modules/*
+    */__pycache__/*

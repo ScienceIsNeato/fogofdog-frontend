@@ -5,9 +5,10 @@ import { ClearType, DataStats } from '../types/dataClear';
 import { SettingsMainView } from './UnifiedSettingsModal/SettingsMainView';
 import { SettingsHistoryView } from './UnifiedSettingsModal/SettingsHistoryView';
 import { SettingsDeveloperView } from './UnifiedSettingsModal/SettingsDeveloperView';
+import { SettingsSkinView } from './UnifiedSettingsModal/SettingsSkinView';
 import { useSettingsHandlers } from './UnifiedSettingsModal/useSettingsHandlers';
 
-type SettingsView = 'main' | 'history' | 'developer';
+type SettingsView = 'main' | 'history' | 'developer' | 'skin';
 
 interface UnifiedSettingsModalProps {
   visible: boolean;
@@ -41,6 +42,7 @@ const UnifiedSettingsModal: React.FC<UnifiedSettingsModalProps> = ({
     handleUserProfile,
     handleHistoryManagement,
     handleDeveloperSettings,
+    handleMapStyle,
   } = useSettingsHandlers(onClose, setCurrentView);
 
   if (!visible) return null;
@@ -58,9 +60,14 @@ const UnifiedSettingsModal: React.FC<UnifiedSettingsModalProps> = ({
           onUserProfile={handleUserProfile}
           onHistoryManagement={handleHistoryManagement}
           onDeveloperSettings={handleDeveloperSettings}
+          onMapStyle={handleMapStyle}
           styles={styles}
         />
       );
+    }
+
+    if (currentView === 'skin') {
+      return <SettingsSkinView onBack={handleBackToMain} styles={styles} />;
     }
 
     if (currentView === 'history') {

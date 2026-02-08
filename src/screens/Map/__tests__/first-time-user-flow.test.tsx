@@ -22,6 +22,7 @@ import explorationReducer from '../../../store/slices/explorationSlice';
 import userReducer from '../../../store/slices/userSlice';
 import statsReducer from '../../../store/slices/statsSlice';
 import streetReducer from '../../../store/slices/streetSlice';
+import skinReducer from '../../../store/slices/skinSlice';
 import type { RootState } from '../../../store';
 import * as Location from 'expo-location';
 
@@ -197,6 +198,7 @@ const createEmptyStore = (): Store<RootState> =>
       user: userReducer,
       stats: statsReducer,
       street: streetReducer,
+      skin: skinReducer,
     },
     preloadedState: {
       exploration: {

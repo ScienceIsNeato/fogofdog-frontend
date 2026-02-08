@@ -33,6 +33,7 @@ import MapView, { Marker, Region } from 'react-native-maps';
 import * as Location from 'expo-location';
 import * as TaskManager from 'expo-task-manager';
 import OptimizedFogOverlay from '../../components/OptimizedFogOverlay';
+import SkinTileOverlay from '../../components/SkinTileOverlay';
 import LocationButton from '../../components/LocationButton';
 
 import { PermissionAlert } from '../../components/PermissionAlert';
@@ -1230,6 +1231,7 @@ const MapViewWithMarker = ({
   onPanDrag: () => void;
   onRegionChangeComplete: (region: Region) => void;
 }) => {
+  const activeSkin = useAppSelector((state) => state.skin.activeSkin);
   const adjustedCoordinate = currentLocation
     ? calculateAdjustedMarkerCoordinate(
         currentLocation,
@@ -1252,6 +1254,7 @@ const MapViewWithMarker = ({
       rotateEnabled={false}
       pitchEnabled={false}
     >
+      {activeSkin !== 'none' && <SkinTileOverlay />}
       {currentLocation && adjustedCoordinate && (
         <Marker
           key={`current-location-marker`}

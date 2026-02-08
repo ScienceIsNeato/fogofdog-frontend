@@ -2,6 +2,7 @@ import { configureStore } from '@reduxjs/toolkit';
 import userReducer from '../store/slices/userSlice';
 import explorationReducer from '../store/slices/explorationSlice';
 import statsReducer from '../store/slices/statsSlice';
+import skinReducer from '../store/slices/skinSlice';
 
 // Shared mock navigation object
 export const mockNavigation = {
@@ -82,6 +83,7 @@ export const createMockStore = (userState: any = null) => {
       user: userReducer,
       exploration: explorationReducer,
       stats: statsReducer,
+      skin: skinReducer,
     },
     preloadedState: {
       user: {
@@ -107,6 +109,7 @@ export const createMockStoreWithUser = (
       user: userReducer,
       exploration: explorationReducer,
       stats: statsReducer,
+      skin: skinReducer,
     },
     preloadedState: {
       user: {

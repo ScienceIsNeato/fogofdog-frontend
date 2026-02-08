@@ -8,6 +8,7 @@ import { OnboardingService } from '../../services/OnboardingService';
 import { AuthPersistenceService } from '../../services/AuthPersistenceService';
 import userReducer from '../../store/slices/userSlice';
 import explorationReducer from '../../store/slices/explorationSlice';
+import skinReducer from '../../store/slices/skinSlice';
 
 // Mock navigation dependencies
 jest.mock('@react-navigation/native', () => ({
@@ -50,6 +51,7 @@ describe('Navigation', () => {
       reducer: {
         user: userReducer,
         exploration: explorationReducer,
+        skin: skinReducer,
       },
     });
 
@@ -211,6 +213,7 @@ describe('LoadingScreen', () => {
       reducer: {
         user: userReducer,
         exploration: explorationReducer,
+        skin: skinReducer,
       },
     });
 

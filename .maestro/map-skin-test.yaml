@@ -1,0 +1,145 @@
+appId: com.fogofdog.app
+---
+# Map Skin E2E Test
+# Validates the full skin selection workflow:
+#   1. Login and explore
+#   2. Open settings → Map Style
+#   3. Select Cartoon skin
+#   4. Return to map and continue exploring
+#   5. Assert cartoon skin overlay is active
+
+# Start at SF GPS test location
+- setLocation:
+    latitude: 37.78825
+    longitude: -122.4324
+
+# Launch fresh
+- launchApp:
+    appId: com.fogofdog.app
+    clearState: true
+- waitForAnimationToEnd:
+    timeout: 1000
+
+# Handle onboarding if present
+- runFlow:
+    file: shared/handle-onboarding.yaml
+
+# Sign in
+- assertVisible:
+    id: 'signInButton'
+- tapOn:
+    id: 'signInButton'
+
+# Grant location permission if requested
+- runFlow:
+    when:
+      visible: 'Allow'
+    commands:
+      - tapOn: 'Allow While Using App'
+
+# Verify map loaded
+- waitForAnimationToEnd:
+    timeout: 3000
+- assertVisible:
+    id: 'map-screen'
+
+# Initial exploration - move around SF
+- tapOn:
+    id: 'location-button'
+- waitForAnimationToEnd:
+    timeout: 500
+- setLocation:
+    latitude: 37.78925
+    longitude: -122.4324
+- waitForAnimationToEnd:
+    timeout: 800
+- setLocation:
+    latitude: 37.79025
+    longitude: -122.4314
+- waitForAnimationToEnd:
+    timeout: 800
+
+# Open settings
+- tapOn:
+    id: 'settings-button'
+- waitForAnimationToEnd:
+    timeout: 1000
+
+# Navigate to Map Style
+- assertVisible:
+    id: 'map-style-button'
+- tapOn:
+    id: 'map-style-button'
+- waitForAnimationToEnd:
+    timeout: 500
+
+# Verify skin selection screen
+- assertVisible:
+    text: 'Map Style'
+- assertVisible:
+    text: 'Standard'
+- assertVisible:
+    text: 'Cartoon'
+
+# Select Cartoon skin
+- tapOn:
+    id: 'skin-option-cartoon'
+- waitForAnimationToEnd:
+    timeout: 2000
+
+# Go back to settings main
+- tapOn:
+    id: 'back-button'
+- waitForAnimationToEnd:
+    timeout: 500
+
+# Close settings
+- tapOn:
+    id: 'close-button'
+- waitForAnimationToEnd:
+    timeout: 1000
+
+# Verify map is still visible with cartoon skin active
+- assertVisible:
+    id: 'map-screen'
+
+# Continue exploration with cartoon skin active
+- setLocation:
+    latitude: 37.79125
+    longitude: -122.4304
+- waitForAnimationToEnd:
+    timeout: 800
+- tapOn:
+    id: 'location-button'
+- waitForAnimationToEnd:
+    timeout: 500
+- setLocation:
+    latitude: 37.79225
+    longitude: -122.4294
+- waitForAnimationToEnd:
+    timeout: 800
+
+# Re-open settings to verify cartoon skin is still selected
+- tapOn:
+    id: 'settings-button'
+- waitForAnimationToEnd:
+    timeout: 1000
+- tapOn:
+    id: 'map-style-button'
+- waitForAnimationToEnd:
+    timeout: 500
+- assertVisible:
+    id: 'skin-option-cartoon'
+
+# Skin selection persists across settings open/close
+- tapOn:
+    id: 'back-button'
+- waitForAnimationToEnd:
+    timeout: 500
+- tapOn:
+    id: 'close-button'
+- waitForAnimationToEnd:
+    timeout: 500
+- assertVisible:
+    id: 'map-screen'
+# Map skin workflow complete

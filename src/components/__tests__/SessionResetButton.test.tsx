@@ -7,6 +7,7 @@ import { SessionResetButton } from '../SessionResetButton';
 import explorationSlice from '../../store/slices/explorationSlice';
 import userSlice from '../../store/slices/userSlice';
 import statsSlice from '../../store/slices/statsSlice';
+import skinReducer from '../../store/slices/skinSlice';
 
 // Mock Alert
 jest.spyOn(Alert, 'alert');
@@ -20,6 +21,7 @@ describe('SessionResetButton', () => {
         exploration: explorationSlice,
         user: userSlice,
         stats: statsSlice,
+        skin: skinReducer,
       },
     });
 

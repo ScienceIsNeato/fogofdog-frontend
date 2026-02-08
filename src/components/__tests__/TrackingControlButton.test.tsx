@@ -6,6 +6,7 @@ import { TrackingControlButton } from '../TrackingControlButton';
 import explorationSlice from '../../store/slices/explorationSlice';
 import userSlice from '../../store/slices/userSlice';
 import statsSlice from '../../store/slices/statsSlice';
+import skinReducer from '../../store/slices/skinSlice';
 
 describe('TrackingControlButton', () => {
   let store: any;
@@ -16,6 +17,7 @@ describe('TrackingControlButton', () => {
         exploration: explorationSlice,
         user: userSlice,
         stats: statsSlice,
+        skin: skinReducer,
       },
     });
   });

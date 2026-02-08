@@ -2,8 +2,8 @@
   "version": "1.0",
   "default_profile": "pr",
   "python": {
-    "enabled": false,
-    "include_dirs": [],
+    "enabled": true,
+    "include_dirs": ["scripts"],
     "exclude_dirs": [],
     "gates": {
       "lint-format": {

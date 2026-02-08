@@ -2,7 +2,7 @@ import { Alert } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { logger } from '../../utils/logger';
 
-type SettingsView = 'main' | 'history' | 'developer';
+type SettingsView = 'main' | 'history' | 'developer' | 'skin';
 
 export const useSettingsHandlers = (
   onClose: () => void,
@@ -42,11 +42,21 @@ export const useSettingsHandlers = (
     setCurrentView('developer');
   };
 
+  const handleMapStyle = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    logger.info('Navigating to map style submenu', {
+      component: 'UnifiedSettingsModal',
+      action: 'handleMapStyle',
+    });
+    setCurrentView('skin');
+  };
+
   return {
     handleClose,
     handleBackToMain,
     handleUserProfile,
     handleHistoryManagement,
     handleDeveloperSettings,
+    handleMapStyle,
   };
 };

@@ -170,11 +170,11 @@ directly — no singleton involved.
 
 New "Street Navigation" section after the Performance Testing panel:
 
-| Control                    | testID                     | Behaviour                                                      |
-| -------------------------- | -------------------------- | -------------------------------------------------------------- |
-| Prefer Streets toggle      | `prefer-streets-toggle`    | dispatches `setPreferStreets`                                  |
-| Prefer Unexplored toggle   | `prefer-unexplored-toggle` | dispatches `setPreferUnexplored`                               |
-| Load Sample Streets button | `load-sample-streets`      | loads the static 3×3 grid                                      |
+| Control                    | testID                     | Behaviour                                                             |
+| -------------------------- | -------------------------- | --------------------------------------------------------------------- |
+| Prefer Streets toggle      | `prefer-streets-toggle`    | dispatches `setPreferStreets`                                         |
+| Prefer Unexplored toggle   | `prefer-unexplored-toggle` | dispatches `setPreferUnexplored`                                      |
+| Load Sample Streets button | `load-sample-streets`      | loads the static 3×3 grid                                             |
 | Info text                  | `street-info-loaded`       | shows _"${segmentCount} segments loaded · ${exploredCount} explored"_ |
 
 ---

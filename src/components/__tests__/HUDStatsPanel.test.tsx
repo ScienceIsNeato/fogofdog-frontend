@@ -7,6 +7,7 @@ import userReducer from '../../store/slices/userSlice';
 import explorationReducer from '../../store/slices/explorationSlice';
 import { STATS_LABELS } from '../../config/statsLabels';
 import statsReducer, { updateSessionTimer } from '../../store/slices/statsSlice';
+import skinReducer from '../../store/slices/skinSlice';
 
 // Mock timers
 jest.useFakeTimers();
@@ -18,6 +19,7 @@ const createMockStoreWithStats = (statsState: any) => {
       user: userReducer,
       exploration: explorationReducer,
       stats: statsReducer,
+      skin: skinReducer,
     },
     preloadedState: {
       user: { user: null, isLoading: false, error: null },
