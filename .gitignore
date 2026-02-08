@@ -98,4 +98,4 @@ cursor-rules/
 metro.log
 nohup.out
 
-build/
+build/.venv/
