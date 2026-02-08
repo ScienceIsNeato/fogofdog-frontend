@@ -10,7 +10,7 @@
  *   y = tile row (north=0, increases south)
  */
 
-import type { Region } from 'react-native-maps';
+import type { MapRegion } from '../types/map';
 
 export interface TileCoord {
   z: number;
@@ -70,7 +70,7 @@ export function tileToBounds(x: number, y: number, z: number): TileBounds {
  * by returning an empty array — FogOfDog operates in continental US so this
  * is a defensive measure, not a user-facing limitation.
  */
-export function getVisibleTiles(region: Region, zoom: number): TileCoord[] {
+export function getVisibleTiles(region: MapRegion, zoom: number): TileCoord[] {
   const z = Math.floor(zoom);
   const northLat = region.latitude + region.latitudeDelta / 2;
   const southLat = region.latitude - region.latitudeDelta / 2;
@@ -100,7 +100,7 @@ export function getVisibleTiles(region: Region, zoom: number): TileCoord[] {
  */
 export function tileToScreenRect(
   tile: TileCoord,
-  region: Region & { width: number; height: number }
+  region: MapRegion & { width: number; height: number }
 ): { x: number; y: number; width: number; height: number } {
   const bounds = tileToBounds(tile.x, tile.y, tile.z);
 

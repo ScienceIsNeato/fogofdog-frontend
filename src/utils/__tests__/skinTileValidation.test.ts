@@ -1,102 +1,91 @@
 /**
- * Skin tile validation tests
+ * Skin style validation tests
  *
  * Validates that:
- * 1. Generated cartoon tiles exist
- * 2. Cartoon tiles are visually distinct from their originals
- *    (automated image comparison confirms tiles differ)
+ * 1. MapLibre style JSON files exist and are parseable
+ * 2. Style JSON files conform to the MapLibre Style Spec basics
+ * 3. SkinStyleService returns valid styles for known skin IDs
  */
 
 import * as fs from 'fs';
 import * as path from 'path';
+import { getSkinStyle, getAvailableSkinIds } from '../../services/SkinStyleService';
 
-// Key tile to validate - the center tile for SF test area at zoom 14
-const RAW_TILE_PATH = path.resolve(__dirname, '../../../assets/skins/_raw_tiles/14/2619/6331.png');
-const CARTOON_TILE_PATH = path.resolve(__dirname, '../../../assets/skins/cartoon/14/2619/6331.png');
+const SKINS_DIR = path.resolve(__dirname, '../../../assets/skins');
 
-// Simple PNG pixel extraction (reads raw bytes from PNG IDAT chunks)
-// For testing purposes we compare file sizes and raw bytes as a proxy
-// for visual difference without needing heavy image libraries in tests
-function getFileStats(filePath: string): { size: number; exists: boolean } {
-  try {
-    const stat = fs.statSync(filePath);
-    return { size: stat.size, exists: true };
-  } catch {
-    return { size: 0, exists: false };
-  }
-}
+describe('Skin style validation', () => {
+  describe('style JSON files', () => {
+    const expectedStyles = ['cartoon.json', 'standard.json'];
 
-function readPngPixelSample(filePath: string, offset: number, length: number): Buffer {
-  // Read a sample of bytes from the PNG file (post-header data)
-  const buffer = fs.readFileSync(filePath);
-  return buffer.subarray(offset, offset + length);
-}
+    it.each(expectedStyles)('%s exists and is valid JSON', (filename) => {
+      const filePath = path.join(SKINS_DIR, filename);
+      expect(fs.existsSync(filePath)).toBe(true);
 
-describe('Skin tile generation validation', () => {
-  it('raw source tile exists', () => {
-    const stats = getFileStats(RAW_TILE_PATH);
-    expect(stats.exists).toBe(true);
-    expect(stats.size).toBeGreaterThan(0);
-  });
+      const raw = fs.readFileSync(filePath, 'utf-8');
+      const style = JSON.parse(raw);
+      expect(style).toBeDefined();
+    });
 
-  it('cartoon tile exists', () => {
-    const stats = getFileStats(CARTOON_TILE_PATH);
-    expect(stats.exists).toBe(true);
-    expect(stats.size).toBeGreaterThan(0);
-  });
+    it.each(expectedStyles)('%s has required MapLibre style spec fields', (filename) => {
+      const filePath = path.join(SKINS_DIR, filename);
+      const style = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
 
-  it('cartoon tile is visually distinct from raw tile (file content differs)', () => {
-    const rawStats = getFileStats(RAW_TILE_PATH);
-    const cartoonStats = getFileStats(CARTOON_TILE_PATH);
+      // Required top-level fields per MapLibre Style Spec
+      expect(style).toHaveProperty('version', 8);
+      expect(style).toHaveProperty('sources');
+      expect(style).toHaveProperty('layers');
+      expect(Array.isArray(style.layers)).toBe(true);
+      expect(style.layers.length).toBeGreaterThan(0);
+    });
 
-    expect(rawStats.exists).toBe(true);
-    expect(cartoonStats.exists).toBe(true);
+    it.each(expectedStyles)('%s defines at least one tile source', (filename) => {
+      const filePath = path.join(SKINS_DIR, filename);
+      const style = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
 
-    // PNG files with different visual content will have different byte sequences
-    // Read samples from multiple positions to detect differences
-    const sampleSize = 200;
-    const positions = [100, 500, 2000, 5000, 10000];
-    let differenceFound = false;
+      const sourceKeys = Object.keys(style.sources);
+      expect(sourceKeys.length).toBeGreaterThan(0);
 
-    for (const pos of positions) {
-      const rawSample = readPngPixelSample(RAW_TILE_PATH, pos, sampleSize);
-      const cartoonSample = readPngPixelSample(CARTOON_TILE_PATH, pos, sampleSize);
-
-      if (!rawSample.equals(cartoonSample)) {
-        differenceFound = true;
-        break;
+      // Each source should have a type
+      for (const key of sourceKeys) {
+        expect(style.sources[key]).toHaveProperty('type');
       }
-    }
+    });
 
-    expect(differenceFound).toBe(true);
+    it('cartoon style is visually distinct from standard style', () => {
+      const cartoon = JSON.parse(fs.readFileSync(path.join(SKINS_DIR, 'cartoon.json'), 'utf-8'));
+      const standard = JSON.parse(fs.readFileSync(path.join(SKINS_DIR, 'standard.json'), 'utf-8'));
+
+      // Styles should have different layer paint properties
+      const cartoonStr = JSON.stringify(cartoon.layers);
+      const standardStr = JSON.stringify(standard.layers);
+      expect(cartoonStr).not.toEqual(standardStr);
+    });
   });
 
-  it('cartoon tile has valid PNG header', () => {
-    const buffer = fs.readFileSync(CARTOON_TILE_PATH);
-    // PNG magic bytes: 89 50 4E 47 0D 0A 1A 0A
-    const pngMagic = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
-    expect(buffer.subarray(0, 8)).toEqual(pngMagic);
-  });
+  describe('SkinStyleService', () => {
+    it('returns available skin IDs', () => {
+      const ids = getAvailableSkinIds();
+      expect(ids.length).toBeGreaterThan(0);
+      expect(ids).toContain('cartoon');
+      expect(ids).toContain('none'); // 'none' maps to standard style
+    });
 
-  it('all zoom 14 cartoon tiles exist for SF test area', () => {
-    const expectedTiles = [
-      '14/2618/6330',
-      '14/2618/6331',
-      '14/2618/6332',
-      '14/2619/6330',
-      '14/2619/6331',
-      '14/2619/6332',
-      '14/2620/6330',
-      '14/2620/6331',
-      '14/2620/6332',
-    ];
+    it('returns a style object for each available skin', () => {
+      const ids = getAvailableSkinIds();
 
-    for (const tile of expectedTiles) {
-      const [z, x, y] = tile.split('/');
-      const tilePath = path.resolve(__dirname, `../../../assets/skins/cartoon/${z}/${x}/${y}.png`);
-      const stats = getFileStats(tilePath);
-      expect(stats.exists).toBe(true);
-      expect(stats.size).toBeGreaterThan(100); // Valid PNG
-    }
+      for (const id of ids) {
+        const style = getSkinStyle(id);
+        expect(style).toBeDefined();
+        expect(style).toHaveProperty('version', 8);
+        expect(style).toHaveProperty('sources');
+        expect(style).toHaveProperty('layers');
+      }
+    });
+
+    it('returns a fallback style for unknown skin IDs', () => {
+      const style = getSkinStyle('nonexistent-skin' as any);
+      expect(style).toBeDefined();
+      expect(style).toHaveProperty('version', 8);
+    });
   });
 });

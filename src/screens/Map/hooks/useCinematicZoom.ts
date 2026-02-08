@@ -3,16 +3,30 @@ import { useAppSelector } from '../../../store/hooks';
 import { calculateExplorationBounds } from '../index';
 import { logger } from '../../../utils/logger';
 
-// Module loaded successfully
-
-import type { Region } from 'react-native-maps';
-import type MapView from 'react-native-maps';
+import type { CameraRef } from '@maplibre/maplibre-react-native';
+import type { MapRegion } from '../../../types/map';
+import { regionToZoomLevel } from '../../../types/map';
 import type { GeoPoint } from '../../../types/user';
 
-// Type-safe interface for MapView with cinematic zoom tracking
-interface MapViewWithCinematicState extends MapView {
-  _cinematicZoomActive?: boolean;
-}
+/**
+ * Animate the map camera to a region (center + deltas).
+ * Local helper bridging MapRegion → MapLibre Camera API.
+ */
+const animateMapToRegion = (
+  cameraRef: React.RefObject<CameraRef>,
+  region: MapRegion,
+  duration: number = 300
+) => {
+  cameraRef.current?.setCamera({
+    centerCoordinate: [region.longitude, region.latitude],
+    zoomLevel: regionToZoomLevel(region),
+    animationDuration: duration,
+    animationMode: 'easeTo',
+  });
+};
+
+// cinematicZoomActiveRef is passed from parent to track cinematic zoom state
+// without monkey-patching the map ref object.
 
 // Animation constants for cinematic zoom
 const CINEMATIC_ZOOM_DELAY = 50; // ms to show wide view - minimal delay
@@ -24,7 +38,8 @@ const DEFAULT_ZOOM_DELTAS = {
 };
 
 interface UseCinematicZoomProps {
-  mapRef: React.RefObject<MapView>;
+  mapRef: React.RefObject<CameraRef>;
+  cinematicZoomActiveRef: React.MutableRefObject<boolean>;
   currentLocation: GeoPoint | null;
   canStartAnimation?: boolean; // Only start animation when onboarding + permissions complete
 }
@@ -150,7 +165,7 @@ const calculatePathDistance = (pathSegment: GeoPoint[]): number => {
 const calculateCinematicStartPoint = (
   explorationPath: GeoPoint[],
   currentLocation: GeoPoint
-): { startRegion: Region; pathDistance: number } => {
+): { startRegion: MapRegion; pathDistance: number } => {
   // Extract recent path segment (max 1km, max 100 points)
   const pathSegment = extractRecentPathSegment(explorationPath, currentLocation);
 
@@ -240,7 +255,7 @@ const calculateCinematicStartRegion = (
   explorationPath: GeoPoint[],
   currentLocation: GeoPoint,
   fixedRandomSeed?: number
-): Region => {
+): MapRegion => {
   const { startRegion, pathDistance } = calculateCinematicStartPoint(
     explorationPath,
     currentLocation
@@ -297,14 +312,13 @@ const calculateCinematicStartRegion = (
  * Map rendering delayed until animation starts to eliminate visible positioning jump
  */
 const startCinematicPanAnimation = (
-  mapRef: React.RefObject<MapView>,
+  mapRef: React.RefObject<CameraRef>,
+  cinematicZoomActiveRef: React.MutableRefObject<boolean>,
   explorationPath: GeoPoint[],
   currentLocation: GeoPoint
 ) => {
   // Set the cinematic zoom active flag
-  if (mapRef.current) {
-    (mapRef.current as MapViewWithCinematicState)._cinematicZoomActive = true;
-  }
+  cinematicZoomActiveRef.current = true;
 
   // Use shared calculation for consistent positioning
   const cinematicStartRegion = calculateCinematicStartRegion(explorationPath, currentLocation);
@@ -335,13 +349,11 @@ const startCinematicPanAnimation = (
 
   // Single smooth cinematic animation - map rendering delayed until animation starts
   // This eliminates the "jerk" since user never sees the jump to start position
-  mapRef.current?.animateToRegion(cinematicStartRegion, 0); // Instant positioning at start
+  animateMapToRegion(mapRef, cinematicStartRegion, 0); // Instant positioning at start
 
   // Single smooth animation from cinematic start to current location
   setTimeout(() => {
-    if (mapRef.current) {
-      mapRef.current.animateToRegion(endRegion, CINEMATIC_ZOOM_DURATION);
-    }
+    animateMapToRegion(mapRef, endRegion, CINEMATIC_ZOOM_DURATION);
   }, 50); // Tiny delay to ensure initial positioning
 
   logger.debug('Cinematic pan animation executing', {
@@ -352,10 +364,8 @@ const startCinematicPanAnimation = (
 
   // Clear the cinematic zoom flag after animation completes
   setTimeout(() => {
-    if (mapRef.current) {
-      (mapRef.current as MapViewWithCinematicState)._cinematicZoomActive = false;
-      logger.debug('Cinematic animation completed', { component: 'useCinematicZoom' });
-    }
+    cinematicZoomActiveRef.current = false;
+    logger.debug('Cinematic animation completed', { component: 'useCinematicZoom' });
   }, CINEMATIC_ZOOM_DURATION + 100); // Small buffer to ensure animation completes
 };
 
@@ -377,6 +387,7 @@ const shouldShowCinematicZoom = (
 // eslint-disable-next-line max-lines-per-function
 export const useCinematicZoom = ({
   mapRef,
+  cinematicZoomActiveRef,
   currentLocation,
   canStartAnimation = true,
 }: UseCinematicZoomProps) => {
@@ -436,7 +447,7 @@ export const useCinematicZoom = ({
       lastAnimationLocation.current = currentLocation;
 
       // Set a flag to prevent other animations during cinematic zoom
-      (mapRef.current as MapViewWithCinematicState)._cinematicZoomActive = true;
+      cinematicZoomActiveRef.current = true;
       logger.debug('Animation lock enabled', { component: 'useCinematicZoom' });
 
       logger.debug('Cinematic zoom animation configured', {
@@ -448,7 +459,12 @@ export const useCinematicZoom = ({
       let innerTimeoutId: ReturnType<typeof setTimeout> | null = null;
       const timeoutId = setTimeout(() => {
         // Start the cinematic pan animation
-        startCinematicPanAnimation(mapRef, explorationPath, currentLocation);
+        startCinematicPanAnimation(
+          mapRef,
+          cinematicZoomActiveRef,
+          explorationPath,
+          currentLocation
+        );
 
         logger.debug('Cinematic animation sequence initiated', {
           component: 'useCinematicZoom',
@@ -474,7 +490,7 @@ export const useCinematicZoom = ({
   }, [canStartAnimation, currentLocation, explorationPath, gpsInjectionStatus.isRunning, mapRef]); // Include all dependencies
 
   // Create initial region - use cinematic start position to eliminate jump
-  const initialRegion: Region | null = useMemo(() => {
+  const initialRegion: MapRegion | null = useMemo(() => {
     logger.info('🎬 CINEMATIC_DEBUG: Computing initial region', {
       component: 'useCinematicZoom',
       hasCurrentLocation: !!currentLocation,

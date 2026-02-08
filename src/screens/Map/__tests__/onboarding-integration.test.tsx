@@ -31,8 +31,8 @@ jest.mock('expo-location', () => ({
   }),
 }));
 
-// Mock react-native-maps
-jest.mock('react-native-maps', () => {
+// Mock @maplibre/maplibre-react-native
+jest.mock('@maplibre/maplibre-react-native', () => {
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   const React = require('react');
   // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -42,14 +42,26 @@ jest.mock('react-native-maps', () => {
   ));
   MockMapView.displayName = 'MockMapView';
 
-  const MockMarker = (props: any) => <View testID="mock-marker" {...props} />;
-  MockMarker.displayName = 'MockMarker';
+  const MockCamera = React.forwardRef((_props: any, ref: any) => {
+    React.useImperativeHandle(ref, () => ({
+      setCamera: jest.fn(),
+      moveTo: jest.fn(),
+      zoomTo: jest.fn(),
+      flyTo: jest.fn(),
+    }));
+    return <View ref={ref} testID="mock-camera" />;
+  });
+  MockCamera.displayName = 'MockCamera';
 
-  MockMapView.Marker = MockMarker;
+  const MockMarkerView = (props: any) => <View testID="mock-marker-view" {...props} />;
+  MockMarkerView.displayName = 'MockMarkerView';
+
   return {
     __esModule: true,
-    default: MockMapView,
-    Marker: MockMapView.Marker,
+    default: { MapView: MockMapView },
+    MapView: MockMapView,
+    Camera: MockCamera,
+    MarkerView: MockMarkerView,
   };
 });
 

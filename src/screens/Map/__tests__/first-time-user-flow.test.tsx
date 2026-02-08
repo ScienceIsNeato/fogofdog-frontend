@@ -29,19 +29,21 @@ import * as Location from 'expo-location';
 // ---------------------------------------------------------------------------
 // Stable mock references — names must start with "mock" for jest hoisting.
 // ---------------------------------------------------------------------------
-const mockAnimateToRegion = jest.fn();
+const mockSetCamera = jest.fn();
 
 /**
- * Count only cinematic-sequence animateToRegion calls.
+ * Count only cinematic-sequence setCamera calls.
  * startCinematicPanAnimation makes exactly two calls:
- *   1. Instant snap  — duration 0
- *   2. Smooth pan    — duration CINEMATIC_ZOOM_DURATION (5000)
+ *   1. Instant snap  — animationDuration 0
+ *   2. Smooth pan    — animationDuration CINEMATIC_ZOOM_DURATION (5000)
  * Other code paths (e.g. centerMapOnLocation) use duration 500 or 300.
- * Filtering by duration isolates the cinematic sequence from unrelated centering.
+ * Filtering by animationDuration isolates the cinematic sequence from unrelated centering.
  */
 const getCinematicCallCount = () =>
-  mockAnimateToRegion.mock.calls.filter((args: unknown[]) => args[1] === 0 || args[1] === 5000)
-    .length;
+  mockSetCamera.mock.calls.filter(
+    (args: unknown[]) =>
+      (args[0] as any)?.animationDuration === 0 || (args[0] as any)?.animationDuration === 5000
+  ).length;
 const mockOnboardingCallbacks: { onComplete: (() => void) | null } = { onComplete: null };
 const mockGetOnboardingContext = jest.fn(() => ({ isFirstTimeUser: false }));
 
@@ -91,35 +93,41 @@ jest.mock('expo-location', () => ({
   Accuracy: { High: 1, Balanced: 2, LowPower: 3, Lowest: 4 },
 }));
 
-jest.mock('react-native-maps', () => {
+jest.mock('@maplibre/maplibre-react-native', () => {
   const React = jest.requireActual<typeof import('react')>('react');
   const { View } = jest.requireActual<typeof import('react-native')>('react-native');
 
   const MockMapView = React.forwardRef((props: any, ref: any) => {
-    React.useImperativeHandle(ref, () => ({
-      animateToRegion: mockAnimateToRegion,
-      getCamera: jest.fn(() =>
-        Promise.resolve({
-          center: { latitude: 0, longitude: 0 },
-          pitch: 0,
-          heading: 0,
-          altitude: 1000,
-          zoom: 10,
-        })
-      ),
-    }));
+    React.useImperativeHandle(ref, () => ({}));
     return React.createElement(View, { testID: 'mock-map-view' }, props.children);
   });
   MockMapView.displayName = 'MockMapView';
 
-  const MockMarker = (props: any) =>
+  const MockCamera = React.forwardRef((_props: any, ref: any) => {
+    React.useImperativeHandle(ref, () => ({
+      setCamera: mockSetCamera,
+      moveTo: jest.fn(),
+      zoomTo: jest.fn(),
+      flyTo: jest.fn(),
+    }));
+    return React.createElement(View, { testID: 'mock-camera' });
+  });
+  MockCamera.displayName = 'MockCamera';
+
+  const MockMarkerView = (props: any) =>
     React.createElement(jest.requireActual<typeof import('react-native')>('react-native').View, {
-      testID: 'mock-marker',
+      testID: 'mock-marker-view',
       ...props,
     });
-  MockMarker.displayName = 'MockMarker';
+  MockMarkerView.displayName = 'MockMarkerView';
 
-  return { __esModule: true, default: MockMapView, Marker: MockMarker };
+  return {
+    __esModule: true,
+    default: { MapView: MockMapView },
+    MapView: MockMapView,
+    Camera: MockCamera,
+    MarkerView: MockMarkerView,
+  };
 });
 
 jest.mock('../../../components/OptimizedFogOverlay', () => {
@@ -266,7 +274,7 @@ describe('First-time user flow — regression tests for PR #34 bug fixes', () =>
     // warns because its auto-mock returns undefined for every method.
     (global as any).expectConsoleWarnings = true;
 
-    mockAnimateToRegion.mockClear();
+    mockSetCamera.mockClear();
     mockOnboardingCallbacks.onComplete = null;
 
     // Default baseline: returning user, GPS works, permissions granted.
@@ -390,7 +398,7 @@ describe('First-time user flow — regression tests for PR #34 bug fixes', () =>
   // Bug 3: Single cinematic animation — no duplicate useEffect
   // -------------------------------------------------------------------------
   describe('Bug 3 — cinematic animation fires exactly once', () => {
-    it('calls animateToRegion exactly twice: instant snap then smooth pan', async () => {
+    it('calls setCamera exactly twice: instant snap then smooth pan', async () => {
       const store = createEmptyStore();
       await renderMapScreen(store);
 

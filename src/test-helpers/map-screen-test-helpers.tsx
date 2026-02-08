@@ -124,13 +124,15 @@ export const mockExpoLocation = () => {
   }));
 };
 
-// React Native Maps mock
+// MapLibre mock
 export const mockMapView = () => {
-  jest.doMock('react-native-maps', () => ({
-    default: 'MapView',
-    Marker: 'Marker',
-    Circle: 'Circle',
-    Polyline: 'Polyline',
+  jest.doMock('@maplibre/maplibre-react-native', () => ({
+    default: 'MapLibreGL',
+    MapView: 'MapView',
+    Camera: 'Camera',
+    MarkerView: 'MarkerView',
+    ShapeSource: 'ShapeSource',
+    LineLayer: 'LineLayer',
   }));
 };
 

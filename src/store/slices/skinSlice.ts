@@ -1,19 +1,19 @@
 /**
  * Skin Slice
  *
- * Manages the active map skin state. A "skin" replaces the standard Google Maps
- * view with a custom visual style (e.g. cartoon, illustrated) rendered via tile overlays.
+ * Manages the active map skin state. A "skin" applies a MapLibre GL style JSON
+ * that fully controls the map's visual appearance (colors, line widths, labels).
  *
- * When no skin is active ('none'), the default Google Maps view is shown through fog holes.
- * When a skin is active, pre-generated styled tiles are rendered instead.
+ * When no skin is active ('none'), a standard OSM-like style is used.
+ * When a skin is active, a custom style JSON is applied for the chosen aesthetic.
  */
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 import { logger } from '../../utils/logger';
 
 /**
  * Available skin identifiers.
- * 'none' = standard Google Maps (default)
- * 'cartoon' = flat-color cartoon style with simplified road structure
+ * 'none' = standard map style (default)
+ * 'cartoon' = flat-color cartoon style with bold outlines
  *
  * Extend this union type when adding new skins.
  */
@@ -21,14 +21,14 @@ export type SkinId = 'none' | 'cartoon';
 
 /**
  * Metadata for a single skin variant.
- * Designed to scale — future skins may be downloaded on-demand
- * or fetched from a remote API.
+ * Each skin is a MapLibre GL Style JSON bundled in assets/skins/.
+ * Future skins may be downloaded on-demand from a remote API.
  */
 export interface SkinDefinition {
   id: SkinId;
   label: string;
   description: string;
-  /** Whether tile assets are available locally (bundled or previously downloaded) */
+  /** Whether style JSON is available locally (bundled or previously downloaded) */
   isDownloaded: boolean;
   /** 'local' = bundled in app assets, 'remote' = fetched from server (future) */
   coverage: 'local' | 'remote';
@@ -42,7 +42,7 @@ export const AVAILABLE_SKINS: SkinDefinition[] = [
   {
     id: 'none',
     label: 'Standard',
-    description: 'Default Google Maps view',
+    description: 'Standard map style',
     isDownloaded: true,
     coverage: 'local',
   },
@@ -127,7 +127,7 @@ const skinSlice = createSlice({
       });
     },
     /**
-     * Mark a skin as downloaded (e.g. after on-demand tile download completes).
+     * Mark a skin as downloaded (e.g. after on-demand style download completes).
      */
     markSkinDownloaded: (state, action: PayloadAction<SkinId>) => {
       const skin = state.availableSkins.find((s) => s.id === action.payload);

@@ -1,53 +1,46 @@
 # FogOfDog Frontend Status
 
-## Current Status: 🔄 IN PROGRESS - WHITE SCREEN BUG INVESTIGATION
+## Current Status: ✅ COMPLETE - MapLibre GL Migration
 
-### 🎯 **LATEST: STARTING DEDICATED WHITE SCREEN FIX**
+### 🎯 **LATEST: MapLibre GL Vector Tile Migration**
 
-**Branch**: `fix/white-screen-first-time-user-experience`  
-**Status**: Creating dedicated branch to solve persistent white screen issue during first-time user onboarding
-**Previous Work**: Animation timing fixed, but core white screen problem remains unsolved
-**Goal**: Eliminate harsh white "Getting your location..." screen for first-time users
+**Branch**: `feature/map-skin-system-merged`  
+**Status**: Complete — all quality gates passing  
+**Goal**: Replace react-native-maps with @maplibre/maplibre-react-native for style-based map skinning
 
-### **🎯 CRITICAL BUG FIX: CINEMATIC ANIMATION TIMING**
+### **✅ What Was Done**
 
-**🚨 Problem Solved**: First-time users experienced broken onboarding flow where cinematic animation played behind intro panels, causing confusion and poor UX.
+**Architecture Change**: Migrated from react-native-maps (Google Maps raster tiles + bundled PNGs for skins) to MapLibre GL (vector tiles + Style JSON for skins). Each "skin" is now a ~50KB JSON file defining colors, line widths, and fills for OpenFreeMap vector tiles — no more thousands of raster PNG tiles.
 
-**✅ Solution Implemented**:
+**Production Code Changes**:
+- Replaced `react-native-maps` with `@maplibre/maplibre-react-native ^10.x`
+- Created `src/types/map.ts` — engine-agnostic `MapRegion`, `LatLng`, helper functions
+- Created `src/services/SkinStyleService.ts` — maps `SkinId` → MapLibre style JSON
+- Created `assets/skins/cartoon.json` and `assets/skins/standard.json` — MapLibre Style Spec files
+- Fully refactored `src/screens/Map/index.tsx` — MapView, Camera, MarkerView components, GeoJSON event handling
+- Fully refactored `src/screens/Map/hooks/useCinematicZoom.ts` — CameraRef API, cinematicZoomActiveRef pattern
+- Updated skinSlice descriptions from Google Maps to MapLibre terminology
+- Threaded `cinematicZoomActiveRef` through 18+ interfaces/functions (replacing monkey-patched `_cinematicZoomActive`)
 
-- **Proper Animation Sequencing**: Animation now only triggers after BOTH onboarding completion AND permissions granted
-- **Clean Component Architecture**: Added `canStartCinematicAnimation` prop flowing through component hierarchy
-- **Simplified Logic**: Removed complex event-based approach, implemented reliable Redux-based trigger
-- **Enhanced Testing**: Updated test suite to match simplified implementation
+**Deleted Files** (old raster tile infrastructure):
+- `src/components/SkinTileOverlay.tsx` and its tests
+- `src/services/SkinAssetService.ts`
+- `scripts/apply_skin.py` and `scripts/test_apply_skin.py`
+- `assets/skins/cartoon/` (43 PNG tiles), `assets/skins/_raw_tiles/`
+- `pytest.ini` (only existed for deleted Python tests)
 
-**🔧 Technical Changes**:
+**Test Updates**:
+- Created `__mocks__/@maplibre/maplibre-react-native.tsx`
+- Updated mock blocks in 6 test files
+- Updated all `Region` → `MapRegion` type annotations
+- Rewrote `skinTileValidation.test.ts` to validate style JSON instead of PNG tiles
+- Updated `first-time-user-flow.test.tsx` to track `setCamera` instead of `animateToRegion`
+- Updated `useCinematicZoom.test.tsx` + `.performance.test.tsx` — setCamera API, cinematicZoomActiveRef
+- Updated `MapScreen.test.tsx` — GeoJSON Feature event payloads, `onRegionDidChange`/`onRegionIsChanging`
 
-- Modified `MapScreen` → `MapScreenUI` → `MapScreenRenderer` → `useCinematicZoom` prop flow
-- Added timing control logic: `const canStartCinematicAnimation = !showOnboarding && permissionsVerified`
-- Cleaned up unused imports and simplified animation trigger mechanism
-- Maintained all quality gates and type safety
-
-**🎉 Partial Result**: Animation timing fixed (no more hidden animations), but **WHITE SCREEN ISSUE PERSISTS**
-
-**🚨 REMAINING PROBLEM**: Users still see harsh white "Getting your location..." screen after completing onboarding and permissions. This creates poor first impression and breaks the intended smooth experience.
+**Quality Gate Results**: 933 tests passing, 0 TypeScript errors, all slop-mop gates green.
 
 ---
-
-## 🆕 **PREVIOUS: SONARQUBE QUALITY GATE STRICT ENFORCEMENT** ✅
-
-**🚨 All 7 SonarQube Issues Previously Resolved**:
-
-**Critical Issues Fixed (3):**
-
-- ✅ **Function Nesting (PermissionsOrchestrator.ts:201)**: Refactored timeout handler into separate `handlePermissionTimeout()` method
-- ✅ **Cognitive Complexity (MapScreen index.tsx:194)**: Extracted error handling into focused functions (`handleForegroundPermissionError`, `handleBackgroundPermissionError`, `handleNonPermissionError`)
-- ✅ **Circular Dependency (navigation/index.tsx)**: Created dedicated `OnboardingContext.tsx` module to break import cycle
-
-**Major Issues Fixed (1):**
-
-- ✅ **React Key Generation (MapScreen index.tsx:1049)**: Replaced dynamic `Date.now()` with stable `current-location-marker` key
-
-**Minor Issues Fixed (3):**
 
 - ✅ **Exception Handling (SettingsDeveloperView.tsx:72)**: Added proper error logging with structured data
 - ✅ **Object Stringification (MapScreen index.tsx:117)**: Fixed error logging to use `errorMessage` and `errorType` properties

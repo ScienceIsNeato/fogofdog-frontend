@@ -189,7 +189,7 @@ describe('skinSlice', () => {
       ];
       store.dispatch(loadSkinMetadata(withUndownloaded));
       store.dispatch(markSkinDownloaded('vintage' as SkinId));
-      const vintage = store.getState().skin.availableSkins.find((s) => s.id === 'vintage');
+      const vintage = store.getState().skin.availableSkins.find((s) => s.id === ('vintage' as any));
       expect(vintage?.isDownloaded).toBe(true);
     });
 

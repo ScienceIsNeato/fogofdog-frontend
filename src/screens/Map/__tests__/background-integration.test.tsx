@@ -21,15 +21,15 @@ declare global {
 jest.mock('expo-modules-core');
 jest.mock('expo-location');
 jest.mock('expo-task-manager');
-jest.mock('react-native-maps', () => {
-  // Use import instead of require to satisfy ESLint
+jest.mock('@maplibre/maplibre-react-native', () => {
   const ReactNative = jest.requireActual('react-native');
   const { View } = ReactNative;
   return {
     __esModule: true,
-    default: View,
-    Marker: View,
-    PROVIDER_GOOGLE: 'google',
+    default: { MapView: View },
+    MapView: View,
+    Camera: View,
+    MarkerView: View,
   };
 });
 jest.mock('../../../services/BackgroundLocationService');

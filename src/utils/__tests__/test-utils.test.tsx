@@ -124,6 +124,8 @@ describe('test-utils', () => {
           skin: {
             activeSkin: 'none' as const,
             isInitializing: false,
+            availableSkins: [],
+            error: null,
           },
         })),
         dispatch: jest.fn(),

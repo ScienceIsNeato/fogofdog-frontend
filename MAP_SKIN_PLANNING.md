@@ -13,6 +13,7 @@ This document outlines the architecture and implementation plan for adding a pro
 ### Map Rendering System
 
 **Current Implementation** (`src/screens/Map/index.tsx`):
+
 - Uses `react-native-maps` (Google Maps SDK wrapper)
 - Renders a single, continuous MapView component
 - NO tile-based system — just coordinates and zoom levels
@@ -20,6 +21,7 @@ This document outlines the architecture and implementation plan for adding a pro
 - Location tracking with GPS updates at ~100ms intervals
 
 **Fog Overlay System** (`src/components/OptimizedFogOverlay.tsx`):
+
 - Uses `@shopify/react-native-skia` for Canvas rendering
 - Positioned absolutely over MapView with `pointerEvents="none"`
 - Converts GPS coordinates to pixel coordinates via `mapUtils.ts`
@@ -31,6 +33,7 @@ This document outlines the architecture and implementation plan for adding a pro
   - Batch circle rendering with single Skia Path
 
 **Key Files**:
+
 - `src/screens/Map/index.tsx` — Main map screen with MapView
 - `src/components/OptimizedFogOverlay.tsx` — Skia-based fog rendering
 - `src/utils/mapUtils.ts` — Coordinate conversion utilities
@@ -40,27 +43,32 @@ This document outlines the architecture and implementation plan for adding a pro
 ### Identified Collisions and Challenges
 
 #### 1. **No Tiling Concept**
+
 - `react-native-maps` abstracts tiles completely — we only work with regions and coordinates
 - No access to individual map tiles for per-tile processing
 - No hooks into tile loading pipeline
 - **Resolution**: `react-native-maps` exposes `UrlTile` component for custom tile overlays. This is the native-level tile rendering API, avoiding the need for JavaScript-level tile positioning.
 
 #### 2. **Coordinate Conversion is Per-Point**
+
 - `geoPointToPixel()` converts lat/lon → screen pixels for each GPS point
 - Works for point-based fog rendering but not tile-based systems
 - **Resolution**: Added `tileUtils.ts` with standard Web Mercator tile math (`latLonToTile`, `tileToLatLon`, `getVisibleTiles`, `regionToZoom`)
 
 #### 3. **Single MapView Component**
+
 - MapView renders entire world at once (at current zoom)
 - No component boundaries aligned with tiles
-- **Resolution**: `UrlTile` renders *inside* MapView as a child component, delegating tile management to the native maps SDK. No absolute positioning needed.
+- **Resolution**: `UrlTile` renders _inside_ MapView as a child component, delegating tile management to the native maps SDK. No absolute positioning needed.
 
 #### 4. **Skia Canvas Absolute Positioning**
+
 - Fog overlay uses absolute positioning over entire screen
 - Works because it's independent of MapView internals
-- **Impact**: The skin tile overlay sits *inside* MapView (as `UrlTile`), while fog stays *outside* (as Skia canvas). This layering naturally produces the correct visual: skinned tiles visible through fog holes.
+- **Impact**: The skin tile overlay sits _inside_ MapView (as `UrlTile`), while fog stays _outside_ (as Skia canvas). This layering naturally produces the correct visual: skinned tiles visible through fog holes.
 
 #### 5. **Performance Constraints**
+
 - Already optimizing for 5000 GPS points per frame
 - Adding tile rendering + skinning could compound performance issues
 - **Resolution**: `UrlTile` is rendered by the native maps SDK (not React), so tile rendering cost is negligible from the JS thread perspective. Asset initialization is a one-time filesystem copy on first skin activation.
@@ -72,6 +80,7 @@ This document outlines the architecture and implementation plan for adding a pro
 Two approaches were evaluated for rendering skinned tiles:
 
 ### Option A: Absolute-Positioned Image Components (Rejected)
+
 ```
 MapView (react-native-maps)
   └─ Markers, etc.
@@ -81,6 +90,7 @@ OptimizedFogOverlay (Skia canvas, absolute positioned)
 ```
 
 **Problems**:
+
 - Requires JavaScript-level coordinate conversion for every tile on every frame
 - Synchronizing tile positions with native map panning/zooming is fragile
 - Performance degrades with many visible tiles (JS thread bottleneck)
@@ -88,6 +98,7 @@ OptimizedFogOverlay (Skia canvas, absolute positioned)
 - Self-described as "architecturally a hack" during prototyping
 
 ### Option B: UrlTile Inside MapView (Chosen) ✅
+
 ```
 MapView (react-native-maps)
   ├─ SkinTileOverlay (UrlTile — native tile rendering)
@@ -96,6 +107,7 @@ OptimizedFogOverlay (Skia canvas, absolute positioned — unchanged)
 ```
 
 **Advantages**:
+
 - Native tile rendering — zero JS thread cost for tile positioning
 - Automatic tile loading, caching, and recycling by the maps SDK
 - Perfect alignment with base map at all zoom levels
@@ -103,6 +115,7 @@ OptimizedFogOverlay (Skia canvas, absolute positioned — unchanged)
 - Minimal code — `SkinTileOverlay` is ~80 lines
 
 **How it works**:
+
 1. Pre-generated skin tiles are bundled in `assets/skins/{skinId}/{z}/{x}/{y}.png`
 2. On first activation, `SkinAssetService` copies tiles from the app bundle to `FileSystem.documentDirectory` (required because `UrlTile` needs a URL template, not bundled asset references)
 3. `SkinTileOverlay` renders a `UrlTile` with a `file://` URL template pointing to the copied tiles
@@ -116,14 +129,17 @@ OptimizedFogOverlay (Skia canvas, absolute positioned — unchanged)
 ### Evaluated Options
 
 #### Option 1: Neural Style Transfer
+
 **Approach**: Use deep learning models (e.g., fast-style-transfer) to apply artistic style to map tiles
 
 **Pros**:
+
 - High-quality artistic results
 - Flexible style application
 - Many pre-trained models available
 
 **Cons**:
+
 - Heavy computational requirements (requires GPU)
 - Slow processing (~10-60 seconds per tile)
 - Large model files (50-100MB)
@@ -133,15 +149,18 @@ OptimizedFogOverlay (Skia canvas, absolute positioned — unchanged)
 **Verdict**: ❌ **Not feasible for MVP** — too slow, requires backend infrastructure
 
 #### Option 2: Edge-Preserving Filters + Color Quantization (PIL/Pillow)
+
 **Approach**: Use image processing filters that preserve edges while stylizing
 
 **Pipeline**:
+
 1. **SMOOTH**: Apply bilateral filter to tile (preserves edges, smooths textures)
 2. **QUANTIZE**: Reduce color palette to 8-12 colors (posterization)
 3. **VIBE_SHIFT**: Apply color influence from a "vibe" reference image
 4. **BRIGHTEN**: Boost saturation and brightness for cartoon feel
 
 **Pros**:
+
 - Fast processing (< 1 second per tile)
 - Preserves street/label structure (critical for a map app)
 - Runs locally without a trained model
@@ -149,6 +168,7 @@ OptimizedFogOverlay (Skia canvas, absolute positioned — unchanged)
 - Pure Python — no native bindings needed
 
 **Cons**:
+
 - Less artistic than neural style transfer
 - Requires tuning per skin style
 - Current implementation doesn't include edge detection/outline overlay (future enhancement)
@@ -156,14 +176,17 @@ OptimizedFogOverlay (Skia canvas, absolute positioned — unchanged)
 **Verdict**: ✅ **Chosen for MVP** — fast, preserves detail, produces good results
 
 #### Option 3: Procedural Color Mapping (JavaScript)
+
 **Approach**: Replace colors based on HSV/luminance mapping rules
 
 **Pros**:
+
 - Extremely fast (< 100ms per tile)
 - Can run in JavaScript (canvas manipulation)
 - Full control over color mapping
 
 **Cons**:
+
 - Requires node-canvas native dependency (problematic for React Native bundling)
 - Fragile color detection (roads, water, parks depend on exact pixel colors)
 - Initial prototype produced black rectangles due to canvas rendering issues
@@ -175,6 +198,7 @@ OptimizedFogOverlay (Skia canvas, absolute positioned — unchanged)
 **Script**: `scripts/apply_skin.py`
 
 The skin generation pipeline:
+
 1. **Download OSM tiles** for the target area at specified zoom levels
 2. **Apply cartoon filter** to each tile:
    - Gaussian blur for smoothing
@@ -184,6 +208,7 @@ The skin generation pipeline:
 3. **Save styled tiles** to `assets/skins/cartoon/{z}/{x}/{y}.png`
 
 **Tile Coverage (MVP)**:
+
 - **Center**: San Francisco GPS injection point (37.78825°N, 122.4324°W)
 - **Zoom levels**: 13, 14, 15
 - **Tile count**: 43 pre-generated tiles
@@ -208,8 +233,8 @@ OptimizedFogOverlay           # Skia canvas (unchanged)
 type SkinId = 'none' | 'cartoon';
 
 interface SkinState {
-  activeSkin: SkinId;         // Currently active skin
-  isInitializing: boolean;    // True while copying assets to filesystem
+  activeSkin: SkinId; // Currently active skin
+  isInitializing: boolean; // True while copying assets to filesystem
 }
 
 // Actions: setSkin, clearSkin, setInitializing
@@ -217,41 +242,43 @@ interface SkinState {
 
 ### Key Files
 
-| File | Purpose |
-|------|---------|
-| `src/store/slices/skinSlice.ts` | Redux state for active skin |
-| `src/components/SkinTileOverlay.tsx` | UrlTile wrapper — renders skin tiles inside MapView |
-| `src/services/SkinAssetService.ts` | Copies bundled tiles to filesystem, provides URL template |
-| `src/utils/tileUtils.ts` | Web Mercator tile math utilities |
-| `src/components/UnifiedSettingsModal/SettingsSkinView.tsx` | Skin selection UI |
-| `scripts/apply_skin.py` | Offline tile generation script (PIL-based) |
-| `assets/skins/cartoon/{z}/{x}/{y}.png` | Pre-generated cartoon tiles |
-| `assets/skins/_raw_tiles/{z}/{x}/{y}.png` | Source OSM tiles for reference |
+| File                                                       | Purpose                                                   |
+| ---------------------------------------------------------- | --------------------------------------------------------- |
+| `src/store/slices/skinSlice.ts`                            | Redux state for active skin                               |
+| `src/components/SkinTileOverlay.tsx`                       | UrlTile wrapper — renders skin tiles inside MapView       |
+| `src/services/SkinAssetService.ts`                         | Copies bundled tiles to filesystem, provides URL template |
+| `src/utils/tileUtils.ts`                                   | Web Mercator tile math utilities                          |
+| `src/components/UnifiedSettingsModal/SettingsSkinView.tsx` | Skin selection UI                                         |
+| `scripts/apply_skin.py`                                    | Offline tile generation script (PIL-based)                |
+| `assets/skins/cartoon/{z}/{x}/{y}.png`                     | Pre-generated cartoon tiles                               |
+| `assets/skins/_raw_tiles/{z}/{x}/{y}.png`                  | Source OSM tiles for reference                            |
 
 ### Settings UI Integration
 
 Added "Map Style" option to `SettingsMainView` (following existing patterns):
+
 - `SettingsSkinView` shows available skins with name + description
 - Selecting a skin dispatches `setSkin()` and triggers asset initialization
 - "Standard" option clears the skin back to default Google Maps
 
 ### Testing
 
-| Test File | Coverage |
-|-----------|----------|
-| `src/store/slices/__tests__/skinSlice.test.ts` | Redux state transitions |
-| `src/components/__tests__/SkinTileOverlay.test.tsx` | Component rendering with/without active skin |
-| `src/components/__tests__/SettingsSkinView.test.tsx` | UI interactions and dispatch |
-| `src/utils/__tests__/tileUtils.test.ts` | Tile coordinate math |
-| `src/utils/__tests__/skinTileValidation.test.ts` | Pre-generated tile asset integrity |
-| `scripts/test_apply_skin.py` | Python tile generator (19 tests, 95% coverage) |
-| `.maestro/map-skin-test.yaml` | E2E: login → settings → apply skin → verify |
+| Test File                                            | Coverage                                       |
+| ---------------------------------------------------- | ---------------------------------------------- |
+| `src/store/slices/__tests__/skinSlice.test.ts`       | Redux state transitions                        |
+| `src/components/__tests__/SkinTileOverlay.test.tsx`  | Component rendering with/without active skin   |
+| `src/components/__tests__/SettingsSkinView.test.tsx` | UI interactions and dispatch                   |
+| `src/utils/__tests__/tileUtils.test.ts`              | Tile coordinate math                           |
+| `src/utils/__tests__/skinTileValidation.test.ts`     | Pre-generated tile asset integrity             |
+| `scripts/test_apply_skin.py`                         | Python tile generator (19 tests, 95% coverage) |
+| `.maestro/map-skin-test.yaml`                        | E2E: login → settings → apply skin → verify    |
 
 ---
 
 ## Technical Specifications
 
 ### Tile Format
+
 - **Size**: 256×256 pixels (standard slippy map tiles)
 - **Format**: PNG
 - **Color depth**: 8-bit RGB (24-bit total)
@@ -259,6 +286,7 @@ Added "Map Style" option to `SettingsMainView` (following existing patterns):
 - **Naming convention**: `{z}/{x}/{y}.png` (standard TMS/XYZ)
 
 ### File Storage Layout
+
 ```
 assets/
   skins/
@@ -281,6 +309,7 @@ assets/
 ```
 
 ### Runtime File Storage
+
 ```
 ${FileSystem.documentDirectory}/
   skins/
@@ -289,6 +318,7 @@ ${FileSystem.documentDirectory}/
 ```
 
 ### Performance Characteristics
+
 - **Tile rendering**: Native (zero JS thread cost)
 - **Asset initialization**: One-time ~2s copy on first skin activation
 - **Skin switch time**: < 100ms (instant if already initialized)
@@ -300,6 +330,7 @@ ${FileSystem.documentDirectory}/
 ## Future Enhancements
 
 ### Short-Term (Post-MVP)
+
 1. **Multiple Skins**: Add vintage, neon, minimalist skins (extend `SkinId` type)
 2. **Edge Detection Overlay**: Add Canny edge detection + dark outline overlay to cartoon filter
 3. **Tile Downloader**: Allow users to download additional geographic coverage
@@ -307,12 +338,14 @@ ${FileSystem.documentDirectory}/
 5. **Skin Intensity Slider**: Blend skin tiles with base map at adjustable opacity
 
 ### Medium-Term
+
 1. **Dynamic Tile Server**: Backend generates tiles on-demand via `GET /tiles/{skinName}/{z}/{x}/{y}.png`
 2. **Skin Metadata API**: Fetch available skins, coverage polygons, download progress
 3. **On-Device Generation**: Port PIL pipeline to native (e.g., Core Image on iOS) for real-time generation
 4. **Skin Persistence**: Save active skin to AsyncStorage for cross-session persistence
 
 ### Long-Term
+
 1. **User-Created Skins**: Upload "vibe" reference images, generate custom skins
 2. **Real-Time Skinning**: Apply filters on-device via GPU compute shaders
 3. **3D Skins**: Apply skins to 3D buildings and terrain
@@ -324,6 +357,7 @@ ${FileSystem.documentDirectory}/
 ## Open Questions and Risks
 
 ### Questions
+
 1. **Bundle Size**: ~2MB for 43 tiles is fine. At scale (hundreds of tiles, multiple skins), may need to move to on-demand download.
 
 2. **Tile Alignment**: `UrlTile` handles alignment natively — no coordinate conversion needed. ✅ Resolved.
@@ -333,16 +367,20 @@ ${FileSystem.documentDirectory}/
 4. **Missing Tiles**: When user explores outside pre-generated coverage, base Google Maps shows through. This is acceptable for MVP — future backend will provide global coverage.
 
 ### Risks
+
 1. **Antimeridian Handling**: `tileUtils.ts` `getVisibleTiles()` assumes `topLeft.x <= bottomRight.x`. Regions crossing the antimeridian could produce invalid tile ranges.
+
    - **Mitigation**: FogOfDog operates in continental US. Low priority but should be fixed for correctness.
 
 2. **Concurrent Asset Initialization**: `initializeSkin()` fires all 43 file copies via `Promise.all()`. Could spike I/O on low-end devices.
+
    - **Mitigation**: Add concurrency limiter (e.g., process 5 tiles at a time). Low priority since initialization is one-time.
 
 3. **Race Condition on Skin Toggle**: Rapidly toggling skins could cause stale `setUrlTemplate()` calls from a previous `initializeSkin()` promise.
+
    - **Mitigation**: Track activation ID and discard stale results.
 
-4. **Fog Overlay Interaction**: Fog renders as a Skia canvas *above* the MapView. Skin tiles render *inside* the MapView. The visual layering is:
+4. **Fog Overlay Interaction**: Fog renders as a Skia canvas _above_ the MapView. Skin tiles render _inside_ the MapView. The visual layering is:
    - Base map → Skin tiles (UrlTile, inside MapView) → Fog (Skia, above MapView)
    - Fog holes reveal skin tiles where the user has explored. ✅ Works correctly.
 
@@ -351,6 +389,7 @@ ${FileSystem.documentDirectory}/
 ## Success Criteria
 
 ### MVP Success Metrics
+
 - ✅ User can select and apply cartoon skin from Settings → Map Style
 - ✅ Skinned tiles render correctly inside MapView via UrlTile
 - ✅ Fog overlay continues to work correctly (holes reveal skin tiles)
@@ -360,6 +399,7 @@ ${FileSystem.documentDirectory}/
 - ✅ Skinned tiles are visually distinct from original map (automated validation)
 
 ### Quality Gates
+
 - ✅ Test coverage maintained above threshold
 - ✅ Zero ESLint warnings (strict mode)
 - ✅ TypeScript strict mode passing
