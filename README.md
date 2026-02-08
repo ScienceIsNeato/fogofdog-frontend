@@ -152,19 +152,20 @@ npm run android
 
 ### ✅ Quality Gate (Before Committing)
 
-**Use `ship_it.py` for comprehensive quality checks:**
+**Use `slop-mop` for comprehensive quality checks:**
 
 ```bash
-# Full quality gate (recommended)
-python scripts/ship_it.py
+# Fast commit validation (recommended)
+sm validate commit
 
-# Fast iteration (exit on first failure)
-python scripts/ship_it.py --fail-fast
+# Full PR validation (comprehensive)
+sm validate pr
 
-# Run specific checks only
-python scripts/ship_it.py --checks tests lint format
+# Run a specific gate only
+sm validate -g javascript:tests
 
-# Available checks: format, lint, types, tests, duplication, security, sonar
+# Available gates: javascript:lint-format, javascript:tests, javascript:types,
+# javascript:coverage, quality:complexity, quality:duplication, security:local
 ```
 
 **What it runs (in parallel):**

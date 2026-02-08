@@ -9,31 +9,31 @@ This project now includes comprehensive SonarQube analysis that can be run local
 ### Full Quality Analysis (Default - Recommended)
 
 ```bash
-python scripts/ship_it.py
+sm validate commit
 ```
 
-- Runs: All checks including SonarQube (parallel execution)
-- Duration: ~20-30 seconds (parallel)
+- Runs: All quality gates in dependency order
+- Duration: ~30-60 seconds
 - Use for: Pre-commit validation, comprehensive quality checks
 
 ### Fast Development Iteration
 
 ```bash
-python scripts/ship_it.py --fail-fast
+sm validate -g javascript:lint-format
 ```
 
-- Runs: All checks, exits immediately on first failure
-- Duration: Varies (stops at first issue)
-- Use for: Rapid development cycles, "get this ready to commit"
+- Runs: Only lint and format checks
+- Duration: ~5-10 seconds
+- Use for: Rapid development cycles
 
 ### Selective Checks
 
 ```bash
-python scripts/ship_it.py --checks tests lint format
+sm validate -g javascript:tests,javascript:types
 ```
 
-- Runs: Only specified checks
-- Duration: ~5-10 seconds
+- Runs: Only specified gates
+- Duration: ~10-20 seconds
 - Use for: Focused iteration on specific issues
 
 ## ✅ Status: INTEGRATION COMPLETE

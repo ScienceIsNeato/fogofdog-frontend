@@ -18,8 +18,8 @@ elif [ -f .env ]; then
   set +a
 fi
 
-# slop-mop quality gate (replaces ship_it.py)
-# Installs slop-mop if not already on PATH, then runs the commit profile.
+# slop-mop quality gate
+# Installs slop-mop if not already on PATH, then runs explicit JS/quality/security gates.
 # Commit is blocked if any gate fails.
 #
 # NOTE: The default 'sm validate commit' profile only includes Python gates,
