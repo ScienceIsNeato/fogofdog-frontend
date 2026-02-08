@@ -521,9 +521,7 @@ describe('BackgroundLocationService', () => {
       });
     });
 
-    it('should handle task execution with error', async () => {
-      const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
-
+    it('should handle empty locations array without storing anything', async () => {
       setupTaskManagerMocks(mockedTaskManager, mockedLocationStorageService);
       (BackgroundLocationService as any).isInitialized = false;
 
@@ -533,8 +531,6 @@ describe('BackgroundLocationService', () => {
       await BackgroundLocationService.handleBackgroundLocations([]);
 
       expect(mockedLocationStorageService.storeBackgroundLocation).not.toHaveBeenCalled();
-
-      consoleSpy.mockRestore();
     });
 
     it('should handle task execution with no data', async () => {

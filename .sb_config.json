@@ -159,6 +159,28 @@
         "include_dirs": ["src"],
         "min_tokens": 50,
         "min_lines": 5
+      },
+      "loc-lock": {
+        "enabled": true,
+        "auto_fix": false,
+        "max_file_lines": 2700,
+        "max_function_lines": 120,
+        "include_dirs": ["src", "scripts"],
+        "exclude_dirs": [
+          "ios",
+          "android",
+          "node_modules",
+          "coverage",
+          ".expo",
+          "temp",
+          "test_artifacts",
+          "quality-reports",
+          "reports",
+          "slop-mop",
+          "cursor-rules",
+          "__mocks__",
+          "__tests__"
+        ]
       }
     }
   },

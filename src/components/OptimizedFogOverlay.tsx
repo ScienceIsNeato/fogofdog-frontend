@@ -22,45 +22,74 @@ import { GeoPoint } from '../types/user';
  * StrictMode double-render). Native memory mutations (delete/allocate) MUST happen
  * in useEffect, not useMemo, to avoid corrupting paths that are still referenced
  * by committed renders.
+ *
+ * DISPOSAL SAFETY: Uses a two-effect pattern to prevent disposing a path that's
+ * still being rendered by the native thread:
+ *   Effect 1 (on factory change): Creates the new path and swaps it into state
+ *   Effect 2 (on path state change): Disposes previous paths AFTER the new path
+ *       is committed to the render tree — guaranteed safe from native thread races
+ *
+ * This also handles StrictMode double-fire via a createdPaths Set that tracks all
+ * allocated paths and cleans up any orphans after the final state is committed.
  */
 const useManagedSkiaPath = (createPath: () => SkPath, deps: React.DependencyList): SkPath => {
   // Stable empty path as initial value — avoids null checks downstream
   const emptyPath = useMemo(() => Skia.Path.Make(), []);
   const [path, setPath] = useState<SkPath>(emptyPath);
-  const pathRef = useRef<SkPath | null>(null);
+  // Track all paths created by Effect 1 so Effect 2 can dispose them safely
+  const createdPathsRef = useRef<Set<SkPath>>(new Set());
 
   // Memoize the path factory to detect dependency changes
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const memoizedFactory = useCallback(createPath, deps);
 
-  // Create/dispose paths in useEffect — safe from aborted renders
+  // Effect 1: Create new path and swap into state
+  // No disposal here — the old path may still be referenced by the committed render tree.
+  // Disposal is deferred to Effect 2 which runs after the new state is committed.
   useEffect(() => {
     const newPath = memoizedFactory();
+    createdPathsRef.current.add(newPath);
+    setPath(newPath);
+  }, [memoizedFactory]);
 
-    // Dispose previous path AFTER new one is created (never leave a gap)
-    if (pathRef.current && pathRef.current !== emptyPath) {
-      try {
-        pathRef.current.dispose();
-      } catch {
-        // Path may already be disposed - ignore
+  // Effect 2: Dispose previous paths AFTER new path is committed to the render tree
+  // This runs when `path` state changes, meaning React has committed the new path
+  // and the native thread is no longer referencing the old one.
+  useEffect(() => {
+    // Dispose all tracked paths except the current one
+    for (const p of createdPathsRef.current) {
+      if (p !== path && p !== emptyPath) {
+        try {
+          p.dispose();
+        } catch {
+          // Path may already be disposed - ignore
+        }
+        createdPathsRef.current.delete(p);
       }
     }
 
-    pathRef.current = newPath;
-    setPath(newPath);
-
-    // Cleanup this specific path if effect re-runs or component unmounts
+    // On unmount: dispose current path, all tracked paths, and emptyPath
     return () => {
       try {
-        newPath.dispose();
+        path.dispose();
       } catch {
         // Path may already be disposed - ignore
       }
-      if (pathRef.current === newPath) {
-        pathRef.current = null;
+      for (const p of createdPathsRef.current) {
+        try {
+          p.dispose();
+        } catch {
+          // Path may already be disposed - ignore
+        }
+      }
+      createdPathsRef.current.clear();
+      try {
+        emptyPath.dispose();
+      } catch {
+        // Path may already be disposed - ignore
       }
     };
-  }, [memoizedFactory, emptyPath]);
+  }, [path, emptyPath]);
 
   return path;
 };

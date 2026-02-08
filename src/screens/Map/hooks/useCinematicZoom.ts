@@ -605,8 +605,9 @@ export const useCinematicZoom = ({
     }
     // No cleanup needed if conditions aren't met
     return undefined;
-    // Note: explorationPath intentionally not in deps - we use explorationPathRef to capture
-    // the value at trigger time. Including it would cause GPS updates to cancel the animation.
+    // Note: explorationPathRef (and thus explorationPath) is intentionally not in deps — we rely
+    // on explorationPathRef.current to capture the value at trigger time. Including it would cause
+    // GPS updates to cancel the animation.
   }, [canStartAnimation, currentLocation, gpsInjectionStatus.isRunning, isMapReady, mapRef]);
 
   // Create initial region - use cinematic start position to eliminate jump
