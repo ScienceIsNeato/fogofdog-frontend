@@ -106,6 +106,13 @@ class SkinMetadataServiceClass {
     const skin = await this.getSkin(skinId);
     return skin?.isDownloaded ?? false;
   }
+
+  /**
+   * Reset the service (for testing purposes)
+   */
+  reset(): void {
+    this.initialized = false;
+  }
 }
 
 // Export singleton instance
