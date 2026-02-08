@@ -58,31 +58,28 @@ class SkinMetadataServiceClass {
 
   /**
    * Load available skins
-   * For MVP: returns a hardcoded list
-   * Future: will read from assets/skins/metadata.json or API
+   * Loads cartoon skin from bundled metadata
    */
   private async loadAvailableSkins(): Promise<Skin[]> {
-    // For MVP, return an empty list since we haven't generated tiles yet
-    // This will be populated after we generate the cartoon skin tiles
-    //
-    // Future structure:
-    // const skins: Skin[] = [
-    //   {
-    //     id: 'cartoon',
-    //     name: 'Cartoon',
-    //     description: 'Bold outlines and simplified flat colors',
-    //     previewImage: '', // Will be populated with actual preview
-    //     isDownloaded: true,
-    //     coverage: 'local',
-    //   },
-    // ];
+    // Load cartoon skin metadata from bundled JSON
+    const cartoonMetadata = require('../../assets/skins/cartoon/metadata.json');
 
-    const skins: Skin[] = [];
+    const skins: Skin[] = [
+      {
+        id: cartoonMetadata.skinId,
+        name: cartoonMetadata.name,
+        description: cartoonMetadata.description,
+        previewImage: '', // No preview image for MVP
+        isDownloaded: true, // Tiles are bundled in assets
+        coverage: 'local', // Local bundled tiles
+      },
+    ];
 
     logger.debug('Loaded available skins', {
       component: 'SkinMetadataService',
       action: 'loadAvailableSkins',
       skinCount: skins.length,
+      skins: skins.map((s) => s.id),
     });
 
     return skins;

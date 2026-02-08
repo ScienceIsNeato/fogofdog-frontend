@@ -173,32 +173,66 @@ class TileCacheServiceClass {
 
   /**
    * Get asset source for a tile
-   * For MVP, this is hardcoded for the cartoon skin
-   * Future: will load from a manifest file
+   * Loads tile images from bundled assets
    *
    * @param skinId - Skin ID
    * @param coord - Tile coordinate
    * @returns Image source or null if not available
    */
   private getAssetSource(skinId: string, coord: TileCoordinate): ImageSourcePropType | null {
-    // For MVP: we'll generate tiles and then this will be updated
-    // to require() the actual tile images
-    //
-    // Example structure:
-    // if (skinId === 'cartoon') {
-    //   if (coord.z === 14 && coord.x === 2621 && coord.y === 6333) {
-    //     return require('../../assets/skins/cartoon/14/2621/6333.png');
-    //   }
-    // }
+    if (skinId !== 'cartoon') {
+      return null;
+    }
 
-    // For now, return null - will be populated after tile generation
-    logger.debug(`getAssetSource called for ${skinId}/${getTileKey(coord)}`, {
-      component: 'TileCacheService',
-      action: 'getAssetSource',
-      skinId,
-      coord,
-    });
-    return null;
+    // Load cartoon skin tiles
+    // Generated tiles cover Dolores Park at zoom 14-16
+    const tileKey = `${coord.z}/${coord.x}/${coord.y}`;
+
+    try {
+      // Attempt to require the tile
+      // React Native bundler will only include tiles that exist
+      const tileMap: { [key: string]: ImageSourcePropType } = {
+        '14/2621/6333': require('../../assets/skins/cartoon/14/2621/6333.png'),
+        '14/2621/6334': require('../../assets/skins/cartoon/14/2621/6334.png'),
+        '14/2622/6333': require('../../assets/skins/cartoon/14/2622/6333.png'),
+        '14/2622/6334': require('../../assets/skins/cartoon/14/2622/6334.png'),
+        '15/5242/12666': require('../../assets/skins/cartoon/15/5242/12666.png'),
+        '15/5242/12667': require('../../assets/skins/cartoon/15/5242/12667.png'),
+        '15/5243/12666': require('../../assets/skins/cartoon/15/5243/12666.png'),
+        '15/5243/12667': require('../../assets/skins/cartoon/15/5243/12667.png'),
+        '15/5244/12666': require('../../assets/skins/cartoon/15/5244/12666.png'),
+        '15/5244/12667': require('../../assets/skins/cartoon/15/5244/12667.png'),
+        '16/10484/25332': require('../../assets/skins/cartoon/16/10484/25332.png'),
+        '16/10484/25333': require('../../assets/skins/cartoon/16/10484/25333.png'),
+        '16/10485/25332': require('../../assets/skins/cartoon/16/10485/25332.png'),
+        '16/10485/25333': require('../../assets/skins/cartoon/16/10485/25333.png'),
+      };
+
+      const source = tileMap[tileKey];
+      if (source) {
+        logger.debug(`Found tile in asset map: ${tileKey}`, {
+          component: 'TileCacheService',
+          action: 'getAssetSource',
+          tileKey,
+        });
+        return source;
+      }
+
+      logger.debug(`Tile not found in asset map: ${tileKey}`, {
+        component: 'TileCacheService',
+        action: 'getAssetSource',
+        tileKey,
+      });
+      return null;
+    } catch (error) {
+      logger.warn(`Failed to load tile: ${tileKey}`, {
+        component: 'TileCacheService',
+        action: 'getAssetSource',
+        tileKey,
+        error: error instanceof Error ? error.message : String(error),
+      });
+      return null;
+    }
   }
 
   /**
