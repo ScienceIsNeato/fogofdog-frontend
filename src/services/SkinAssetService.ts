@@ -99,32 +99,45 @@ export async function initializeSkin(skinId: Exclude<SkinId, 'none'>): Promise<v
   });
 
   const tileKeys = Object.keys(assets);
-  await Promise.all(
-    tileKeys.map(async (key) => {
-      const destPath = skinDir + key + '.png';
-      try {
-        const info = await FileSystem.getInfoAsync(destPath);
-        if (info.exists) return; // Already copied
 
-        // Ensure directory exists
-        const dir = destPath.substring(0, destPath.lastIndexOf('/'));
-        await FileSystem.makeDirectoryAsync(dir, { intermediates: true });
+  // Process in batches to avoid spiking I/O with 43+ concurrent file copies
+  const BATCH_SIZE = 5;
+  for (let i = 0; i < tileKeys.length; i += BATCH_SIZE) {
+    const batch = tileKeys.slice(i, i + BATCH_SIZE);
+    await Promise.all(
+      batch.map(async (key) => {
+        const destPath = skinDir + key + '.png';
+        try {
+          const info = await FileSystem.getInfoAsync(destPath);
+          if (info.exists) return; // Already copied
 
-        // Load asset and copy to file system
-        const asset = Asset.fromModule(assets[key]);
-        await asset.downloadAsync();
-        if (asset.localUri) {
+          // Ensure directory exists
+          const dir = destPath.substring(0, destPath.lastIndexOf('/'));
+          await FileSystem.makeDirectoryAsync(dir, { intermediates: true });
+
+          // Load asset and copy to file system
+          const asset = Asset.fromModule(assets[key]);
+          await asset.downloadAsync();
+          if (!asset.localUri) {
+            logger.warn(`Asset downloaded but localUri is null for tile ${key}`, {
+              component: 'SkinAssetService',
+              action: 'initializeSkin',
+              tile: key,
+            });
+            return;
+          }
           await FileSystem.copyAsync({ from: asset.localUri, to: destPath });
+        } catch (err) {
+          const message = err instanceof Error ? err.message : String(err);
+          logger.warn(`Failed to initialize tile ${key}: ${message}`, {
+            component: 'SkinAssetService',
+            action: 'initializeSkin',
+            tile: key,
+          });
         }
-      } catch (err) {
-        logger.warn(`Failed to initialize tile ${key}: ${err}`, {
-          component: 'SkinAssetService',
-          action: 'initializeSkin',
-          tile: key,
-        });
-      }
-    })
-  );
+      })
+    );
+  }
 
   logger.info(`Skin initialized: ${skinId}`, {
     component: 'SkinAssetService',

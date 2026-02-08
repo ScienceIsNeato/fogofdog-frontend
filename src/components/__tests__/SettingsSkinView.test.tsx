@@ -3,7 +3,7 @@ import { render, fireEvent, act } from '@testing-library/react-native';
 import { Provider } from 'react-redux';
 import { configureStore } from '@reduxjs/toolkit';
 import { StyleSheet } from 'react-native';
-import skinReducer from '../../store/slices/skinSlice';
+import skinReducer, { AVAILABLE_SKINS } from '../../store/slices/skinSlice';
 import { SettingsSkinView } from '../UnifiedSettingsModal/SettingsSkinView';
 
 jest.mock('../../utils/logger', () => ({
@@ -19,7 +19,14 @@ jest.mock('expo-haptics');
 const createStore = (activeSkin = 'none') =>
   configureStore({
     reducer: { skin: skinReducer },
-    preloadedState: { skin: { activeSkin: activeSkin as any, isInitializing: false } },
+    preloadedState: {
+      skin: {
+        activeSkin: activeSkin as any,
+        isInitializing: false,
+        availableSkins: AVAILABLE_SKINS,
+        error: null,
+      },
+    },
   });
 
 // Minimal styles to pass to component
@@ -101,7 +108,14 @@ describe('SettingsSkinView', () => {
   it('shows loading indicator when isInitializing is true', () => {
     const store = configureStore({
       reducer: { skin: skinReducer },
-      preloadedState: { skin: { activeSkin: 'cartoon' as const, isInitializing: true } },
+      preloadedState: {
+        skin: {
+          activeSkin: 'cartoon' as const,
+          isInitializing: true,
+          availableSkins: AVAILABLE_SKINS,
+          error: null,
+        },
+      },
     });
     const { getByTestId } = render(
       <Provider store={store}>

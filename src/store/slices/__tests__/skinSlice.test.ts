@@ -1,6 +1,14 @@
 import { configureStore } from '@reduxjs/toolkit';
-import skinReducer, { setSkin, clearSkin, setInitializing, AVAILABLE_SKINS } from '../skinSlice';
-import type { SkinId } from '../skinSlice';
+import skinReducer, {
+  setSkin,
+  clearSkin,
+  setInitializing,
+  loadSkinMetadata,
+  markSkinDownloaded,
+  setError,
+  AVAILABLE_SKINS,
+} from '../skinSlice';
+import type { SkinId, SkinDefinition } from '../skinSlice';
 
 jest.mock('../../../utils/logger', () => ({
   logger: {
@@ -91,6 +99,125 @@ describe('skinSlice', () => {
         expect(skin.label).toBeTruthy();
         expect(skin.description).toBeTruthy();
       }
+    });
+
+    it('has isDownloaded and coverage for all skins', () => {
+      for (const skin of AVAILABLE_SKINS) {
+        expect(typeof skin.isDownloaded).toBe('boolean');
+        expect(['local', 'remote']).toContain(skin.coverage);
+      }
+    });
+  });
+
+  describe('initial state extensions', () => {
+    it('has availableSkins populated from AVAILABLE_SKINS', () => {
+      expect(store.getState().skin.availableSkins).toEqual(AVAILABLE_SKINS);
+    });
+
+    it('has error as null', () => {
+      expect(store.getState().skin.error).toBeNull();
+    });
+  });
+
+  describe('setSkin validation', () => {
+    it('sets error when skin is not in availableSkins', () => {
+      // Force an unknown skin ID through the type system
+      store.dispatch(setSkin('nonexistent' as SkinId));
+      expect(store.getState().skin.error).toBe('Skin not found: nonexistent');
+      // activeSkin should remain unchanged
+      expect(store.getState().skin.activeSkin).toBe('none');
+    });
+
+    it('sets error when skin is not downloaded', () => {
+      // Load a skin that is not yet downloaded
+      const undownloaded: SkinDefinition[] = [
+        ...AVAILABLE_SKINS,
+        {
+          id: 'vintage' as SkinId,
+          label: 'Vintage',
+          description: 'Sepia tones',
+          isDownloaded: false,
+          coverage: 'remote',
+        },
+      ];
+      store.dispatch(loadSkinMetadata(undownloaded));
+      store.dispatch(setSkin('vintage' as SkinId));
+      expect(store.getState().skin.error).toBe('Skin not downloaded: vintage');
+      expect(store.getState().skin.activeSkin).toBe('none');
+    });
+
+    it('clears error on successful skin set', () => {
+      store.dispatch(setError('some previous error'));
+      store.dispatch(setSkin('cartoon'));
+      expect(store.getState().skin.error).toBeNull();
+    });
+  });
+
+  describe('loadSkinMetadata', () => {
+    it('replaces availableSkins with provided list', () => {
+      const custom: SkinDefinition[] = [
+        {
+          id: 'none',
+          label: 'Default',
+          description: 'Plain map',
+          isDownloaded: true,
+          coverage: 'local',
+        },
+      ];
+      store.dispatch(loadSkinMetadata(custom));
+      expect(store.getState().skin.availableSkins).toEqual(custom);
+    });
+
+    it('clears error on load', () => {
+      store.dispatch(setError('stale error'));
+      store.dispatch(loadSkinMetadata(AVAILABLE_SKINS));
+      expect(store.getState().skin.error).toBeNull();
+    });
+  });
+
+  describe('markSkinDownloaded', () => {
+    it('marks a skin as downloaded', () => {
+      const withUndownloaded: SkinDefinition[] = [
+        ...AVAILABLE_SKINS,
+        {
+          id: 'vintage' as SkinId,
+          label: 'Vintage',
+          description: 'Sepia tones',
+          isDownloaded: false,
+          coverage: 'remote',
+        },
+      ];
+      store.dispatch(loadSkinMetadata(withUndownloaded));
+      store.dispatch(markSkinDownloaded('vintage' as SkinId));
+      const vintage = store.getState().skin.availableSkins.find((s) => s.id === 'vintage');
+      expect(vintage?.isDownloaded).toBe(true);
+    });
+
+    it('does nothing for unknown skin id', () => {
+      const before = store.getState().skin.availableSkins;
+      store.dispatch(markSkinDownloaded('unknown' as SkinId));
+      expect(store.getState().skin.availableSkins).toEqual(before);
+    });
+  });
+
+  describe('setError', () => {
+    it('sets an error message', () => {
+      store.dispatch(setError('Something went wrong'));
+      expect(store.getState().skin.error).toBe('Something went wrong');
+    });
+
+    it('clears error with null', () => {
+      store.dispatch(setError('error'));
+      store.dispatch(setError(null));
+      expect(store.getState().skin.error).toBeNull();
+    });
+  });
+
+  describe('clearSkin with error state', () => {
+    it('clears error when clearing skin', () => {
+      store.dispatch(setError('some error'));
+      store.dispatch(clearSkin());
+      expect(store.getState().skin.error).toBeNull();
     });
   });
 });

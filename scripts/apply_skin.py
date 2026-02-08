@@ -5,11 +5,12 @@ apply_skin.py — Map tile cartoon skin generator
 Takes a map tile image and a "vibe" reference image, then applies a cartoon-style
 visual effect to the tile. The result is a replacement tile that preserves all street
 and geographic structure but has a visually distinct cartoon appearance:
-  - Bold dark outlines on roads, buildings, and geographic features
+  - Gaussian smoothing with saturation boost for painterly softness
   - Flat, simplified color regions (color quantization / posterization)
-  - Optional vibe color influence from the reference image
+  - Subtle vibe color influence from the reference image
+  - Brightness boost for vibrant cartoon pop
 
-Algorithm: Bilateral-like smoothing + posterization + selective edge overlay
+Algorithm: Gaussian smoothing + posterization + vibe color shift + brightness boost
 This approach is chosen over neural style transfer because:
   - No trained ML model required (runs anywhere with Pillow/NumPy)
   - Deterministic output for reproducible tests
@@ -51,11 +52,10 @@ def apply_skin(tile_path: str, vibe_path: str, output_path: str) -> None:
     Apply cartoon skin to a map tile.
 
     The algorithm produces a flat-color cartoon style:
-    1. Smooth colors while preserving major edges (multiple passes)
-    2. Posterize to reduce color palette to flat cartoon regions
-    3. Extract dominant colors from vibe image and shift palette (subtle)
-    4. Detect only the most significant edges (roads, coastlines, boundaries)
-    5. Overlay thin dark outlines on those edges
+    1. Gaussian blur smoothing with saturation boost for painterly softness
+    2. Posterize to reduce color palette to flat cartoon regions (4-bit)
+    3. Extract dominant colors from vibe image and shift palette (subtle 15%)
+    4. Brightness boost (1.1x + 5) for vibrant cartoon pop
 
     Args:
         tile_path: Path to input map tile PNG (ideally 256x256)

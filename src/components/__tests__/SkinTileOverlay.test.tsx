@@ -2,7 +2,7 @@ import React from 'react';
 import { render, act } from '@testing-library/react-native';
 import { Provider } from 'react-redux';
 import { configureStore } from '@reduxjs/toolkit';
-import skinReducer, { setSkin } from '../../store/slices/skinSlice';
+import skinReducer, { setSkin, AVAILABLE_SKINS } from '../../store/slices/skinSlice';
 
 import SkinTileOverlay from '../SkinTileOverlay';
 
@@ -34,7 +34,12 @@ const createStore = (initialSkin = 'none') =>
   configureStore({
     reducer: { skin: skinReducer },
     preloadedState: {
-      skin: { activeSkin: initialSkin as any, isInitializing: false },
+      skin: {
+        activeSkin: initialSkin as any,
+        isInitializing: false,
+        availableSkins: AVAILABLE_SKINS,
+        error: null,
+      },
     },
   });
 

@@ -64,6 +64,11 @@ export function tileToBounds(x: number, y: number, z: number): TileBounds {
 
 /**
  * Returns all tile coordinates visible in the given map region at the specified zoom level.
+ *
+ * Note: For regions that cross the antimeridian (where westLon > eastLon or
+ * eastLon > 180), the x-range would wrap incorrectly. We guard against this
+ * by returning an empty array — FogOfDog operates in continental US so this
+ * is a defensive measure, not a user-facing limitation.
  */
 export function getVisibleTiles(region: Region, zoom: number): TileCoord[] {
   const z = Math.floor(zoom);
@@ -74,6 +79,11 @@ export function getVisibleTiles(region: Region, zoom: number): TileCoord[] {
 
   const topLeft = latLonToTile(northLat, westLon, z);
   const bottomRight = latLonToTile(southLat, eastLon, z);
+
+  // Guard against antimeridian crossing or inverted ranges
+  if (topLeft.x > bottomRight.x || topLeft.y > bottomRight.y) {
+    return [];
+  }
 
   const tiles: TileCoord[] = [];
   for (let x = topLeft.x; x <= bottomRight.x; x++) {
@@ -116,10 +126,21 @@ export function tileToScreenRect(
 /**
  * Returns the integer zoom level best matching the given latitude delta
  * (as reported by react-native-maps region).
+ *
+ * Guards against non-positive or non-finite deltas (e.g. transient map events)
+ * by clamping the result to a safe range.
  */
 export function regionToZoom(latitudeDelta: number): number {
+  const MIN_ZOOM = 0;
+  const MAX_ZOOM = 20;
+
+  if (!Number.isFinite(latitudeDelta) || latitudeDelta <= 0) {
+    return MIN_ZOOM;
+  }
+
   // latitudeDelta ≈ 360 / 2^z → z ≈ log2(360 / latitudeDelta)
-  return Math.round(Math.log2(360 / latitudeDelta));
+  const raw = Math.round(Math.log2(360 / latitudeDelta));
+  return Math.max(MIN_ZOOM, Math.min(raw, MAX_ZOOM));
 }
 
 /**

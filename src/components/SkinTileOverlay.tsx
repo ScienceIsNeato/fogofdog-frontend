@@ -16,18 +16,19 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import { UrlTile } from 'react-native-maps';
-import { useSelector, useDispatch } from 'react-redux';
-import type { RootState } from '../store';
+import { useAppDispatch, useAppSelector } from '../store/hooks';
 import { setInitializing } from '../store/slices/skinSlice';
 import { initializeSkin, getUrlTemplate } from '../services/SkinAssetService';
 import { logger } from '../utils/logger';
 import type { SkinId } from '../store/slices/skinSlice';
 
 const SkinTileOverlay: React.FC = () => {
-  const dispatch = useDispatch();
-  const activeSkin = useSelector((state: RootState) => state.skin.activeSkin);
+  const dispatch = useAppDispatch();
+  const activeSkin = useAppSelector((state) => state.skin.activeSkin);
   const [urlTemplate, setUrlTemplate] = useState<string | null>(null);
   const initializedSkins = useRef<Set<SkinId>>(new Set());
+  /** Tracks the skin that triggered the current async initialization to prevent stale updates */
+  const initRequestId = useRef(0);
 
   useEffect(() => {
     if (activeSkin === 'none') {
@@ -41,28 +42,41 @@ const SkinTileOverlay: React.FC = () => {
       return;
     }
 
-    // First time activating this skin — copy assets to file system
+    // Capture the skin for this initialization request so we can
+    // detect stale completions if the user toggles skins quickly.
+    const requestedSkin = activeSkin;
+    const currentRequest = ++initRequestId.current;
+
     dispatch(setInitializing(true));
-    logger.info(`Initializing skin assets: ${activeSkin}`, {
+    logger.info(`Initializing skin assets: ${requestedSkin}`, {
       component: 'SkinTileOverlay',
       action: 'initializeSkin',
     });
 
-    initializeSkin(activeSkin)
+    initializeSkin(requestedSkin)
       .then(() => {
-        initializedSkins.current.add(activeSkin);
-        setUrlTemplate(getUrlTemplate(activeSkin));
+        // Guard: discard if a newer activation superseded this one
+        if (currentRequest !== initRequestId.current) {
+          logger.debug(`Discarding stale skin init for: ${requestedSkin}`, {
+            component: 'SkinTileOverlay',
+            action: 'initializeSkin',
+          });
+          return;
+        }
+        initializedSkins.current.add(requestedSkin);
+        setUrlTemplate(getUrlTemplate(requestedSkin));
         dispatch(setInitializing(false));
-        logger.info(`Skin ready: ${activeSkin}`, {
+        logger.info(`Skin ready: ${requestedSkin}`, {
           component: 'SkinTileOverlay',
           action: 'initializeSkin',
         });
       })
       .catch((err) => {
+        if (currentRequest !== initRequestId.current) return;
         logger.warn(`Skin initialization failed: ${err}`, {
           component: 'SkinTileOverlay',
           action: 'initializeSkin',
-          skin: activeSkin,
+          skin: requestedSkin,
         });
         dispatch(setInitializing(false));
       });
