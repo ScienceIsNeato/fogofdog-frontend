@@ -12,6 +12,7 @@ export const Skia = {
       close: jest.fn(),
       addCircle: jest.fn(),
       addRect: jest.fn(),
+      dispose: jest.fn(),
     })),
   },
   Paint: jest.fn(() => ({

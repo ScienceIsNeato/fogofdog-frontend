@@ -5,6 +5,7 @@ import {
   Dimensions,
   DeviceEventEmitter,
   AppState,
+  Platform,
   Text,
   Alert,
 } from 'react-native';
@@ -43,6 +44,7 @@ import { SettingsButton } from '../../components/SettingsButton';
 import UnifiedSettingsModal from '../../components/UnifiedSettingsModal';
 import { HUDStatsPanel } from '../../components/HUDStatsPanel';
 import { GPSInjectionIndicator } from '../../components/GPSInjectionIndicator';
+import { GPSAcquisitionOverlay } from '../../components/GPSAcquisitionOverlay';
 import { ExplorationNudge } from '../../components/ExplorationNudge';
 import { MapDistanceScale } from '../../components/MapDistanceScale';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -54,6 +56,7 @@ import { GPSInjectionService } from '../../services/GPSInjectionService';
 import { BackgroundLocationService } from '../../services/BackgroundLocationService';
 import { AuthPersistenceService } from '../../services/AuthPersistenceService';
 import { DataClearingService } from '../../services/DataClearingService';
+import { GPSDiagnosticsService } from '../../services/GPSDiagnosticsService';
 
 import { DataStats, ClearType } from '../../types/dataClear';
 import { GeoPoint } from '../../types/user';
@@ -125,7 +128,7 @@ interface SafeAreaInsets {
 interface HandleLocationUpdateOptions {
   location: GeoPoint;
   dispatch: ReturnType<typeof useAppDispatch>;
-  mapRef: React.RefObject<MapView>;
+  mapRef: React.RefObject<MapView | null>;
   isMapCenteredOnUser: boolean;
   isFollowModeActive: boolean;
   currentRegion: Region | undefined;
@@ -159,7 +162,7 @@ const handleLocationUpdate = ({
 
     dispatch(recalculateArea(serializableGPSData));
 
-    logger.debug('Triggered real-time area recalculation after GPS point', {
+    logger.trace('Triggered real-time area recalculation after GPS point', {
       component: 'MapScreen',
       action: 'handleLocationUpdate',
       pathLength: explorationPath.length,
@@ -204,7 +207,7 @@ function defineUnifiedLocationTask() {
             longitude: location.coords.longitude,
           };
 
-          logger.debug('Emitting locationUpdate event from background task', {
+          logger.trace('Emitting locationUpdate event from background task', {
             component: 'MapScreen',
             action: 'defineUnifiedLocationTask',
             coordinate: `${locationUpdate.latitude.toFixed(6)}, ${locationUpdate.longitude.toFixed(6)}`,
@@ -219,7 +222,9 @@ function defineUnifiedLocationTask() {
 }
 
 // Helper: Start background location updates with task-based tracking
-async function startBackgroundLocationUpdates(): Promise<void> {
+// Includes Android foreground service retry — on Android, the foreground service
+// can fail to start if the app is still transitioning from background to foreground.
+async function startBackgroundLocationUpdates(retryCount = 0): Promise<void> {
   const locationOptions: any = {
     accuracy: Location.Accuracy.High,
     timeInterval: 100, // 100ms for immediate response
@@ -234,14 +239,66 @@ async function startBackgroundLocationUpdates(): Promise<void> {
     component: 'MapScreen',
     action: 'startBackgroundLocationUpdates',
     backgroundGranted: true,
+    retryCount,
   });
 
-  await Location.startLocationUpdatesAsync(LOCATION_TASK, locationOptions);
+  try {
+    await Location.startLocationUpdatesAsync(LOCATION_TASK, locationOptions);
 
-  logger.info('Background location updates started successfully', {
-    component: 'MapScreen',
-    action: 'startBackgroundLocationUpdates',
-  });
+    logger.info('Background location updates started successfully', {
+      component: 'MapScreen',
+      action: 'startBackgroundLocationUpdates',
+    });
+  } catch (error) {
+    const errorMessage = (error as Error)?.message || '';
+    const isAndroid = Platform.OS === 'android';
+
+    // Android transient errors that can be resolved with retry
+    const isAndroidForegroundServiceError =
+      isAndroid &&
+      (errorMessage.includes('Foreground service cannot be started') ||
+        errorMessage.includes('foreground service'));
+
+    // SharedPreferences null = native module not fully initialized yet (race condition)
+    const isSharedPreferencesError =
+      isAndroid && errorMessage.includes('SharedPreferences.getAll()');
+
+    const isTransientAndroidError = isAndroidForegroundServiceError || isSharedPreferencesError;
+
+    // On Android, retry with increasing delay for transient native module errors
+    if (isTransientAndroidError && retryCount < 5) {
+      const delayMs = (retryCount + 1) * 1000; // Longer delays: 1s, 2s, 3s, 4s, 5s
+      logger.warn(
+        `Android native module error, retrying in ${delayMs}ms (attempt ${retryCount + 1}/5)`,
+        {
+          component: 'MapScreen',
+          action: 'startBackgroundLocationUpdates',
+          retryCount,
+          errorType: isSharedPreferencesError ? 'SharedPreferences' : 'ForegroundService',
+        }
+      );
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
+      return startBackgroundLocationUpdates(retryCount + 1);
+    }
+
+    // If retries exhausted on Android, fall back to foreground-only mode
+    if (isTransientAndroidError) {
+      logger.warn(
+        'Android native module retries exhausted — falling back to foreground-only tracking',
+        {
+          component: 'MapScreen',
+          action: 'startBackgroundLocationUpdates',
+          retryCount,
+          errorType: isSharedPreferencesError ? 'SharedPreferences' : 'ForegroundService',
+        }
+      );
+      await startForegroundLocationUpdates();
+      return;
+    }
+
+    // Non-Android or non-foreground-service errors — rethrow
+    throw error;
+  }
 }
 
 // Helper: Start foreground-only location updates with watchPositionAsync
@@ -267,12 +324,7 @@ async function startForegroundLocationUpdates(): Promise<void> {
         longitude: location.coords.longitude,
       };
 
-      logger.debug('Emitting locationUpdate event from foreground service', {
-        component: 'MapScreen',
-        action: 'startForegroundLocationUpdates',
-        coordinate: `${locationUpdate.latitude.toFixed(6)}, ${locationUpdate.longitude.toFixed(6)}`,
-      });
-
+      // Note: Removed per-update log to reduce noise (fires every 100ms)
       DeviceEventEmitter.emit('locationUpdate', locationUpdate);
     }
   );
@@ -354,7 +406,7 @@ async function startLocationUpdates(backgroundGranted: boolean = false) {
 const createLocationUpdateCallback = (params: {
   isActiveRef: { current: boolean };
   dispatch: ReturnType<typeof useAppDispatch>;
-  mapRef: React.RefObject<MapView>;
+  mapRef: React.RefObject<MapView | null>;
   isMapCenteredOnUser: boolean;
   isFollowModeActive: boolean;
   currentRegion: Region | undefined;
@@ -386,7 +438,7 @@ const createLocationUpdateCallback = (params: {
 const createGPSInjectionCallback = (params: {
   isActiveRef: { current: boolean };
   dispatch: ReturnType<typeof useAppDispatch>;
-  mapRef: React.RefObject<MapView>;
+  mapRef: React.RefObject<MapView | null>;
   isMapCenteredOnUser: boolean;
   isFollowModeActive: boolean;
   currentRegion: Region | undefined;
@@ -454,7 +506,7 @@ function setupLocationListeners({
 }: {
   isActiveRef: { current: boolean };
   dispatch: ReturnType<typeof useAppDispatch>;
-  mapRef: React.RefObject<MapView>;
+  mapRef: React.RefObject<MapView | null>;
   isMapCenteredOnUser: boolean;
   isFollowModeActive: boolean;
   currentRegion: Region | undefined;
@@ -507,7 +559,7 @@ async function getInitialLocation({
 }: {
   isActiveRef: { current: boolean };
   dispatch: ReturnType<typeof useAppDispatch>;
-  mapRef: React.RefObject<MapView>;
+  mapRef: React.RefObject<MapView | null>;
   isMapCenteredOnUser: boolean;
   isFollowModeActive: boolean;
   currentRegion: Region | undefined;
@@ -595,7 +647,7 @@ const initializeLocationServices = async (
   locationParams: {
     isActiveRef: { current: boolean };
     dispatch: ReturnType<typeof useAppDispatch>;
-    mapRef: React.RefObject<MapView>;
+    mapRef: React.RefObject<MapView | null>;
     isMapCenteredOnUser: boolean;
     isFollowModeActive: boolean;
     currentRegion: Region | undefined;
@@ -603,6 +655,16 @@ const initializeLocationServices = async (
     isSessionActive: boolean;
   }
 ) => {
+  // Run GPS diagnostics to surface hardware/services issues early
+  // This is fire-and-forget — it logs warnings but doesn't block init
+  GPSDiagnosticsService.diagnose().catch((err) =>
+    logger.warn('GPS diagnostics failed (non-blocking)', {
+      component: 'MapScreen',
+      action: 'initializeLocationServices',
+      error: err instanceof Error ? err.message : String(err),
+    })
+  );
+
   // Initialize BackgroundLocationService
   await BackgroundLocationService.initialize();
 
@@ -635,7 +697,7 @@ const initializeLocationServicesWithVerifiedPermissions = async ({
 }: {
   isActiveRef: { current: boolean };
   dispatch: ReturnType<typeof useAppDispatch>;
-  mapRef: React.RefObject<MapView>;
+  mapRef: React.RefObject<MapView | null>;
   isMapCenteredOnUser: boolean;
   isFollowModeActive: boolean;
   currentRegion: Region | undefined;
@@ -675,7 +737,7 @@ const initializeLocationServicesWithVerifiedPermissions = async ({
 
 // Configuration interface for location service
 interface LocationServiceConfig {
-  mapRef: React.RefObject<MapView>;
+  mapRef: React.RefObject<MapView | null>;
   isMapCenteredOnUser: boolean;
   isFollowModeActive: boolean;
   currentRegion: Region | undefined;
@@ -890,7 +952,7 @@ const createCenterOnUserHandler =
   (options: {
     currentLocation: GeoPoint | null;
     currentRegion: Region | undefined;
-    mapRef: React.RefObject<MapView>;
+    mapRef: React.RefObject<MapView | null>;
     dispatch: ReturnType<typeof useAppDispatch>;
     isFollowModeActive: boolean;
   }) =>
@@ -920,6 +982,24 @@ const createCenterOnUserHandler =
   };
 
 // Extracted event handler helpers for useMapEventHandlers
+
+/**
+ * Guard against bogus (0,0) regions from react-native-maps Fabric timing issue.
+ *
+ * When MKMapView initializes under the New Architecture (Fabric), it fires
+ * regionDidChangeAnimated: with its default region (near 0,0) BEFORE the
+ * initialRegion prop is applied via updateProps. If we accept that region,
+ * the fog overlay's viewport culling drops ALL GPS points (which are far from
+ * Null Island), resulting in a solid black screen.
+ *
+ * This guard rejects regions where both |lat| < 0.5 and |lng| < 0.5,
+ * which covers Null Island and its surroundings — a location no one is
+ * walking their dog.
+ */
+export function isNullIslandRegion(region: Region): boolean {
+  return Math.abs(region.latitude) < 0.5 && Math.abs(region.longitude) < 0.5;
+}
+
 function handleRegionChange({
   region,
   setCurrentRegion,
@@ -933,6 +1013,12 @@ function handleRegionChange({
   mapDimensions: { width: number; height: number };
   workletUpdateRegion: (region: Region & { width: number; height: number }) => void;
 }) {
+  // Reject bogus near-(0,0) regions from Fabric initialization timing issue.
+  // See isNullIslandRegion() for details.
+  if (isNullIslandRegion(region)) {
+    return;
+  }
+
   const regionWithDimensions = {
     ...region,
     width: mapDimensions.width,
@@ -953,7 +1039,7 @@ function handlePanDrag({
   mapRef,
   dispatch,
 }: {
-  mapRef: React.RefObject<MapView>;
+  mapRef: React.RefObject<MapView | null>;
   dispatch: ReturnType<typeof useAppDispatch>;
 }) {
   // User is panning/dragging - disable both centered state and follow mode
@@ -992,8 +1078,13 @@ function handleRegionChangeComplete({
   region: Region;
   setCurrentRegion: (region: Region) => void;
   handleZoomChange: (zoom: number) => void;
-  mapRef: React.RefObject<MapView>;
+  mapRef: React.RefObject<MapView | null>;
 }) {
+  // Reject bogus near-(0,0) regions from Fabric initialization timing issue.
+  if (isNullIslandRegion(region)) {
+    return;
+  }
+
   // Constrain the region to prevent zooming out beyond 20km
   const constrainedRegion = constrainRegion(region);
   const zoom = Math.round(Math.log(360 / constrainedRegion.latitudeDelta) / Math.LN2);
@@ -1023,7 +1114,7 @@ const useMapEventHandlers = (options: {
   currentRegion: Region | undefined;
   isMapCenteredOnUser: boolean;
   isFollowModeActive: boolean;
-  mapRef: React.RefObject<MapView>;
+  mapRef: React.RefObject<MapView | null>;
   setCurrentRegion: (region: Region) => void;
   setCurrentFogRegion: (region: (Region & { width: number; height: number }) | undefined) => void;
   mapDimensions: { width: number; height: number };
@@ -1113,7 +1204,7 @@ const getSettingsButtonStyle = (insets: SafeAreaInsets) => ({
 
 // Type definition for MapScreenRenderer props
 interface MapScreenRendererProps {
-  mapRef: React.RefObject<MapView>;
+  mapRef: React.RefObject<MapView | null>;
   currentLocation: GeoPoint | null;
   insets: SafeAreaInsets;
   isMapCenteredOnUser: boolean;
@@ -1129,7 +1220,7 @@ interface MapScreenRendererProps {
   // workletMapRegion?: ReturnType<typeof useWorkletMapRegion>; // Available for future worklet integration
 }
 
-// Loading state component
+// Loading state component — shown only briefly while fallback region loads from AsyncStorage
 const MapLoadingState = ({
   setMapDimensions,
   centerOnUserLocation,
@@ -1152,7 +1243,7 @@ const MapLoadingState = ({
     }}
   >
     <View style={styles.loadingContainer}>
-      <Text style={styles.loadingText}>Getting your location...</Text>
+      <Text style={styles.loadingText}>Preparing map…</Text>
     </View>
     <LocationButton
       onPress={centerOnUserLocation}
@@ -1220,7 +1311,7 @@ const MapViewWithMarker = ({
   onPanDrag,
   onRegionChangeComplete,
 }: {
-  mapRef: React.RefObject<MapView>;
+  mapRef: React.RefObject<MapView | null>;
   initialRegion: any;
   currentLocation: GeoPoint | null;
   currentRegion?: Region | undefined;
@@ -1251,6 +1342,10 @@ const MapViewWithMarker = ({
       showsMyLocationButton={false}
       rotateEnabled={false}
       pitchEnabled={false}
+      scrollEnabled={true}
+      zoomEnabled={true}
+      zoomTapEnabled={true}
+      zoomControlEnabled={true}
     >
       {currentLocation && adjustedCoordinate && (
         <Marker
@@ -1288,9 +1383,7 @@ const MapScreenRenderer = ({
     canStartAnimation: canStartCinematicAnimation,
   });
 
-  // Show map immediately after permissions are granted, even without location
-  // This allows cinematic animation to start while location is being acquired
-  // The cinematic zoom hook provides a fallback region for first-time users
+  // Brief null while fallback region loads from AsyncStorage (~1 frame)
   if (!initialRegion) {
     return (
       <MapLoadingState
@@ -1303,7 +1396,8 @@ const MapScreenRenderer = ({
     );
   }
 
-  // Use initialRegion from cinematic zoom hook (already has proper fallback logic)
+  // Map is always rendered — GPS acquisition overlay appears on top when location unknown
+  const isAcquiringGPS = !currentLocation;
 
   return (
     <View
@@ -1329,15 +1423,18 @@ const MapScreenRenderer = ({
         onRegionChangeComplete={onRegionChangeComplete}
       />
 
-      {/* Use OptimizedFogOverlay for better performance with many GPS points */}
-      {currentFogRegion && (
+      {/* Fog overlay only when we have a real location */}
+      {currentFogRegion && !isAcquiringGPS && (
         <OptimizedFogOverlay mapRegion={currentFogRegion} safeAreaInsets={insets} />
       )}
 
       {/* Distance scale legend */}
-      {currentFogRegion && (
+      {currentFogRegion && !isAcquiringGPS && (
         <MapDistanceScale region={currentFogRegion} mapWidth={currentFogRegion.width} />
       )}
+
+      {/* GPS acquisition overlay — visible until first location fix */}
+      <GPSAcquisitionOverlay visible={isAcquiringGPS} />
 
       <LocationButton
         onPress={centerOnUserLocation}
@@ -1420,7 +1517,7 @@ const processStoredBackgroundLocations = async (
     dispatch: ReturnType<typeof useAppDispatch>;
     isMapCenteredOnUser: boolean;
     currentRegion: Region | undefined;
-    mapRef: React.RefObject<MapView>;
+    mapRef: React.RefObject<MapView | null>;
   }
 ) => {
   const { dispatch, isMapCenteredOnUser, currentRegion, mapRef } = options;
@@ -1441,7 +1538,8 @@ const processStoredBackgroundLocations = async (
   );
 
   // Center map on new location if user tracking is enabled
-  if (isMapCenteredOnUser && mapRef.current) {
+  // Skip if cinematic zoom is active to prevent interrupting the animation
+  if (isMapCenteredOnUser && mapRef.current && !(mapRef.current as any)?._cinematicZoomActive) {
     const newRegion = {
       latitude: mostRecent.latitude,
       longitude: mostRecent.longitude,
@@ -1457,7 +1555,7 @@ const useAppStateChangeHandler = (
   dispatch: ReturnType<typeof useAppDispatch>,
   isMapCenteredOnUser: boolean,
   currentRegion: Region | undefined,
-  mapRef: React.RefObject<MapView>
+  mapRef: React.RefObject<MapView | null>
 ) => {
   useEffect(() => {
     const handleAppStateChange = async (nextAppState: string) => {
@@ -1497,7 +1595,7 @@ const refetchLocationAfterClear = async (
   type: ClearType,
   options: {
     dispatch: ReturnType<typeof useAppDispatch>;
-    mapRef: React.RefObject<MapView>;
+    mapRef: React.RefObject<MapView | null>;
     isMapCenteredOnUser: boolean;
     currentRegion: Region | undefined;
   }
@@ -1531,7 +1629,7 @@ const createDataClearHandler = (
   },
   config: {
     dispatch: ReturnType<typeof useAppDispatch>;
-    mapRef: React.RefObject<MapView>;
+    mapRef: React.RefObject<MapView | null>;
     isMapCenteredOnUser: boolean;
     currentRegion: Region | undefined;
   }
@@ -1576,7 +1674,7 @@ const createDataClearHandler = (
 const useDataClearing = (
   dispatch: ReturnType<typeof useAppDispatch>,
   mapConfig: {
-    mapRef: React.RefObject<MapView>;
+    mapRef: React.RefObject<MapView | null>;
     isMapCenteredOnUser: boolean;
     currentRegion: Region | undefined;
   },
@@ -1764,7 +1862,7 @@ const useMapScreenState = () => {
 
 // Configuration for MapScreen services
 interface MapScreenServicesConfig {
-  mapRef: React.RefObject<MapView>;
+  mapRef: React.RefObject<MapView | null>;
   isMapCenteredOnUser: boolean;
   isFollowModeActive: boolean;
   currentRegion: Region | undefined;
@@ -1896,7 +1994,7 @@ const useMapScreenReduxState = () => {
 
 // Component for rendering MapScreen UI elements
 const MapScreenUI: React.FC<{
-  mapRef: React.RefObject<MapView>;
+  mapRef: React.RefObject<MapView | null>;
   currentLocation: GeoPoint | null;
   insets: any;
   isMapCenteredOnUser: boolean;
@@ -1999,8 +2097,8 @@ const useMapScreenNavigation = (setIsSettingsModalVisible: (visible: boolean) =>
 };
 
 // Helper function to gather all hook states
-const useMapScreenHookStates = () => {
-  const onboarding = useMapScreenOnboarding();
+// Accepts onboarding as parameter to avoid duplicate hook calls
+const useMapScreenHookStates = (onboarding: ReturnType<typeof useMapScreenOnboarding>) => {
   const mapState = useMapScreenState();
   const reduxState = useMapScreenReduxState();
 
@@ -2141,7 +2239,7 @@ const useStatsInitialization = () => {
 
       dispatch(recalculateArea(serializableGPSData));
 
-      logger.debug('Triggered periodic area recalculation', {
+      logger.trace('Triggered periodic area recalculation', {
         component: 'MapScreen',
         action: 'recalculateAreaPeriodically',
         pathLength: explorationState.path.length,
@@ -2164,11 +2262,13 @@ const useStatsInitialization = () => {
 };
 
 // Custom hook that combines all map screen logic
+// Takes onboarding state as parameter to ensure single source of truth
 const useMapScreenLogic = (
+  onboarding: ReturnType<typeof useMapScreenOnboarding>,
   permissionsVerified: boolean = false,
-  backgroundGranted: boolean = false // Add backgroundGranted parameter
+  backgroundGranted: boolean = false
 ) => {
-  const { onboarding, mapState, reduxState } = useMapScreenHookStates();
+  const { mapState, reduxState } = useMapScreenHookStates(onboarding);
   // Only log significant render state changes, not every render
   // (Removed excessive render logging that was flooding console)
 
@@ -2278,8 +2378,13 @@ export const MapScreen = () => {
     showOnboarding,
   ]);
 
-  // Pass permissions verification state to the logic hook
-  const { uiProps } = useMapScreenLogic(permissionsVerified, backgroundGranted);
+  // Pass permissions verification state and onboarding state to the logic hook
+  // This ensures single source of truth for onboarding state (no duplicate hook calls)
+  const { uiProps } = useMapScreenLogic(
+    onboardingHookState,
+    permissionsVerified,
+    backgroundGranted
+  );
 
   // Show permission verification screen while verifying OR if permissions are denied
   const showPermissionScreen =

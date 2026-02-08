@@ -1,5 +1,6 @@
 import { PermissionVerificationService } from '../PermissionVerificationService';
 import * as Location from 'expo-location';
+import { Platform } from 'react-native';
 
 // Mock expo-location
 jest.mock('expo-location');
@@ -322,5 +323,154 @@ describe('PermissionVerificationService', () => {
   describe('error handling', () => {
     // Note: Complex permission flows are tested through integration tests
     // Individual error cases are hard to test in isolation due to internal state management
+  });
+
+  describe('Android-specific permission flow', () => {
+    const originalPlatform = Platform.OS;
+
+    beforeEach(() => {
+      // @ts-expect-error - overriding read-only for test
+      Platform.OS = 'android';
+    });
+
+    afterEach(() => {
+      // @ts-expect-error - restoring read-only
+      Platform.OS = originalPlatform;
+    });
+
+    it('should skip polling on Android and return result directly', async () => {
+      // Foreground granted
+      mockLocation.getForegroundPermissionsAsync.mockResolvedValue({
+        status: Location.PermissionStatus.UNDETERMINED,
+        granted: false,
+        canAskAgain: true,
+        expires: 'never',
+      });
+
+      mockLocation.requestForegroundPermissionsAsync.mockResolvedValue({
+        status: Location.PermissionStatus.GRANTED,
+        granted: true,
+        canAskAgain: true,
+        expires: 'never',
+      });
+
+      // Background undetermined → request returns granted
+      mockLocation.getBackgroundPermissionsAsync.mockResolvedValueOnce({
+        status: Location.PermissionStatus.UNDETERMINED,
+        granted: false,
+        canAskAgain: true,
+        expires: 'never',
+      });
+
+      mockLocation.requestBackgroundPermissionsAsync.mockResolvedValue({
+        status: Location.PermissionStatus.GRANTED,
+        granted: true,
+        canAskAgain: true,
+        expires: 'never',
+      });
+
+      const result = await PermissionVerificationService.verifyAndRequestPermissions();
+
+      expect(result.canProceed).toBe(true);
+      expect(result.hasBackgroundPermission).toBe(true);
+      // On Android, we should NOT be polling — the request returns directly
+      expect(mockLocation.requestBackgroundPermissionsAsync).toHaveBeenCalledTimes(1);
+    });
+
+    it('should handle Android background permission denial gracefully', async () => {
+      // Foreground undetermined → granted
+      mockLocation.getForegroundPermissionsAsync.mockResolvedValue({
+        status: Location.PermissionStatus.UNDETERMINED,
+        granted: false,
+        canAskAgain: true,
+        expires: 'never',
+      });
+
+      mockLocation.requestForegroundPermissionsAsync.mockResolvedValue({
+        status: Location.PermissionStatus.GRANTED,
+        granted: true,
+        canAskAgain: true,
+        expires: 'never',
+      });
+
+      // Background undetermined → denied (user didn't enable in Settings)
+      mockLocation.getBackgroundPermissionsAsync.mockResolvedValueOnce({
+        status: Location.PermissionStatus.UNDETERMINED,
+        granted: false,
+        canAskAgain: true,
+        expires: 'never',
+      });
+
+      mockLocation.requestBackgroundPermissionsAsync.mockResolvedValue({
+        status: Location.PermissionStatus.DENIED,
+        granted: false,
+        canAskAgain: true,
+        expires: 'never',
+      });
+
+      const result = await PermissionVerificationService.verifyAndRequestPermissions();
+
+      expect(result.canProceed).toBe(true);
+      expect(result.hasBackgroundPermission).toBe(false);
+      expect(result.warningMessage).toContain('Settings');
+    });
+  });
+
+  describe('iOS-specific permission flow', () => {
+    const originalPlatform = Platform.OS;
+
+    beforeEach(() => {
+      // @ts-expect-error - overriding read-only for test
+      Platform.OS = 'ios';
+    });
+
+    afterEach(() => {
+      // @ts-expect-error - restoring read-only
+      Platform.OS = originalPlatform;
+    });
+
+    it('should use polling wait on iOS for undetermined background permission', async () => {
+      // Foreground undetermined → granted
+      mockLocation.getForegroundPermissionsAsync.mockResolvedValue({
+        status: Location.PermissionStatus.UNDETERMINED,
+        granted: false,
+        canAskAgain: true,
+        expires: 'never',
+      });
+
+      mockLocation.requestForegroundPermissionsAsync.mockResolvedValue({
+        status: Location.PermissionStatus.GRANTED,
+        granted: true,
+        canAskAgain: true,
+        expires: 'never',
+      });
+
+      // Background undetermined → after polling, granted
+      mockLocation.getBackgroundPermissionsAsync
+        .mockResolvedValueOnce({
+          status: Location.PermissionStatus.UNDETERMINED,
+          granted: false,
+          canAskAgain: true,
+          expires: 'never',
+        })
+        .mockResolvedValue({
+          status: Location.PermissionStatus.GRANTED,
+          granted: true,
+          canAskAgain: true,
+          expires: 'never',
+        });
+
+      mockLocation.requestBackgroundPermissionsAsync.mockResolvedValue({
+        status: Location.PermissionStatus.GRANTED,
+        granted: true,
+        canAskAgain: true,
+        expires: 'never',
+      });
+
+      const result = await PermissionVerificationService.verifyAndRequestPermissions();
+
+      expect(result.canProceed).toBe(true);
+      expect(result.hasBackgroundPermission).toBe(true);
+    });
   });
 });

@@ -50,4 +50,12 @@ module.exports = {
   }),
   startLocationUpdatesAsync: jest.fn().mockResolvedValue(undefined),
   stopLocationUpdatesAsync: jest.fn().mockResolvedValue(undefined),
+  watchPositionAsync: jest.fn().mockResolvedValue({ remove: jest.fn() }),
+  hasServicesEnabledAsync: jest.fn().mockResolvedValue(true),
+  getProviderStatusAsync: jest.fn().mockResolvedValue({
+    locationServicesEnabled: true,
+    gpsAvailable: true,
+    networkAvailable: true,
+    passiveAvailable: true,
+  }),
 };

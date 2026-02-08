@@ -12,7 +12,6 @@ import * as Location from 'expo-location';
 
 // Extend global type for jest console setup
 declare global {
-  // eslint-disable-next-line no-var
   var expectConsoleErrors: boolean;
 }
 

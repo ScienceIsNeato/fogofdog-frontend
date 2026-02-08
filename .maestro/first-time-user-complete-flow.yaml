@@ -121,11 +121,11 @@ appId: com.fogofdog.app
 - waitForAnimationToEnd:
     timeout: 3000
 
-# Check if we see the white "Getting your location..." screen (the bug)
+# Check if we see the GPS acquisition overlay (expected while acquiring signal)
 - runFlow:
     when:
       visible:
-        text: 'Getting your location...'
+        text: 'Acquiring GPS signal…'
     commands:
       - waitForAnimationToEnd:
           timeout: 3000 # Wait to see how long it persists
@@ -140,9 +140,14 @@ appId: com.fogofdog.app
           timeout: 2000
 
 # === PHASE 4: MAP RENDERING & ANIMATION ===
-# CRITICAL: Verify we're NOT stuck on loading screen
+# CRITICAL: Verify we're NOT stuck on old white loading screen
 - assertNotVisible:
     text: 'Getting your location...'
+
+# The GPS acquisition overlay should disappear once location is acquired
+- assertNotVisible:
+    text: 'Acquiring GPS signal…'
+    optional: true # May already be gone if GPS was fast
 
 # CRITICAL: Verify actual map content is rendered (fog overlay should be present)
 # The map should show actual geographic content, not just a loading state

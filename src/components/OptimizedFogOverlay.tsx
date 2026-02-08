@@ -1,7 +1,7 @@
-import React, { useMemo, useEffect } from 'react';
+import React, { useMemo, useEffect, useRef, useState, useCallback } from 'react';
 import { Skia, Canvas, Path, Fill, Mask, Rect, Group } from '@shopify/react-native-skia';
 import type { SkPath } from '@shopify/react-native-skia';
-import { StyleSheet } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { useSelector } from 'react-redux';
 import type { RootState } from '../store';
 import { calculateMetersPerPixel, geoPointToPixel } from '../utils/mapUtils';
@@ -11,6 +11,59 @@ import { FOG_CONFIG } from '../config/fogConfig';
 import { GPSConnectionService } from '../services/GPSConnectionService';
 import { PathSimplificationService } from '../utils/pathSimplification';
 import { GeoPoint } from '../types/user';
+
+/**
+ * CRITICAL: Custom hook to manage Skia path lifecycle (React 19 safe)
+ *
+ * Skia paths created with Skia.Path.Make() allocate native memory that is NOT
+ * garbage collected by JavaScript. They MUST be explicitly disposed with .dispose().
+ *
+ * IMPORTANT: In React 19, useMemo can run during aborted renders (concurrent mode,
+ * StrictMode double-render). Native memory mutations (delete/allocate) MUST happen
+ * in useEffect, not useMemo, to avoid corrupting paths that are still referenced
+ * by committed renders.
+ */
+const useManagedSkiaPath = (createPath: () => SkPath, deps: React.DependencyList): SkPath => {
+  // Stable empty path as initial value — avoids null checks downstream
+  const emptyPath = useMemo(() => Skia.Path.Make(), []);
+  const [path, setPath] = useState<SkPath>(emptyPath);
+  const pathRef = useRef<SkPath | null>(null);
+
+  // Memoize the path factory to detect dependency changes
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const memoizedFactory = useCallback(createPath, deps);
+
+  // Create/dispose paths in useEffect — safe from aborted renders
+  useEffect(() => {
+    const newPath = memoizedFactory();
+
+    // Dispose previous path AFTER new one is created (never leave a gap)
+    if (pathRef.current && pathRef.current !== emptyPath) {
+      try {
+        pathRef.current.dispose();
+      } catch {
+        // Path may already be disposed - ignore
+      }
+    }
+
+    pathRef.current = newPath;
+    setPath(newPath);
+
+    // Cleanup this specific path if effect re-runs or component unmounts
+    return () => {
+      try {
+        newPath.dispose();
+      } catch {
+        // Path may already be disposed - ignore
+      }
+      if (pathRef.current === newPath) {
+        pathRef.current = null;
+      }
+    };
+  }, [memoizedFactory, emptyPath]);
+
+  return path;
+};
 
 interface OptimizedFogOverlayProps {
   mapRegion: MapRegion & { width: number; height: number };
@@ -86,6 +139,11 @@ const useOptimizedCoordinates = (
   safeAreaInsets?: { top: number; bottom: number; left: number; right: number }
 ) => {
   return useMemo(() => {
+    // Guard: skip processing when dimensions aren't available yet
+    if (!mapRegion.width || !mapRegion.height) {
+      return { finalPoints: [], pixelCoordinates: [] };
+    }
+
     const startTime = performance.now();
 
     // Step 1: Viewport culling
@@ -144,7 +202,11 @@ const useOptimizedFogCalculations = (
   );
 
   // Calculate radius in pixels based on the current zoom level (needed for path simplification)
+  // Guard: return safe default when dimensions aren't available yet (before onLayout)
   const radiusPixels = useMemo(() => {
+    if (!mapRegion.width || !mapRegion.height) {
+      return 0;
+    }
     const metersPerPixel = calculateMetersPerPixel(mapRegion);
     return FOG_CONFIG.RADIUS_METERS / metersPerPixel;
   }, [mapRegion]);
@@ -164,7 +226,8 @@ const useOptimizedFogCalculations = (
   }, [finalPoints]);
 
   // Compute the Skia path from connected segments with smooth Bezier curves
-  const skiaPath = useMemo(() => {
+  // CRITICAL: Use managed hook to properly dispose native Skia memory
+  const skiaPath = useManagedSkiaPath(() => {
     const path = Skia.Path.Make();
 
     if (connectedSegments.length === 0) {
@@ -238,7 +301,8 @@ const OptimizedFogMask: React.FC<{
   strokeWidth: number;
 }> = ({ pixelCoordinates, radiusPixels, skiaPath, strokeWidth }) => {
   // Create batched circle path for better performance
-  const batchedCirclePath = useMemo(
+  // CRITICAL: Use managed hook to properly dispose native Skia memory
+  const batchedCirclePath = useManagedSkiaPath(
     () => createBatchedCirclePath(pixelCoordinates, radiusPixels),
     [pixelCoordinates, radiusPixels]
   );
@@ -291,33 +355,45 @@ const OptimizedFogOverlay: React.FC<OptimizedFogOverlayProps> = ({ mapRegion, sa
     );
   }, [originalPointCount, finalPoints.length, radiusPixels]);
 
+  // Guard: Don't render Skia Canvas into zero-sized surface
+  // This can happen before onLayout fires, especially with React 19's
+  // changed effect scheduling and Expo 54's startup timing
+  if (!mapRegion.width || !mapRegion.height) {
+    return null;
+  }
+
   return (
-    <Canvas style={styles.canvas} pointerEvents="none" testID="optimized-fog-overlay-canvas">
-      <Mask
-        mode="luminance"
-        mask={
-          <OptimizedFogMask
-            pixelCoordinates={pixelCoordinates}
-            radiusPixels={radiusPixels}
-            skiaPath={skiaPath}
-            strokeWidth={strokeWidth}
+    <View style={styles.canvasWrapper} pointerEvents="none">
+      <Canvas style={styles.canvas} testID="optimized-fog-overlay-canvas">
+        <Mask
+          mode="luminance"
+          mask={
+            <OptimizedFogMask
+              pixelCoordinates={pixelCoordinates}
+              radiusPixels={radiusPixels}
+              skiaPath={skiaPath}
+              strokeWidth={strokeWidth}
+            />
+          }
+        >
+          {/* The actual fog rectangle covering the entire screen */}
+          <Rect
+            x={0}
+            y={0}
+            width={mapRegion.width}
+            height={mapRegion.height}
+            color={FOG_CONFIG.COLOR}
           />
-        }
-      >
-        {/* The actual fog rectangle covering the entire screen */}
-        <Rect
-          x={0}
-          y={0}
-          width={mapRegion.width}
-          height={mapRegion.height}
-          color={FOG_CONFIG.COLOR}
-        />
-      </Mask>
-    </Canvas>
+        </Mask>
+      </Canvas>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
+  canvasWrapper: {
+    ...StyleSheet.absoluteFillObject,
+  },
   canvas: {
     flex: 1,
     position: 'absolute',

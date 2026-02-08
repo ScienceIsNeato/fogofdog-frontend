@@ -4,7 +4,7 @@
     {
       "label": "🔍 Dev Check - Full Suite",
       "type": "shell",
-      "command": "./scripts/maintainAIbility-gate.sh",
+      "command": "sm validate javascript",
       "group": {
         "kind": "build",
         "isDefault": true

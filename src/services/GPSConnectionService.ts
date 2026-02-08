@@ -155,9 +155,6 @@ export class GPSConnectionService {
     // Sort points by timestamp to ensure chronological order
     const sortedPoints = [...validPoints].sort((a, b) => a.timestamp - b.timestamp);
 
-    // For large datasets, disable verbose logging to prevent UI blocking
-    const enableDebugLogging = options.enableLogging !== false && sortedPoints.length < 100;
-
     const processedPoints: ProcessedGPSPoint[] = [];
 
     for (let i = 0; i < sortedPoints.length; i++) {
@@ -178,25 +175,7 @@ export class GPSConnectionService {
         if (!decision.connect) {
           startsNewSession = true;
           disconnectionReason = decision.reason;
-
-          // Only log for small datasets to prevent UI blocking
-          if (enableDebugLogging) {
-            logger.debug('GPS connection broken - new session started', {
-              component: 'GPSConnectionService',
-              action: 'processGPSPoints',
-              reason: decision.reason,
-              previousPoint: {
-                lat: previousPoint.latitude.toFixed(6),
-                lng: previousPoint.longitude.toFixed(6),
-                timestamp: new Date(previousPoint.timestamp).toISOString(),
-              },
-              currentPoint: {
-                lat: currentPoint.latitude.toFixed(6),
-                lng: currentPoint.longitude.toFixed(6),
-                timestamp: new Date(currentPoint.timestamp).toISOString(),
-              },
-            });
-          }
+          // Note: Removed per-point "connection broken" log - too noisy when stationary
         }
       }
 
@@ -208,8 +187,8 @@ export class GPSConnectionService {
       });
     }
 
-    // Only log summary for small datasets or occasionally for large ones to prevent spam
-    if (enableDebugLogging || Math.random() < 0.01) {
+    // Only log occasionally to prevent spam (0.1% of calls, or when explicitly enabled with larger datasets)
+    if ((options.enableLogging === true && sortedPoints.length >= 10) || Math.random() < 0.001) {
       logger.info('GPS points processed with connection metadata', {
         component: 'GPSConnectionService',
         action: 'processGPSPoints',

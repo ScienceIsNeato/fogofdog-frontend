@@ -13,6 +13,20 @@
     "noImplicitReturns": true,
     "noFallthroughCasesInSwitch": true,
     "exactOptionalPropertyTypes": true,
-    "noUncheckedIndexedAccess": true
-  }
+    "noUncheckedIndexedAccess": true,
+    "paths": {
+      "expo-file-system/legacy": ["./node_modules/expo-file-system/build/legacy/FileSystem"]
+    }
+  },
+  "include": ["src/**/*", "App.tsx", "index.ts", "__mocks__/**/*"],
+  "exclude": [
+    "node_modules",
+    "slop-mop",
+    "cursor-rules",
+    "babel.config.js",
+    "metro.config.js",
+    "jest.config.js",
+    "android",
+    "ios"
+  ]
 }

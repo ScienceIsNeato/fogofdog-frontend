@@ -1,6 +1,13 @@
 /**
  * Centralized logging utility for FogOfDog app
  * Replaces direct console usage for better reliability and control
+ *
+ * Log levels (in order of verbosity):
+ * - trace: High-frequency events (GPS ticks, render cycles). OFF by default.
+ * - debug: Development debugging info. Shows in DEV.
+ * - info: Significant state changes. Shows in DEV.
+ * - warn: Potential issues. Shows in DEV.
+ * - error: Errors and exceptions. Always shows in DEV.
  */
 
 interface LogContext {
@@ -10,6 +17,43 @@ interface LogContext {
 }
 
 class Logger {
+  /**
+   * Trace logging is disabled by default to reduce noise.
+   * Enable with: logger.setTraceEnabled(true)
+   * Or in React Native debugger: global.TRACE_ENABLED = true
+   */
+  private _traceEnabled = false;
+
+  /**
+   * Enable or disable trace-level logging at runtime
+   */
+  setTraceEnabled(enabled: boolean): void {
+    this._traceEnabled = enabled;
+    if (enabled) {
+      // eslint-disable-next-line no-console
+      console.log('[Logger] Trace logging ENABLED');
+    }
+  }
+
+  /**
+   * Check if trace logging is enabled
+   */
+  isTraceEnabled(): boolean {
+    return this._traceEnabled;
+  }
+
+  /**
+   * Log trace-level information (high-frequency events like GPS ticks)
+   * Only logs when trace is explicitly enabled to reduce noise
+   */
+  trace(message: string, context?: LogContext): void {
+    if (__DEV__ && this._traceEnabled) {
+      const prefix = this.formatPrefix('TRACE', context);
+      // eslint-disable-next-line no-console
+      console.log(`${prefix} ${message}`, context ?? '');
+    }
+  }
+
   /**
    * Log an informational message
    */

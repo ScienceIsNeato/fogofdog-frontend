@@ -13,6 +13,7 @@ module.exports = [
       'android/*',
       'jest.setup.js',
       'cursor-rules/**/*',
+      'slop-mop/**/*',
       'node_modules/**/*',
       'artifacts/**/*',
       '**/*.d.ts',
@@ -51,7 +52,7 @@ module.exports = [
       'sonarjs/no-identical-conditions': 'error',
       'sonarjs/no-identical-expressions': 'error',
       'sonarjs/no-ignored-return': 'error',
-      'sonarjs/no-one-iteration-loop': 'error',
+      // no-one-iteration-loop removed in eslint-plugin-sonarjs v3
       'sonarjs/no-use-of-empty-return-value': 'error',
       'sonarjs/non-existent-operator': 'error',
 

@@ -35,7 +35,7 @@ jsEngine: graaljs
     appId: com.fogofdog.app
     clearState: true
 - runFlow:
-    file: robust-login.yaml
+    file: shared/robust-login.yaml
 - assertVisible:
     text: 'Woof!' # Point 1: Default login location visible
 

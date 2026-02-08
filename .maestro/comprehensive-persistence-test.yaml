@@ -40,7 +40,7 @@ jsEngine: graaljs
 
 # 1.4 Login with unchecked checkbox
 - runFlow:
-    file: robust-login.yaml
+    file: shared/robust-login.yaml
 - waitForAnimationToEnd:
     timeout: 2000
 - assertVisible:
@@ -105,7 +105,7 @@ jsEngine: graaljs
 
 # 2.2 Login with checked checkbox
 - runFlow:
-    file: robust-login.yaml
+    file: shared/robust-login.yaml
 - waitForAnimationToEnd:
     timeout: 2000
 - assertVisible:

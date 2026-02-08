@@ -1,4 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
+import { DeviceEventEmitter } from 'react-native';
+import * as Location from 'expo-location';
 import { PermissionsOrchestrator, PermissionMode } from '../../../services/PermissionsOrchestrator';
 import { logger } from '../../../utils/logger';
 
@@ -89,6 +91,33 @@ const usePermissionVerificationFlow = (
         mode: result.mode,
         error: result.error ?? null,
       });
+
+      // 🚀 IMMEDIATE GPS QUERY: Don't wait for React render cycle - get GPS NOW
+      // This fires before state propagates through the component tree
+      if (result.canProceed) {
+        Location.getCurrentPositionAsync({
+          accuracy: Location.Accuracy.Balanced, // Faster than High, still good enough
+        })
+          .then((position) => {
+            const geoPoint = {
+              latitude: position.coords.latitude,
+              longitude: position.coords.longitude,
+              timestamp: Date.now(),
+            };
+            logger.info('🚀 Immediate GPS acquired after permission verification', {
+              component: 'usePermissionVerification',
+              location: `${geoPoint.latitude.toFixed(6)}, ${geoPoint.longitude.toFixed(6)}`,
+            });
+            // Emit for cinematic zoom and other listeners
+            DeviceEventEmitter.emit('locationUpdate', geoPoint);
+          })
+          .catch((err) => {
+            logger.warn('Immediate GPS query failed (will retry via normal flow)', {
+              component: 'usePermissionVerification',
+              error: err instanceof Error ? err.message : String(err),
+            });
+          });
+      }
 
       logger.info(
         '🔑 PERMISSION_DEBUG: Verification completed - transitioning to GPS initialization',
