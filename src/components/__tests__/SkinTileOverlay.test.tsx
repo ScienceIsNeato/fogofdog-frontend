@@ -22,6 +22,7 @@ jest.mock('../../services/SkinAssetService', () => ({
 }));
 
 jest.mock('react-native-maps', () => {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const React = require('react');
   return {
     UrlTile: ({ testID }: { testID?: string }) =>
@@ -65,6 +66,7 @@ describe('SkinTileOverlay', () => {
   });
 
   it('calls initializeSkin when cartoon skin is first activated', async () => {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { initializeSkin } = require('../../services/SkinAssetService');
     const store = createStore('cartoon');
 

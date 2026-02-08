@@ -29,7 +29,7 @@ function getFileStats(filePath: string): { size: number; exists: boolean } {
 function readPngPixelSample(filePath: string, offset: number, length: number): Buffer {
   // Read a sample of bytes from the PNG file (post-header data)
   const buffer = fs.readFileSync(filePath);
-  return buffer.slice(offset, offset + length);
+  return buffer.subarray(offset, offset + length);
 }
 
 describe('Skin tile generation validation', () => {
@@ -75,7 +75,7 @@ describe('Skin tile generation validation', () => {
     const buffer = fs.readFileSync(CARTOON_TILE_PATH);
     // PNG magic bytes: 89 50 4E 47 0D 0A 1A 0A
     const pngMagic = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
-    expect(buffer.slice(0, 8)).toEqual(pngMagic);
+    expect(buffer.subarray(0, 8)).toEqual(pngMagic);
   });
 
   it('all zoom 14 cartoon tiles exist for SF test area', () => {
