@@ -1231,6 +1231,7 @@ const MapViewWithMarker = ({
   onPanDrag: () => void;
   onRegionChangeComplete: (region: Region) => void;
 }) => {
+  const activeSkin = useAppSelector((state) => state.skin.activeSkin);
   const adjustedCoordinate = currentLocation
     ? calculateAdjustedMarkerCoordinate(
         currentLocation,
@@ -1253,7 +1254,7 @@ const MapViewWithMarker = ({
       rotateEnabled={false}
       pitchEnabled={false}
     >
-      <SkinTileOverlay />
+      {activeSkin !== 'none' && <SkinTileOverlay />}
       {currentLocation && adjustedCoordinate && (
         <Marker
           key={`current-location-marker`}
