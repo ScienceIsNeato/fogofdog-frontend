@@ -7,6 +7,7 @@ import json
 import os
 from pathlib import Path
 
+
 def detect_model_lane(cwd):
     """Detect if we're in model_a or model_b directory."""
     path_parts = Path(cwd).parts

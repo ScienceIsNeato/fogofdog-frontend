@@ -5,14 +5,21 @@ Handles both incremental (Stop event) and final (SessionEnd) processing.
 Cross-platform support for Windows, macOS, and Linux.
 """
 import json
-import sys
 import os
 import shutil
 import subprocess
+import sys
+from collections import defaultdict
 from datetime import datetime, timezone
 from pathlib import Path
-from collections import defaultdict
-from claude_code_capture_utils import get_log_file_path, add_ab_metadata, detect_model_lane, get_experiment_root
+
+from claude_code_capture_utils import (
+    add_ab_metadata,
+    detect_model_lane,
+    get_experiment_root,
+    get_log_file_path,
+)
+
 
 def read_and_process_raw_transcript(transcript_path):
     """
