@@ -7,7 +7,7 @@
       "url": "https://tiles.openfreemap.org/planet"
     }
   },
-  "glyphs": "https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf",
+  "glyphs": "https://tiles.openfreemap.org/fonts/{fontstack}/{range}.pbf",
   "layers": [
     {
       "id": "background",
