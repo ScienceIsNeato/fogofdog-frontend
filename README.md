@@ -27,18 +27,8 @@
 ### 🔍 Code Quality
 
 [![🧹 ESLint](https://img.shields.io/badge/ESLint-Zero%20Warnings-brightgreen?style=flat-square&logo=eslint&logoColor=white)](https://eslint.org/)
-[![🏗️ SonarJS](https://img.shields.io/badge/SonarJS-Quality%20Rules-orange?style=flat-square&logo=sonarcloud&logoColor=white)](https://github.com/SonarSource/eslint-plugin-sonarjs)
+[![🏗️ SonarJS](https://img.shields.io/badge/SonarJS-Quality%20Rules-orange?style=flat-square&logo=eslint&logoColor=white)](https://github.com/SonarSource/eslint-plugin-sonarjs)
 [![🎨 Prettier](https://img.shields.io/badge/Code%20Style-Prettier-ff69b4?style=flat-square&logo=prettier&logoColor=white)](https://prettier.io/)
-[![📊 CodeClimate](https://img.shields.io/badge/CodeClimate-A%20Grade-brightgreen?style=flat-square&logo=codeclimate&logoColor=white)](https://codeclimate.com/)
-
-### ☁️ SonarQube Cloud Analysis
-
-[![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=ScienceIsNeato_fogofdog-frontend&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=ScienceIsNeato_fogofdog-frontend)
-[![Security Rating](https://sonarcloud.io/api/project_badges/measure?project=ScienceIsNeato_fogofdog-frontend&metric=security_rating)](https://sonarcloud.io/summary/new_code?id=ScienceIsNeato_fogofdog-frontend)
-[![Reliability Rating](https://sonarcloud.io/api/project_badges/measure?project=ScienceIsNeato_fogofdog-frontend&metric=reliability_rating)](https://sonarcloud.io/summary/new_code?id=ScienceIsNeato_fogofdog-frontend)
-[![Maintainability Rating](https://sonarcloud.io/api/project_badges/measure?project=ScienceIsNeato_fogofdog-frontend&metric=sqale_rating)](https://sonarcloud.io/summary/new_code?id=ScienceIsNeato_fogofdog-frontend)
-[![Coverage](https://sonarcloud.io/api/project_badges/measure?project=ScienceIsNeato_fogofdog-frontend&metric=coverage)](https://sonarcloud.io/summary/new_code?id=ScienceIsNeato_fogofdog-frontend)
-[![Duplicated Lines (%)](https://sonarcloud.io/api/project_badges/measure?project=ScienceIsNeato_fogofdog-frontend&metric=duplicated_lines_density)](https://sonarcloud.io/summary/new_code?id=ScienceIsNeato_fogofdog-frontend)
 
 ### 🧪 Testing & Coverage
 
@@ -57,7 +47,7 @@
 
 [![🔄 Duplicates](https://img.shields.io/badge/Code%20Duplication-3.49%25-brightgreen?style=flat-square&logo=codeclimate&logoColor=white)](https://github.com/kucherenko/jscpd)
 [![🔗 Circular Deps](https://img.shields.io/badge/Circular%20Dependencies-0-brightgreen?style=flat-square&logo=madge&logoColor=white)](https://github.com/pahen/madge)
-[![🧠 Complexity](https://img.shields.io/badge/Cognitive%20Complexity-Managed-orange?style=flat-square&logo=sonarcloud&logoColor=white)](https://github.com/SonarSource/eslint-plugin-sonarjs)
+[![🧠 Complexity](https://img.shields.io/badge/Cognitive%20Complexity-Managed-orange?style=flat-square&logo=eslint&logoColor=white)](https://github.com/SonarSource/eslint-plugin-sonarjs)
 
 </div>
 
@@ -176,7 +166,6 @@ sm validate -g javascript:tests
 - 🧪 Test Suite & Coverage
 - 🔄 Duplication Check
 - 🔒 Security Audit & Auto-Fix
-- 📊 SonarQube Analysis
 
 ### 🧪 Testing
 
@@ -277,7 +266,7 @@ src/
 - **Graphics**: React Native Skia
 - **Location**: Expo Location
 - **Testing**: Jest + React Native Testing Library + Maestro E2E
-- **Quality**: ESLint + SonarJS + Prettier
+- **Quality**: ESLint + SonarJS (ESLint plugin) + Prettier
 
 ---
 
@@ -295,8 +284,7 @@ Our project maintains enterprise-level code quality through automated monitoring
 
 ### 🔧 Quality Tools
 
-- **SonarQube Cloud**: Enterprise-grade static analysis with A ratings across Security, Reliability, and Maintainability
-- **SonarJS**: Same quality rules as SonarCloud Enterprise (integrated via ESLint)
+- **SonarJS**: Quality rules for cognitive complexity, duplication detection, and code smells (integrated via ESLint)
 - **jscpd**: Duplicate code detection
 - **madge**: Circular dependency analysis
 - **Prettier**: Consistent code formatting
@@ -344,7 +332,7 @@ Our GitHub Actions workflow ensures quality:
 
 - **React Native Community** for the amazing framework
 - **Expo Team** for the incredible developer experience
-- **SonarSource** for enterprise-quality code analysis tools
+- **SonarSource** for the eslint-plugin-sonarjs quality rules
 - **Jest Team** for the robust testing framework
 
 ---
