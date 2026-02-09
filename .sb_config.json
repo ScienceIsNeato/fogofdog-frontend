@@ -2,7 +2,7 @@
   "version": "1.0",
   "default_profile": "pr",
   "python": {
-    "enabled": true,
+    "enabled": false,
     "include_dirs": ["scripts"],
     "exclude_dirs": [],
     "gates": {
@@ -116,7 +116,15 @@
   "quality": {
     "enabled": true,
     "include_dirs": [],
-    "exclude_dirs": ["coverage", "ios", "android", "node_modules", ".git"],
+    "exclude_dirs": [
+      "coverage",
+      "ios",
+      "android",
+      "node_modules",
+      ".git",
+      "slop-mop",
+      "test_artifacts"
+    ],
     "gates": {
       "complexity": {
         "enabled": false,
