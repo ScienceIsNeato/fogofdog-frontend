@@ -1,14 +1,38 @@
 # FogOfDog Frontend Status
 
-## Current Status: ✅ COMPLETE - MapLibre GL Migration
+## Current Status: 🔄 IN PROGRESS - PR #57 CI Running
 
 ### 🎯 **LATEST: MapLibre GL Vector Tile Migration**
 
 **Branch**: `feature/map-skin-system-merged`  
 **PR**: #57 — `feat: migrate map engine to MapLibre GL for vector-tile skinning`  
-**Status**: PR open, CI running. All local quality gates passing (933 tests, 0 TS errors, 7/7 slop-mop gates green).  
+**Status**: Pushed 4 commits, CI running, 0 unresolved comments.  
 **Goal**: Replace react-native-maps with @maplibre/maplibre-react-native for style-based map skinning  
 **Supersedes**: PRs #55 (Model A) and #56 (Model B) — will auto-close on merge
+
+### **🔧 Latest Session (Feb 9, 2026)**
+
+**Commits pushed to PR #57:**
+1. `df308d1` - refactor: remove all ship_it.py references, fix PR detection
+2. `561ebfe` - chore: remove SonarCloud integration and purge obsolete docs
+3. `a406dd7` - refactor: extract DataActionMenuItem component to eliminate duplication
+4. `b460529` - fix: address PR #57 bot review comments
+
+**Bot Comments Addressed (5/5 resolved):**
+- ✅ MapLibre mock: Export MapView as named export (match library shape)
+- ✅ tileUtils: Clamp latitude to Web Mercator range (prevent NaN)
+- ✅ SettingsSkinView: Use Redux availableSkins instead of constant
+- ✅ MAP_SKIN_PLANNING.md: Archived as historical design document
+- ✅ cartoon.json: Fix road layer order (outline → fill for proper casing)
+
+**Additional Cleanup:**
+- Removed SonarCloud service (kept eslint-plugin-sonarjs)
+- Deleted 6 obsolete docs (PR_*.md, SLOPMOP_WINS.md, etc.)
+- Added slop-mop and test_artifacts to source-duplication excludes
+- Disabled Python language gates (TypeScript-only project)
+- Extracted DataActionMenuItem component to eliminate duplication
+
+**Quality Gates:** 6/6 passing (complexity, security, lint, types, tests, coverage)
 
 ### **✅ What Was Done**
 
