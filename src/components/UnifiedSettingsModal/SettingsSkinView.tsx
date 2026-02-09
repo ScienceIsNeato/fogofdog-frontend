@@ -9,7 +9,7 @@ import React from 'react';
 import { View, Text, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
-import { setSkin, AVAILABLE_SKINS } from '../../store/slices/skinSlice';
+import { setSkin } from '../../store/slices/skinSlice';
 import type { SkinId } from '../../store/slices/skinSlice';
 
 interface SettingsSkinViewProps {
@@ -21,6 +21,8 @@ export const SettingsSkinView: React.FC<SettingsSkinViewProps> = ({ onBack, styl
   const dispatch = useAppDispatch();
   const activeSkin = useAppSelector((state) => state.skin.activeSkin);
   const isInitializing = useAppSelector((state) => state.skin.isInitializing);
+  // Use Redux state for available skins to support dynamic catalog updates
+  const availableSkins = useAppSelector((state) => state.skin.availableSkins);
 
   const handleSelectSkin = (skinId: SkinId) => {
     dispatch(setSkin(skinId));
@@ -46,7 +48,7 @@ export const SettingsSkinView: React.FC<SettingsSkinViewProps> = ({ onBack, styl
           </View>
         )}
 
-        {AVAILABLE_SKINS.map((skin) => {
+        {availableSkins.map((skin) => {
           const isActive = activeSkin === skin.id;
           return (
             <TouchableOpacity

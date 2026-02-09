@@ -1,6 +1,21 @@
 # Map Skin System Planning
 
-## Executive Summary
+## ⚠️ Status: ARCHIVED (Historical Design Document)
+
+> **This document is preserved for historical reference only.**
+>
+> It describes a map skinning architecture based on `react-native-maps` + Google Maps + raster tiles via `UrlTile`.
+> This design has been **superseded** by the current MapLibre GL implementation, which uses **vector tiles + Style JSON** for map styling.
+>
+> **Do NOT use this document as the basis for new work.** See the actual implementation in:
+>
+> - `src/screens/Map/index.tsx` — MapLibre GL MapView
+> - `src/services/SkinStyleService.ts` — Style JSON loading
+> - `assets/skins/*.json` — MapLibre Style Spec skin definitions
+
+---
+
+## Original Executive Summary (Historical)
 
 This document outlines the architecture and implementation plan for adding a procedural map skinning overlay system to FogOfDog. The system allows users to apply visual "skins" (e.g., cartoon, vintage, neon) to the underlying Google Maps layer as they explore and reveal areas through fog-of-war gameplay.
 

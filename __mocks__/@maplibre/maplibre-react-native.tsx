@@ -61,6 +61,15 @@ const LineLayer = (props: ViewProps & Record<string, unknown>) =>
 const FillLayer = (props: ViewProps & Record<string, unknown>) =>
   React.createElement('FillLayer', props);
 
-// ── Default export (the MapView) ────────────────────────────────────────
-export { Camera, MarkerView, PointAnnotation, ShapeSource, SymbolLayer, LineLayer, FillLayer };
+// ── Named and default exports (match library's export shape) ───────────
+export {
+  MapView,
+  Camera,
+  MarkerView,
+  PointAnnotation,
+  ShapeSource,
+  SymbolLayer,
+  LineLayer,
+  FillLayer,
+};
 export default MapView;

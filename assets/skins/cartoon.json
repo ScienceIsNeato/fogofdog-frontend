@@ -81,26 +81,6 @@
       }
     },
     {
-      "id": "road-minor",
-      "type": "line",
-      "source": "openmaptiles",
-      "source-layer": "transportation",
-      "filter": ["in", "class", "minor", "service"],
-      "layout": {
-        "line-cap": "round",
-        "line-join": "round"
-      },
-      "paint": {
-        "line-color": "#ffffff",
-        "line-width": {
-          "stops": [
-            [12, 1],
-            [16, 6]
-          ]
-        }
-      }
-    },
-    {
       "id": "road-minor-outline",
       "type": "line",
       "source": "openmaptiles",
@@ -121,21 +101,21 @@
       }
     },
     {
-      "id": "road-secondary",
+      "id": "road-minor",
       "type": "line",
       "source": "openmaptiles",
       "source-layer": "transportation",
-      "filter": ["in", "class", "secondary", "tertiary"],
+      "filter": ["in", "class", "minor", "service"],
       "layout": {
         "line-cap": "round",
         "line-join": "round"
       },
       "paint": {
-        "line-color": "#fff4c6",
+        "line-color": "#ffffff",
         "line-width": {
           "stops": [
-            [10, 2],
-            [16, 10]
+            [12, 1],
+            [16, 6]
           ]
         }
       }
@@ -161,21 +141,21 @@
       }
     },
     {
-      "id": "road-primary",
+      "id": "road-secondary",
       "type": "line",
       "source": "openmaptiles",
       "source-layer": "transportation",
-      "filter": ["==", "class", "primary"],
+      "filter": ["in", "class", "secondary", "tertiary"],
       "layout": {
         "line-cap": "round",
         "line-join": "round"
       },
       "paint": {
-        "line-color": "#ffe08a",
+        "line-color": "#fff4c6",
         "line-width": {
           "stops": [
-            [8, 2],
-            [16, 14]
+            [10, 2],
+            [16, 10]
           ]
         }
       }
@@ -201,21 +181,21 @@
       }
     },
     {
-      "id": "road-highway",
+      "id": "road-primary",
       "type": "line",
       "source": "openmaptiles",
       "source-layer": "transportation",
-      "filter": ["in", "class", "motorway", "trunk"],
+      "filter": ["==", "class", "primary"],
       "layout": {
         "line-cap": "round",
         "line-join": "round"
       },
       "paint": {
-        "line-color": "#ffb347",
+        "line-color": "#ffe08a",
         "line-width": {
           "stops": [
-            [6, 2],
-            [16, 16]
+            [8, 2],
+            [16, 14]
           ]
         }
       }
@@ -236,6 +216,26 @@
           "stops": [
             [6, 3.5],
             [16, 19]
+          ]
+        }
+      }
+    },
+    {
+      "id": "road-highway",
+      "type": "line",
+      "source": "openmaptiles",
+      "source-layer": "transportation",
+      "filter": ["in", "class", "motorway", "trunk"],
+      "layout": {
+        "line-cap": "round",
+        "line-join": "round"
+      },
+      "paint": {
+        "line-color": "#ffb347",
+        "line-width": {
+          "stops": [
+            [6, 2],
+            [16, 16]
           ]
         }
       }

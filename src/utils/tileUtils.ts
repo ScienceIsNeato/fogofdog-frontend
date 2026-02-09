@@ -27,14 +27,20 @@ export interface TileBounds {
 
 const TILE_SIZE = 256;
 
+// Maximum latitude supported by Web Mercator projection (≈ 85.0511°)
+const MAX_MERCATOR_LATITUDE = 85.0511;
+
 /**
  * Converts latitude/longitude to web mercator tile coordinates at a given zoom level.
+ * Clamps latitude to the valid Web Mercator range to prevent NaN results.
  */
 export function latLonToTile(lat: number, lon: number, zoom: number): TileCoord {
   const z = Math.floor(zoom);
   const numTiles = Math.pow(2, z);
   const x = Math.floor(((lon + 180) / 360) * numTiles);
-  const latRad = (lat * Math.PI) / 180;
+  // Clamp latitude to Web Mercator valid range to prevent NaN from tan/log
+  const clampedLat = Math.max(-MAX_MERCATOR_LATITUDE, Math.min(MAX_MERCATOR_LATITUDE, lat));
+  const latRad = (clampedLat * Math.PI) / 180;
   const y = Math.floor(
     ((1 - Math.log(Math.tan(latRad) + 1 / Math.cos(latRad)) / Math.PI) / 2) * numTiles
   );
