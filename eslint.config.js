@@ -19,6 +19,7 @@ module.exports = [
       '**/*.d.ts',
       'e2e/**/*',
       '.venv/**/*',
+      'venv/**/*',
       '.git/**/*',
       'build/**/*',
     ],

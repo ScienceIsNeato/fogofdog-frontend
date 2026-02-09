@@ -93,9 +93,12 @@
 ### Installation
 
 ```bash
-# Clone the repository
-git clone https://github.com/your-username/fogofdog-frontend.git
+# Clone the repository (with submodules)
+git clone --recurse-submodules https://github.com/your-username/fogofdog-frontend.git
 cd fogofdog-frontend
+
+# If you already cloned without --recurse-submodules:
+git submodule update --init --recursive
 
 # Install dependencies
 npm install

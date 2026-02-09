@@ -1,0 +1,29 @@
+# Dependencies
+node_modules/
+venv/
+.venv/
+
+# Build outputs
+dist/
+build/
+ios/
+android/
+coverage/
+artifacts/
+
+# Generated files
+*.d.ts
+reports/
+
+# Submodules and external tools
+slop-mop/
+cursor-rules/
+
+# Expo
+.expo/
+
+# Git
+.git/
+
+# E2E tests (may have special formatting needs)
+e2e/

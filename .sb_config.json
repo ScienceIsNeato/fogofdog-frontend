@@ -2,40 +2,45 @@
   "version": "1.0",
   "default_profile": "pr",
   "python": {
-    "enabled": false,
+    "enabled": true,
     "include_dirs": ["scripts"],
     "exclude_dirs": [],
     "gates": {
       "lint-format": {
-        "enabled": false,
+        "enabled": true,
         "auto_fix": false,
         "config_file_path": null,
         "line_length": 88
       },
       "tests": {
-        "enabled": false,
+        "enabled": true,
         "auto_fix": false,
         "config_file_path": null,
         "test_dirs": ["tests"],
         "timeout": 300
       },
       "coverage": {
-        "enabled": false,
+        "enabled": true,
         "auto_fix": false,
         "config_file_path": null,
         "threshold": 80
       },
       "diff-coverage": {
-        "enabled": false,
+        "enabled": true,
         "auto_fix": false,
         "config_file_path": null
       },
       "new-code-coverage": {
-        "enabled": false,
+        "enabled": true,
         "auto_fix": false,
         "config_file_path": null
       },
       "static-analysis": {
+        "enabled": true,
+        "auto_fix": false,
+        "config_file_path": null
+      },
+      "type-checking": {
         "enabled": false,
         "auto_fix": false,
         "config_file_path": null
@@ -65,20 +70,27 @@
         "threshold": 78
       },
       "frontend": {
-        "enabled": false,
+        "enabled": true,
         "auto_fix": false,
         "config_file_path": null,
         "frontend_dirs": []
+      },
+      "bogus-tests": {
+        "enabled": true,
+        "auto_fix": false,
+        "config_file_path": null,
+        "max_allowed": 0,
+        "exclude_dirs": ["slop-mop", "cursor-rules", "node_modules", "__mocks__"]
       }
     }
   },
   "security": {
-    "enabled": false,
+    "enabled": true,
     "include_dirs": [],
     "exclude_dirs": [],
     "gates": {
       "full": {
-        "enabled": false,
+        "enabled": true,
         "auto_fix": false,
         "config_file_path": ".secrets.baseline",
         "scanners": ["bandit", "semgrep", "detect-secrets"],
@@ -95,7 +107,7 @@
         ]
       },
       "local": {
-        "enabled": false,
+        "enabled": true,
         "auto_fix": false,
         "config_file_path": ".secrets.baseline",
         "scanners": ["bandit", "semgrep", "detect-secrets"],
@@ -127,7 +139,7 @@
     ],
     "gates": {
       "complexity": {
-        "enabled": false,
+        "enabled": true,
         "auto_fix": false,
         "config_file_path": null,
         "max_rank": "C",
@@ -146,12 +158,12 @@
     }
   },
   "general": {
-    "enabled": false,
+    "enabled": true,
     "include_dirs": [],
     "exclude_dirs": [],
     "gates": {
       "templates": {
-        "enabled": false,
+        "enabled": true,
         "auto_fix": false,
         "config_file_path": null,
         "templates_dir": null
@@ -159,24 +171,24 @@
     }
   },
   "integration": {
-    "enabled": false,
+    "enabled": true,
     "include_dirs": [],
     "exclude_dirs": [],
     "gates": {
       "smoke-tests": {
-        "enabled": false,
+        "enabled": true,
         "auto_fix": false,
         "config_file_path": null,
         "test_dir": "tests/smoke"
       },
       "integration-tests": {
-        "enabled": false,
+        "enabled": true,
         "auto_fix": false,
         "config_file_path": null,
         "test_dir": "tests/integration"
       },
       "e2e-tests": {
-        "enabled": false,
+        "enabled": true,
         "auto_fix": false,
         "config_file_path": null,
         "test_dir": "tests/e2e",
@@ -196,5 +208,6 @@
         "fail_on_unresolved": true
       }
     }
-  }
+  },
+  "disabled_gates": []
 }
