@@ -19,16 +19,14 @@ elif [ -f .env ]; then
 fi
 
 # slop-mop quality gate
-# Installs slop-mop if not already on PATH, then runs explicit JS/quality/security gates.
+# Runs the commit profile which includes:
+# - JavaScript: lint-format, tests, types, coverage, bogus-tests
+# - Quality: loc-lock, source-duplication, string-duplication, dead-code
 # Commit is blocked if any gate fails.
-#
-# NOTE: The default 'sm validate commit' profile only includes Python gates,
-# which is wrong for this JS/TS project. Using explicit gates until
-# slop-mop supports per-project profile overrides via .sb_config.json.
-# See: slop-mop/slopmop/checks/__init__.py (commit alias definition)
+# Disabled gates (via .sb_config.json or sm config --disable) are automatically skipped.
 if ! command -v sm >/dev/null 2>&1; then
   pip3 install -e ./slop-mop --break-system-packages --quiet 2>/dev/null || \
   pip install -e ./slop-mop --break-system-packages --quiet 2>/dev/null
 fi
 
-sm validate -g javascript:lint-format,javascript:tests,javascript:types,javascript:coverage,quality:complexity,quality:duplication,security:local
+sm validate commit
