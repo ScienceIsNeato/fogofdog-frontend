@@ -1,0 +1,133 @@
+appId: com.fogofdog.app
+---
+# Complete App Startup Helper
+# ============================
+# PURPOSE: Get from app launch to a fully functional map screen.
+#
+# This shared flow handles all the "startup gunk" that blocks access to actual
+# app functionality:
+#   1. Onboarding tutorial (skips by default)
+#   2. Location permission dialogs (both foreground and background)
+#   3. Permission verification screens
+#   4. "Getting your location..." loading state
+#
+# USAGE:
+#   - setLocation: { latitude: ..., longitude: ... }  # Set GPS first!
+#   - launchApp: { appId: com.fogofdog.app, clearState: true }
+#   - runFlow: { file: shared/complete-app-startup.yaml }
+#
+# PREREQUISITES:
+#   - Call `setLocation` BEFORE launching app (Maestro requirement)
+#   - App must be launched before calling this flow
+#
+# POST-CONDITIONS:
+#   - Map screen is visible (testID: map-screen)
+#   - Location button is visible and functional
+#   - No loading/permission screens blocking
+
+# === PHASE 1: HANDLE ONBOARDING ===
+# Skip the tutorial if it appears (first-time users)
+# Note: On Android, testID on TouchableOpacity may not expose as resource-id.
+# Using text content instead.
+- runFlow:
+    when:
+      visible:
+        id: 'onboarding-overlay'
+    commands:
+      - tapOn:
+          text: 'Skip Tutorial'
+      - waitForAnimationToEnd:
+          timeout: 1000
+
+# === PHASE 2: HANDLE LOCATION PERMISSIONS ===
+# These dialogs appear in sequence after onboarding completes
+
+# 2a. Initial location permission (iOS style)
+- runFlow:
+    when:
+      visible: 'Allow While Using App'
+    commands:
+      - tapOn: 'Allow While Using App'
+      - waitForAnimationToEnd:
+          timeout: 1500
+
+# 2b. Initial location permission (Android style)
+- runFlow:
+    when:
+      visible: 'While using the app'
+    commands:
+      - tapOn: 'While using the app'
+      - waitForAnimationToEnd:
+          timeout: 1500
+
+# 2c. Alternative Android permission text
+- runFlow:
+    when:
+      visible: 'ALLOW'
+    commands:
+      - tapOn: 'ALLOW'
+      - waitForAnimationToEnd:
+          timeout: 1500
+
+# 2d. Background location permission - iOS ("Change to Always Allow")
+- runFlow:
+    when:
+      visible: 'Change to Always Allow'
+    commands:
+      - tapOn: 'Change to Always Allow'
+      - waitForAnimationToEnd:
+          timeout: 2000
+
+# 2e. Background location permission - iOS ("Always Allow" button)
+- runFlow:
+    when:
+      visible: 'Always Allow'
+    commands:
+      - tapOn: 'Always Allow'
+      - waitForAnimationToEnd:
+          timeout: 2000
+
+# 2f. Background location permission - Android
+- runFlow:
+    when:
+      visible: 'Allow all the time'
+    commands:
+      - tapOn: 'Allow all the time'
+      - waitForAnimationToEnd:
+          timeout: 2000
+
+# === PHASE 3: WAIT FOR PERMISSION VERIFICATION ===
+# The app shows a "Checking Location Permissions" screen while verifying
+- runFlow:
+    when:
+      visible:
+        text: 'Checking Location Permissions'
+    commands:
+      - waitForAnimationToEnd:
+          timeout: 5000
+
+# === PHASE 4: WAIT FOR LOCATION ACQUISITION ===
+# After permissions, shows "Getting your location..." briefly
+- runFlow:
+    when:
+      visible:
+        text: 'Getting your location...'
+    commands:
+      - waitForAnimationToEnd:
+          timeout: 5000
+
+# === PHASE 5: WAIT FOR MAP SCREEN ===
+# Final verification that we've made it through
+- waitForAnimationToEnd:
+    timeout: 3000
+
+# Verify map screen is visible
+- assertVisible:
+    id: 'map-screen'
+
+# Verify core UI elements are present
+- assertVisible:
+    id: 'location-button'
+
+# === SUCCESS ===
+# At this point, the app is fully initialized and ready for test actions

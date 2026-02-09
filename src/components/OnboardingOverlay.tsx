@@ -34,6 +34,7 @@ const OnboardingHeader: React.FC<{
       disabled={isCompleting}
       accessibilityLabel="Skip onboarding tutorial"
       accessibilityRole="button"
+      testID="skip-tutorial-button"
     >
       <Text style={styles.skipText}>Skip Tutorial</Text>
     </TouchableOpacity>
@@ -168,6 +169,7 @@ const OnboardingNavigation: React.FC<{
           disabled={isCompleting}
           accessibilityLabel="Go back to previous step"
           accessibilityRole="button"
+          testID="onboarding-back-button"
         >
           <Text style={styles.backButtonText}>Back</Text>
         </TouchableOpacity>
@@ -182,6 +184,7 @@ const OnboardingNavigation: React.FC<{
           disabled={isCompleting}
           accessibilityLabel="Complete onboarding tutorial"
           accessibilityRole="button"
+          testID="onboarding-get-started-button"
         >
           <Text style={styles.finishButtonText}>
             {isCompleting ? 'Starting...' : 'Get Started!'}
@@ -194,6 +197,7 @@ const OnboardingNavigation: React.FC<{
           disabled={isCompleting}
           accessibilityLabel="Continue to next step"
           accessibilityRole="button"
+          testID="onboarding-continue-button"
         >
           <Text style={styles.continueButtonText}>Continue</Text>
         </TouchableOpacity>
@@ -343,7 +347,7 @@ const styles = StyleSheet.create({
   },
   header: {
     paddingHorizontal: 20,
-    paddingTop: 20,
+    paddingTop: 50, // Increased from 20 to move skip button below safe area on Android
     alignItems: 'center',
     justifyContent: 'center',
   },

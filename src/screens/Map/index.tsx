@@ -61,6 +61,7 @@ import { useMapScreenOnboarding } from './hooks/useMapScreenOnboarding';
 
 import { GPSInjectionService } from '../../services/GPSInjectionService';
 import { BackgroundLocationService } from '../../services/BackgroundLocationService';
+import { LocationDataSourceService } from '../../services/LocationDataSourceService';
 import { AuthPersistenceService } from '../../services/AuthPersistenceService';
 import { DataClearingService } from '../../services/DataClearingService';
 
@@ -557,15 +558,30 @@ async function getInitialLocation({
   });
 
   try {
-    const initialLocation = await Location.getCurrentPositionAsync({
+    // Use LocationDataSourceService to get position from best available source
+    // Priority: file injection → AsyncStorage injection → real GPS
+    const result = await LocationDataSourceService.getCurrentPosition({
       accuracy: Location.Accuracy.High,
+    });
+
+    if (!result) {
+      logger.warn('GPS acquisition failed in getInitialLocation — no source available', {
+        component: 'getInitialLocation',
+      });
+      return;
+    }
+
+    logger.info(`🎯 GPS_INITIAL: Got location from ${result.source}`, {
+      component: 'getInitialLocation',
+      source: result.source,
+      coordinate: `${result.location.latitude}, ${result.location.longitude}`,
     });
 
     if (isActiveRef.current) {
       const geoPoint: GeoPoint = {
-        latitude: initialLocation.coords.latitude,
-        longitude: initialLocation.coords.longitude,
-        timestamp: Date.now(),
+        latitude: result.location.latitude,
+        longitude: result.location.longitude,
+        timestamp: result.location.timestamp || Date.now(),
       };
 
       // Emit event for cinematic zoom

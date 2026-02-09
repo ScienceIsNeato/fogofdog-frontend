@@ -3,7 +3,7 @@ appId: com.fogofdog.app
 # Smoke Test: Basic app health check
 # Quick validation that core functionality works:
 # - App launches
-# - Login flow works
+# - Startup flow completes (onboarding + permissions)
 # - Map loads
 # - Location button responds
 # - Basic movement works
@@ -20,30 +20,11 @@ appId: com.fogofdog.app
 - waitForAnimationToEnd:
     timeout: 1000
 
-# Handle onboarding/tutorial if it appears
+# Complete startup (skip onboarding, handle permissions, wait for map)
 - runFlow:
-    file: shared/handle-onboarding.yaml
+    file: shared/complete-app-startup.yaml
 
-# Verify login screen
-- assertVisible:
-    text: 'Sign In'
-- assertVisible:
-    id: 'signInButton'
-
-# Login
-- tapOn:
-    id: 'signInButton'
-
-# Handle location permission if needed
-- runFlow:
-    when:
-      visible: 'Allow'
-    commands:
-      - tapOn: 'Allow While Using App'
-
-# Verify map loads
-- waitForAnimationToEnd:
-    timeout: 3000
+# Verify map loads and core UI is present
 - assertVisible:
     id: 'map-screen'
 - assertVisible:

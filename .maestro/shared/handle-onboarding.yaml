@@ -1,47 +1,37 @@
 appId: com.fogofdog.app
 ---
 # Handle Onboarding Flow
-# This shared flow handles the onboarding/tutorial screens that may appear
-# after our refactoring. It can be included in any test that needs to skip onboarding.
+# Skips the tutorial/onboarding screens to get to the sign-in screen
 
-# Check if onboarding overlay is present and skip it
+# Try to tap "Skip Tutorial" if visible (main tutorial skip button)
+- runFlow:
+    when:
+      visible: 'Skip Tutorial'
+    commands:
+      - tapOn: 'Skip Tutorial'
+      - waitForAnimationToEnd:
+          timeout: 2000
+
+# Alternative: try "Skip" button
 - runFlow:
     when:
       visible:
-        id: 'onboarding-overlay'
+        text: 'Skip'
     commands:
-      # If onboarding is present, skip it by tapping the skip button
-      - runFlow:
-          when:
-            visible:
-              text: 'Skip'
-          commands:
-            - tapOn:
-                text: 'Skip'
-
-      # Alternative: Look for skip button by text pattern
-      - runFlow:
-          when:
-            visible:
-              text: 'Skip Tutorial'
-          commands:
-            - tapOn:
-                text: 'Skip Tutorial'
-
-      # Wait for onboarding to dismiss
+      - tapOn: 'Skip'
       - waitForAnimationToEnd:
-          timeout: 1000
+          timeout: 2000
 
-# Additional check for any welcome/tutorial screens that might appear
+# Handle "Welcome" screens - tap Get Started or Skip
 - runFlow:
     when:
-      visible: 'Welcome'
+      visible: 'Welcome!'
     commands:
       - runFlow:
           when:
-            visible: 'Skip'
+            visible: 'Skip Tutorial'
           commands:
-            - tapOn: 'Skip'
+            - tapOn: 'Skip Tutorial'
       - runFlow:
           when:
             visible: 'Get Started'
@@ -50,7 +40,7 @@ appId: com.fogofdog.app
       - waitForAnimationToEnd:
           timeout: 1000
 
-# Check for tutorial completion button
+# Handle any tutorial completion button
 - runFlow:
     when:
       visible: 'Complete'

@@ -1,0 +1,57 @@
+appId: com.fogofdog.app
+---
+- setLocation:
+    latitude: 37.7749
+    longitude: -122.4194
+- launchApp:
+    appId: com.fogofdog.app
+    clearState: true
+# Dev client may need extra time to load JS bundle from Metro
+- waitForAnimationToEnd:
+    timeout: 10000
+- assertVisible:
+    text: "Continue"
+    optional: true
+- tapOn:
+    text: "Continue"
+- waitForAnimationToEnd:
+    timeout: 500
+- tapOn:
+    text: "Continue"
+- waitForAnimationToEnd:
+    timeout: 500
+- tapOn:
+    text: "Continue"
+- waitForAnimationToEnd:
+    timeout: 500
+- tapOn:
+    text: "Continue"
+- waitForAnimationToEnd:
+    timeout: 500
+- tapOn:
+    text: "Continue"
+- waitForAnimationToEnd:
+    timeout: 500
+- tapOn:
+    text: "Get Started!"
+- waitForAnimationToEnd:
+    timeout: 2000
+- runFlow:
+    when:
+      visible: "While using the app"
+    commands:
+      - tapOn: "While using the app"
+      - waitForAnimationToEnd:
+          timeout: 2000
+- runFlow:
+    when:
+      visible: "Allow all the time"
+    commands:
+      - tapOn: "Allow all the time"
+      - waitForAnimationToEnd:
+          timeout: 2000
+- setLocation:
+    latitude: 37.7749
+    longitude: -122.4194
+- waitForAnimationToEnd:
+    timeout: 5000
