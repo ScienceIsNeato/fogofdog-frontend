@@ -56,15 +56,18 @@ const useManagedSkiaPath = (createPath: () => SkPath, deps: React.DependencyList
   // This runs when `path` state changes, meaning React has committed the new path
   // and the native thread is no longer referencing the old one.
   useEffect(() => {
+    // Capture ref value for stable cleanup (react-hooks/exhaustive-deps)
+    const createdPaths = createdPathsRef.current;
+
     // Dispose all tracked paths except the current one
-    for (const p of createdPathsRef.current) {
+    for (const p of createdPaths) {
       if (p !== path && p !== emptyPath) {
         try {
           p.dispose();
         } catch {
           // Path may already be disposed - ignore
         }
-        createdPathsRef.current.delete(p);
+        createdPaths.delete(p);
       }
     }
 
@@ -75,14 +78,14 @@ const useManagedSkiaPath = (createPath: () => SkPath, deps: React.DependencyList
       } catch {
         // Path may already be disposed - ignore
       }
-      for (const p of createdPathsRef.current) {
+      for (const p of createdPaths) {
         try {
           p.dispose();
         } catch {
           // Path may already be disposed - ignore
         }
       }
-      createdPathsRef.current.clear();
+      createdPaths.clear();
       try {
         emptyPath.dispose();
       } catch {

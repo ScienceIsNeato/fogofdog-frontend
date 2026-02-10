@@ -7,7 +7,7 @@ module.exports = [
     ignores: [
       'dist/*',
       'coverage/*',
-      'reports/*', // Auto-generated coverage/duplication reports
+      'reports/**/*', // Auto-generated coverage/duplication reports
       '.expo/*',
       'ios/*',
       'android/*',
@@ -19,8 +19,11 @@ module.exports = [
       '**/*.d.ts',
       'e2e/**/*',
       '.venv/**/*',
+      'venv/**/*',
       '.git/**/*',
       'build/**/*',
+      'test_artifacts/**/*',
+      'temp/**/*',
     ],
   },
   {
@@ -28,6 +31,9 @@ module.exports = [
     plugins: {
       sonarjs: require('eslint-plugin-sonarjs'),
       '@typescript-eslint': require('@typescript-eslint/eslint-plugin'),
+    },
+    settings: {
+      'import/core-modules': ['react-native-maps', 'expo-file-system/legacy'],
     },
     languageOptions: {
       parser: require('@typescript-eslint/parser'),

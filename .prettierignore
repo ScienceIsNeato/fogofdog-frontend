@@ -1,0 +1,22 @@
+# Virtual environments
+venv/
+.venv/
+
+# Build artifacts
+dist/
+build/
+ios/
+android/
+
+# Dependencies
+node_modules/
+slop-mop/
+
+# Generated files
+coverage/
+reports/
+artifacts/
+test_artifacts/
+temp/
+.expo/
+cursor-rules/
