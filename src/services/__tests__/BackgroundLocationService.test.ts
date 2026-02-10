@@ -16,9 +16,11 @@ jest.mock('expo-location', () => ({
   getBackgroundPermissionsAsync: jest.fn(),
   startLocationUpdatesAsync: jest.fn(),
   stopLocationUpdatesAsync: jest.fn(),
+  hasStartedLocationUpdatesAsync: jest.fn().mockResolvedValue(false),
   Accuracy: {
     Balanced: 'balanced',
     BestForNavigation: 'bestForNavigation',
+    High: 'high',
   },
 }));
 
@@ -64,6 +66,7 @@ describe('BackgroundLocationService', () => {
     );
     mockedLocation.startLocationUpdatesAsync.mockResolvedValue(undefined);
     mockedLocation.stopLocationUpdatesAsync.mockResolvedValue(undefined);
+    mockedLocation.hasStartedLocationUpdatesAsync.mockResolvedValue(false);
   });
 
   afterEach(() => {
@@ -84,23 +87,32 @@ describe('BackgroundLocationService', () => {
     it('should initialize successfully', async () => {
       await BackgroundLocationService.initialize();
 
-      expect(mockedTaskManager.defineTask).toHaveBeenCalledWith(
-        'background-location-task',
-        expect.any(Function)
+      // defineTask is called at module top-level, not during initialize()
+      // initialize() cleans up stale location updates and sets isInitialized
+      expect(mockedLocation.hasStartedLocationUpdatesAsync).toHaveBeenCalledWith(
+        'background-location-task'
       );
       expect((BackgroundLocationService as any).isInitialized).toBe(true);
     });
 
-    it('should handle initialization errors', async () => {
-      const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
-      mockedTaskManager.defineTask.mockImplementation(() => {
-        throw new Error('Task definition error');
-      });
+    it('should clean up stale location updates from previous session', async () => {
+      mockedLocation.hasStartedLocationUpdatesAsync.mockResolvedValue(true);
 
-      await expect(BackgroundLocationService.initialize()).rejects.toThrow('Task definition error');
-      expect(consoleSpy).toHaveBeenCalled();
+      await BackgroundLocationService.initialize();
 
-      consoleSpy.mockRestore();
+      expect(mockedLocation.stopLocationUpdatesAsync).toHaveBeenCalledWith(
+        'background-location-task'
+      );
+      expect((BackgroundLocationService as any).isInitialized).toBe(true);
+    });
+
+    it('should handle hasStartedLocationUpdatesAsync errors gracefully', async () => {
+      mockedLocation.hasStartedLocationUpdatesAsync.mockRejectedValue(new Error('Not available'));
+
+      await BackgroundLocationService.initialize();
+
+      // Should still initialize despite cleanup error
+      expect((BackgroundLocationService as any).isInitialized).toBe(true);
     });
   });
 
@@ -115,10 +127,7 @@ describe('BackgroundLocationService', () => {
       expect(result.success).toBe(true);
       expect(result.hasPermissions).toBe(true);
       expect(result.errorMessage).toBeUndefined();
-      expect(mockedTaskManager.defineTask).toHaveBeenCalledWith(
-        'background-location-task',
-        expect.any(Function)
-      );
+      // defineTask is called at module top-level, not during initialization
       expect((BackgroundLocationService as any).isInitialized).toBe(true);
     });
 
@@ -136,10 +145,6 @@ describe('BackgroundLocationService', () => {
       expect(result.hasPermissions).toBe(true);
       expect(result.errorMessage).toBeUndefined();
       expect(mockedLocation.requestBackgroundPermissionsAsync).toHaveBeenCalled();
-      expect(mockedTaskManager.defineTask).toHaveBeenCalledWith(
-        'background-location-task',
-        expect.any(Function)
-      );
     });
 
     it('should fail gracefully when permissions are denied after request', async () => {
@@ -178,7 +183,6 @@ describe('BackgroundLocationService', () => {
       expect(result.errorMessage).toBe(
         'Failed to request location permissions. Please check your device settings.'
       );
-      expect(mockedTaskManager.defineTask).not.toHaveBeenCalled();
     });
 
     it('should not initialize twice if already initialized', async () => {
@@ -188,14 +192,15 @@ describe('BackgroundLocationService', () => {
       );
 
       await BackgroundLocationService.initializeWithPermissionCheck();
-      expect(mockedTaskManager.defineTask).toHaveBeenCalledTimes(1);
+      expect((BackgroundLocationService as any).isInitialized).toBe(true);
 
       // Second initialization attempt
       const result = await BackgroundLocationService.initializeWithPermissionCheck();
 
       expect(result.success).toBe(true);
       expect(result.hasPermissions).toBe(true);
-      expect(mockedTaskManager.defineTask).toHaveBeenCalledTimes(1); // Should not be called again
+      // isInitialized should still be true (not re-initialized)
+      expect((BackgroundLocationService as any).isInitialized).toBe(true);
     });
   });
 
@@ -301,7 +306,9 @@ describe('BackgroundLocationService', () => {
         canAskAgain: true,
       });
 
-      mockedTaskManager.isTaskRegisteredAsync.mockResolvedValue(true);
+      // Source now uses hasStartedLocationUpdatesAsync (not isTaskRegisteredAsync)
+      // to check if location updates are already active
+      mockedLocation.hasStartedLocationUpdatesAsync.mockResolvedValue(true);
 
       const result = await BackgroundLocationService.startBackgroundLocationTracking();
 
@@ -388,7 +395,7 @@ describe('BackgroundLocationService', () => {
         expires: 'never',
         canAskAgain: true,
       });
-      mockedTaskManager.isTaskRegisteredAsync.mockResolvedValue(true);
+      mockedLocation.hasStartedLocationUpdatesAsync.mockResolvedValue(true);
       mockedLocationStorageService.getStoredLocationCount.mockResolvedValue(5);
       (BackgroundLocationService as any).isRunning = true;
 
@@ -480,19 +487,31 @@ describe('BackgroundLocationService', () => {
   });
 
   describe('task manager integration', () => {
+    // defineTask is called at module top-level, not during initialize().
+    // Test handleBackgroundLocations directly since that's what the task callback invokes.
     it('should handle task execution with valid data', async () => {
-      // Reset mock and initialize fresh
       setupTaskManagerMocks(mockedTaskManager, mockedLocationStorageService);
       (BackgroundLocationService as any).isInitialized = false;
 
-      // Initialize to register the task
       await BackgroundLocationService.initialize();
 
-      // Get the task callback that was registered
-      const taskCallback = getTaskCallbackFromMock(mockedTaskManager);
-      const mockTaskData = createMockTaskData({ hasLocations: true });
+      // Test handleBackgroundLocations directly
+      const mockLocations = [
+        {
+          coords: {
+            latitude: 40.7128,
+            longitude: -74.006,
+            altitude: null,
+            accuracy: 5,
+            altitudeAccuracy: null,
+            heading: null,
+            speed: null,
+          },
+          timestamp: Date.now(),
+        },
+      ];
 
-      await taskCallback(mockTaskData);
+      await BackgroundLocationService.handleBackgroundLocations(mockLocations as any);
 
       expect(mockedLocationStorageService.storeBackgroundLocation).toHaveBeenCalledWith({
         latitude: 40.7128,
@@ -502,81 +521,51 @@ describe('BackgroundLocationService', () => {
       });
     });
 
-    it('should handle task execution with error', async () => {
-      const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
-
-      // Reset mock and initialize fresh
+    it('should handle empty locations array without storing anything', async () => {
       setupTaskManagerMocks(mockedTaskManager, mockedLocationStorageService);
       (BackgroundLocationService as any).isInitialized = false;
 
-      // Initialize to register the task
       await BackgroundLocationService.initialize();
 
-      const taskCallback = getTaskCallbackFromMock(mockedTaskManager);
-      const mockTaskData = createMockTaskData({ hasError: true });
+      // handleBackgroundLocations with empty array should not store anything
+      await BackgroundLocationService.handleBackgroundLocations([]);
 
-      await taskCallback(mockTaskData);
-
-      expect(consoleSpy).toHaveBeenCalled();
       expect(mockedLocationStorageService.storeBackgroundLocation).not.toHaveBeenCalled();
-
-      consoleSpy.mockRestore();
     });
 
     it('should handle task execution with no data', async () => {
-      // Reset mock and initialize fresh
       setupTaskManagerMocks(mockedTaskManager, mockedLocationStorageService);
       (BackgroundLocationService as any).isInitialized = false;
 
-      // Initialize to register the task
       await BackgroundLocationService.initialize();
 
-      const taskCallback = getTaskCallbackFromMock(mockedTaskManager);
-      const mockTaskData = createMockTaskData({ hasLocations: false });
-
-      await taskCallback(mockTaskData);
+      // Empty locations array
+      await BackgroundLocationService.handleBackgroundLocations([]);
 
       expect(mockedLocationStorageService.storeBackgroundLocation).not.toHaveBeenCalled();
     });
 
     it('should handle locations without accuracy', async () => {
-      // Reset mock and initialize fresh
-      mockedTaskManager.defineTask.mockClear();
       (BackgroundLocationService as any).isInitialized = false;
 
-      // Initialize to register the task
       await BackgroundLocationService.initialize();
 
-      const defineTaskCall = mockedTaskManager.defineTask.mock.calls[0];
-      const taskCallback = defineTaskCall![1];
-
-      const mockTaskData = {
-        data: {
-          locations: [
-            {
-              coords: {
-                latitude: 40.7128,
-                longitude: -74.006,
-                altitude: null,
-                accuracy: null,
-                altitudeAccuracy: null,
-                heading: null,
-                speed: null,
-              },
-              timestamp: Date.now(),
-            },
-          ],
+      const mockLocations = [
+        {
+          coords: {
+            latitude: 40.7128,
+            longitude: -74.006,
+            altitude: null,
+            accuracy: null,
+            altitudeAccuracy: null,
+            heading: null,
+            speed: null,
+          },
+          timestamp: Date.now(),
         },
-        error: null,
-        executionInfo: {
-          taskName: 'background-location-task',
-          taskInstanceId: 'test-instance',
-          eventId: 'test-event',
-          appState: 'background' as const,
-        },
-      };
+      ];
 
-      await taskCallback(mockTaskData);
+      await BackgroundLocationService.handleBackgroundLocations(mockLocations as any);
 
       expect(mockedLocationStorageService.storeBackgroundLocation).toHaveBeenCalledWith({
         latitude: 40.7128,

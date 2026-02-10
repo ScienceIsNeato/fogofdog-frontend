@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useAppSelector } from '../../../store/hooks';
 import { calculateExplorationBounds } from '../index';
 import { logger } from '../../../utils/logger';
+import { AuthPersistenceService } from '../../../services/AuthPersistenceService';
 
 import type { CameraRef } from '@maplibre/maplibre-react-native';
 import type { MapRegion } from '../../../types/map';
@@ -13,7 +14,7 @@ import type { GeoPoint } from '../../../types/user';
  * Local helper bridging MapRegion → MapLibre Camera API.
  */
 const animateMapToRegion = (
-  cameraRef: React.RefObject<CameraRef>,
+  cameraRef: React.RefObject<CameraRef | null>,
   region: MapRegion,
   duration: number = 300
 ) => {
@@ -38,7 +39,7 @@ const DEFAULT_ZOOM_DELTAS = {
 };
 
 interface UseCinematicZoomProps {
-  mapRef: React.RefObject<CameraRef>;
+  mapRef: React.RefObject<CameraRef | null>;
   cinematicZoomActiveRef: React.MutableRefObject<boolean>;
   currentLocation: GeoPoint | null;
   canStartAnimation?: boolean; // Only start animation when onboarding + permissions complete
@@ -312,7 +313,7 @@ const calculateCinematicStartRegion = (
  * Map rendering delayed until animation starts to eliminate visible positioning jump
  */
 const startCinematicPanAnimation = (
-  mapRef: React.RefObject<CameraRef>,
+  mapRef: React.RefObject<CameraRef | null>,
   cinematicZoomActiveRef: React.MutableRefObject<boolean>,
   explorationPath: GeoPoint[],
   currentLocation: GeoPoint
@@ -347,9 +348,32 @@ const startCinematicPanAnimation = (
     pathDistance: pathDistance.toFixed(0),
   });
 
+  // 🔍 DEBUG: Verify mapRef is valid and log the actual animation parameters
+  const mapRefValid = mapRef.current !== null && mapRef.current !== undefined;
+  logger.info('🎬 ANIMATION_DEBUG: Pre-animation state', {
+    component: 'useCinematicZoom',
+    mapRefValid,
+    mapRefType: mapRef.current ? typeof mapRef.current : 'null',
+    startRegion: `${cinematicStartRegion.latitude.toFixed(4)}, ${cinematicStartRegion.longitude.toFixed(4)}`,
+    startDeltas: `lat: ${cinematicStartRegion.latitudeDelta.toFixed(4)}, lng: ${cinematicStartRegion.longitudeDelta.toFixed(4)}`,
+    endRegion: `${endRegion.latitude.toFixed(4)}, ${endRegion.longitude.toFixed(4)}`,
+    endDeltas: `lat: ${endRegion.latitudeDelta.toFixed(4)}, lng: ${endRegion.longitudeDelta.toFixed(4)}`,
+  });
+
+  if (!mapRefValid) {
+    logger.error('🚨 ANIMATION_DEBUG: mapRef is null/undefined - animation will NOT work!', {
+      component: 'useCinematicZoom',
+    });
+    return;
+  }
+
   // Single smooth cinematic animation - map rendering delayed until animation starts
   // This eliminates the "jerk" since user never sees the jump to start position
   animateMapToRegion(mapRef, cinematicStartRegion, 0); // Instant positioning at start
+
+  logger.info('🎬 ANIMATION_DEBUG: Called animateToRegion for START position', {
+    component: 'useCinematicZoom',
+  });
 
   // Single smooth animation from cinematic start to current location
   setTimeout(() => {
@@ -411,12 +435,113 @@ export const useCinematicZoom = ({
   const lastAnimationLocation = useRef<GeoPoint | null>(null);
   const isAnimationInProgress = useRef(false);
 
+  // Track when mapRef.current becomes available (fixes timing issue where
+  // effect runs before MapView mounts)
+  const [isMapReady, setIsMapReady] = useState(false);
+
+  // Poll for map readiness - mapRef.current is set after MapView mounts
+  useEffect(() => {
+    if (isMapReady) return;
+
+    // Check immediately
+    if (mapRef.current) {
+      setIsMapReady(true);
+      return;
+    }
+
+    // Poll every 50ms until map is ready (max 2 seconds)
+    let attempts = 0;
+    const maxAttempts = 40;
+    const intervalId = setInterval(() => {
+      attempts++;
+      if (mapRef.current) {
+        setIsMapReady(true);
+        clearInterval(intervalId);
+      } else if (attempts >= maxAttempts) {
+        clearInterval(intervalId);
+        logger.warn('Map ref never became available for cinematic zoom', {
+          component: 'useCinematicZoom',
+        });
+      }
+    }, 50);
+
+    return () => clearInterval(intervalId);
+  }, [mapRef, isMapReady]);
+
+  // Load fallback region from persisted exploration state (last known location)
+  const [fallbackRegion, setFallbackRegion] = useState<MapRegion | null>(null);
+
+  useEffect(() => {
+    // Only load fallback if we don't have a current location yet
+    if (currentLocation) return;
+
+    const loadFallbackRegion = async () => {
+      try {
+        const persistedState = await AuthPersistenceService.getExplorationState();
+        if (persistedState?.currentLocation) {
+          const region: MapRegion = {
+            latitude: persistedState.currentLocation.latitude,
+            longitude: persistedState.currentLocation.longitude,
+            latitudeDelta: DEFAULT_ZOOM_DELTAS.latitudeDelta,
+            longitudeDelta: DEFAULT_ZOOM_DELTAS.longitudeDelta,
+          };
+          setFallbackRegion(region);
+          logger.info('🎬 CINEMATIC_DEBUG: Loaded fallback region from persisted state', {
+            component: 'useCinematicZoom',
+            region: `${region.latitude.toFixed(6)}, ${region.longitude.toFixed(6)}`,
+          });
+        } else {
+          // No persisted location — use a generic default (zoomed out enough to be useful)
+          const defaultRegion: MapRegion = {
+            latitude: 0,
+            longitude: 0,
+            latitudeDelta: 90,
+            longitudeDelta: 180,
+          };
+          setFallbackRegion(defaultRegion);
+          logger.info('🎬 CINEMATIC_DEBUG: No persisted location, using world-view fallback', {
+            component: 'useCinematicZoom',
+          });
+        }
+      } catch (error) {
+        logger.warn('🎬 CINEMATIC_DEBUG: Failed to load fallback region', {
+          component: 'useCinematicZoom',
+          error: error instanceof Error ? error.message : String(error),
+        });
+        // On error, still provide a generic fallback so we never show a white screen
+        setFallbackRegion({
+          latitude: 0,
+          longitude: 0,
+          latitudeDelta: 90,
+          longitudeDelta: 180,
+        });
+      }
+    };
+
+    loadFallbackRegion();
+  }, [currentLocation]);
+
   const explorationBounds = useExplorationBounds(explorationPath);
+
+  // Capture explorationPath at trigger time (prevent dependency changes from canceling animation)
+  const explorationPathRef = useRef(explorationPath);
+  explorationPathRef.current = explorationPath;
 
   // Mount-based trigger - run on mount and evaluate conditions
   useEffect(() => {
-    // Skip if animation already in progress
+    // Skip if we've already animated this session (persists across re-renders)
+    // This is the key guard: once we've set lastAnimationLocation, we never animate again
+    if (lastAnimationLocation.current !== null) {
+      return;
+    }
+
+    // Skip if animation already in progress (for race conditions within same render)
     if (isAnimationInProgress.current) {
+      return;
+    }
+
+    // Skip if map is not ready yet (wait for MapView to mount)
+    if (!isMapReady) {
       return;
     }
 
@@ -432,7 +557,8 @@ export const useCinematicZoom = ({
     logger.debug('Cinematic zoom evaluation', {
       component: 'useCinematicZoom',
       shouldShow,
-      pathLength: explorationPath.length,
+      isMapReady,
+      pathLength: explorationPathRef.current.length,
       hasCurrentLocation: !!currentLocation,
       canStartAnimation,
       lastAnimationLocation: lastAnimationLocation.current,
@@ -443,8 +569,9 @@ export const useCinematicZoom = ({
 
     if (shouldShow && mapRef.current && currentLocation) {
       // Mark animation in progress and store current location
-      isAnimationInProgress.current = true;
+      // IMPORTANT: Set lastAnimationLocation FIRST - this prevents re-triggering
       lastAnimationLocation.current = currentLocation;
+      isAnimationInProgress.current = true;
 
       // Set a flag to prevent other animations during cinematic zoom
       cinematicZoomActiveRef.current = true;
@@ -468,7 +595,7 @@ export const useCinematicZoom = ({
 
         logger.debug('Cinematic animation sequence initiated', {
           component: 'useCinematicZoom',
-          pathLength: explorationPath.length,
+          pathLength: explorationPathRef.current.length,
         });
 
         // Clear animation in progress flag after animation completes
@@ -487,7 +614,10 @@ export const useCinematicZoom = ({
     }
     // No cleanup needed if conditions aren't met
     return undefined;
-  }, [canStartAnimation, currentLocation, explorationPath, gpsInjectionStatus.isRunning, mapRef]); // Include all dependencies
+    // Note: explorationPathRef (and thus explorationPath) is intentionally not in deps — we rely
+    // on explorationPathRef.current to capture the value at trigger time. Including it would cause
+    // GPS updates to cancel the animation.
+  }, [canStartAnimation, currentLocation, gpsInjectionStatus.isRunning, isMapReady, mapRef]);
 
   // Create initial region - use cinematic start position to eliminate jump
   const initialRegion: MapRegion | null = useMemo(() => {
@@ -497,20 +627,30 @@ export const useCinematicZoom = ({
       currentLocation: currentLocation
         ? `${currentLocation.latitude.toFixed(6)}, ${currentLocation.longitude.toFixed(6)}`
         : null,
+      hasFallbackRegion: !!fallbackRegion,
       canStartAnimation,
       explorationPathLength: explorationPath.length,
       timestamp: new Date().toISOString(),
     });
 
     if (!currentLocation) {
-      logger.info(
-        '🎬 CINEMATIC_DEBUG: No currentLocation - returning null (will show loading state)',
-        {
-          component: 'useCinematicZoom',
-          reason: 'waiting_for_gps_location',
-        }
-      );
-      return null; // Wait for real location
+      if (fallbackRegion) {
+        logger.info(
+          '🎬 CINEMATIC_DEBUG: No currentLocation — using fallback region (map visible, GPS acquiring)',
+          {
+            component: 'useCinematicZoom',
+            reason: 'fallback_while_acquiring_gps',
+            fallback: `${fallbackRegion.latitude.toFixed(6)}, ${fallbackRegion.longitude.toFixed(6)}`,
+          }
+        );
+        return fallbackRegion;
+      }
+      // Still loading fallback from AsyncStorage — return null briefly
+      logger.info('🎬 CINEMATIC_DEBUG: No currentLocation, fallback loading — brief null', {
+        component: 'useCinematicZoom',
+        reason: 'loading_fallback',
+      });
+      return null;
     }
 
     const region = calculateCinematicStartRegion(explorationPath, currentLocation);
@@ -522,7 +662,7 @@ export const useCinematicZoom = ({
     });
 
     return region;
-  }, [currentLocation, explorationPath, canStartAnimation]);
+  }, [currentLocation, explorationPath, canStartAnimation, fallbackRegion]);
 
   return {
     initialRegion,

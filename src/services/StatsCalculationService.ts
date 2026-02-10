@@ -90,7 +90,7 @@ export class StatsCalculationService {
     // a simple approximation that matches the visual fog clearing
     const totalArea = path.length * circleAreaSquareMeters;
 
-    logger.debug('Calculated fog-based area', {
+    logger.trace('Calculated fog-based area', {
       component: 'StatsCalculationService',
       action: 'calculateArea',
       pointCount: path.length,
@@ -366,32 +366,10 @@ export class StatsCalculationService {
         updatedStats.session.distance += distanceIncrement;
         updatedStats.total.distance += distanceIncrement;
 
-        logger.debug('Distance incremented using unified connection logic', {
-          component: 'StatsCalculationService',
-          action: 'applyDistanceIncrement',
-          distanceIncrement: distanceIncrement.toFixed(2),
-          sessionDistance: updatedStats.session.distance.toFixed(2),
-          totalDistance: updatedStats.total.distance.toFixed(2),
-        });
+        // Note: Removed per-update distance log to reduce noise
       }
     } else {
-      const reason =
-        processedPoints.length === 2 ? processedPoints[1]!.disconnectionReason : 'Invalid points';
-      logger.debug('Distance not incremented - points not connected', {
-        component: 'StatsCalculationService',
-        action: 'applyDistanceIncrement',
-        reason,
-        previousPoint: {
-          lat: prevPoint.latitude.toFixed(6),
-          lng: prevPoint.longitude.toFixed(6),
-          timestamp: new Date(prevPoint.timestamp).toISOString(),
-        },
-        newPoint: {
-          lat: newPoint.latitude.toFixed(6),
-          lng: newPoint.longitude.toFixed(6),
-          timestamp: new Date(newPoint.timestamp).toISOString(),
-        },
-      });
+      // Note: Removed "not incremented" log - fires constantly when stationary
     }
   }
 
@@ -412,12 +390,7 @@ export class StatsCalculationService {
         updatedStats.session.time += timeIncrement;
         updatedStats.total.time += timeIncrement;
 
-        logger.debug('Time incremented', {
-          component: 'StatsCalculationService',
-          timeIncrement,
-          sessionTime: updatedStats.session.time,
-          totalTime: updatedStats.total.time,
-        });
+        // Note: Removed per-update time log to reduce noise
       }
     }
   }
@@ -438,13 +411,7 @@ export class StatsCalculationService {
     const updatedStats = { ...currentStats };
     const serializablePoint = this.gpsEventToSerializable(newPoint);
 
-    logger.debug('Incrementing stats with new GPS point', {
-      component: 'StatsCalculationService',
-      action: 'incrementStats',
-      latitude: newPoint.latitude,
-      longitude: newPoint.longitude,
-      timestamp: newPoint.timestamp,
-    });
+    // Note: Removed per-point log to reduce noise
 
     // Check if point belongs to current session (within reasonable time window)
     if (!this.isPointInCurrentSession(currentStats, newPoint)) {
@@ -498,7 +465,7 @@ export class StatsCalculationService {
 
       if (sessionPoints.length >= 3) {
         sessionArea = this.calculateArea(sessionPoints);
-        logger.debug('Calculated session area', {
+        logger.trace('Calculated session area', {
           component: 'StatsCalculationService',
           action: 'recalculateAreaFromSerializablePoints',
           sessionPointsCount: sessionPoints.length,
@@ -507,7 +474,7 @@ export class StatsCalculationService {
       }
     }
 
-    logger.debug('Recalculated areas from serializable GPS points', {
+    logger.trace('Recalculated areas from serializable GPS points', {
       component: 'StatsCalculationService',
       action: 'recalculateAreaFromSerializablePoints',
       pathLength: serializablePoints.length,

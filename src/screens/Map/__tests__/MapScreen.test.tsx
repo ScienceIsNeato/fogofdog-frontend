@@ -37,6 +37,18 @@ jest.mock('../../../services/GPSInjectionService', () => ({
   },
 }));
 
+// Mock BackgroundLocationService to prevent unmount errors
+jest.mock('../../../services/BackgroundLocationService', () => ({
+  BackgroundLocationService: {
+    startBackgroundLocationTracking: jest.fn<() => Promise<void>>().mockResolvedValue(undefined),
+    stopBackgroundLocationTracking: jest.fn<() => Promise<void>>().mockResolvedValue(undefined),
+    isBackgroundTrackingActive: jest.fn().mockReturnValue(false),
+    handleLocationUpdate: jest.fn(),
+    initialize: jest.fn<() => Promise<void>>().mockResolvedValue(undefined),
+    processStoredLocations: jest.fn<() => Promise<unknown[]>>().mockResolvedValue([]),
+  },
+}));
+
 // Mock onboarding context to simulate completed onboarding in tests
 jest.mock('../../../contexts/OnboardingContext', () => ({
   useOnboardingContext: () => ({
@@ -349,7 +361,7 @@ jest.mock('../../../components/LocationButton', () => {
       TouchableOpacity,
       {
         testID: 'mock-location-button',
-        onPress: () => props.onPress && props.onPress(),
+        onPress: () => props.onPress?.(),
       } as TouchableOpacityProps,
       React.createElement(Text, {}, 'Location Button')
     );
@@ -1087,5 +1099,79 @@ describe('MapScreen', () => {
       expect(multiBounds.latitudeDelta).toBeGreaterThanOrEqual(0.0922 * 2); // minLatDelta
       expect(multiBounds.longitudeDelta).toBeGreaterThanOrEqual(0.0421 * 2); // minLngDelta
     }
+  });
+});
+
+// Tests for isNullIslandRegion guard (Fabric timing fix)
+describe('isNullIslandRegion', () => {
+  // Import after mocks are set up
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { isNullIslandRegion } = require('../index');
+
+  it('should reject regions near Null Island (0,0)', () => {
+    // The exact coordinates observed from the Fabric timing bug
+    expect(
+      isNullIslandRegion({
+        latitude: 0.05550308752890339,
+        longitude: 0.19423630530749378,
+        latitudeDelta: 0.008143127865089368,
+        longitudeDelta: 0.004216404151864417,
+      })
+    ).toBe(true);
+  });
+
+  it('should reject exact (0,0)', () => {
+    expect(
+      isNullIslandRegion({
+        latitude: 0,
+        longitude: 0,
+        latitudeDelta: 0.01,
+        longitudeDelta: 0.01,
+      })
+    ).toBe(true);
+  });
+
+  it('should accept valid GPS regions (e.g. Eugene, OR)', () => {
+    expect(
+      isNullIslandRegion({
+        latitude: 44.028,
+        longitude: -123.104,
+        latitudeDelta: 0.0922,
+        longitudeDelta: 0.0421,
+      })
+    ).toBe(false);
+  });
+
+  it('should accept valid GPS regions (e.g. San Francisco)', () => {
+    expect(
+      isNullIslandRegion({
+        latitude: 37.7749,
+        longitude: -122.4194,
+        latitudeDelta: 0.0922,
+        longitudeDelta: 0.0421,
+      })
+    ).toBe(false);
+  });
+
+  it('should accept regions where only one coordinate is near zero', () => {
+    // On the equator but at a real longitude
+    expect(
+      isNullIslandRegion({
+        latitude: 0.1,
+        longitude: 36.8,
+        latitudeDelta: 0.01,
+        longitudeDelta: 0.01,
+      })
+    ).toBe(false);
+
+    // At the prime meridian but at a real latitude
+    expect(
+      isNullIslandRegion({
+        latitude: 51.5,
+        longitude: 0.1,
+        latitudeDelta: 0.01,
+        longitudeDelta: 0.01,
+      })
+    ).toBe(false);
   });
 });

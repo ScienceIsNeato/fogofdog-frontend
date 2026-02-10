@@ -1,13 +1,13 @@
 import { DataImportExportService, ExplorationExportData } from '../DataImportExportService';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import * as DocumentPicker from 'expo-document-picker';
 import { GeoPoint } from '../../types/user';
 import { StoredLocationData } from '../LocationStorageService';
 
 // Mock the expo modules
-jest.mock('expo-file-system');
+jest.mock('expo-file-system/legacy');
 jest.mock('expo-sharing');
 jest.mock('expo-document-picker');
 jest.mock('@react-native-async-storage/async-storage');

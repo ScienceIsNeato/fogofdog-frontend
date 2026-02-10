@@ -80,7 +80,16 @@ jest.mock('../../../services/OnboardingService', () => ({
   },
 }));
 
-jest.mock('../../../services/BackgroundLocationService');
+jest.mock('../../../services/BackgroundLocationService', () => ({
+  BackgroundLocationService: {
+    startBackgroundLocationTracking: jest.fn().mockResolvedValue(undefined),
+    stopBackgroundLocationTracking: jest.fn().mockResolvedValue(undefined),
+    isBackgroundTrackingActive: jest.fn().mockReturnValue(false),
+    handleLocationUpdate: jest.fn(),
+    initialize: jest.fn().mockResolvedValue(undefined),
+    processStoredLocations: jest.fn().mockResolvedValue([]),
+  },
+}));
 jest.mock('../../../services/AuthPersistenceService');
 jest.mock('../../../services/DataClearingService');
 
@@ -311,6 +320,13 @@ describe('First-time user flow — regression tests for PR #34 bug fixes', () =>
     });
     (Location.startLocationUpdatesAsync as jest.Mock).mockResolvedValue(undefined);
     (Location.stopLocationUpdatesAsync as jest.Mock).mockResolvedValue(undefined);
+
+    // AuthPersistenceService is auto-mocked — ensure getExplorationState returns
+    // a resolved promise (no persisted location for first-time user).
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const mockedAuth = require('../../../services/AuthPersistenceService').AuthPersistenceService;
+    mockedAuth.getExplorationState.mockResolvedValue(null);
+    mockedAuth.saveExplorationState.mockResolvedValue(undefined);
   });
 
   afterEach(() => {
@@ -360,17 +376,17 @@ describe('First-time user flow — regression tests for PR #34 bug fixes', () =>
       expect(eugene).toBeUndefined();
     });
 
-    it('renders loading state and does not crash while GPS is unavailable', async () => {
+    it('renders GPS acquisition overlay and does not crash while GPS is unavailable', async () => {
       (Location.getCurrentPositionAsync as jest.Mock).mockRejectedValue(
         new Error('GPS unavailable')
       );
 
       const store = createEmptyStore();
-      const { getByText } = await renderMapScreen(store);
+      const { getByTestId } = await renderMapScreen(store);
       await flushAsync(35000);
 
-      // Must still be showing the loading text — no crash, no blank screen.
-      expect(getByText('Getting your location...')).toBeTruthy();
+      // Must show the GPS acquisition overlay — no crash, no blank screen.
+      expect(getByTestId('gps-acquisition-overlay')).toBeTruthy();
     });
   });
 

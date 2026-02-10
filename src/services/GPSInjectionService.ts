@@ -2,27 +2,43 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { logger } from '../utils/logger';
 import { DeviceEventEmitter } from 'react-native';
 import { StoredLocationData } from './LocationStorageService';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 
 const GPS_INJECTION_KEY_ALT = '@fogofdog:gps_injection_data'; // External tools use this exact key
 const GPS_INJECTION_EVENT = 'GPS_COORDINATES_INJECTED';
-// GPS injection file is created in project root, but app runs in sandbox
-// We need to copy it to a location the app can access or use a different approach
-const GPS_INJECTION_FILE_PATH = `${FileSystem.documentDirectory}gps-injection.json`;
+
+// Helper to get GPS injection file path (documentDirectory can be null on Android during early init)
+function getGPSInjectionFilePath(): string | null {
+  if (!FileSystem.documentDirectory) {
+    return null;
+  }
+  return `${FileSystem.documentDirectory}gps-injection.json`;
+}
 
 export class GPSInjectionService {
   /**
    * Check for GPS injection data from file
    */
   private static async checkGPSInjectionFile(): Promise<string | null> {
-    try {
-      logger.debug(`📁 Checking GPS injection file at: ${GPS_INJECTION_FILE_PATH}`, {
+    const filePath = getGPSInjectionFilePath();
+
+    // documentDirectory not available yet (early Android init)
+    if (!filePath) {
+      logger.debug('📁 GPS injection file check skipped - documentDirectory not available', {
         component: 'GPSInjectionService',
         action: 'checkGPSInjectionFile',
-        filePath: GPS_INJECTION_FILE_PATH,
+      });
+      return null;
+    }
+
+    try {
+      logger.debug(`📁 Checking GPS injection file at: ${filePath}`, {
+        component: 'GPSInjectionService',
+        action: 'checkGPSInjectionFile',
+        filePath,
       });
 
-      const fileInfo = await FileSystem.getInfoAsync(GPS_INJECTION_FILE_PATH);
+      const fileInfo = await FileSystem.getInfoAsync(filePath);
       logger.debug(`📁 File info result:`, {
         component: 'GPSInjectionService',
         action: 'checkGPSInjectionFile',
@@ -34,7 +50,7 @@ export class GPSInjectionService {
         return null;
       }
 
-      const fileContent = await FileSystem.readAsStringAsync(GPS_INJECTION_FILE_PATH);
+      const fileContent = await FileSystem.readAsStringAsync(filePath);
       const fileData = JSON.parse(fileContent);
 
       // GPS injector tool wraps coordinates in a structure, extract the coordinates array
@@ -43,7 +59,7 @@ export class GPSInjectionService {
       }
 
       // Delete the file after reading to prevent reprocessing
-      await FileSystem.deleteAsync(GPS_INJECTION_FILE_PATH);
+      await FileSystem.deleteAsync(filePath);
 
       logger.info('Found GPS injection file, processing coordinates', {
         component: 'GPSInjectionService',
@@ -53,7 +69,7 @@ export class GPSInjectionService {
 
       return JSON.stringify(fileData.coordinates);
     } catch (fileError) {
-      // File doesn't exist or can't be read
+      // File doesn't exist or can't be read - this is expected and not an error
       logger.debug('GPS injection file not found or unreadable', {
         component: 'GPSInjectionService',
         action: 'checkGPSInjectionFile',

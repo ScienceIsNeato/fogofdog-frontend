@@ -6,6 +6,18 @@ FogOfDog uses **semantic versioning** (SemVer) with automated patch version incr
 
 **Format**: `MAJOR.MINOR.PATCH` (e.g., `1.2.3`)
 
+## 🎯 Source of Truth
+
+**`app.json` is the single source of truth for versions.**
+
+When you open `app.json`, you see exactly what's deployed:
+
+- `expo.version`: The semantic version (e.g., `1.1.3`)
+- `expo.ios.buildNumber`: The iOS build number (e.g., `7`)
+- `expo.android.versionCode`: The Android version code (e.g., `7`)
+
+No cloud magic, no guessing. The repo tells you the truth.
+
 ## Version Types
 
 ### 🔄 Patch Versions (1.0.0 → 1.0.1)
@@ -28,15 +40,32 @@ FogOfDog uses **semantic versioning** (SemVer) with automated patch version incr
 
 ## How It Works
 
-### Automatic (PR Merge)
+### Workflow Sequence (PR Merge → TestFlight)
 
-1. PR is merged to `main`
-2. GitHub Action triggers
-3. Patch version increments automatically
-4. Both `package.json` and `app.json` updated
-5. Git tag created (e.g., `v1.0.1`)
-6. GitHub Release created
-7. Build numbers incremented for App Store
+```
+┌─────────────────────────────────────────────────────────────────┐
+│  1. PR merges to main                                           │
+│     ↓                                                           │
+│  2. version-bump.yml triggers                                   │
+│     • Increments patch version (1.1.2 → 1.1.3)                  │
+│     • Increments build number (6 → 7)                           │
+│     • Commits to main                                           │
+│     • Creates git tag (v1.1.3)                                  │
+│     • Creates GitHub Release                                    │
+│     ↓                                                           │
+│  3. eas-build.yml triggers (via workflow_run)                   │
+│     • Waits for version-bump to complete ✓                      │
+│     • Checks out updated main (with new version)                │
+│     • Builds exactly what's in app.json                         │
+│     • Submits to TestFlight                                     │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+**Key Design Decisions:**
+
+- EAS build triggers AFTER version bump completes (no race condition)
+- EAS reads version from `app.json` (never modifies it)
+- `autoIncrement` disabled in `eas.json` (repo is authoritative)
 
 ### Manual (Major/Minor)
 
@@ -59,7 +88,7 @@ Each version bump automatically updates:
 
 ```json
 {
-  "version": "1.0.1"
+  "version": "1.1.3"
 }
 ```
 
@@ -68,12 +97,12 @@ Each version bump automatically updates:
 ```json
 {
   "expo": {
-    "version": "1.0.1",
+    "version": "1.1.3",
     "ios": {
-      "buildNumber": "3"
+      "buildNumber": "7"
     },
     "android": {
-      "versionCode": 3
+      "versionCode": 7
     }
   }
 }
@@ -81,9 +110,9 @@ Each version bump automatically updates:
 
 ## EAS Build Integration
 
-- **Version**: Uses semantic version from `package.json`/`app.json`
-- **Build Numbers**: Auto-increment per platform for App Store requirements
-- **Configuration**: `autoIncrement: "buildNumber"` in `eas.json`
+- **Version**: Uses semantic version from `app.json` (no modification)
+- **Build Numbers**: Committed to repo, not auto-incremented by EAS
+- **Trigger**: `workflow_run` after `Auto Version Bump` workflow completes
 
 ## Git Tags & Releases
 

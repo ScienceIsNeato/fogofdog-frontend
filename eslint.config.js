@@ -7,7 +7,7 @@ module.exports = [
     ignores: [
       'dist/*',
       'coverage/*',
-      'reports/*', // Auto-generated coverage/duplication reports
+      'reports/**/*', // Auto-generated coverage/duplication reports
       '.expo/*',
       'ios/*',
       'android/*',
@@ -22,6 +22,8 @@ module.exports = [
       'venv/**/*',
       '.git/**/*',
       'build/**/*',
+      'test_artifacts/**/*',
+      'temp/**/*',
     ],
   },
   {
@@ -29,6 +31,9 @@ module.exports = [
     plugins: {
       sonarjs: require('eslint-plugin-sonarjs'),
       '@typescript-eslint': require('@typescript-eslint/eslint-plugin'),
+    },
+    settings: {
+      'import/core-modules': ['react-native-maps', 'expo-file-system/legacy'],
     },
     languageOptions: {
       parser: require('@typescript-eslint/parser'),
@@ -53,7 +58,7 @@ module.exports = [
       'sonarjs/no-identical-conditions': 'error',
       'sonarjs/no-identical-expressions': 'error',
       'sonarjs/no-ignored-return': 'error',
-      'sonarjs/no-one-iteration-loop': 'error',
+      // no-one-iteration-loop removed in eslint-plugin-sonarjs v3
       'sonarjs/no-use-of-empty-return-value': 'error',
       'sonarjs/non-existent-operator': 'error',
 

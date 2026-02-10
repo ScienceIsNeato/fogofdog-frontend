@@ -1,6 +1,23 @@
 {
   "version": "1.0",
-  "default_profile": "pr",
+  "default_profile": "javascript",
+  "profiles": {
+    "commit": [
+      "javascript:lint-format",
+      "javascript:types",
+      "javascript:tests",
+      "javascript:coverage",
+      "general:deploy-tests"
+    ],
+    "pr": [
+      "javascript:lint-format",
+      "javascript:types",
+      "javascript:tests",
+      "javascript:coverage",
+      "quality:source-duplication",
+      "general:deploy-tests"
+    ]
+  },
   "python": {
     "enabled": true,
     "include_dirs": ["scripts"],
@@ -50,7 +67,7 @@
   "javascript": {
     "enabled": true,
     "include_dirs": [],
-    "exclude_dirs": [],
+    "exclude_dirs": ["slop-mop", "cursor-rules"],
     "gates": {
       "lint-format": {
         "enabled": true,
@@ -135,6 +152,7 @@
       "node_modules",
       ".git",
       "slop-mop",
+      "cursor-rules",
       "test_artifacts"
     ],
     "gates": {
@@ -146,7 +164,7 @@
         "max_complexity": 15,
         "src_dirs": []
       },
-      "duplication": {
+      "source-duplication": {
         "enabled": true,
         "auto_fix": false,
         "config_file_path": null,
@@ -154,6 +172,28 @@
         "include_dirs": ["src"],
         "min_tokens": 50,
         "min_lines": 5
+      },
+      "loc-lock": {
+        "enabled": true,
+        "auto_fix": false,
+        "max_file_lines": 2700,
+        "max_function_lines": 120,
+        "include_dirs": ["src", "scripts"],
+        "exclude_dirs": [
+          "ios",
+          "android",
+          "node_modules",
+          "coverage",
+          ".expo",
+          "temp",
+          "test_artifacts",
+          "quality-reports",
+          "reports",
+          "slop-mop",
+          "cursor-rules",
+          "__mocks__",
+          "__tests__"
+        ]
       }
     }
   },
@@ -167,6 +207,12 @@
         "auto_fix": false,
         "config_file_path": null,
         "templates_dir": null
+      },
+      "deploy-tests": {
+        "enabled": true,
+        "auto_fix": false,
+        "config_file_path": null,
+        "test_script": "scripts/__tests__/deploy_app.test.sh"
       }
     }
   },

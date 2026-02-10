@@ -13,7 +13,7 @@ import * as Location from 'expo-location';
 
 // Extend global type for jest console setup
 declare global {
-  // eslint-disable-next-line no-var
+  // eslint-disable-next-line no-var -- TypeScript requires `var` for global declarations
   var expectConsoleErrors: boolean;
 }
 

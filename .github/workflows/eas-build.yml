@@ -1,10 +1,14 @@
 name: EAS Build & Deploy
 
 on:
-  push:
+  # Trigger after version-bump workflow completes (PR merge flow)
+  # version-bump.yml creates a git tag, so we DON'T also trigger on push:tags
+  # to avoid duplicate builds (workflow_run + tag push would both fire).
+  workflow_run:
+    workflows: ['Auto Version Bump']
+    types: [completed]
     branches: [main]
-    tags:
-      - 'v*'
+  # Manual builds (also used for production releases instead of push:tags)
   workflow_dispatch:
     inputs:
       platform:
@@ -45,10 +49,17 @@ jobs:
   build:
     name: EAS Build (${{ github.event_name == 'workflow_dispatch' && github.event.inputs.build_message || 'Auto Deploy' }})
     runs-on: ubuntu-latest
+    # Only run if triggered manually or if version-bump succeeded
+    if: >
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success')
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          # For workflow_run, we need to checkout the updated main with version bump
+          ref: ${{ github.event_name == 'workflow_run' && 'main' || github.ref }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -69,27 +80,7 @@ jobs:
         if: github.event_name != 'workflow_dispatch' || github.event.inputs.skip_tests != 'true'
         run: npm run test:ci
 
-      - name: 🔢 Increment Build Number
-        run: |
-          echo "🔢 Incrementing build number for unique builds..."
-          node -e "
-            const fs = require('fs');
-            const appJson = JSON.parse(fs.readFileSync('app.json', 'utf8'));
-            const currentBuild = parseInt(appJson.expo.ios.buildNumber || '1');
-            const newBuild = (currentBuild + 1).toString();
-            appJson.expo.ios.buildNumber = newBuild;
-            
-            // Also increment Android version code for consistency
-            if (!appJson.expo.android) appJson.expo.android = {};
-            const currentVersionCode = parseInt(appJson.expo.android.versionCode || '1');
-            appJson.expo.android.versionCode = currentVersionCode + 1;
-            
-            fs.writeFileSync('app.json', JSON.stringify(appJson, null, 2));
-            console.log(\`📱 iOS build number: \${currentBuild} → \${newBuild}\`);
-            console.log(\`🤖 Android version code: \${currentVersionCode} → \${currentVersionCode + 1}\`);
-          "
-
-      - name: 📋 Build Info
+      - name: Build Info
         run: |
           echo "🏗️ Build Information:"
           echo "Branch: ${{ github.ref_name }}"
@@ -102,13 +93,9 @@ jobs:
             echo "Message: ${{ github.event.inputs.build_message }}"
           fi
 
-      - name: Build iOS for TestFlight (main branch auto)
-        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+      - name: Build iOS for TestFlight (after version bump)
+        if: github.event_name == 'workflow_run'
         run: eas build --platform ios --profile testflight --non-interactive
-
-      - name: Build for Production (tags)
-        if: startsWith(github.ref, 'refs/tags/v')
-        run: eas build --platform all --profile production --non-interactive
 
       - name: Build Manual Trigger
         if: github.event_name == 'workflow_dispatch'
@@ -126,7 +113,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: build
     if: >
-      (github.ref == 'refs/heads/main' && github.event_name == 'push') ||
+      github.event_name == 'workflow_run' ||
       (github.event_name == 'workflow_dispatch' && 
        github.event.inputs.submit_to_testflight == 'true' &&
        (github.event.inputs.platform == 'ios' || github.event.inputs.platform == 'all'))

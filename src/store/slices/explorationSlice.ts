@@ -98,8 +98,7 @@ const explorationSlice = createSlice({
 
       // Check if this is the exact same location as current location (avoid redundant processing)
       if (
-        state.currentLocation &&
-        state.currentLocation.latitude === newPoint.latitude &&
+        state.currentLocation?.latitude === newPoint.latitude &&
         state.currentLocation.longitude === newPoint.longitude
       ) {
         // Skip logging for identical location updates to reduce log noise
@@ -107,14 +106,14 @@ const explorationSlice = createSlice({
         return;
       }
 
-      logger.info('📍 Processing location update', {
+      // Use trace for per-tick GPS updates (noisy in normal dev)
+      logger.trace('📍 Processing location update', {
         component: 'explorationSlice',
         action: 'updateLocation',
         currentLocation: state.currentLocation
           ? `${state.currentLocation.latitude}, ${state.currentLocation.longitude}`
           : 'null',
         newPoint: `${newPoint.latitude}, ${newPoint.longitude}`,
-        areIdentical: false,
       });
 
       // Auto-center on user location when first valid location is received

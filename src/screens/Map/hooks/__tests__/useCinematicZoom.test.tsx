@@ -16,6 +16,12 @@ import React from 'react';
 jest.mock('../../../../utils/logger');
 jest.mock('../../../../utils/mapZoomUtils');
 jest.mock('../../../../constants/mapConstraints');
+jest.mock('../../../../services/AuthPersistenceService', () => ({
+  AuthPersistenceService: {
+    getExplorationState: jest.fn().mockResolvedValue(null),
+    saveExplorationState: jest.fn().mockResolvedValue(undefined),
+  },
+}));
 
 const mockLogger = logger as jest.Mocked<typeof logger>;
 const mockMapZoomUtils = mapZoomUtils as jest.Mocked<typeof mapZoomUtils>;
@@ -56,6 +62,9 @@ describe('useCinematicZoom', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     jest.useFakeTimers();
+
+    // Reset state that may leak between tests
+    mockMapView._cinematicZoomActive = false;
 
     mockMapRef = { current: mockMapView };
     mockCinematicZoomActiveRef.current = false;
@@ -122,7 +131,7 @@ describe('useCinematicZoom', () => {
     expect(result.current.initialRegion?.longitude).not.toBe(currentLocation.longitude);
   });
 
-  it('should return null when no location is available', () => {
+  it('should return fallback region when no location is available', async () => {
     const store = createTestStore({
       exploration: { path: [] },
     });
@@ -137,8 +146,16 @@ describe('useCinematicZoom', () => {
       { wrapper: createWrapper(store) }
     );
 
-    // Should return null until real location is available
+    // Initially null while fallback loads from AsyncStorage
     expect(result.current.initialRegion).toBeNull();
+
+    // After async fallback loads, should return world-view region (not null)
+    await act(async () => {
+      await Promise.resolve(); // flush microtasks
+    });
+    expect(result.current.initialRegion).toBeDefined();
+    expect(result.current.initialRegion?.latitude).toBe(0);
+    expect(result.current.initialRegion?.longitude).toBe(0);
   });
 
   it('should return null explorationBounds when path is empty', () => {
@@ -225,7 +242,7 @@ describe('useCinematicZoom', () => {
       exploration: { path: mockPath },
     });
 
-    const nullMapRef = { current: null };
+    const nullMapRef: React.RefObject<any> = { current: null };
 
     renderHook(
       () =>
@@ -544,5 +561,137 @@ describe('useCinematicZoom', () => {
     // Should still provide valid start region with fallback logic
     expect(result.current.initialRegion).toBeDefined();
     expect(result.current.initialRegion?.latitudeDelta).toBeGreaterThan(0);
+  });
+
+  // -------------------------------------------------------------------------
+  // Animation blocking tests — ensures _cinematicZoomActive guards work
+  // -------------------------------------------------------------------------
+  describe('animation blocking behavior', () => {
+    it('sets _cinematicZoomActive flag during animation to block other map controls', () => {
+      const store = createTestStore({
+        exploration: { path: [mockGeoPoint] },
+      });
+
+      // Initially the flag should be false
+      expect(mockCinematicZoomActiveRef.current).toBe(false);
+
+      renderHook(
+        () =>
+          useCinematicZoom({
+            mapRef: mockMapRef,
+            currentLocation,
+            cinematicZoomActiveRef: mockCinematicZoomActiveRef,
+          }),
+        {
+          wrapper: createWrapper(store),
+        }
+      );
+
+      // Advance past the initial delay to start the animation
+      act(() => {
+        jest.advanceTimersByTime(100);
+      });
+
+      // Flag should now be true (blocking other animations)
+      expect(mockCinematicZoomActiveRef.current).toBe(true);
+    });
+
+    it('external code can check _cinematicZoomActive to skip its own animations', () => {
+      const store = createTestStore({
+        exploration: { path: [mockGeoPoint] },
+      });
+
+      renderHook(
+        () =>
+          useCinematicZoom({
+            mapRef: mockMapRef,
+            currentLocation,
+            cinematicZoomActiveRef: mockCinematicZoomActiveRef,
+          }),
+        {
+          wrapper: createWrapper(store),
+        }
+      );
+
+      // Start animation
+      act(() => {
+        jest.advanceTimersByTime(100);
+      });
+
+      // Simulates what MapScreen handlers should do before animating
+      const cinematicActive = mockCinematicZoomActiveRef.current;
+      expect(cinematicActive).toBe(true);
+
+      // This pattern represents the guard in handleLocationUpdate, toggleFollowMode, etc.
+      const shouldAnimateToNewLocation = !cinematicActive;
+      expect(shouldAnimateToNewLocation).toBe(false); // Animation blocked
+    });
+
+    it('clears _cinematicZoomActive flag after animation completes (allows subsequent animations)', () => {
+      const store = createTestStore({
+        exploration: { path: [mockGeoPoint] },
+      });
+
+      renderHook(
+        () =>
+          useCinematicZoom({
+            mapRef: mockMapRef,
+            currentLocation,
+            cinematicZoomActiveRef: mockCinematicZoomActiveRef,
+          }),
+        {
+          wrapper: createWrapper(store),
+        }
+      );
+
+      // Start animation
+      act(() => {
+        jest.advanceTimersByTime(100);
+      });
+      expect(mockCinematicZoomActiveRef.current).toBe(true);
+
+      // Complete animation (CINEMATIC_ZOOM_DURATION + buffer)
+      act(() => {
+        jest.advanceTimersByTime(5200);
+      });
+
+      // Flag should now be false (other animations allowed)
+      expect(mockCinematicZoomActiveRef.current).toBe(false);
+    });
+
+    it('animation runs uninterrupted when external code respects the flag', () => {
+      const store = createTestStore({
+        exploration: { path: [mockGeoPoint] },
+      });
+
+      renderHook(
+        () =>
+          useCinematicZoom({
+            mapRef: mockMapRef,
+            currentLocation,
+            cinematicZoomActiveRef: mockCinematicZoomActiveRef,
+          }),
+        {
+          wrapper: createWrapper(store),
+        }
+      );
+
+      // Start animation sequence (2 animateToRegion calls: instant + pan)
+      act(() => {
+        jest.advanceTimersByTime(100);
+      });
+
+      const callsAtStart = mockMapView.setCamera.mock.calls.length;
+
+      // Simulate GPS updates coming in during animation
+      // These would normally trigger handleLocationUpdate which checks the flag
+      // We verify no additional calls happen if external code respects the flag
+      act(() => {
+        jest.advanceTimersByTime(1000); // 1 second into 5-second animation
+      });
+
+      // No additional setCamera calls from the hook (it already fired)
+      expect(mockMapView.setCamera.mock.calls.length).toBe(callsAtStart);
+    });
   });
 });

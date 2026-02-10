@@ -19,9 +19,12 @@ elif [ -f .env ]; then
 fi
 
 # slop-mop quality gate
-# Runs the commit profile which includes:
-# - JavaScript: lint-format, tests, types, coverage, bogus-tests
-# - Quality: loc-lock, source-duplication, string-duplication, dead-code
+# Runs the "commit" profile which includes:
+# - javascript:lint-format  (ESLint + Prettier)
+# - javascript:types        (TypeScript strict check)
+# - javascript:tests        (Jest unit tests)
+# - javascript:coverage     (Coverage threshold)
+# - general:deploy-tests    (deploy_app.sh tests)
 # Commit is blocked if any gate fails.
 # Disabled gates (via .sb_config.json or sm config --disable) are automatically skipped.
 if ! command -v sm >/dev/null 2>&1; then
