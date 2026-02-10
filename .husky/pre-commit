@@ -19,11 +19,12 @@ elif [ -f .env ]; then
 fi
 
 # slop-mop quality gate
-# Runs the "javascript" profile (default) which includes:
+# Runs the "commit" profile which includes:
 # - javascript:lint-format  (ESLint + Prettier)
 # - javascript:types        (TypeScript strict check)
 # - javascript:tests        (Jest unit tests)
 # - javascript:coverage     (Coverage threshold)
+# - general:deploy-tests    (deploy_app.sh tests)
 # Commit is blocked if any gate fails.
 # Disabled gates (via .sb_config.json or sm config --disable) are automatically skipped.
 if ! command -v sm >/dev/null 2>&1; then
@@ -31,4 +32,4 @@ if ! command -v sm >/dev/null 2>&1; then
   pip install -e ./slop-mop --break-system-packages --quiet 2>/dev/null
 fi
 
-sm validate javascript
+sm validate commit

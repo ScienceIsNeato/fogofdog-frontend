@@ -7,7 +7,7 @@ module.exports = [
     ignores: [
       'dist/*',
       'coverage/*',
-      'reports/*', // Auto-generated coverage/duplication reports
+      'reports/**/*', // Auto-generated coverage/duplication reports
       '.expo/*',
       'ios/*',
       'android/*',
@@ -22,6 +22,8 @@ module.exports = [
       'venv/**/*',
       '.git/**/*',
       'build/**/*',
+      'test_artifacts/**/*',
+      'temp/**/*',
     ],
   },
   {

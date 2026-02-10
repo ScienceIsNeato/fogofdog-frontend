@@ -1058,7 +1058,6 @@ export function isNullIslandRegion(region: MapRegion): boolean {
 function handleRegionChange({
   region,
   setCurrentRegion,
-  setCurrentFogRegion,
   mapDimensions,
   workletUpdateRegion,
 }: {
@@ -1083,13 +1082,11 @@ function handleRegionChange({
   };
 
   // Update fog region immediately for synchronization with OptimizedFogOverlay
+  // (workletUpdateRegion IS setCurrentFogRegion — no separate call needed)
   workletUpdateRegion(regionWithDimensions);
 
   // Update region state for other components (async)
   setCurrentRegion(region);
-
-  // Legacy fog region update for backward compatibility
-  setCurrentFogRegion(regionWithDimensions);
 }
 
 function handlePanDrag({ dispatch }: { dispatch: ReturnType<typeof useAppDispatch> }) {
@@ -1172,7 +1169,6 @@ const useMapEventHandlers = (options: {
     mapRef,
     cinematicZoomActiveRef,
     setCurrentRegion,
-    setCurrentFogRegion,
     mapDimensions,
     workletUpdateRegion,
   } = options;
@@ -1204,7 +1200,6 @@ const useMapEventHandlers = (options: {
       handleRegionChange({
         region,
         setCurrentRegion,
-        setCurrentFogRegion,
         mapDimensions,
         workletUpdateRegion,
       }),
@@ -1867,10 +1862,24 @@ const useFogRegionState = (
     }
   }, [initialWorkletRegion, currentFogRegion, memoizedMapRegion]);
 
-  // Simple region update for OptimizedFogOverlay synchronization
+  // Region update for OptimizedFogOverlay synchronization.
+  // Uses functional setState with epsilon comparison to prevent infinite
+  // re-render loops: onRegionChange → setState → re-render → onRegionChange.
   const updateFogRegion = useCallback((region: MapRegion & { width: number; height: number }) => {
-    // Update fog region immediately for synchronization
-    setCurrentFogRegion(region);
+    setCurrentFogRegion((prev) => {
+      if (
+        prev &&
+        Math.abs(prev.latitude - region.latitude) < 0.00001 &&
+        Math.abs(prev.longitude - region.longitude) < 0.00001 &&
+        Math.abs(prev.latitudeDelta - region.latitudeDelta) < 0.00001 &&
+        Math.abs(prev.longitudeDelta - region.longitudeDelta) < 0.00001 &&
+        Math.abs(prev.width - region.width) < 1 &&
+        Math.abs(prev.height - region.height) < 1
+      ) {
+        return prev; // Same reference → React skips re-render
+      }
+      return region;
+    });
   }, []);
 
   return {
@@ -2276,7 +2285,6 @@ const useMapScreenServicesAndHandlers = (config: MapScreenServicesHandlersConfig
     mapRef: mapState.mapRef,
     cinematicZoomActiveRef: mapState.cinematicZoomActiveRef,
     setCurrentRegion: mapState.setCurrentRegion,
-    setCurrentFogRegion: mapState.setCurrentFogRegion,
     mapDimensions: mapState.mapDimensions,
     workletUpdateRegion: mapState.updateFogRegion,
   });

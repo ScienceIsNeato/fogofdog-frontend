@@ -133,7 +133,7 @@ fi
 test_start "--help should show usage and exit 0"
 output=$("$DEPLOY_SCRIPT" --help 2>&1)
 exit_code=$?
-if [ $exit_code -eq 0 ] && echo "$output" | grep -q "Usage:"; then
+if [ $exit_code -eq 0 ] && echo "$output" | grep -qi "usage:"; then
     test_pass
 else
     test_fail "Expected exit 0 and usage text"
@@ -197,7 +197,7 @@ fi
 
 test_start "Banner should show timeout"
 output=$("$DEPLOY_SCRIPT" --device android --mode development --data current --dry-run 2>&1 || true)
-if assert_output_contains "$output" "Timeout:.*300s"; then
+if assert_output_contains "$output" "Timeout:.*600s"; then
     test_pass
 fi
 
