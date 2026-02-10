@@ -23,11 +23,18 @@ import { GeoPoint } from '../types/user';
  * in useEffect, not useMemo, to avoid corrupting paths that are still referenced
  * by committed renders.
  *
- * DISPOSAL SAFETY: Uses a two-effect pattern to prevent disposing a path that's
- * still being rendered by the native thread:
- *   Effect 1 (on factory change): Creates the new path and swaps it into state
+ * DISPOSAL SAFETY: Uses a two-effect pattern with an intendedPathRef guard to
+ * prevent disposing a path that's still being rendered by the native thread:
+ *   Effect 1 (on factory change): Creates the new path, sets intendedPathRef
+ *       synchronously as a guard, then swaps it into state via batched setPath
  *   Effect 2 (on path state change): Disposes previous paths AFTER the new path
  *       is committed to the render tree — guaranteed safe from native thread races
+ *
+ * MOUNT RACE FIX: On mount, React runs both effects in the same commit cycle.
+ * Without the intendedPathRef guard, Effect 2 would see the newly created path
+ * in createdPathsRef, find it !== path (still emptyPath due to batched setPath),
+ * and dispose it before React commits the render. The intendedPathRef is set
+ * synchronously in Effect 1 before setPath, so Effect 2 can skip it.
  *
  * This also handles StrictMode double-fire via a createdPaths Set that tracks all
  * allocated paths and cleans up any orphans after the final state is committed.
@@ -38,6 +45,12 @@ const useManagedSkiaPath = (createPath: () => SkPath, deps: React.DependencyList
   const [path, setPath] = useState<SkPath>(emptyPath);
   // Track all paths created by Effect 1 so Effect 2 can dispose them safely
   const createdPathsRef = useRef<Set<SkPath>>(new Set());
+  // Synchronous guard: prevents Effect 2 from disposing a path that Effect 1
+  // just created but setPath hasn't committed yet (batched state update race).
+  // On mount, both effects run in the same commit cycle — without this guard,
+  // Effect 2 sees the new path in createdPathsRef, finds it !== path (still
+  // emptyPath due to batching), and disposes it before it's ever rendered.
+  const intendedPathRef = useRef<SkPath>(emptyPath);
 
   // Memoize the path factory to detect dependency changes
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -49,6 +62,7 @@ const useManagedSkiaPath = (createPath: () => SkPath, deps: React.DependencyList
   useEffect(() => {
     const newPath = memoizedFactory();
     createdPathsRef.current.add(newPath);
+    intendedPathRef.current = newPath; // Synchronous guard before batched setPath
     setPath(newPath);
   }, [memoizedFactory]);
 
@@ -59,9 +73,11 @@ const useManagedSkiaPath = (createPath: () => SkPath, deps: React.DependencyList
     // Capture ref value for stable cleanup (react-hooks/exhaustive-deps)
     const createdPaths = createdPathsRef.current;
 
-    // Dispose all tracked paths except the current one
+    // Dispose all tracked paths except the current one and the intended next one.
+    // The intendedPathRef guard prevents disposing a path that Effect 1 created
+    // but React hasn't yet committed via the batched setPath call.
     for (const p of createdPaths) {
-      if (p !== path && p !== emptyPath) {
+      if (p !== path && p !== emptyPath && p !== intendedPathRef.current) {
         try {
           p.dispose();
         } catch {

@@ -1,50 +1,31 @@
 # FogOfDog Frontend Status
 
-## Current Status: 🔧 BLACK SCREEN FIX — Null Island Guard
+## Current Status: 🔧 PR Review Fixes — CI & Code Review Comments
 
-### 🎯 **LATEST: Fabric Timing Black Screen Fix (uncommitted)**
+### 🎯 **LATEST: Addressing PR Review Comments**
 
-**Branch**: `spike/expo54-ios-crash-investigation`  
-**PR**: #54 (https://github.com/ScienceIsNeato/fogofdog-frontend/pull/54)  
+**Branch**: `spike/expo54-ios-crash-investigation`
+**PR**: #58 (https://github.com/ScienceIsNeato/fogofdog-frontend/pull/58) → `fix/CI-version`
+**Upstream PR**: #53 (https://github.com/ScienceIsNeato/fogofdog-frontend/pull/53) → `main`
 **All JS quality gates passing**: 71 test suites, 899 tests, lint clean, types clean
 
-#### Black Screen Root Cause
+#### Fixes Applied This Session
 
-react-native-maps 1.27.1 Fabric wrapper fires `onRegionChange` with coordinates near (0,0)
-BEFORE `initialRegion` prop is applied. The fog overlay's viewport culling drops ALL GPS
-points (which are at ~44, -123), resulting in a solid black screen.
+1. **Skia effect disposal race (HIGH)**: Added `intendedPathRef` guard to `useManagedSkiaPath`
+   two-effect pattern — prevents Effect 2 from disposing paths that Effect 1 just created
+   but React hasn't committed yet due to batched `setPath`.
 
-#### Fix Applied
+2. **updateFogRegion epsilon (LOW)**: Added `width`/`height` comparison to epsilon dedup
+   in `updateFogRegion` — device rotation and layout changes now trigger fog region updates.
 
-- Added `isNullIslandRegion()` guard to reject regions where both |lat| < 0.5 and |lng| < 0.5
-- Guard applied in both `handleRegionChange` and `handleRegionChangeComplete`
-- 5 tests added for the guard function
-- Removed temporary debug logging from OptimizedFogOverlay
+3. **Pre-commit comment accuracy**: Updated `.husky/pre-commit` comment to match actual
+   `commit` profile in `.sb_config.json` (includes `javascript:types`, not avoids it).
 
-#### Previous Commit (3029d98)
+4. **sb_config profile key mismatch**: Fixed `quality:duplication` → `quality:source-duplication`
+   in `pr` profile to match actual gate key.
 
-- fix: resolve Expo 54 iOS crash (Skia SIGSEGV + maps pre-Fabric + stale AppDelegate)
-
-#### Root Causes Fixed
-
-1. **@shopify/react-native-skia 2.2.12 SIGSEGV** → upgraded to 2.4.18, migrated `.delete()` → `.dispose()`, refactored useMemo side effects for React 19
-2. **react-native-maps 1.20.1 pre-Fabric** → upgraded to 1.27.1 (TurboModule architecture)
-3. **Stale ObjC AppDelegate** → clean prebuild generated Swift AppDelegate with ExpoReactNativeFactory
-
-#### Red Herring Rolled Back
-
-- expo-dev-launcher patch (autoSetup race condition was symptom of stale AppDelegate, not real issue)
-- Removed patch-package + patches/ directory
-
-#### Test Fixes
-
-- Created `__mocks__/react-native-maps.tsx` for TurboModule mock
-- Fixed explorationSlice logger mock (added trace, throttledDebug)
-- Updated BackgroundLocationService tests for source-test drift
-
-#### Tech Debt Noted
-
-- Pod install deprecation: React Native moving away from CocoaPods. `deploy_app.sh` `ensure_pods_synced()` calls `pod install` directly — should migrate to `npx expo run:ios` flow
+5. **package-lock.json sync**: Regenerated to match Expo 54 `package.json` — was causing
+   all CI `npm ci` failures on both PRs.
 
 ### ⚠️ NEXT STEPS
 
@@ -154,17 +135,21 @@ Rewrote `cursor-rules/.cursor/rules/projects/fogofdog_frontend.mdc` (409→225 l
 **5 themes of unstaged changes from the previous SDK 54 session** — none committed yet:
 
 1. **Cross-platform Maestro test infrastructure**
+
    - New: `.maestro/shared/robust-login.yaml`, `.maestro/shared/handle-location-permissions.yaml`
    - Modified: `background-gps-test.yaml`, `comprehensive-persistence-test.yaml`, `smoke-test.yaml` (path fixes)
 
 2. **Android resilience fixes**
+
    - `BackgroundLocationService.ts`: Foreground service retry logic, stop error handling
    - `GPSInjectionService.ts`: Null-safe `documentDirectory` access
 
 3. **Log noise reduction**
+
    - `StatsCalculationService.ts`, `GPSConnectionService.ts`, `statsSlice.ts`, `MapScreen/index.tsx`: Reduced verbose logging
 
 4. **Fog overlay touch-through fix**
+
    - `OptimizedFogOverlay.tsx`: Wrapped Canvas in View for `pointerEvents="none"` (map interaction passthrough)
 
 5. **Dev tooling improvements**
@@ -275,12 +260,14 @@ Multiple TS errors exist in the codebase (identified but NOT fixed this session)
 ### **🔧 Latest Session (Feb 9, 2026)**
 
 **Commits pushed to PR #57:**
+
 1. `df308d1` - refactor: remove all ship_it.py references, fix PR detection
 2. `561ebfe` - chore: remove SonarCloud integration and purge obsolete docs
 3. `a406dd7` - refactor: extract DataActionMenuItem component to eliminate duplication
 4. `b460529` - fix: address PR #57 bot review comments
 
 **Bot Comments Addressed (5/5 resolved):**
+
 - ✅ MapLibre mock: Export MapView as named export (match library shape)
 - ✅ tileUtils: Clamp latitude to Web Mercator range (prevent NaN)
 - ✅ SettingsSkinView: Use Redux availableSkins instead of constant
@@ -288,8 +275,9 @@ Multiple TS errors exist in the codebase (identified but NOT fixed this session)
 - ✅ cartoon.json: Fix road layer order (outline → fill for proper casing)
 
 **Additional Cleanup:**
+
 - Removed SonarCloud service (kept eslint-plugin-sonarjs)
-- Deleted 6 obsolete docs (PR_*.md, SLOPMOP_WINS.md, etc.)
+- Deleted 6 obsolete docs (PR\_\*.md, SLOPMOP_WINS.md, etc.)
 - Added slop-mop and test_artifacts to source-duplication excludes
 - Disabled Python language gates (TypeScript-only project)
 - Extracted DataActionMenuItem component to eliminate duplication

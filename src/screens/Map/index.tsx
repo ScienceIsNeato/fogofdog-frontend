@@ -1872,7 +1872,9 @@ const useFogRegionState = (
         Math.abs(prev.latitude - region.latitude) < 0.00001 &&
         Math.abs(prev.longitude - region.longitude) < 0.00001 &&
         Math.abs(prev.latitudeDelta - region.latitudeDelta) < 0.00001 &&
-        Math.abs(prev.longitudeDelta - region.longitudeDelta) < 0.00001
+        Math.abs(prev.longitudeDelta - region.longitudeDelta) < 0.00001 &&
+        Math.abs(prev.width - region.width) < 1 &&
+        Math.abs(prev.height - region.height) < 1
       ) {
         return prev; // Same reference → React skips re-render
       }
