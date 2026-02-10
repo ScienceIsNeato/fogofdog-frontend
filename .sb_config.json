@@ -58,7 +58,7 @@
         "config_file_path": null
       },
       "type-checking": {
-        "enabled": false,
+        "enabled": true,
         "auto_fix": false,
         "config_file_path": null
       }

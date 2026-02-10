@@ -128,14 +128,12 @@ Fog of Dog is a mobile game that implements a fog-of-war mechanic for real-world
 The core game mechanic is implemented with the following components:
 
 1. **State Management**:
-
    - Redux store with `explorationSlice` that tracks:
      - Current GPS location
      - Array of explored areas (each with lat, lon, radius)
    - New areas are revealed when player moves at least 25m from existing explored areas
 
 2. **Rendering**:
-
    - MapScreen uses react-native-maps
    - Fog overlay implemented with React Native Skia Canvas
    - Each visited area creates a circular hole (approx. 50m radius) in the fog
@@ -228,21 +226,18 @@ fogofdog-frontend/
 ### Fog of War Implementation
 
 1. **Current Implementation**:
-
    - Uses Redux store with `explorationSlice` tracking path coordinates
    - State includes both `path: GeoPoint[]` and `exploredAreas: GeoPoint[]`
    - Minimum distance threshold of 20m for new areas, with 50m radius fog holes
    - FogOverlay component using React Native Skia canvas rendering
 
 2. **Technical Approach**:
-
    - Uses `@shopify/react-native-skia` for canvas rendering
    - Implements luminance masking to cut holes in fog overlay
    - Coordinate conversion from geographic to screen pixels via `mapUtils.ts`
    - Canvas overlay positioned absolutely over MapView with `pointerEvents="none"`
 
 3. **Key Implementation Files**:
-
    - `src/store/slices/explorationSlice.ts` - State management for user path
    - `src/components/FogOverlay.tsx` - Canvas-based fog rendering
    - `src/utils/mapUtils.ts` - Geo to screen coordinate conversion
@@ -271,7 +266,6 @@ fogofdog-frontend/
 ### Testing Guidelines
 
 1. **Unit/Integration Tests**:
-
    - Use Jest and React Testing Library
    - Tests in `__tests__` directories alongside components
    - 80% coverage threshold enforced (statements, functions, lines)

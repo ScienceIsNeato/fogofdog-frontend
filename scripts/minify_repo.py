@@ -4,7 +4,7 @@ import re
 import chardet
 
 
-def collect_ts_files(start_path):
+def collect_ts_files(start_path: str) -> list[str]:
     ts_files = []
     for root, _, files in os.walk(start_path):
         if '.git' in root or 'node_modules' in root or 'dist' in root or 'build' in root:
@@ -14,13 +14,13 @@ def collect_ts_files(start_path):
                 ts_files.append(os.path.join(root, file))
     return ts_files
 
-def detect_encoding(file_path):
+def detect_encoding(file_path: str) -> str | None:
     with open(file_path, 'rb') as f:
         raw_data = f.read()
     result = chardet.detect(raw_data)
     return result['encoding']
 
-def extract_imports(content):
+def extract_imports(content: str) -> list[str]:
     imports = []
     lines = content.split('\n')
     for line in lines:
@@ -28,19 +28,19 @@ def extract_imports(content):
             imports.append(line)
     return imports
 
-def minify_content(content):
+def minify_content(content: str) -> str:
     # Remove JSDoc comments
     content = re.sub(r'/\*\*[\s\S]*?\*/', '', content)
-    
+
     # Remove single line comments
     content = re.sub(r'//.*$', '', content, flags=re.MULTILINE)
-    
+
     # Remove empty lines
     content = re.sub(r'\n\s*\n', '\n', content)
-    
+
     return content.strip()
 
-def process_files():
+def process_files() -> None:
     files = collect_ts_files('.')
     all_imports = set()
     minified_content = []
