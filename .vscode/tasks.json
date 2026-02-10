@@ -90,20 +90,6 @@
       }
     },
     {
-      "label": "📊 SonarQube Check",
-      "type": "shell",
-      "command": "npm",
-      "args": ["run", "sonar:check"],
-      "group": "build",
-      "presentation": {
-        "echo": true,
-        "reveal": "always",
-        "focus": false,
-        "panel": "shared"
-      },
-      "problemMatcher": ["$eslint-stylish", "$tsc"]
-    },
-    {
       "label": "🚀 Quick Fix All",
       "type": "shell",
       "command": "npm",

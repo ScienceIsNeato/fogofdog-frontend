@@ -18,9 +18,12 @@ elif [ -f .env ]; then
   set +a
 fi
 
-# slop-mop quality gate (replaces ship_it.py)
-# Installs slop-mop if not already on PATH, then runs the commit profile.
+# slop-mop quality gate
+# Runs the commit profile which includes:
+# - JavaScript: lint-format, tests, types, coverage, bogus-tests
+# - Quality: loc-lock, source-duplication, string-duplication, dead-code
 # Commit is blocked if any gate fails.
+# Disabled gates (via .sb_config.json or sm config --disable) are automatically skipped.
 if ! command -v sm >/dev/null 2>&1; then
   pip3 install -e ./slop-mop --break-system-packages --quiet 2>/dev/null || \
   pip install -e ./slop-mop --break-system-packages --quiet 2>/dev/null

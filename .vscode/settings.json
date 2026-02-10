@@ -10,9 +10,5 @@
 
   // Show all problems in Problems panel
   "problems.showCurrentInStatus": true,
-  "problems.sortOrder": "severity",
-  "sonarlint.connectedMode.project": {
-    "connectionId": "scienceisneato",
-    "projectKey": "ScienceIsNeato_fogofdog-frontend"
-  }
+  "problems.sortOrder": "severity"
 }

@@ -15,8 +15,8 @@ npm run quality:check       # Run all quality checks
 npm run lint:strict         # Zero-warnings linting
 
 # Before committing
-python scripts/ship_it.py           # Full quality gate check (parallel, includes SonarQube)
-python scripts/ship_it.py --fail-fast  # Quick check, exit on first failure
+sm validate commit               # Fast quality gate check (fail-fast, dependency-ordered)
+sm validate pr                   # Full PR validation (comprehensive)
 ```
 
 ## Important Notes
@@ -80,9 +80,9 @@ npm run test:update-snapshots                      # Update snapshots
 
 ```bash
 # Quality gate (recommended before commits)
-python scripts/ship_it.py                          # Full quality check (parallel, all checks)
-python scripts/ship_it.py --fail-fast              # Quick check, exit on first failure
-python scripts/ship_it.py --checks tests lint     # Run specific checks only
+sm validate commit                             # Fast quality gate check (dependency-ordered)
+sm validate pr                                 # Full PR validation (comprehensive)
+sm validate -g <gate-name>                     # Run specific gate only
 npm run quality:check                              # Core quality checks
 
 # Individual checks
@@ -334,7 +334,7 @@ fogofdog-frontend/
 1. **Run affected tests** - Test components/areas you modified
 2. **Type check** - `npm run type-check` for TypeScript validation
 3. **Lint validation** - `npm run lint:strict` must pass with zero warnings
-4. **Quality gate** - `python scripts/ship_it.py` before commits (use `--fail-fast` for rapid iteration)
+4. **Quality gate** - `sm validate commit` before commits (use `sm validate -g <gate>` for specific checks)
 5. **Update STATUS.md** - Document significant changes
 
 ### Working with Tests

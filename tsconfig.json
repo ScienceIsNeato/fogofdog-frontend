@@ -14,5 +14,6 @@
     "noFallthroughCasesInSwitch": true,
     "exactOptionalPropertyTypes": true,
     "noUncheckedIndexedAccess": true
-  }
+  },
+  "exclude": ["node_modules", "slop-mop", "cursor-rules"]
 }

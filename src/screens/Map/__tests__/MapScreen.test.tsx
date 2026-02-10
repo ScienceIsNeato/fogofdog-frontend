@@ -8,9 +8,10 @@ import explorationReducer, { updateLocation } from '../../../store/slices/explor
 import userReducer from '../../../store/slices/userSlice';
 import statsReducer from '../../../store/slices/statsSlice';
 import streetReducer from '../../../store/slices/streetSlice';
+import skinReducer from '../../../store/slices/skinSlice';
 import type { RootState } from '../../../store';
 import * as Location from 'expo-location';
-import { Region } from 'react-native-maps';
+import type { MapRegion } from '../../../types/map';
 import type { TouchableOpacityProps } from 'react-native';
 
 // Mock the new permission system to simulate successful permissions
@@ -157,18 +158,43 @@ const waitForLocationButton = async (expectedState: { isCentered?: boolean }) =>
 };
 
 // Helper function for region change testing
+/**
+ * Helper to build a GeoJSON Feature that mimics MapLibre's region event payload.
+ */
+const buildRegionFeature = (
+  region: MapRegion,
+  opts: { isUserInteraction?: boolean } = {}
+): GeoJSON.Feature => ({
+  type: 'Feature',
+  geometry: {
+    type: 'Point',
+    coordinates: [region.longitude, region.latitude],
+  },
+  properties: {
+    zoomLevel: Math.round(Math.log(360 / region.longitudeDelta) / Math.LN2),
+    heading: 0,
+    animated: false,
+    isUserInteraction: opts.isUserInteraction ?? false,
+    visibleBounds: [
+      [region.longitude + region.longitudeDelta / 2, region.latitude + region.latitudeDelta / 2],
+      [region.longitude - region.longitudeDelta / 2, region.latitude - region.latitudeDelta / 2],
+    ],
+    pitch: 0,
+  },
+});
+
 const simulateRegionChange = async (
-  newRegion: Region,
+  newRegion: MapRegion,
   store: Store<RootState>,
   expectedPath?: any[]
 ) => {
-  const mapViewArgs = getLastCallArgs<{ onRegionChangeComplete?: (region: Region) => void }>(
+  const mapViewArgs = getLastCallArgs<{ onRegionDidChange?: (feature: GeoJSON.Feature) => void }>(
     mockMapViewRender
   );
 
   act(() => {
-    if (mapViewArgs.onRegionChangeComplete) {
-      mapViewArgs.onRegionChangeComplete(newRegion);
+    if (mapViewArgs.onRegionDidChange) {
+      mapViewArgs.onRegionDidChange(buildRegionFeature(newRegion));
     }
   });
 
@@ -193,50 +219,46 @@ const setupLocationError = (errorMessage: string) => {
   );
 };
 
-// Mock react-native-maps with simpler components
-jest.mock('react-native-maps', () => {
+// Mock @maplibre/maplibre-react-native with simpler components
+jest.mock('@maplibre/maplibre-react-native', () => {
   const React = jest.requireActual<typeof import('react')>('react');
   const { View } = jest.requireActual<typeof import('react-native')>('react-native');
 
   interface MockMapViewProps {
-    onRegionChangeComplete?: (region: any) => void;
-    onRegionChange?: (region: any) => void;
-    onPanDrag?: () => void;
-    initialRegion?: any;
+    onRegionDidChange?: (feature: any) => void;
+    onRegionIsChanging?: (feature: any) => void;
+    mapStyle?: any;
     children?: React.ReactNode;
   }
 
   const MockMapView = React.forwardRef((props: MockMapViewProps, ref: React.Ref<unknown>) => {
     mockMapViewRender?.(props);
 
-    React.useImperativeHandle(ref, () => ({
-      animateToRegion: jest.fn(),
-      getCamera: jest.fn(() =>
-        Promise.resolve({
-          center: { latitude: 0, longitude: 0 },
-          pitch: 0,
-          heading: 0,
-          altitude: 1000,
-          zoom: 10,
-        })
-      ),
-    }));
+    React.useImperativeHandle(ref, () => ({}));
 
     return React.createElement(
       View,
       {
         testID: 'mock-map-view',
-        'data-initialRegion': JSON.stringify(props.initialRegion),
         onPress: () => {
-          if (props.onRegionChangeComplete) {
-            props.onRegionChangeComplete({
-              latitude: 37.78825,
-              longitude: -122.4324,
-              latitudeDelta: 0.0922,
-              longitudeDelta: 0.0421,
+          // Simulate a user-interaction region change (fires onRegionDidChange with isUserInteraction: true)
+          if (props.onRegionDidChange) {
+            props.onRegionDidChange({
+              type: 'Feature',
+              geometry: { type: 'Point', coordinates: [-122.4324, 37.78825] },
+              properties: {
+                zoomLevel: 12,
+                heading: 0,
+                animated: false,
+                isUserInteraction: true,
+                visibleBounds: [
+                  [-122.3824, 37.83825],
+                  [-122.4824, 37.73825],
+                ],
+                pitch: 0,
+              },
             });
           }
-          if (props.onPanDrag) props.onPanDrag();
         },
       } as any,
       props.children
@@ -244,30 +266,28 @@ jest.mock('react-native-maps', () => {
   });
   MockMapView.displayName = 'MockMapView';
 
-  const MockMarker = (props: { coordinate?: { latitude: number; longitude: number } }) => {
-    const safeProps = props.coordinate
-      ? {
-          latitude: props.coordinate.latitude,
-          longitude: props.coordinate.longitude,
-        }
-      : {};
-    return React.createElement(View, {
-      testID: 'mock-marker',
-      'data-coords': JSON.stringify(safeProps),
-    } as any);
-  };
-  MockMarker.displayName = 'MockMarker';
+  const MockCamera = React.forwardRef((_props: any, ref: React.Ref<unknown>) => {
+    React.useImperativeHandle(ref, () => ({
+      setCamera: jest.fn(),
+      moveTo: jest.fn(),
+      zoomTo: jest.fn(),
+      flyTo: jest.fn(),
+    }));
+    return React.createElement(View, { testID: 'mock-camera' });
+  });
+  MockCamera.displayName = 'MockCamera';
 
-  const MockPolygon = (props: any) => {
-    return React.createElement(View, { testID: 'mock-rn-polygon', ...props });
+  const MockMarkerView = (props: any) => {
+    return React.createElement(View, { testID: 'mock-marker-view', ...props });
   };
-  MockPolygon.displayName = 'MockPolygon';
+  MockMarkerView.displayName = 'MockMarkerView';
 
   return {
     __esModule: true,
-    default: MockMapView,
-    Polygon: MockPolygon,
-    Marker: MockMarker,
+    default: { MapView: MockMapView },
+    MapView: MockMapView,
+    Camera: MockCamera,
+    MarkerView: MockMarkerView,
   };
 });
 
@@ -406,6 +426,7 @@ describe('MapScreen', () => {
         user: userReducer,
         stats: statsReducer,
         street: streetReducer,
+        skin: skinReducer,
       },
     });
     // Use mockImplementation for better type compatibility with Jest mocks
@@ -514,14 +535,21 @@ describe('MapScreen', () => {
     await renderMapScreen(store);
     await waitForInitialLocation(store, expectedStoredLocation);
 
-    // Manually trigger onRegionChange to simulate map initialization
+    // Default deltas used by the cinematic zoom hook
+    const defaultDeltas = { latitudeDelta: 0.0922, longitudeDelta: 0.0421 };
+
+    // Manually trigger onRegionIsChanging to simulate map initialization
     const mapViewProps = getLastCallArgs<{
-      onRegionChange?: (region: any) => void;
-      initialRegion?: any;
+      onRegionIsChanging?: (feature: GeoJSON.Feature) => void;
     }>(mockMapViewRender);
-    if (mapViewProps.onRegionChange && mapViewProps.initialRegion) {
+    if (mapViewProps.onRegionIsChanging) {
+      const initRegion: MapRegion = {
+        latitude: mockRealLocation.latitude,
+        longitude: mockRealLocation.longitude,
+        ...defaultDeltas,
+      };
       act(() => {
-        mapViewProps.onRegionChange!(mapViewProps.initialRegion);
+        mapViewProps.onRegionIsChanging!(buildRegionFeature(initRegion));
       });
     }
 
@@ -552,18 +580,18 @@ describe('MapScreen', () => {
     const initialFogRotation = initialFogOverlayArgs.rotation;
     const initialPath = store.getState().exploration.path;
 
-    const pannedRegion: Region = {
+    const pannedRegion: MapRegion = {
       latitude: mockRealLocation.latitude + 0.01,
       longitude: mockRealLocation.longitude,
-      latitudeDelta: initialMapViewArgs.initialRegion.latitudeDelta,
-      longitudeDelta: initialMapViewArgs.initialRegion.longitudeDelta,
+      latitudeDelta: defaultDeltas.latitudeDelta,
+      longitudeDelta: defaultDeltas.longitudeDelta,
     };
 
-    expect(initialMapViewArgs.onRegionChangeComplete).toBeDefined();
+    expect(initialMapViewArgs.onRegionDidChange).toBeDefined();
 
     await act(async () => {
-      if (initialMapViewArgs.onRegionChangeComplete)
-        initialMapViewArgs.onRegionChangeComplete(pannedRegion);
+      if (initialMapViewArgs.onRegionDidChange)
+        initialMapViewArgs.onRegionDidChange(buildRegionFeature(pannedRegion));
       jest.advanceTimersByTime(1000);
       await Promise.resolve();
     });
@@ -663,26 +691,24 @@ describe('MapScreen', () => {
     expect(store.getState().exploration.isMapCenteredOnUser).toBe(true);
 
     // Now simulate panning the map
-    const pannedRegion: Region = {
+    const pannedRegion: MapRegion = {
       latitude: mockRealLocation.latitude + 0.01, // Pan north
       longitude: mockRealLocation.longitude,
       latitudeDelta: 0.0036,
       longitudeDelta: 0.0048,
     };
 
-    // Get the onRegionChange and onPanDrag callbacks from the last render
+    // Get the onRegionDidChange callback from the last render
     const lastCallArgs = getLastCallArgs<{
-      onRegionChange: (region: Region) => void;
-      onPanDrag: () => void;
+      onRegionDidChange: (feature: GeoJSON.Feature) => void;
     }>(mockMapViewRender);
 
     act(() => {
-      // Simulate both region change and pan drag (both happen during real user pan)
-      if (lastCallArgs.onRegionChange) {
-        lastCallArgs.onRegionChange(pannedRegion);
-      }
-      if (lastCallArgs.onPanDrag) {
-        lastCallArgs.onPanDrag();
+      // Simulate a user-interaction region change (MapLibre fires isUserInteraction: true for user pans)
+      if (lastCallArgs.onRegionDidChange) {
+        lastCallArgs.onRegionDidChange(
+          buildRegionFeature(pannedRegion, { isUserInteraction: true })
+        );
       }
     });
 
@@ -720,7 +746,7 @@ describe('MapScreen', () => {
     await waitForInitialLocation(store, expectedStoredLocation);
 
     // Simulate region change with latitude delta exceeding maximum (0.75)
-    const overZoomedRegion: Region = {
+    const overZoomedRegion: MapRegion = {
       latitude: mockRealLocation.latitude,
       longitude: mockRealLocation.longitude,
       latitudeDelta: 1.0, // Exceeds MAX_LATITUDE_DELTA (0.18)
@@ -737,7 +763,7 @@ describe('MapScreen', () => {
     await waitForInitialLocation(store, expectedStoredLocation);
 
     // Simulate region change with longitude delta exceeding maximum (1.0)
-    const overZoomedRegion: Region = {
+    const overZoomedRegion: MapRegion = {
       latitude: mockRealLocation.latitude,
       longitude: mockRealLocation.longitude,
       latitudeDelta: 0.5, // Within limits
@@ -754,7 +780,7 @@ describe('MapScreen', () => {
     await waitForInitialLocation(store, expectedStoredLocation);
 
     // Simulate region change with both deltas exceeding maximums
-    const overZoomedRegion: Region = {
+    const overZoomedRegion: MapRegion = {
       latitude: mockRealLocation.latitude,
       longitude: mockRealLocation.longitude,
       latitudeDelta: 2.0, // Exceeds MAX_LATITUDE_DELTA (0.18)
@@ -771,7 +797,7 @@ describe('MapScreen', () => {
     await waitForInitialLocation(store, expectedStoredLocation);
 
     // Simulate region change within acceptable zoom limits
-    const acceptableRegion: Region = {
+    const acceptableRegion: MapRegion = {
       latitude: mockRealLocation.latitude,
       longitude: mockRealLocation.longitude,
       latitudeDelta: 0.1, // Within MAX_LATITUDE_DELTA (0.18)
@@ -807,6 +833,7 @@ describe('MapScreen', () => {
         user: userReducer,
         stats: statsReducer,
         street: streetReducer,
+        skin: skinReducer,
       },
       preloadedState: {
         exploration: {
@@ -885,6 +912,7 @@ describe('MapScreen', () => {
         user: userReducer,
         stats: statsReducer,
         street: streetReducer,
+        skin: skinReducer,
       },
       preloadedState: {
         exploration: {
@@ -936,6 +964,7 @@ describe('MapScreen', () => {
         user: userReducer,
         stats: statsReducer,
         street: streetReducer,
+        skin: skinReducer,
       },
       preloadedState: {
         exploration: {
