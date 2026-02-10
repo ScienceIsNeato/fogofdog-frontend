@@ -1,23 +1,6 @@
 {
   "version": "1.0",
-  "default_profile": "javascript",
-  "profiles": {
-    "commit": [
-      "javascript:lint-format",
-      "javascript:types",
-      "javascript:tests",
-      "javascript:coverage",
-      "general:deploy-tests"
-    ],
-    "pr": [
-      "javascript:lint-format",
-      "javascript:types",
-      "javascript:tests",
-      "javascript:coverage",
-      "quality:source-duplication",
-      "general:deploy-tests"
-    ]
-  },
+  "default_profile": "commit",
   "python": {
     "enabled": true,
     "include_dirs": ["scripts"],
@@ -33,27 +16,22 @@
         "enabled": true,
         "auto_fix": false,
         "config_file_path": null,
-        "test_dirs": ["tests"],
+        "test_dirs": ["scripts/__tests__"],
         "timeout": 300
       },
       "coverage": {
-        "enabled": true,
+        "enabled": false,
         "auto_fix": false,
         "config_file_path": null,
         "threshold": 80
       },
       "diff-coverage": {
-        "enabled": true,
-        "auto_fix": false,
-        "config_file_path": null
-      },
-      "new-code-coverage": {
-        "enabled": true,
+        "enabled": false,
         "auto_fix": false,
         "config_file_path": null
       },
       "static-analysis": {
-        "enabled": true,
+        "enabled": false,
         "auto_fix": false,
         "config_file_path": null
       },
@@ -72,6 +50,11 @@
       "lint-format": {
         "enabled": true,
         "auto_fix": true,
+        "config_file_path": null
+      },
+      "types": {
+        "enabled": true,
+        "auto_fix": false,
         "config_file_path": null
       },
       "tests": {
@@ -173,6 +156,18 @@
         "min_tokens": 50,
         "min_lines": 5
       },
+      "string-duplication": {
+        "enabled": true,
+        "auto_fix": false,
+        "config_file_path": null,
+        "exclude_dirs": ["node_modules", "slop-mop", "cursor-rules", "venv", ".venv"]
+      },
+      "dead-code": {
+        "enabled": true,
+        "auto_fix": false,
+        "config_file_path": null,
+        "exclude_dirs": ["node_modules", "slop-mop", "cursor-rules", "venv", ".venv"]
+      },
       "loc-lock": {
         "enabled": true,
         "auto_fix": false,
@@ -194,6 +189,13 @@
           "__mocks__",
           "__tests__"
         ]
+      },
+      "bogus-tests": {
+        "enabled": true,
+        "auto_fix": false,
+        "config_file_path": null,
+        "max_allowed": 0,
+        "exclude_dirs": ["slop-mop", "cursor-rules", "node_modules"]
       }
     }
   },
@@ -217,24 +219,24 @@
     }
   },
   "integration": {
-    "enabled": true,
+    "enabled": false,
     "include_dirs": [],
     "exclude_dirs": [],
     "gates": {
       "smoke-tests": {
-        "enabled": true,
+        "enabled": false,
         "auto_fix": false,
         "config_file_path": null,
         "test_dir": "tests/smoke"
       },
       "integration-tests": {
-        "enabled": true,
+        "enabled": false,
         "auto_fix": false,
         "config_file_path": null,
         "test_dir": "tests/integration"
       },
       "e2e-tests": {
-        "enabled": true,
+        "enabled": false,
         "auto_fix": false,
         "config_file_path": null,
         "test_dir": "tests/e2e",

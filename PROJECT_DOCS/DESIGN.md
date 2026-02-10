@@ -58,6 +58,7 @@ To ensure the fog overlay moves and zooms exactly with the map, we will overlay 
 
 - **Overlay Setup:** In the UI, the Map screen will contain the `MapView` (from `react-native-maps`) and _above it_ a new **`FogOverlay`** component. The `FogOverlay` will use a `<Canvas>` from Skia, styled to absolutely fill the same area as the map. We will set its pointer events to **none** so that it doesn’t block map touches (allowing the user to pan/zoom through it).
 - **Coordinate Conversion:** The core trick is converting geographic coordinates (latitude/longitude) into the canvas’s pixel coordinates. React-native-maps provides the current map region (center lat/long, latDelta, lonDelta, etc.) whenever the view changes. Using this, we can calculate how many screen pixels correspond to a degree of latitude and longitude. For small regions, a linear approximation works:
+
   - **Horizontal:** 1 degree of longitude is \~111 km at the equator, but at latitude φ it’s `111km * cos(φ)`. We compute: `meters_per_pixel_horizontal = (lonDelta * 111,320 * cos(centerLat)) / mapWidthPixels`. Similarly, `meters_per_pixel_vertical = (latDelta * 111,320) / mapHeightPixels`. From this we derive how to translate a 50 m real-world radius into pixels. For example, a 50 m radius at the current zoom would be `pixel_radius = 50 / meters_per_pixel_horizontal` (for horizontal scale; we can average with vertical for simplicity or use horizontal for both axes if map aspect ratio is uniform).
   - **Projection Formula (optional):** For more accuracy, especially if we support wide map views, we can use Mercator projection. Skia doesn’t inherently know about map projections, so we can implement a function `project(lat, lon, region) -> (x, y)` using Mercator math:
 
@@ -160,9 +161,11 @@ Next, we detail the step-by-step implementation plan, including how we will phas
 We will tackle the refactoring in stages, verifying each piece with tests before moving on. Below is a high-level plan with milestones:
 
 1. **Setup and Library Integration** – _Milestone:_ Project is ready to use Skia (or alternative) in the Expo app.
+
    - Add the `@shopify/react-native-skia` package to the project (`expo install @shopify/react-native-skia`). Since Expo SDK (as of 2025) supports it, this should autolink the native components. Write a quick test component in isolation (e.g. a simple Canvas drawing a circle) to ensure Skia works in development. _Testing:_ Not much to unit test here, but manual verification that the canvas appears on device is needed. If Skia for some reason cannot be used, plan B is to install `react-native-svg` (which Expo also supports) and adjust the approach accordingly. We won’t implement SVG yet, just keep it as fallback if integration fails.
 
 2. **Redux State Refactor for Path Data** – _Milestone:_ Redux store can track the path instead of individual circles.
+
    - Modify the `explorationSlice` (or equivalent) in the Redux store. Currently it might look like:
 
      ```ts
@@ -208,6 +211,7 @@ We will tackle the refactoring in stages, verifying each piece with tests before
    - **Data Interface for Future Persistence:** At this stage, consider abstracting the path storage behind an interface. For instance, define a simple class or module `PathRepository` with methods like `addPoint(lat, lon)` and `getPath()`. For now, they can just call the Redux actions/selectors. But by coding against this interface in the rest of the app, we prepare for the future where `PathRepository` might save to AsyncStorage or call an API. We might not fully implement this now, but keeping the concept in mind (and perhaps coding the FogOverlay to use a prop or selector for path data) will ease future changes.
 
 3. **Implement the Coordinate Conversion Utility** – _Milestone:_ We have a reliable way to map geo-coordinates to screen pixels.
+
    - Create a utility function (e.g., `mapUtils.ts` in `frontend/src/utils/`):
 
      ```ts
@@ -245,6 +249,7 @@ We will tackle the refactoring in stages, verifying each piece with tests before
    - We will use this conversion inside our Skia drawing. Integration testing for this will come when we see the overlay aligning; for now, unit tests give confidence.
 
 4. **Create the FogOverlay Skia Component** – _Milestone:_ A new React component that renders the fog mask on top of the map.
+
    - In `frontend/src/components/` (or `screens/` if tightly coupled to map screen), create `FogOverlay.tsx`. This will use Skia’s Canvas. Let’s outline its structure:
 
      ```tsx
@@ -314,6 +319,7 @@ We will tackle the refactoring in stages, verifying each piece with tests before
      _(Note: This code assumes `mapRegion.width`/`height` are the pixel dimensions of the map view, which we’d set before rendering.)_
 
    - A few points about this code:
+
      - We use `useSelector` to get the latest path from Redux. The component will re-render when path updates.
      - We take `mapRegion` as a prop (provided by parent) which contains the current map center/deltas and the view’s pixel size. The parent (MapScreen) will pass this whenever the map region changes (likely storing it in state or using `onRegionChangeComplete` to update).
      - We compute the Skia Path in a memoized way. We could also use Skia’s `useComputedValue`, but since our inputs are plain JS, `useMemo` is fine. We make sure to rebuild when either the path points or region changes.
@@ -327,7 +333,9 @@ We will tackle the refactoring in stages, verifying each piece with tests before
    - Write a **snapshot test** for `FogOverlay` rendering: Using React Test Renderer or RTL, feed it some sample props (a small region and a couple of path points). The output tree should contain a `<Mask>` with a `<Path>` child if points exist. We can verify the strokeWidth prop and path presence in the JSON. This at least ensures the component renders without error and uses the correct structure. (Skia components might not render in a typical test environment, so we may need to mock them or just ensure no runtime errors.)
 
 5. **Integrate FogOverlay into MapScreen** – _Milestone:_ The map screen now uses the new fog system instead of polygon holes.
+
    - Open the `MapScreen.tsx` (which currently sets up the MapView and polygons). We will remove the `<Polygon>` that served as the fog and its `holes` prop. Instead:
+
      - Keep the `MapView` (likely from `react-native-maps`). Ensure we have a ref or a way to get its dimensions and current region. One way is to use the `onRegionChangeComplete={(region) => setRegion(region)}` to save the region in local state. Also, we can measure the map view to get width/height (or use Dimensions if it’s full-screen).
      - Provide the region and dimensions to the `FogOverlay`. For example:
 
@@ -348,6 +356,7 @@ We will tackle the refactoring in stages, verifying each piece with tests before
      - Remove any Redux selectors for `exploredAreas` that fed the old polygon. Also remove the old `createCirclePolygon` utility if it’s no longer needed.
 
    - **Testing:** Now we test the whole system:
+
      - In the simulator, move the device or simulate location changes. As new points dispatch, confirm the Redux `path` grows and the FogOverlay’s mask updates to reveal those areas. We should see a corridor of map visible along the path traveled.
      - Try panning: drag the map – the fog overlay should move exactly with it. There should be no “white seams” or misalignment between the fog mask and map tiles. If we scroll far, areas with no path should remain covered. If we scroll such that the path goes off-screen, the fog should cover everything on screen (since the black path in the mask is off-canvas, the mask there is all white => fog fully visible). Scroll back, and the revealed path should reappear in the correct place.
      - Try zooming: zoom in/out and ensure the visible path width scales. We can compare the width to what 50m looks like – e.g., zoom in until the scale bar on map indicates 50m, the cleared trail should be about that width. This is a validation of our stroke width calculation.
@@ -358,7 +367,9 @@ We will tackle the refactoring in stages, verifying each piece with tests before
    - We should remove or feature-flag the old implementation so we don’t double-render fog. A clean-up step is to delete the polygon logic and ensure the new system is the only one active.
 
 6. **Fallback Plan (if Skia issues arise)** – _Milestone:_ Have a working alternative with RN-SVG if needed.
+
    - If during implementation we find Skia is not viable (e.g., some Expo compatibility issue or unexpected performance problem), we will implement a similar `FogOverlaySvg` using `react-native-svg`. This would involve:
+
      - Using an `<Svg height="100%" width="100%">` overlay with a defined `<Mask>` in its `<Defs>`. We can define a mask with id, containing a white rect and a black `<Path>` that follows the coordinates (SVG Path data can be constructed similarly from points).
      - Then draw a rect with the fog color that uses `mask="url(#maskId)"`.
      - The coordinate conversion would be the same; we’d just plug the pixel coords into an SVG Path `d` attribute (e.g. `M x0,y0 L x1,y1 L x2,y2 ...`).
@@ -368,6 +379,7 @@ We will tackle the refactoring in stages, verifying each piece with tests before
    - Since our primary plan is Skia, we’ll only develop this if necessary. However, we will keep the design such that swapping the rendering component is easy (perhaps by making an interface or at least isolating all rendering inside FogOverlay, so replacing its internals or switching out the component is not too entangled with the rest of the app).
 
 7. **Testing & QA Checkpoints** – _Milestone:_ All new functionality is verified by automated tests and manual exploration.
+
    - By this stage, we should have unit tests for Redux slice and conversion math (from step 2 and 3). Run the test suite (`npm test`) to ensure all pass. Add any tests for new utility functions or any bug fixes encountered.
    - Write a few more tests if needed: for example, if we add a `PathRepository` abstraction, test that switching out its implementation (e.g., a stub that returns a preset path) still results in the FogOverlay rendering expected results.
    - Ensure lint and type-check pass (TypeScript types for Skia components and our utils should all be correct).

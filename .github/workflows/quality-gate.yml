@@ -28,25 +28,33 @@ jobs:
       - name: 📥 Checkout
         uses: actions/checkout@v4
         with:
+          fetch-depth: 0
           submodules: true
 
-      - name: 🧹 Install slop-mop
-        run: pip3 install -e ./slop-mop --break-system-packages --quiet
+      - name: 🐍 Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: 🧹 Install slop-mop dependencies
+        run: pip install -r slop-mop/requirements.txt --quiet
 
       - name: 💬 Check for unresolved PR comments
-        run: sm validate --quality-gates pr:comments
+        run: python -m slopmop.sm validate --quality-gates pr:comments
         env:
+          PYTHONPATH: slop-mop
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  format-code:
-    name: 📝 Format Code
+  slop-mop-commit-gates:
+    name: 🧹 slop-mop commit gates
     runs-on: ubuntu-latest
-    timeout-minutes: 3
+    timeout-minutes: 10
 
     steps:
       - name: 📥 Checkout
         uses: actions/checkout@v4
         with:
+          fetch-depth: 0
           submodules: true
 
       - name: 📦 Setup Node.js
@@ -55,35 +63,33 @@ jobs:
           node-version: '20'
           cache: 'npm'
 
-      - name: ⚡ Install dependencies
+      - name: 🐍 Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: ⚡ Install Node dependencies
         run: npm ci --legacy-peer-deps
 
-      - name: 🧹 Install slop-mop
-        run: pip3 install -e ./slop-mop --break-system-packages --quiet
+      - name: 🧹 Install slop-mop dependencies
+        run: pip install -r slop-mop/requirements.txt --quiet
 
-      - name: 🎨 Run slop-mop lint & format gate
-        run: sm validate --quality-gates javascript:lint-format
+      - name: 🧹 Run slop-mop commit profile
+        run: python -m slopmop.sm validate commit
+        env:
+          PYTHONPATH: slop-mop
 
-  lint-typescript:
-    name: 🔍 Lint (delegated to slop-mop)
+  slop-mop-types-and-deploy:
+    name: 🏗️ TypeScript Types + Deploy Tests
     runs-on: ubuntu-latest
-    timeout-minutes: 1
-    needs: [format-code]
-    steps:
-      - name: ✅ Covered by slop-mop
-        run: echo "Lint and format validated by slop-mop in format-code job"
-
-  # Static Analysis Layer - Depends on clean code
-  check-typescript-types:
-    name: 🏗️ Check TypeScript Types
-    runs-on: ubuntu-latest
-    timeout-minutes: 4
-    needs: [format-code, lint-typescript]
+    timeout-minutes: 6
+    needs: [slop-mop-commit-gates]
 
     steps:
       - name: 📥 Checkout
         uses: actions/checkout@v4
         with:
+          fetch-depth: 0
           submodules: true
 
       - name: 📦 Setup Node.js
@@ -92,41 +98,24 @@ jobs:
           node-version: '20'
           cache: 'npm'
 
-      - name: ⚡ Install dependencies
+      - name: 🐍 Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: ⚡ Install Node dependencies
         run: npm ci --legacy-peer-deps
 
-      - name: 🏗️ Run TypeScript Compiler
-        run: pip install -e ./slop-mop --quiet && sm validate --quality-gates javascript:types
+      - name: 🧹 Install slop-mop dependencies
+        run: pip install -r slop-mop/requirements.txt --quiet
 
-  detect-code-duplication:
-    name: 🔄 Detect Code Duplication
-    runs-on: ubuntu-latest
-    timeout-minutes: 3
-    needs: [format-code, lint-typescript]
-
-    steps:
-      - name: 📥 Checkout
-        uses: actions/checkout@v4
-        with:
-          submodules: true
-
-      - name: 📦 Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
-
-      - name: ⚡ Install dependencies
-        run: npm ci --legacy-peer-deps
-
-      - name: 🧹 Install slop-mop
-        run: pip3 install -e ./slop-mop --break-system-packages --quiet
-
-      - name: 📋 Run slop-mop duplication gate
-        run: sm validate --quality-gates quality:duplication
+      - name: 🏗️ TypeScript types + deploy tests
+        run: python -m slopmop.sm validate --quality-gates javascript:types,general:deploy-tests
+        env:
+          PYTHONPATH: slop-mop
 
   audit-security-vulnerabilities:
-    name: 🔒 Audit Security Vulnerabilities
+    name: 🔒 NPM Security Audit
     runs-on: ubuntu-latest
     timeout-minutes: 3
 
@@ -149,40 +138,12 @@ jobs:
         run: npm audit --audit-level high
         continue-on-error: true
 
-  # Testing Layer - Depends on static analysis
-  run-unit-tests-with-coverage:
-    name: 🧪 Run Unit Tests with Coverage
-    runs-on: ubuntu-latest
-    timeout-minutes: 8
-    needs: [check-typescript-types, detect-code-duplication]
-
-    steps:
-      - name: 📥 Checkout
-        uses: actions/checkout@v4
-        with:
-          submodules: true
-
-      - name: 📦 Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
-
-      - name: ⚡ Install dependencies
-        run: npm ci --legacy-peer-deps
-
-      - name: 🧹 Install slop-mop
-        run: pip3 install -e ./slop-mop --break-system-packages --quiet
-
-      - name: 🧪 Run slop-mop tests & coverage gates
-        run: sm validate --quality-gates javascript:tests javascript:coverage
-
   # Integration Layer - Depends on unit tests
   run-maestro-integration-tests:
     name: 🎭 Run Maestro Integration Tests
     runs-on: macos-latest
     timeout-minutes: 60
-    needs: run-unit-tests-with-coverage
+    needs: slop-mop-commit-gates
     if: github.event_name == 'workflow_dispatch' && github.event.inputs.run_integration_tests == 'true' # Manual trigger only - macOS runners are expensive ($0.08/min)
 
     steps:
@@ -206,18 +167,6 @@ jobs:
           eas-version: latest
           token: ${{ secrets.EXPO_TOKEN }}
 
-      - name: 🔍 Debug Environment
-        run: |
-          echo "🔍 Environment debugging..."
-          echo "Node version: $(node --version)"
-          echo "NPM version: $(npm --version)"
-          echo "PATH: $PATH"
-          echo "EAS CLI available: $(command -v eas || echo 'not found')"
-          if command -v eas; then
-            echo "EAS version: $(eas --version)"
-          fi
-          echo "EXPO_TOKEN set: ${{ secrets.EXPO_TOKEN != '' }}"
-
       - name: 🎭 Execute Maestro Integration Test Suite
         run: ./scripts/run_integration_tests.sh
         env:
@@ -234,100 +183,11 @@ jobs:
           retention-days: 365
           if-no-files-found: warn
 
-      - name: 🖼️ Display Test Screenshots in Job Summary
-        if: always() # Always run, even on failure
-        run: |
-          echo "# 📸 Test Screenshots and Results" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-
-          # Function to convert image to base64 and embed
-          embed_image() {
-            local image_path="$1"
-            local title="$2"
-            if [ -f "$image_path" ]; then
-              echo "### $title" >> $GITHUB_STEP_SUMMARY
-              echo "<details>" >> $GITHUB_STEP_SUMMARY
-              echo "<summary>Click to view screenshot</summary>" >> $GITHUB_STEP_SUMMARY
-              echo "" >> $GITHUB_STEP_SUMMARY
-              echo "![Screenshot](data:image/png;base64,$(base64 -i "$image_path"))" >> $GITHUB_STEP_SUMMARY
-              echo "" >> $GITHUB_STEP_SUMMARY
-              echo "</details>" >> $GITHUB_STEP_SUMMARY
-              echo "" >> $GITHUB_STEP_SUMMARY
-            fi
-          }
-
-          # Find and display screenshots from test artifacts
-          if [ -d "test_artifacts/ci" ]; then
-            echo "## 🔍 Test Failure Screenshots" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            
-            for screenshot in test_artifacts/ci/*/failure_screenshot.png; do
-              if [ -f "$screenshot" ]; then
-                test_name=$(basename $(dirname "$screenshot"))
-                embed_image "$screenshot" "❌ Failed Test: $test_name"
-              fi
-            done
-            
-            # Display Maestro debug screenshots
-            for screenshot in test_artifacts/ci/*/*.png; do
-              if [ -f "$screenshot" ] && [[ "$screenshot" != *"failure_screenshot"* ]]; then
-                test_name=$(basename $(dirname "$screenshot"))
-                screenshot_name=$(basename "$screenshot")
-                embed_image "$screenshot" "🔍 Debug Screenshot: $test_name - $screenshot_name"
-              fi
-            done
-          fi
-
-          # Find and display screenshots from Maestro debug output
-          if [ -d "$HOME/.maestro/tests" ]; then
-            echo "## 🎭 Maestro Debug Output" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            
-            # Find today's test runs
-            today=$(date +%Y-%m-%d)
-            for debug_dir in $HOME/.maestro/tests/*$today*; do
-              if [ -d "$debug_dir" ]; then
-                echo "### 📁 Debug Session: $(basename "$debug_dir")" >> $GITHUB_STEP_SUMMARY
-                echo "" >> $GITHUB_STEP_SUMMARY
-                
-                # Display all screenshots from this debug session
-                for screenshot in "$debug_dir"/*.png; do
-                  if [ -f "$screenshot" ]; then
-                    screenshot_name=$(basename "$screenshot")
-                    embed_image "$screenshot" "🖼️ Maestro Debug: $screenshot_name"
-                  fi
-                done
-                
-                # Display any log files
-                for log_file in "$debug_dir"/*.log; do
-                  if [ -f "$log_file" ]; then
-                    echo "#### 📋 $(basename "$log_file")" >> $GITHUB_STEP_SUMMARY
-                    echo "<details>" >> $GITHUB_STEP_SUMMARY
-                    echo "<summary>Click to view logs</summary>" >> $GITHUB_STEP_SUMMARY
-                    echo "" >> $GITHUB_STEP_SUMMARY
-                    echo '```' >> $GITHUB_STEP_SUMMARY
-                    head -50 "$log_file" >> $GITHUB_STEP_SUMMARY
-                    echo '```' >> $GITHUB_STEP_SUMMARY
-                    echo "</details>" >> $GITHUB_STEP_SUMMARY
-                    echo "" >> $GITHUB_STEP_SUMMARY
-                  fi
-                done
-              fi
-            done
-          fi
-
-          # Summary of test results
-          echo "## 📊 Test Summary" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "- **Artifacts Location**: \`test_artifacts/ci/\`" >> $GITHUB_STEP_SUMMARY
-          echo "- **Maestro Debug**: \`~/.maestro/tests/\`" >> $GITHUB_STEP_SUMMARY
-          echo "- **Screenshots**: Available in job artifacts and embedded above" >> $GITHUB_STEP_SUMMARY
-
   verify-expo-build-process:
     name: 🔨 Verify Expo Build Process
     runs-on: ubuntu-latest
     timeout-minutes: 8
-    needs: run-unit-tests-with-coverage
+    needs: slop-mop-commit-gates
     if: github.event_name == 'pull_request' && github.base_ref == 'main'
 
     steps:
@@ -393,19 +253,12 @@ jobs:
           npx depcheck || true
         continue-on-error: true
 
-      - name: 📊 Measure Bundle Size
-        run: |
-          echo "📊 Analyzing bundle size..."
-          npx expo export --platform ios
-          du -sh dist/ || echo "Bundle analysis complete"
-        continue-on-error: true
-
-  # Production Build - Final step, depends on everything critical
+  # Production Build - Final step, depends on all critical checks passing
   build-for-testflight-production:
     name: 🚀 Build for TestFlight Production
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    needs: [run-unit-tests-with-coverage, verify-expo-build-process, run-maestro-integration-tests]
+    needs: [slop-mop-commit-gates, slop-mop-types-and-deploy]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
 
     steps:
@@ -436,7 +289,6 @@ jobs:
             exit 0
           fi
           echo "🔍 Verifying TestFlight build configuration..."
-          echo "Note: This only validates configuration - actual build/submission happens in EAS Build workflow"
           eas build --platform ios --profile testflight --dry-run
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
