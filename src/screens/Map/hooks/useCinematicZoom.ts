@@ -14,7 +14,7 @@ import type { GeoPoint } from '../../../types/user';
  * Local helper bridging MapRegion → MapLibre Camera API.
  */
 const animateMapToRegion = (
-  cameraRef: React.RefObject<CameraRef>,
+  cameraRef: React.RefObject<CameraRef | null>,
   region: MapRegion,
   duration: number = 300
 ) => {
@@ -39,7 +39,7 @@ const DEFAULT_ZOOM_DELTAS = {
 };
 
 interface UseCinematicZoomProps {
-  mapRef: React.RefObject<CameraRef>;
+  mapRef: React.RefObject<CameraRef | null>;
   cinematicZoomActiveRef: React.MutableRefObject<boolean>;
   currentLocation: GeoPoint | null;
   canStartAnimation?: boolean; // Only start animation when onboarding + permissions complete
@@ -313,7 +313,7 @@ const calculateCinematicStartRegion = (
  * Map rendering delayed until animation starts to eliminate visible positioning jump
  */
 const startCinematicPanAnimation = (
-  mapRef: React.RefObject<CameraRef>,
+  mapRef: React.RefObject<CameraRef | null>,
   cinematicZoomActiveRef: React.MutableRefObject<boolean>,
   explorationPath: GeoPoint[],
   currentLocation: GeoPoint
