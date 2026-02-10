@@ -34,10 +34,10 @@ jobs:
         run: pip3 install -e ./slop-mop --break-system-packages --quiet
 
       - name: 🎯 Run slop-mop JavaScript Quality Gates
-        run: sm validate javascript
+        run: ./sm validate javascript
 
       - name: 🎯 Run slop-mop Duplication Gate
-        run: sm validate --quality-gates quality:duplication
+        run: ./sm validate --quality-gates quality:duplication
 
       - name: 🏗️ TypeScript Type Check
         run: npm run type-check

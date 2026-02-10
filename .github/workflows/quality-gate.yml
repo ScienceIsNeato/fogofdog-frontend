@@ -34,7 +34,7 @@ jobs:
         run: pip3 install -e ./slop-mop --break-system-packages --quiet
 
       - name: 💬 Check for unresolved PR comments
-        run: sm validate --quality-gates pr:comments
+        run: ./sm validate --quality-gates pr:comments
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -62,7 +62,7 @@ jobs:
         run: pip3 install -e ./slop-mop --break-system-packages --quiet
 
       - name: 🎨 Run slop-mop lint & format gate
-        run: sm validate --quality-gates javascript:lint-format
+        run: ./sm validate --quality-gates javascript:lint-format
 
   lint-typescript:
     name: 🔍 Lint (delegated to slop-mop)
@@ -96,7 +96,7 @@ jobs:
         run: npm ci --legacy-peer-deps
 
       - name: 🏗️ Run TypeScript Compiler
-        run: pip install -e ./slop-mop --quiet && sm validate --quality-gates javascript:types
+        run: pip install -e ./slop-mop --quiet && ./sm validate --quality-gates javascript:types
 
   detect-code-duplication:
     name: 🔄 Detect Code Duplication
@@ -123,7 +123,7 @@ jobs:
         run: pip3 install -e ./slop-mop --break-system-packages --quiet
 
       - name: 📋 Run slop-mop duplication gate
-        run: sm validate --quality-gates quality:duplication
+        run: ./sm validate --quality-gates quality:duplication
 
   audit-security-vulnerabilities:
     name: 🔒 Audit Security Vulnerabilities
@@ -175,7 +175,7 @@ jobs:
         run: pip3 install -e ./slop-mop --break-system-packages --quiet
 
       - name: 🧪 Run slop-mop tests & coverage gates
-        run: sm validate --quality-gates javascript:tests javascript:coverage
+        run: ./sm validate --quality-gates javascript:tests javascript:coverage
 
   # Integration Layer - Depends on unit tests
   run-maestro-integration-tests:
