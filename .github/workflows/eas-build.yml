@@ -2,15 +2,13 @@ name: EAS Build & Deploy
 
 on:
   # Trigger after version-bump workflow completes (PR merge flow)
+  # version-bump.yml creates a git tag, so we DON'T also trigger on push:tags
+  # to avoid duplicate builds (workflow_run + tag push would both fire).
   workflow_run:
     workflows: ['Auto Version Bump']
     types: [completed]
     branches: [main]
-  # Production releases via tags
-  push:
-    tags:
-      - 'v*'
-  # Manual builds
+  # Manual builds (also used for production releases instead of push:tags)
   workflow_dispatch:
     inputs:
       platform:
@@ -51,10 +49,9 @@ jobs:
   build:
     name: EAS Build (${{ github.event_name == 'workflow_dispatch' && github.event.inputs.build_message || 'Auto Deploy' }})
     runs-on: ubuntu-latest
-    # Only run if triggered manually, by tag, or if version-bump succeeded
+    # Only run if triggered manually or if version-bump succeeded
     if: >
       github.event_name == 'workflow_dispatch' ||
-      github.event_name == 'push' ||
       (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success')
 
     steps:
@@ -99,10 +96,6 @@ jobs:
       - name: Build iOS for TestFlight (after version bump)
         if: github.event_name == 'workflow_run'
         run: eas build --platform ios --profile testflight --non-interactive
-
-      - name: Build for Production (tags)
-        if: startsWith(github.ref, 'refs/tags/v')
-        run: eas build --platform all --profile production --non-interactive
 
       - name: Build Manual Trigger
         if: github.event_name == 'workflow_dispatch'

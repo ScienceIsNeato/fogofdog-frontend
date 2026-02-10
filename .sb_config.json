@@ -14,7 +14,7 @@
       "javascript:types",
       "javascript:tests",
       "javascript:coverage",
-      "quality:duplication",
+      "quality:source-duplication",
       "general:deploy-tests"
     ]
   },
