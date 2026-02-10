@@ -7,6 +7,7 @@ interface SettingsMainViewProps {
   onUserProfile: () => void;
   onHistoryManagement: () => void;
   onDeveloperSettings: () => void;
+  onMapStyle: () => void;
   styles: any;
 }
 
@@ -15,6 +16,7 @@ export const SettingsMainView: React.FC<SettingsMainViewProps> = ({
   onUserProfile,
   onHistoryManagement,
   onDeveloperSettings,
+  onMapStyle,
   styles,
 }) => (
   <>
@@ -33,6 +35,12 @@ export const SettingsMainView: React.FC<SettingsMainViewProps> = ({
           <Text style={[styles.menuItemText, styles.disabledMenuItemText]}>User Profile</Text>
         </View>
         <Text style={styles.comingSoonText}>Coming Soon</Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity style={styles.menuItem} onPress={onMapStyle} testID="map-style-button">
+        <MaterialIcons name="palette" size={20} color="#007AFF" />
+        <Text style={styles.menuItemText}>Map Style</Text>
+        <MaterialIcons name="chevron-right" size={20} color="#ccc" />
       </TouchableOpacity>
 
       <TouchableOpacity style={styles.menuItem} onPress={onHistoryManagement}>

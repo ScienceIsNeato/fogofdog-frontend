@@ -48,7 +48,7 @@ module.exports = [
     },
     rules: {
       // ===== SONARJS COMPREHENSIVE RULES =====
-      // These mirror SonarQube's JavaScript/TypeScript analyzer
+      // eslint-plugin-sonarjs: cognitive complexity, code smells, bug detection
 
       // Bug Detection
       'sonarjs/no-all-duplicated-branches': 'error',
@@ -85,7 +85,7 @@ module.exports = [
       'sonarjs/prefer-single-boolean-return': 'warn',
       'sonarjs/prefer-while': 'warn',
 
-      // ===== TYPESCRIPT-ESLINT RULES (matching SonarCube detections) =====
+      // ===== TYPESCRIPT-ESLINT RULES =====
       // Optional chain expressions (typescript:S6582) - requires type info
       '@typescript-eslint/prefer-optional-chain': 'warn',
 

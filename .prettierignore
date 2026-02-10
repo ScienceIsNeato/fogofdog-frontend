@@ -1,22 +1,29 @@
-# Virtual environments
+# Dependencies
+node_modules/
 venv/
 .venv/
 
-# Build artifacts
+# Build outputs
 dist/
 build/
 ios/
 android/
-
-# Dependencies
-node_modules/
-slop-mop/
+coverage/
+artifacts/
 
 # Generated files
-coverage/
+*.d.ts
 reports/
-artifacts/
-test_artifacts/
-temp/
-.expo/
+
+# Submodules and external tools
+slop-mop/
 cursor-rules/
+
+# Expo
+.expo/
+
+# Git
+.git/
+
+# E2E tests (may have special formatting needs)
+e2e/

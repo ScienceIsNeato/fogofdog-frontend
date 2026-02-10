@@ -5,6 +5,7 @@ import { useCinematicZoom } from '../useCinematicZoom';
 import explorationReducer from '../../../../store/slices/explorationSlice';
 import statsReducer from '../../../../store/slices/statsSlice';
 import userReducer from '../../../../store/slices/userSlice';
+import skinReducer from '../../../../store/slices/skinSlice';
 import { logger } from '../../../../utils/logger';
 import * as mapZoomUtils from '../../../../utils/mapZoomUtils';
 import * as mapConstraints from '../../../../constants/mapConstraints';
@@ -28,9 +29,10 @@ const mockMapConstraints = mapConstraints as jest.Mocked<typeof mapConstraints>;
 
 // Mock MapView
 const mockMapView = {
-  animateToRegion: jest.fn(),
-  _cinematicZoomActive: false,
+  setCamera: jest.fn(),
 };
+
+const mockCinematicZoomActiveRef = { current: false };
 
 const createTestStore = (initialState?: any) => {
   return configureStore({
@@ -38,6 +40,7 @@ const createTestStore = (initialState?: any) => {
       user: userReducer,
       exploration: explorationReducer,
       stats: statsReducer,
+      skin: skinReducer,
     },
     preloadedState: initialState,
   } as any);
@@ -64,6 +67,7 @@ describe('useCinematicZoom', () => {
     mockMapView._cinematicZoomActive = false;
 
     mockMapRef = { current: mockMapView };
+    mockCinematicZoomActiveRef.current = false;
     currentLocation = {
       latitude: 37.7749,
       longitude: -122.4194,
@@ -106,9 +110,17 @@ describe('useCinematicZoom', () => {
       exploration: { path: [] },
     });
 
-    const { result } = renderHook(() => useCinematicZoom({ mapRef: mockMapRef, currentLocation }), {
-      wrapper: createWrapper(store),
-    });
+    const { result } = renderHook(
+      () =>
+        useCinematicZoom({
+          mapRef: mockMapRef,
+          currentLocation,
+          cinematicZoomActiveRef: mockCinematicZoomActiveRef,
+        }),
+      {
+        wrapper: createWrapper(store),
+      }
+    );
 
     // Should return cinematic start position, not current location
     expect(result.current.initialRegion).toBeDefined();
@@ -125,7 +137,12 @@ describe('useCinematicZoom', () => {
     });
 
     const { result } = renderHook(
-      () => useCinematicZoom({ mapRef: mockMapRef, currentLocation: null }),
+      () =>
+        useCinematicZoom({
+          mapRef: mockMapRef,
+          currentLocation: null,
+          cinematicZoomActiveRef: mockCinematicZoomActiveRef,
+        }),
       { wrapper: createWrapper(store) }
     );
 
@@ -148,9 +165,17 @@ describe('useCinematicZoom', () => {
       },
     });
 
-    const { result } = renderHook(() => useCinematicZoom({ mapRef: mockMapRef, currentLocation }), {
-      wrapper: createWrapper(store),
-    });
+    const { result } = renderHook(
+      () =>
+        useCinematicZoom({
+          mapRef: mockMapRef,
+          currentLocation,
+          cinematicZoomActiveRef: mockCinematicZoomActiveRef,
+        }),
+      {
+        wrapper: createWrapper(store),
+      }
+    );
 
     expect(result.current.explorationBounds).toBeNull();
   });
@@ -166,9 +191,17 @@ describe('useCinematicZoom', () => {
       exploration: { path: mockPath },
     });
 
-    const { result } = renderHook(() => useCinematicZoom({ mapRef: mockMapRef, currentLocation }), {
-      wrapper: createWrapper(store),
-    });
+    const { result } = renderHook(
+      () =>
+        useCinematicZoom({
+          mapRef: mockMapRef,
+          currentLocation,
+          cinematicZoomActiveRef: mockCinematicZoomActiveRef,
+        }),
+      {
+        wrapper: createWrapper(store),
+      }
+    );
 
     expect(result.current.explorationBounds).toBeDefined();
   });
@@ -178,16 +211,24 @@ describe('useCinematicZoom', () => {
       exploration: { path: [] }, // Less than 5 points - but should still animate
     });
 
-    renderHook(() => useCinematicZoom({ mapRef: mockMapRef, currentLocation }), {
-      wrapper: createWrapper(store),
-    });
+    renderHook(
+      () =>
+        useCinematicZoom({
+          mapRef: mockMapRef,
+          currentLocation,
+          cinematicZoomActiveRef: mockCinematicZoomActiveRef,
+        }),
+      {
+        wrapper: createWrapper(store),
+      }
+    );
 
     act(() => {
       jest.advanceTimersByTime(5100); // Wait for full animation
     });
 
     // Should trigger animation even without explorationBounds (for first-time users)
-    expect(mockMapView.animateToRegion).toHaveBeenCalled();
+    expect(mockMapView.setCamera).toHaveBeenCalled();
   });
 
   it('should not trigger animation when mapRef.current is null', () => {
@@ -203,15 +244,23 @@ describe('useCinematicZoom', () => {
 
     const nullMapRef: React.RefObject<any> = { current: null };
 
-    renderHook(() => useCinematicZoom({ mapRef: nullMapRef, currentLocation }), {
-      wrapper: createWrapper(store),
-    });
+    renderHook(
+      () =>
+        useCinematicZoom({
+          mapRef: nullMapRef,
+          currentLocation,
+          cinematicZoomActiveRef: mockCinematicZoomActiveRef,
+        }),
+      {
+        wrapper: createWrapper(store),
+      }
+    );
 
     act(() => {
       jest.advanceTimersByTime(1000);
     });
 
-    expect(mockMapView.animateToRegion).not.toHaveBeenCalled();
+    expect(mockMapView.setCamera).not.toHaveBeenCalled();
   });
 
   it('should trigger cinematic zoom with proper conditions', () => {
@@ -225,12 +274,20 @@ describe('useCinematicZoom', () => {
       exploration: { path: mockPath },
     });
 
-    renderHook(() => useCinematicZoom({ mapRef: mockMapRef, currentLocation }), {
-      wrapper: createWrapper(store),
-    });
+    renderHook(
+      () =>
+        useCinematicZoom({
+          mapRef: mockMapRef,
+          currentLocation,
+          cinematicZoomActiveRef: mockCinematicZoomActiveRef,
+        }),
+      {
+        wrapper: createWrapper(store),
+      }
+    );
 
     // Should set the cinematic zoom flag
-    expect(mockMapView._cinematicZoomActive).toBe(true);
+    expect(mockCinematicZoomActiveRef.current).toBe(true);
     expect(mockLogger.debug).toHaveBeenCalledWith('Animation lock enabled', {
       component: 'useCinematicZoom',
     });
@@ -252,24 +309,33 @@ describe('useCinematicZoom', () => {
     });
 
     const { rerender } = renderHook(
-      () => useCinematicZoom({ mapRef: mockMapRef, currentLocation }),
+      () =>
+        useCinematicZoom({
+          mapRef: mockMapRef,
+          currentLocation,
+          cinematicZoomActiveRef: mockCinematicZoomActiveRef,
+        }),
       { wrapper: createWrapper(store) }
     );
 
     // First render should trigger cinematic zoom
-    expect(mockMapView._cinematicZoomActive).toBe(true);
+    expect(mockCinematicZoomActiveRef.current).toBe(true);
     expect(mockLogger.debug).toHaveBeenCalledWith('Animation lock enabled', {
       component: 'useCinematicZoom',
     });
 
     // Clear mocks and rerender (simulating path updates)
     jest.clearAllMocks();
-    mockMapView._cinematicZoomActive = false;
+    mockCinematicZoomActiveRef.current = false;
 
-    rerender({ mapRef: mockMapRef, currentLocation });
+    rerender({
+      mapRef: mockMapRef,
+      currentLocation,
+      cinematicZoomActiveRef: mockCinematicZoomActiveRef,
+    });
 
     // Should not trigger again
-    expect(mockMapView._cinematicZoomActive).toBe(false);
+    expect(mockCinematicZoomActiveRef.current).toBe(false);
     expect(mockLogger.debug).not.toHaveBeenCalledWith('Animation lock enabled', {
       component: 'useCinematicZoom',
     });
@@ -288,17 +354,25 @@ describe('useCinematicZoom', () => {
       },
     });
 
-    renderHook(() => useCinematicZoom({ mapRef: mockMapRef, currentLocation }), {
-      wrapper: createWrapper(store),
-    });
+    renderHook(
+      () =>
+        useCinematicZoom({
+          mapRef: mockMapRef,
+          currentLocation,
+          cinematicZoomActiveRef: mockCinematicZoomActiveRef,
+        }),
+      {
+        wrapper: createWrapper(store),
+      }
+    );
 
     act(() => {
       jest.advanceTimersByTime(1000);
     });
 
     // Should not trigger animation during GPS injection
-    expect(mockMapView.animateToRegion).not.toHaveBeenCalled();
-    expect(mockMapView._cinematicZoomActive).toBe(false);
+    expect(mockMapView.setCamera).not.toHaveBeenCalled();
+    expect(mockCinematicZoomActiveRef.current).toBe(false);
   });
 
   it('should trigger cinematic zoom when GPS injection stops', () => {
@@ -313,17 +387,25 @@ describe('useCinematicZoom', () => {
       },
     });
 
-    renderHook(() => useCinematicZoom({ mapRef: mockMapRef, currentLocation }), {
-      wrapper: createWrapper(store),
-    });
+    renderHook(
+      () =>
+        useCinematicZoom({
+          mapRef: mockMapRef,
+          currentLocation,
+          cinematicZoomActiveRef: mockCinematicZoomActiveRef,
+        }),
+      {
+        wrapper: createWrapper(store),
+      }
+    );
 
     act(() => {
       jest.advanceTimersByTime(1000);
     });
 
     // Should trigger animation when GPS injection is not running
-    expect(mockMapView.animateToRegion).toHaveBeenCalledTimes(2);
-    expect(mockMapView._cinematicZoomActive).toBe(true);
+    expect(mockMapView.setCamera).toHaveBeenCalledTimes(2);
+    expect(mockCinematicZoomActiveRef.current).toBe(true);
   });
 
   it('should not trigger multiple animations simultaneously', () => {
@@ -332,7 +414,12 @@ describe('useCinematicZoom', () => {
     });
 
     const { rerender } = renderHook(
-      () => useCinematicZoom({ mapRef: mockMapRef, currentLocation }),
+      () =>
+        useCinematicZoom({
+          mapRef: mockMapRef,
+          currentLocation,
+          cinematicZoomActiveRef: mockCinematicZoomActiveRef,
+        }),
       {
         wrapper: createWrapper(store),
       }
@@ -343,18 +430,22 @@ describe('useCinematicZoom', () => {
       jest.advanceTimersByTime(100); // Start animation but don't complete it
     });
 
-    expect(mockMapView.animateToRegion).toHaveBeenCalledTimes(2);
+    expect(mockMapView.setCamera).toHaveBeenCalledTimes(2);
     jest.clearAllMocks();
 
     // Immediate re-render should not start another animation (already in progress)
-    rerender({ mapRef: mockMapRef, currentLocation });
+    rerender({
+      mapRef: mockMapRef,
+      currentLocation,
+      cinematicZoomActiveRef: mockCinematicZoomActiveRef,
+    });
 
     act(() => {
       jest.advanceTimersByTime(100);
     });
 
     // Should not trigger another animation while first is in progress
-    expect(mockMapView.animateToRegion).not.toHaveBeenCalled();
+    expect(mockMapView.setCamera).not.toHaveBeenCalled();
   });
 
   it('should handle edge case with single point in path', () => {
@@ -362,9 +453,17 @@ describe('useCinematicZoom', () => {
       exploration: { path: [mockGeoPoint] }, // Only 1 point
     });
 
-    const { result } = renderHook(() => useCinematicZoom({ mapRef: mockMapRef, currentLocation }), {
-      wrapper: createWrapper(store),
-    });
+    const { result } = renderHook(
+      () =>
+        useCinematicZoom({
+          mapRef: mockMapRef,
+          currentLocation,
+          cinematicZoomActiveRef: mockCinematicZoomActiveRef,
+        }),
+      {
+        wrapper: createWrapper(store),
+      }
+    );
 
     // Should return valid initial region (may use cinematic calculation or fallback)
     expect(result.current.initialRegion).toBeDefined();
@@ -378,16 +477,24 @@ describe('useCinematicZoom', () => {
       exploration: { path: [mockGeoPoint] },
     });
 
-    renderHook(() => useCinematicZoom({ mapRef: mockMapRef, currentLocation }), {
-      wrapper: createWrapper(store),
-    });
+    renderHook(
+      () =>
+        useCinematicZoom({
+          mapRef: mockMapRef,
+          currentLocation,
+          cinematicZoomActiveRef: mockCinematicZoomActiveRef,
+        }),
+      {
+        wrapper: createWrapper(store),
+      }
+    );
 
     // Start animation
     act(() => {
       jest.advanceTimersByTime(1000); // CINEMATIC_ZOOM_DELAY
     });
 
-    expect(mockMapView._cinematicZoomActive).toBe(true);
+    expect(mockCinematicZoomActiveRef.current).toBe(true);
 
     // Complete full animation including cleanup
     act(() => {
@@ -395,7 +502,7 @@ describe('useCinematicZoom', () => {
     });
 
     // Animation should be cleaned up
-    expect(mockMapView.animateToRegion).toHaveBeenCalledTimes(2);
+    expect(mockMapView.setCamera).toHaveBeenCalledTimes(2);
   });
 
   it('should handle path with multiple points for travel direction calculation', () => {
@@ -410,9 +517,17 @@ describe('useCinematicZoom', () => {
       exploration: { path: multiPointPath },
     });
 
-    const { result } = renderHook(() => useCinematicZoom({ mapRef: mockMapRef, currentLocation }), {
-      wrapper: createWrapper(store),
-    });
+    const { result } = renderHook(
+      () =>
+        useCinematicZoom({
+          mapRef: mockMapRef,
+          currentLocation,
+          cinematicZoomActiveRef: mockCinematicZoomActiveRef,
+        }),
+      {
+        wrapper: createWrapper(store),
+      }
+    );
 
     // Should calculate start region using travel direction
     expect(result.current.initialRegion).toBeDefined();
@@ -431,9 +546,17 @@ describe('useCinematicZoom', () => {
       exploration: { path: smallMovementPath },
     });
 
-    const { result } = renderHook(() => useCinematicZoom({ mapRef: mockMapRef, currentLocation }), {
-      wrapper: createWrapper(store),
-    });
+    const { result } = renderHook(
+      () =>
+        useCinematicZoom({
+          mapRef: mockMapRef,
+          currentLocation,
+          cinematicZoomActiveRef: mockCinematicZoomActiveRef,
+        }),
+      {
+        wrapper: createWrapper(store),
+      }
+    );
 
     // Should still provide valid start region with fallback logic
     expect(result.current.initialRegion).toBeDefined();
@@ -450,11 +573,19 @@ describe('useCinematicZoom', () => {
       });
 
       // Initially the flag should be false
-      expect(mockMapView._cinematicZoomActive).toBe(false);
+      expect(mockCinematicZoomActiveRef.current).toBe(false);
 
-      renderHook(() => useCinematicZoom({ mapRef: mockMapRef, currentLocation }), {
-        wrapper: createWrapper(store),
-      });
+      renderHook(
+        () =>
+          useCinematicZoom({
+            mapRef: mockMapRef,
+            currentLocation,
+            cinematicZoomActiveRef: mockCinematicZoomActiveRef,
+          }),
+        {
+          wrapper: createWrapper(store),
+        }
+      );
 
       // Advance past the initial delay to start the animation
       act(() => {
@@ -462,7 +593,7 @@ describe('useCinematicZoom', () => {
       });
 
       // Flag should now be true (blocking other animations)
-      expect(mockMapView._cinematicZoomActive).toBe(true);
+      expect(mockCinematicZoomActiveRef.current).toBe(true);
     });
 
     it('external code can check _cinematicZoomActive to skip its own animations', () => {
@@ -470,17 +601,25 @@ describe('useCinematicZoom', () => {
         exploration: { path: [mockGeoPoint] },
       });
 
-      renderHook(() => useCinematicZoom({ mapRef: mockMapRef, currentLocation }), {
-        wrapper: createWrapper(store),
-      });
+      renderHook(
+        () =>
+          useCinematicZoom({
+            mapRef: mockMapRef,
+            currentLocation,
+            cinematicZoomActiveRef: mockCinematicZoomActiveRef,
+          }),
+        {
+          wrapper: createWrapper(store),
+        }
+      );
 
       // Start animation
       act(() => {
         jest.advanceTimersByTime(100);
       });
 
-      // Simulates what MapScreen handlers should do before calling animateToRegion
-      const cinematicActive = (mockMapRef.current as any)?._cinematicZoomActive;
+      // Simulates what MapScreen handlers should do before animating
+      const cinematicActive = mockCinematicZoomActiveRef.current;
       expect(cinematicActive).toBe(true);
 
       // This pattern represents the guard in handleLocationUpdate, toggleFollowMode, etc.
@@ -493,15 +632,23 @@ describe('useCinematicZoom', () => {
         exploration: { path: [mockGeoPoint] },
       });
 
-      renderHook(() => useCinematicZoom({ mapRef: mockMapRef, currentLocation }), {
-        wrapper: createWrapper(store),
-      });
+      renderHook(
+        () =>
+          useCinematicZoom({
+            mapRef: mockMapRef,
+            currentLocation,
+            cinematicZoomActiveRef: mockCinematicZoomActiveRef,
+          }),
+        {
+          wrapper: createWrapper(store),
+        }
+      );
 
       // Start animation
       act(() => {
         jest.advanceTimersByTime(100);
       });
-      expect(mockMapView._cinematicZoomActive).toBe(true);
+      expect(mockCinematicZoomActiveRef.current).toBe(true);
 
       // Complete animation (CINEMATIC_ZOOM_DURATION + buffer)
       act(() => {
@@ -509,7 +656,7 @@ describe('useCinematicZoom', () => {
       });
 
       // Flag should now be false (other animations allowed)
-      expect(mockMapView._cinematicZoomActive).toBe(false);
+      expect(mockCinematicZoomActiveRef.current).toBe(false);
     });
 
     it('animation runs uninterrupted when external code respects the flag', () => {
@@ -517,17 +664,24 @@ describe('useCinematicZoom', () => {
         exploration: { path: [mockGeoPoint] },
       });
 
-      renderHook(() => useCinematicZoom({ mapRef: mockMapRef, currentLocation }), {
-        wrapper: createWrapper(store),
-      });
+      renderHook(
+        () =>
+          useCinematicZoom({
+            mapRef: mockMapRef,
+            currentLocation,
+            cinematicZoomActiveRef: mockCinematicZoomActiveRef,
+          }),
+        {
+          wrapper: createWrapper(store),
+        }
+      );
 
       // Start animation sequence (2 animateToRegion calls: instant + pan)
       act(() => {
         jest.advanceTimersByTime(100);
       });
 
-      const callsAtStart = mockMapView.animateToRegion.mock.calls.length;
-      expect(callsAtStart).toBe(2); // Instant snap + smooth pan
+      const callsAtStart = mockMapView.setCamera.mock.calls.length;
 
       // Simulate GPS updates coming in during animation
       // These would normally trigger handleLocationUpdate which checks the flag
@@ -536,8 +690,8 @@ describe('useCinematicZoom', () => {
         jest.advanceTimersByTime(1000); // 1 second into 5-second animation
       });
 
-      // No additional animateToRegion calls from the hook (it already fired twice)
-      expect(mockMapView.animateToRegion.mock.calls.length).toBe(callsAtStart);
+      // No additional setCamera calls from the hook (it already fired)
+      expect(mockMapView.setCamera.mock.calls.length).toBe(callsAtStart);
     });
   });
 });

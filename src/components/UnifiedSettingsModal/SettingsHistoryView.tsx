@@ -138,6 +138,42 @@ const useDataImportExport = (onDataImported?: () => void) => {
   };
 };
 
+// Reusable component for data action menu items (Export/Import)
+interface DataActionMenuItemProps {
+  iconName: keyof typeof MaterialIcons.glyphMap;
+  title: string;
+  description: string;
+  onPress: () => void;
+  isDisabled: boolean;
+  isLoading: boolean;
+  testID: string;
+  styles: SettingsHistoryViewProps['styles'];
+}
+
+const DataActionMenuItem: React.FC<DataActionMenuItemProps> = ({
+  iconName,
+  title,
+  description,
+  onPress,
+  isDisabled,
+  isLoading,
+  testID,
+  styles,
+}) => (
+  <TouchableOpacity
+    style={[styles.menuItem, isDisabled && styles.disabledMenuItem]}
+    onPress={onPress}
+    disabled={isDisabled}
+  >
+    <MaterialIcons name={iconName} size={20} color={isDisabled ? '#999' : '#007AFF'} />
+    <View style={styles.menuItemContent}>
+      <Text style={[styles.menuItemText, isDisabled && styles.disabledMenuItemText]}>{title}</Text>
+      <Text style={styles.menuItemDescription}>{description}</Text>
+    </View>
+    {isLoading && <ActivityIndicator size="small" color="#007AFF" testID={testID} />}
+  </TouchableOpacity>
+);
+
 export const SettingsHistoryView: React.FC<SettingsHistoryViewProps> = ({
   dataStats,
   onClearData,
@@ -202,61 +238,27 @@ export const SettingsHistoryView: React.FC<SettingsHistoryViewProps> = ({
         <View style={[styles.statsContainer, { marginBottom: 20 }]}>
           <Text style={styles.statsTitle}>Data Backup & Restore</Text>
 
-          <TouchableOpacity
-            style={[styles.menuItem, (isExporting || isImporting) && styles.disabledMenuItem]}
+          <DataActionMenuItem
+            iconName="backup"
+            title="Export Data"
+            description="Save your exploration data to a file for backup"
             onPress={handleExportData}
-            disabled={isExporting || isImporting}
-          >
-            <MaterialIcons
-              name="backup"
-              size={20}
-              color={isExporting || isImporting ? '#999' : '#007AFF'}
-            />
-            <View style={styles.menuItemContent}>
-              <Text
-                style={[
-                  styles.menuItemText,
-                  (isExporting || isImporting) && styles.disabledMenuItemText,
-                ]}
-              >
-                Export Data
-              </Text>
-              <Text style={styles.menuItemDescription}>
-                Save your exploration data to a file for backup
-              </Text>
-            </View>
-            {isExporting && (
-              <ActivityIndicator size="small" color="#007AFF" testID="export-loading" />
-            )}
-          </TouchableOpacity>
+            isDisabled={isExporting || isImporting}
+            isLoading={isExporting}
+            testID="export-loading"
+            styles={styles}
+          />
 
-          <TouchableOpacity
-            style={[styles.menuItem, (isExporting || isImporting) && styles.disabledMenuItem]}
+          <DataActionMenuItem
+            iconName="restore"
+            title="Import Data"
+            description="Restore exploration data from a backup file"
             onPress={handleImportData}
-            disabled={isExporting || isImporting}
-          >
-            <MaterialIcons
-              name="restore"
-              size={20}
-              color={isExporting || isImporting ? '#999' : '#007AFF'}
-            />
-            <View style={styles.menuItemContent}>
-              <Text
-                style={[
-                  styles.menuItemText,
-                  (isExporting || isImporting) && styles.disabledMenuItemText,
-                ]}
-              >
-                Import Data
-              </Text>
-              <Text style={styles.menuItemDescription}>
-                Restore exploration data from a backup file
-              </Text>
-            </View>
-            {isImporting && (
-              <ActivityIndicator size="small" color="#007AFF" testID="import-loading" />
-            )}
-          </TouchableOpacity>
+            isDisabled={isExporting || isImporting}
+            isLoading={isImporting}
+            testID="import-loading"
+            styles={styles}
+          />
         </View>
 
         {/* Data Clearing Section */}

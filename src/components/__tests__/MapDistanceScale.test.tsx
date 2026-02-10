@@ -1,10 +1,10 @@
 import React from 'react';
 import { render } from '@testing-library/react-native';
 import { MapDistanceScale } from '../MapDistanceScale';
-import type { Region } from 'react-native-maps';
+import type { MapRegion } from '../../types/map';
 
 describe('MapDistanceScale', () => {
-  const mockRegion: Region = {
+  const mockRegion: MapRegion = {
     latitude: 37.7749,
     longitude: -122.4194,
     latitudeDelta: 0.01,
@@ -35,7 +35,7 @@ describe('MapDistanceScale', () => {
 
   it('should show appropriate scale for different zoom levels', () => {
     // Very zoomed in (small delta)
-    const zoomedInRegion: Region = {
+    const zoomedInRegion: MapRegion = {
       ...mockRegion,
       latitudeDelta: 0.001,
       longitudeDelta: 0.001,
@@ -50,7 +50,7 @@ describe('MapDistanceScale', () => {
     expect(zoomedInScale).toBeTruthy();
 
     // Very zoomed out (large delta)
-    const zoomedOutRegion: Region = {
+    const zoomedOutRegion: MapRegion = {
       ...mockRegion,
       latitudeDelta: 1.0,
       longitudeDelta: 1.0,
@@ -73,7 +73,7 @@ describe('MapDistanceScale', () => {
     expect(querySmallMap(/\d+[mk]m?/)).toBeTruthy(); // Should still render something
 
     // Very large longitude delta
-    const largeRegion: Region = {
+    const largeRegion: MapRegion = {
       ...mockRegion,
       longitudeDelta: 10.0,
     };

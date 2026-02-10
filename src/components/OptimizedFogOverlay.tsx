@@ -6,7 +6,7 @@ import { useSelector } from 'react-redux';
 import type { RootState } from '../store';
 import { calculateMetersPerPixel, geoPointToPixel } from '../utils/mapUtils';
 import { logger } from '../utils/logger';
-import type { Region as MapRegion } from 'react-native-maps';
+import type { MapRegion } from '../types/map';
 import { FOG_CONFIG } from '../config/fogConfig';
 import { GPSConnectionService } from '../services/GPSConnectionService';
 import { PathSimplificationService } from '../utils/pathSimplification';
