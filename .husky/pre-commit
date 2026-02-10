@@ -27,9 +27,4 @@ fi
 # - general:deploy-tests    (deploy_app.sh tests)
 # Commit is blocked if any gate fails.
 # Disabled gates (via .sb_config.json or sm config --disable) are automatically skipped.
-if ! command -v sm >/dev/null 2>&1; then
-  pip3 install -e ./slop-mop --break-system-packages --quiet 2>/dev/null || \
-  pip install -e ./slop-mop --break-system-packages --quiet 2>/dev/null
-fi
-
-sm validate commit
+./sm validate commit
