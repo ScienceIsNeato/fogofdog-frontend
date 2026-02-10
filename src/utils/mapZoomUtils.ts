@@ -1,4 +1,4 @@
-import type { Region } from 'react-native-maps';
+import type { MapRegion } from '../types/map';
 
 /**
  * Utility functions for converting between map zoom levels and distance scale legends
@@ -130,14 +130,14 @@ export const calculateZoomAnimation = (
   const startLngDelta = startLatDelta * aspectRatio;
   const endLngDelta = endLatDelta * aspectRatio;
 
-  const startRegion: Region = {
+  const startRegion: MapRegion = {
     latitude: centerLocation.latitude,
     longitude: centerLocation.longitude,
     latitudeDelta: startLatDelta,
     longitudeDelta: startLngDelta,
   };
 
-  const endRegion: Region = {
+  const endRegion: MapRegion = {
     latitude: centerLocation.latitude,
     longitude: centerLocation.longitude,
     latitudeDelta: endLatDelta,

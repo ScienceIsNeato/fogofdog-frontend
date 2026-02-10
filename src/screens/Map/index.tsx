@@ -30,7 +30,16 @@ import {
   recalculateArea,
 } from '../../store/slices/statsSlice';
 import { StatsPersistenceService } from '../../services/StatsPersistenceService';
-import MapView, { Marker, Region } from 'react-native-maps';
+import {
+  MapView,
+  Camera,
+  MarkerView,
+  type CameraRef,
+  type RegionPayload,
+} from '@maplibre/maplibre-react-native';
+import type { MapRegion } from '../../types/map';
+import { regionToZoomLevel } from '../../types/map';
+import { getSkinStyle } from '../../services/SkinStyleService';
 import * as Location from 'expo-location';
 import * as TaskManager from 'expo-task-manager';
 import OptimizedFogOverlay from '../../components/OptimizedFogOverlay';
@@ -64,6 +73,23 @@ import { GeoPoint } from '../../types/user';
 import { constrainRegion } from '../../constants/mapConstraints';
 // Performance optimizations available via OptimizedFogOverlay component
 
+/**
+ * Animate the map camera to a region (center + deltas).
+ * Bridges the react-native-maps Region concept to MapLibre's Camera API.
+ */
+const animateMapToRegion = (
+  cameraRef: React.RefObject<CameraRef>,
+  region: MapRegion,
+  duration: number = 300
+) => {
+  cameraRef.current?.setCamera({
+    centerCoordinate: [region.longitude, region.latitude],
+    zoomLevel: regionToZoomLevel(region),
+    animationDuration: duration,
+    animationMode: 'easeTo',
+  });
+};
+
 // Unified location task name
 const LOCATION_TASK = 'unified-location-task';
 
@@ -76,7 +102,7 @@ const DEFAULT_ZOOM_DELTAS = {
 // Note: Animation constants are now defined in useCinematicZoom hook
 
 // Calculate region that encompasses exploration path with padding
-export const calculateExplorationBounds = (explorationPath: GeoPoint[]): Region | null => {
+export const calculateExplorationBounds = (explorationPath: GeoPoint[]): MapRegion | null => {
   if (explorationPath.length === 0) return null;
 
   // Find min/max coordinates
@@ -128,10 +154,11 @@ interface SafeAreaInsets {
 interface HandleLocationUpdateOptions {
   location: GeoPoint;
   dispatch: ReturnType<typeof useAppDispatch>;
-  mapRef: React.RefObject<MapView | null>;
+  mapRef: React.RefObject<CameraRef>;
+  cinematicZoomActiveRef: React.MutableRefObject<boolean>;
   isMapCenteredOnUser: boolean;
   isFollowModeActive: boolean;
-  currentRegion: Region | undefined;
+  currentRegion: MapRegion | undefined;
   explorationPath: GeoPoint[];
   isSessionActive: boolean;
 }
@@ -140,6 +167,7 @@ const handleLocationUpdate = ({
   location,
   dispatch,
   mapRef,
+  cinematicZoomActiveRef,
   isMapCenteredOnUser,
   isFollowModeActive,
   currentRegion,
@@ -173,14 +201,14 @@ const handleLocationUpdate = ({
   // Auto-center map if follow mode is active OR if user clicked center once
   const shouldCenterMap = isFollowModeActive || isMapCenteredOnUser;
 
-  if (shouldCenterMap && mapRef.current && !(mapRef.current as any)?._cinematicZoomActive) {
+  if (shouldCenterMap && mapRef.current && !cinematicZoomActiveRef.current) {
     const newRegion = {
       latitude: location.latitude,
       longitude: location.longitude,
       latitudeDelta: currentRegion?.latitudeDelta ?? DEFAULT_ZOOM_DELTAS.latitudeDelta,
       longitudeDelta: currentRegion?.longitudeDelta ?? DEFAULT_ZOOM_DELTAS.longitudeDelta,
     };
-    mapRef.current.animateToRegion(newRegion, 500);
+    animateMapToRegion(mapRef, newRegion, 500);
   }
 };
 
@@ -406,10 +434,11 @@ async function startLocationUpdates(backgroundGranted: boolean = false) {
 const createLocationUpdateCallback = (params: {
   isActiveRef: { current: boolean };
   dispatch: ReturnType<typeof useAppDispatch>;
-  mapRef: React.RefObject<MapView | null>;
+  mapRef: React.RefObject<CameraRef>;
+  cinematicZoomActiveRef: React.MutableRefObject<boolean>;
   isMapCenteredOnUser: boolean;
   isFollowModeActive: boolean;
-  currentRegion: Region | undefined;
+  currentRegion: MapRegion | undefined;
   explorationPath: GeoPoint[];
   isSessionActive: boolean;
 }) => {
@@ -424,6 +453,7 @@ const createLocationUpdateCallback = (params: {
         location: geoPoint,
         dispatch: params.dispatch,
         mapRef: params.mapRef,
+        cinematicZoomActiveRef: params.cinematicZoomActiveRef,
         isMapCenteredOnUser: params.isMapCenteredOnUser,
         isFollowModeActive: params.isFollowModeActive,
         currentRegion: params.currentRegion,
@@ -438,10 +468,11 @@ const createLocationUpdateCallback = (params: {
 const createGPSInjectionCallback = (params: {
   isActiveRef: { current: boolean };
   dispatch: ReturnType<typeof useAppDispatch>;
-  mapRef: React.RefObject<MapView | null>;
+  mapRef: React.RefObject<CameraRef>;
+  cinematicZoomActiveRef: React.MutableRefObject<boolean>;
   isMapCenteredOnUser: boolean;
   isFollowModeActive: boolean;
-  currentRegion: Region | undefined;
+  currentRegion: MapRegion | undefined;
   explorationPath: GeoPoint[];
   isSessionActive: boolean;
 }) => {
@@ -473,6 +504,7 @@ const createGPSInjectionCallback = (params: {
         location: geoPoint,
         dispatch: params.dispatch,
         mapRef: params.mapRef,
+        cinematicZoomActiveRef: params.cinematicZoomActiveRef,
         isMapCenteredOnUser: params.isMapCenteredOnUser,
         isFollowModeActive: params.isFollowModeActive,
         currentRegion: params.currentRegion,
@@ -498,6 +530,7 @@ function setupLocationListeners({
   isActiveRef,
   dispatch,
   mapRef,
+  cinematicZoomActiveRef,
   isMapCenteredOnUser,
   isFollowModeActive,
   currentRegion,
@@ -506,10 +539,11 @@ function setupLocationListeners({
 }: {
   isActiveRef: { current: boolean };
   dispatch: ReturnType<typeof useAppDispatch>;
-  mapRef: React.RefObject<MapView | null>;
+  mapRef: React.RefObject<CameraRef>;
+  cinematicZoomActiveRef: React.MutableRefObject<boolean>;
   isMapCenteredOnUser: boolean;
   isFollowModeActive: boolean;
-  currentRegion: Region | undefined;
+  currentRegion: MapRegion | undefined;
   explorationPath: GeoPoint[];
   isSessionActive: boolean;
 }) {
@@ -517,6 +551,7 @@ function setupLocationListeners({
     isActiveRef,
     dispatch,
     mapRef,
+    cinematicZoomActiveRef,
     isMapCenteredOnUser,
     isFollowModeActive,
     currentRegion,
@@ -551,6 +586,7 @@ async function getInitialLocation({
   isActiveRef,
   dispatch,
   mapRef,
+  cinematicZoomActiveRef,
   isMapCenteredOnUser,
   isFollowModeActive,
   currentRegion,
@@ -559,10 +595,11 @@ async function getInitialLocation({
 }: {
   isActiveRef: { current: boolean };
   dispatch: ReturnType<typeof useAppDispatch>;
-  mapRef: React.RefObject<MapView | null>;
+  mapRef: React.RefObject<CameraRef>;
+  cinematicZoomActiveRef: React.MutableRefObject<boolean>;
   isMapCenteredOnUser: boolean;
   isFollowModeActive: boolean;
-  currentRegion: Region | undefined;
+  currentRegion: MapRegion | undefined;
   explorationPath: GeoPoint[];
   isSessionActive: boolean;
 }) {
@@ -590,6 +627,7 @@ async function getInitialLocation({
         location: geoPoint,
         dispatch,
         mapRef,
+        cinematicZoomActiveRef,
         isMapCenteredOnUser,
         isFollowModeActive,
         currentRegion,
@@ -647,10 +685,11 @@ const initializeLocationServices = async (
   locationParams: {
     isActiveRef: { current: boolean };
     dispatch: ReturnType<typeof useAppDispatch>;
-    mapRef: React.RefObject<MapView | null>;
+    mapRef: React.RefObject<CameraRef>;
+    cinematicZoomActiveRef: React.MutableRefObject<boolean>;
     isMapCenteredOnUser: boolean;
     isFollowModeActive: boolean;
-    currentRegion: Region | undefined;
+    currentRegion: MapRegion | undefined;
     explorationPath: GeoPoint[];
     isSessionActive: boolean;
   }
@@ -688,6 +727,7 @@ const initializeLocationServicesWithVerifiedPermissions = async ({
   isActiveRef,
   dispatch,
   mapRef,
+  cinematicZoomActiveRef,
   isMapCenteredOnUser,
   isFollowModeActive,
   currentRegion,
@@ -697,10 +737,11 @@ const initializeLocationServicesWithVerifiedPermissions = async ({
 }: {
   isActiveRef: { current: boolean };
   dispatch: ReturnType<typeof useAppDispatch>;
-  mapRef: React.RefObject<MapView | null>;
+  mapRef: React.RefObject<CameraRef>;
+  cinematicZoomActiveRef: React.MutableRefObject<boolean>;
   isMapCenteredOnUser: boolean;
   isFollowModeActive: boolean;
-  currentRegion: Region | undefined;
+  currentRegion: MapRegion | undefined;
   explorationPath: GeoPoint[];
   isSessionActive: boolean;
   backgroundGranted?: boolean; // Add parameter for actual background permission status
@@ -717,6 +758,7 @@ const initializeLocationServicesWithVerifiedPermissions = async ({
       isActiveRef,
       dispatch,
       mapRef,
+      cinematicZoomActiveRef,
       isMapCenteredOnUser,
       isFollowModeActive,
       currentRegion,
@@ -737,10 +779,11 @@ const initializeLocationServicesWithVerifiedPermissions = async ({
 
 // Configuration interface for location service
 interface LocationServiceConfig {
-  mapRef: React.RefObject<MapView | null>;
+  mapRef: React.RefObject<CameraRef>;
+  cinematicZoomActiveRef: React.MutableRefObject<boolean>;
   isMapCenteredOnUser: boolean;
   isFollowModeActive: boolean;
-  currentRegion: Region | undefined;
+  currentRegion: MapRegion | undefined;
   isTrackingPaused: boolean;
   explorationPath: GeoPoint[];
   isSessionActive: boolean;
@@ -769,6 +812,7 @@ const createStartLocationServices =
   async () => {
     const {
       mapRef,
+      cinematicZoomActiveRef,
       isMapCenteredOnUser,
       isFollowModeActive,
       currentRegion,
@@ -787,6 +831,7 @@ const createStartLocationServices =
         isActiveRef,
         dispatch,
         mapRef,
+        cinematicZoomActiveRef,
         isMapCenteredOnUser,
         isFollowModeActive,
         currentRegion,
@@ -837,6 +882,7 @@ const useUnifiedLocationService = (config: UnifiedLocationServiceConfig) => {
 
   const {
     mapRef,
+    cinematicZoomActiveRef,
     isMapCenteredOnUser,
     isFollowModeActive,
     currentRegion,
@@ -856,6 +902,7 @@ const useUnifiedLocationService = (config: UnifiedLocationServiceConfig) => {
       isActiveRef,
       dispatch,
       mapRef,
+      cinematicZoomActiveRef,
       isMapCenteredOnUser,
       isFollowModeActive,
       currentRegion,
@@ -951,13 +998,21 @@ const createZoomHandler = (dispatch: ReturnType<typeof useAppDispatch>) => (newZ
 const createCenterOnUserHandler =
   (options: {
     currentLocation: GeoPoint | null;
-    currentRegion: Region | undefined;
-    mapRef: React.RefObject<MapView | null>;
+    currentRegion: MapRegion | undefined;
+    mapRef: React.RefObject<CameraRef>;
+    cinematicZoomActiveRef: React.MutableRefObject<boolean>;
     dispatch: ReturnType<typeof useAppDispatch>;
     isFollowModeActive: boolean;
   }) =>
   () => {
-    const { currentLocation, currentRegion, mapRef, dispatch, isFollowModeActive } = options;
+    const {
+      currentLocation,
+      currentRegion,
+      mapRef,
+      cinematicZoomActiveRef,
+      dispatch,
+      isFollowModeActive,
+    } = options;
     // Toggle follow mode
     dispatch(toggleFollowMode());
 
@@ -967,7 +1022,7 @@ const createCenterOnUserHandler =
       !isFollowModeActive &&
       currentLocation &&
       mapRef.current &&
-      !(mapRef.current as any)?._cinematicZoomActive
+      !cinematicZoomActiveRef.current
     ) {
       const userRegion = {
         latitude: currentLocation.latitude,
@@ -976,7 +1031,7 @@ const createCenterOnUserHandler =
         longitudeDelta: currentRegion?.longitudeDelta ?? DEFAULT_ZOOM_DELTAS.longitudeDelta,
       };
 
-      mapRef.current.animateToRegion(userRegion, 300);
+      animateMapToRegion(mapRef, userRegion, 300);
       dispatch(setCenterOnUser(true));
     }
   };
@@ -996,7 +1051,7 @@ const createCenterOnUserHandler =
  * which covers Null Island and its surroundings — a location no one is
  * walking their dog.
  */
-export function isNullIslandRegion(region: Region): boolean {
+export function isNullIslandRegion(region: MapRegion): boolean {
   return Math.abs(region.latitude) < 0.5 && Math.abs(region.longitude) < 0.5;
 }
 
@@ -1007,11 +1062,13 @@ function handleRegionChange({
   mapDimensions,
   workletUpdateRegion,
 }: {
-  region: Region;
-  setCurrentRegion: (region: Region) => void;
-  setCurrentFogRegion: (region: (Region & { width: number; height: number }) | undefined) => void;
+  region: MapRegion;
+  setCurrentRegion: (region: MapRegion) => void;
+  setCurrentFogRegion: (
+    region: (MapRegion & { width: number; height: number }) | undefined
+  ) => void;
   mapDimensions: { width: number; height: number };
-  workletUpdateRegion: (region: Region & { width: number; height: number }) => void;
+  workletUpdateRegion: (region: MapRegion & { width: number; height: number }) => void;
 }) {
   // Reject bogus near-(0,0) regions from Fabric initialization timing issue.
   // See isNullIslandRegion() for details.
@@ -1035,38 +1092,20 @@ function handleRegionChange({
   setCurrentFogRegion(regionWithDimensions);
 }
 
-function handlePanDrag({
-  mapRef,
-  dispatch,
-}: {
-  mapRef: React.RefObject<MapView | null>;
-  dispatch: ReturnType<typeof useAppDispatch>;
-}) {
+function handlePanDrag({ dispatch }: { dispatch: ReturnType<typeof useAppDispatch> }) {
   // User is panning/dragging - disable both centered state and follow mode
   dispatch(setCenterOnUser(false));
   dispatch(setFollowMode(false));
 
-  // Handle camera position update asynchronously
-  mapRef.current
-    ?.getCamera()
-    .then((camera) => {
-      logger.throttledDebug(
-        'MapScreen:onPanDrag',
-        'Camera position updated',
-        {
-          component: 'MapScreen',
-          action: 'onPanDrag',
-          heading: camera.heading,
-        },
-        1000 // 1 second interval
-      );
-    })
-    .catch((err) => {
-      logger.error('Error getting camera:', err, {
-        component: 'MapScreen',
-        action: 'onPanDrag',
-      });
-    });
+  logger.throttledDebug(
+    'MapScreen:onPanDrag',
+    'User dragged map - follow mode disabled',
+    {
+      component: 'MapScreen',
+      action: 'onPanDrag',
+    },
+    1000 // 1 second interval
+  );
 }
 
 function handleRegionChangeComplete({
@@ -1074,11 +1113,13 @@ function handleRegionChangeComplete({
   setCurrentRegion,
   handleZoomChange,
   mapRef,
+  cinematicZoomActiveRef,
 }: {
-  region: Region;
-  setCurrentRegion: (region: Region) => void;
+  region: MapRegion;
+  setCurrentRegion: (region: MapRegion) => void;
   handleZoomChange: (zoom: number) => void;
-  mapRef: React.RefObject<MapView | null>;
+  mapRef: React.RefObject<CameraRef>;
+  cinematicZoomActiveRef: React.MutableRefObject<boolean>;
 }) {
   // Reject bogus near-(0,0) regions from Fabric initialization timing issue.
   if (isNullIslandRegion(region)) {
@@ -1094,13 +1135,13 @@ function handleRegionChangeComplete({
   if (
     (constrainedRegion.latitudeDelta !== region.latitudeDelta ||
       constrainedRegion.longitudeDelta !== region.longitudeDelta) &&
-    !(mapRef.current as any)?._cinematicZoomActive
+    !cinematicZoomActiveRef.current
   ) {
     logger.debug('Applying zoom constraints', {
       component: 'MapScreen',
       reason: 'zoom_constraint_violation',
     });
-    mapRef.current?.animateToRegion(constrainedRegion, 200);
+    animateMapToRegion(mapRef, constrainedRegion, 200);
   }
 
   setCurrentRegion(constrainedRegion);
@@ -1111,14 +1152,17 @@ function handleRegionChangeComplete({
 const useMapEventHandlers = (options: {
   dispatch: ReturnType<typeof useAppDispatch>;
   currentLocation: GeoPoint | null;
-  currentRegion: Region | undefined;
+  currentRegion: MapRegion | undefined;
   isMapCenteredOnUser: boolean;
   isFollowModeActive: boolean;
-  mapRef: React.RefObject<MapView | null>;
-  setCurrentRegion: (region: Region) => void;
-  setCurrentFogRegion: (region: (Region & { width: number; height: number }) | undefined) => void;
+  mapRef: React.RefObject<CameraRef>;
+  cinematicZoomActiveRef: React.MutableRefObject<boolean>;
+  setCurrentRegion: (region: MapRegion) => void;
+  setCurrentFogRegion: (
+    region: (MapRegion & { width: number; height: number }) | undefined
+  ) => void;
   mapDimensions: { width: number; height: number };
-  workletUpdateRegion: (region: Region & { width: number; height: number }) => void;
+  workletUpdateRegion: (region: MapRegion & { width: number; height: number }) => void;
 }) => {
   const {
     dispatch,
@@ -1126,6 +1170,7 @@ const useMapEventHandlers = (options: {
     currentRegion,
     isFollowModeActive,
     mapRef,
+    cinematicZoomActiveRef,
     setCurrentRegion,
     setCurrentFogRegion,
     mapDimensions,
@@ -1149,12 +1194,13 @@ const useMapEventHandlers = (options: {
     currentLocation,
     currentRegion,
     mapRef,
+    cinematicZoomActiveRef,
     dispatch,
     isFollowModeActive,
   });
 
   const onRegionChange = throttle(
-    (region: Region) =>
+    (region: MapRegion) =>
       handleRegionChange({
         region,
         setCurrentRegion,
@@ -1165,10 +1211,16 @@ const useMapEventHandlers = (options: {
     16
   ); // ~60fps
 
-  const onPanDrag = () => handlePanDrag({ mapRef, dispatch });
+  const onPanDrag = () => handlePanDrag({ dispatch });
 
-  const onRegionChangeComplete = (region: Region) =>
-    handleRegionChangeComplete({ region, setCurrentRegion, handleZoomChange, mapRef });
+  const onRegionChangeComplete = (region: MapRegion) =>
+    handleRegionChangeComplete({
+      region,
+      setCurrentRegion,
+      handleZoomChange,
+      mapRef,
+      cinematicZoomActiveRef,
+    });
 
   return {
     centerOnUserLocation,
@@ -1204,17 +1256,18 @@ const getSettingsButtonStyle = (insets: SafeAreaInsets) => ({
 
 // Type definition for MapScreenRenderer props
 interface MapScreenRendererProps {
-  mapRef: React.RefObject<MapView | null>;
+  mapRef: React.RefObject<CameraRef>;
+  cinematicZoomActiveRef: React.MutableRefObject<boolean>;
   currentLocation: GeoPoint | null;
   insets: SafeAreaInsets;
   isMapCenteredOnUser: boolean;
   isFollowModeActive: boolean;
-  onRegionChange: (region: Region) => void;
+  onRegionChange: (region: MapRegion) => void;
   onPanDrag: () => void;
-  onRegionChangeComplete: (region: Region) => void;
+  onRegionChangeComplete: (region: MapRegion) => void;
   centerOnUserLocation: () => void;
   setMapDimensions: (dimensions: { width: number; height: number }) => void;
-  currentFogRegion: (Region & { width: number; height: number }) | undefined;
+  currentFogRegion: (MapRegion & { width: number; height: number }) | undefined;
   handleSettingsPress: () => void;
   canStartCinematicAnimation?: boolean; // Control when cinematic animation can start
   // workletMapRegion?: ReturnType<typeof useWorkletMapRegion>; // Available for future worklet integration
@@ -1267,7 +1320,7 @@ const MapLoadingState = ({
  */
 const calculateAdjustedMarkerCoordinate = (
   currentLocation: GeoPoint | null,
-  currentRegion: Region | undefined,
+  currentRegion: MapRegion | undefined,
   mapDimensions: { width: number; height: number },
   safeAreaInsets?: { top: number; bottom: number; left: number; right: number }
 ): { latitude: number; longitude: number } => {
@@ -1311,16 +1364,18 @@ const MapViewWithMarker = ({
   onPanDrag,
   onRegionChangeComplete,
 }: {
-  mapRef: React.RefObject<MapView | null>;
-  initialRegion: any;
+  mapRef: React.RefObject<CameraRef>;
+  initialRegion: MapRegion;
   currentLocation: GeoPoint | null;
-  currentRegion?: Region | undefined;
+  currentRegion?: MapRegion | undefined;
   mapDimensions: { width: number; height: number };
   safeAreaInsets?: { top: number; bottom: number; left: number; right: number };
-  onRegionChange: (region: Region) => void;
+  onRegionChange: (region: MapRegion) => void;
   onPanDrag: () => void;
-  onRegionChangeComplete: (region: Region) => void;
+  onRegionChangeComplete: (region: MapRegion) => void;
 }) => {
+  const activeSkin = useAppSelector((state) => state.skin.activeSkin);
+  const mapStyle = getSkinStyle(activeSkin);
   const adjustedCoordinate = currentLocation
     ? calculateAdjustedMarkerCoordinate(
         currentLocation,
@@ -1330,32 +1385,59 @@ const MapViewWithMarker = ({
       )
     : null;
 
+  // Convert MapLibre region event payload to our MapRegion type
+  const handleRegionEvent = (feature: GeoJSON.Feature, callback: (region: MapRegion) => void) => {
+    const props = feature.properties as RegionPayload;
+    const coords = (feature.geometry as GeoJSON.Point).coordinates;
+    if (props.visibleBounds && coords) {
+      const [ne, sw] = props.visibleBounds;
+      const lat = coords[1] ?? 0;
+      const lng = coords[0] ?? 0;
+      const neLat = ne?.[1] ?? lat;
+      const neLng = ne?.[0] ?? lng;
+      const swLat = sw?.[1] ?? lat;
+      const swLng = sw?.[0] ?? lng;
+      callback({
+        latitude: lat,
+        longitude: lng,
+        latitudeDelta: Math.abs(neLat - swLat),
+        longitudeDelta: Math.abs(neLng - swLng),
+      });
+    }
+  };
+
   return (
     <MapView
-      ref={mapRef}
       style={styles.map}
-      initialRegion={initialRegion}
-      onRegionChange={onRegionChange}
-      onPanDrag={onPanDrag}
-      onRegionChangeComplete={onRegionChangeComplete}
-      showsUserLocation={false}
-      showsMyLocationButton={false}
+      mapStyle={mapStyle}
       rotateEnabled={false}
       pitchEnabled={false}
-      scrollEnabled={true}
-      zoomEnabled={true}
-      zoomTapEnabled={true}
-      zoomControlEnabled={true}
+      attributionEnabled={false}
+      logoEnabled={false}
+      onRegionIsChanging={(feature) => handleRegionEvent(feature, onRegionChange)}
+      onRegionDidChange={(feature) => {
+        handleRegionEvent(feature, onRegionChangeComplete);
+        // Detect user interaction for pan-drag behavior
+        const props = feature.properties as RegionPayload;
+        if (props.isUserInteraction) {
+          onPanDrag();
+        }
+      }}
     >
+      <Camera
+        ref={mapRef}
+        defaultSettings={{
+          centerCoordinate: [initialRegion.longitude, initialRegion.latitude],
+          zoomLevel: regionToZoomLevel(initialRegion),
+        }}
+      />
       {currentLocation && adjustedCoordinate && (
-        <Marker
-          key={`current-location-marker`}
-          coordinate={adjustedCoordinate}
-          title="Woof!"
+        <MarkerView
+          coordinate={[adjustedCoordinate.longitude, adjustedCoordinate.latitude]}
           anchor={{ x: 0.5, y: 0.5 }}
         >
           <View style={USER_MARKER_STYLE} />
-        </Marker>
+        </MarkerView>
       )}
     </MapView>
   );
@@ -1363,6 +1445,7 @@ const MapViewWithMarker = ({
 
 const MapScreenRenderer = ({
   mapRef,
+  cinematicZoomActiveRef,
   currentLocation,
   insets,
   isMapCenteredOnUser,
@@ -1379,6 +1462,7 @@ const MapScreenRenderer = ({
   // Use the new cinematic zoom hook (must be before early return)
   const { initialRegion } = useCinematicZoom({
     mapRef,
+    cinematicZoomActiveRef,
     currentLocation,
     canStartAnimation: canStartCinematicAnimation,
   });
@@ -1516,8 +1600,8 @@ const processStoredBackgroundLocations = async (
   options: {
     dispatch: ReturnType<typeof useAppDispatch>;
     isMapCenteredOnUser: boolean;
-    currentRegion: Region | undefined;
-    mapRef: React.RefObject<MapView | null>;
+    currentRegion: MapRegion | undefined;
+    mapRef: React.RefObject<CameraRef>;
   }
 ) => {
   const { dispatch, isMapCenteredOnUser, currentRegion, mapRef } = options;
@@ -1546,7 +1630,7 @@ const processStoredBackgroundLocations = async (
       latitudeDelta: currentRegion?.latitudeDelta ?? DEFAULT_ZOOM_DELTAS.latitudeDelta,
       longitudeDelta: currentRegion?.longitudeDelta ?? DEFAULT_ZOOM_DELTAS.longitudeDelta,
     };
-    mapRef.current.animateToRegion(newRegion, 500);
+    animateMapToRegion(mapRef, newRegion, 500);
   }
 };
 
@@ -1554,8 +1638,8 @@ const processStoredBackgroundLocations = async (
 const useAppStateChangeHandler = (
   dispatch: ReturnType<typeof useAppDispatch>,
   isMapCenteredOnUser: boolean,
-  currentRegion: Region | undefined,
-  mapRef: React.RefObject<MapView | null>
+  currentRegion: MapRegion | undefined,
+  mapRef: React.RefObject<CameraRef>
 ) => {
   useEffect(() => {
     const handleAppStateChange = async (nextAppState: string) => {
@@ -1595,9 +1679,10 @@ const refetchLocationAfterClear = async (
   type: ClearType,
   options: {
     dispatch: ReturnType<typeof useAppDispatch>;
-    mapRef: React.RefObject<MapView | null>;
+    mapRef: React.RefObject<CameraRef>;
+    cinematicZoomActiveRef: React.MutableRefObject<boolean>;
     isMapCenteredOnUser: boolean;
-    currentRegion: Region | undefined;
+    currentRegion: MapRegion | undefined;
   }
 ) => {
   logger.info('Re-fetching current location after data clear', {
@@ -1611,6 +1696,7 @@ const refetchLocationAfterClear = async (
     isActiveRef,
     dispatch: options.dispatch,
     mapRef: options.mapRef,
+    cinematicZoomActiveRef: options.cinematicZoomActiveRef,
     isMapCenteredOnUser: options.isMapCenteredOnUser,
     isFollowModeActive: false, // Don't trigger follow mode after data clear
     currentRegion: options.currentRegion,
@@ -1629,9 +1715,10 @@ const createDataClearHandler = (
   },
   config: {
     dispatch: ReturnType<typeof useAppDispatch>;
-    mapRef: React.RefObject<MapView | null>;
+    mapRef: React.RefObject<CameraRef>;
+    cinematicZoomActiveRef: React.MutableRefObject<boolean>;
     isMapCenteredOnUser: boolean;
-    currentRegion: Region | undefined;
+    currentRegion: MapRegion | undefined;
   }
 ) => {
   const { isClearing, setIsClearing, setDataStats, setIsDataClearDialogVisible } = state;
@@ -1674,9 +1761,10 @@ const createDataClearHandler = (
 const useDataClearing = (
   dispatch: ReturnType<typeof useAppDispatch>,
   mapConfig: {
-    mapRef: React.RefObject<MapView | null>;
+    mapRef: React.RefObject<CameraRef>;
+    cinematicZoomActiveRef: React.MutableRefObject<boolean>;
     isMapCenteredOnUser: boolean;
-    currentRegion: Region | undefined;
+    currentRegion: MapRegion | undefined;
   },
   explorationState: any
 ) => {
@@ -1732,7 +1820,7 @@ const useDataClearing = (
 const useFogRegionState = (
   currentLocation: GeoPoint | null,
   mapDimensions: { width: number; height: number },
-  currentRegion: Region | undefined
+  currentRegion: MapRegion | undefined
 ) => {
   // Initialize worklet-based map region for immediate synchronization
   const initialWorkletRegion = useMemo(() => {
@@ -1751,7 +1839,7 @@ const useFogRegionState = (
 
   // Fog region state for OptimizedFogOverlay
   const [currentFogRegion, setCurrentFogRegion] = useState<
-    (Region & { width: number; height: number }) | undefined
+    (MapRegion & { width: number; height: number }) | undefined
   >(undefined);
 
   // Memoized map region with worklet support
@@ -1780,7 +1868,7 @@ const useFogRegionState = (
   }, [initialWorkletRegion, currentFogRegion, memoizedMapRegion]);
 
   // Simple region update for OptimizedFogOverlay synchronization
-  const updateFogRegion = useCallback((region: Region & { width: number; height: number }) => {
+  const updateFogRegion = useCallback((region: MapRegion & { width: number; height: number }) => {
     // Update fog region immediately for synchronization
     setCurrentFogRegion(region);
   }, []);
@@ -1835,8 +1923,9 @@ const useMapScreenState = () => {
       timestamp: Date.now(),
     });
   }, [currentLocation]);
-  const mapRef = useRef<MapView>(null);
-  const [currentRegion, setCurrentRegion] = useState<Region | undefined>(undefined);
+  const mapRef = useRef<CameraRef>(null);
+  const cinematicZoomActiveRef = useRef(false);
+  const [currentRegion, setCurrentRegion] = useState<MapRegion | undefined>(undefined);
   const [mapDimensions, setMapDimensions] = useState({
     width: Dimensions.get('window').width,
     height: Dimensions.get('window').height,
@@ -1851,6 +1940,7 @@ const useMapScreenState = () => {
     isMapCenteredOnUser,
     isFollowModeActive,
     mapRef,
+    cinematicZoomActiveRef,
     currentRegion,
     setCurrentRegion,
     setMapDimensions,
@@ -1862,10 +1952,11 @@ const useMapScreenState = () => {
 
 // Configuration for MapScreen services
 interface MapScreenServicesConfig {
-  mapRef: React.RefObject<MapView | null>;
+  mapRef: React.RefObject<CameraRef>;
+  cinematicZoomActiveRef: React.MutableRefObject<boolean>;
   isMapCenteredOnUser: boolean;
   isFollowModeActive: boolean;
-  currentRegion: Region | undefined;
+  currentRegion: MapRegion | undefined;
   isTrackingPaused: boolean;
   explorationState: any;
 }
@@ -1893,6 +1984,7 @@ const useMapScreenServices = (config: MapScreenServicesFullConfig) => {
 
   const {
     mapRef,
+    cinematicZoomActiveRef,
     isMapCenteredOnUser,
     isFollowModeActive,
     currentRegion,
@@ -1913,6 +2005,7 @@ const useMapScreenServices = (config: MapScreenServicesFullConfig) => {
     dispatch,
     locationConfig: {
       mapRef,
+      cinematicZoomActiveRef,
       isMapCenteredOnUser,
       isFollowModeActive,
       currentRegion,
@@ -1994,23 +2087,24 @@ const useMapScreenReduxState = () => {
 
 // Component for rendering MapScreen UI elements
 const MapScreenUI: React.FC<{
-  mapRef: React.RefObject<MapView | null>;
+  mapRef: React.RefObject<CameraRef>;
   currentLocation: GeoPoint | null;
   insets: any;
   isMapCenteredOnUser: boolean;
   isFollowModeActive: boolean;
-  onRegionChange: (region: Region) => void;
+  onRegionChange: (region: MapRegion) => void;
   onPanDrag: () => void;
-  onRegionChangeComplete: (region: Region) => void;
+  onRegionChangeComplete: (region: MapRegion) => void;
   centerOnUserLocation: () => void;
   setMapDimensions: (dimensions: { width: number; height: number }) => void;
-  currentFogRegion: (Region & { width: number; height: number }) | undefined;
+  currentFogRegion: (MapRegion & { width: number; height: number }) | undefined;
   isClearing: boolean;
   dataStats: DataStats;
   handleClearSelection: (type: ClearType) => Promise<void>;
   handleSettingsPress: () => void;
   isSettingsModalVisible: boolean;
   setIsSettingsModalVisible: (visible: boolean) => void;
+  cinematicZoomActiveRef: React.MutableRefObject<boolean>;
   canStartCinematicAnimation?: boolean; // Control when cinematic animation can start
   gpsInjectionStatus: {
     isRunning: boolean;
@@ -2035,6 +2129,7 @@ const MapScreenUI: React.FC<{
   handleSettingsPress,
   isSettingsModalVisible,
   setIsSettingsModalVisible,
+  cinematicZoomActiveRef,
   canStartCinematicAnimation = true,
   gpsInjectionStatus,
 }) => {
@@ -2042,6 +2137,7 @@ const MapScreenUI: React.FC<{
     <>
       <MapScreenRenderer
         mapRef={mapRef}
+        cinematicZoomActiveRef={cinematicZoomActiveRef}
         currentLocation={currentLocation}
         insets={insets}
         isMapCenteredOnUser={isMapCenteredOnUser}
@@ -2127,6 +2223,7 @@ const useMapScreenServicesAndHandlers = (config: MapScreenServicesHandlersConfig
     mapState.dispatch,
     {
       mapRef: mapState.mapRef,
+      cinematicZoomActiveRef: mapState.cinematicZoomActiveRef,
       isMapCenteredOnUser: mapState.isMapCenteredOnUser,
       currentRegion: mapState.currentRegion,
     },
@@ -2158,6 +2255,7 @@ const useMapScreenServicesAndHandlers = (config: MapScreenServicesHandlersConfig
     dispatch: mapState.dispatch,
     servicesConfig: {
       mapRef: mapState.mapRef,
+      cinematicZoomActiveRef: mapState.cinematicZoomActiveRef,
       isMapCenteredOnUser: mapState.isMapCenteredOnUser,
       isFollowModeActive: mapState.isFollowModeActive,
       currentRegion: mapState.currentRegion,
@@ -2176,6 +2274,7 @@ const useMapScreenServicesAndHandlers = (config: MapScreenServicesHandlersConfig
     isMapCenteredOnUser: mapState.isMapCenteredOnUser,
     isFollowModeActive: mapState.isFollowModeActive,
     mapRef: mapState.mapRef,
+    cinematicZoomActiveRef: mapState.cinematicZoomActiveRef,
     setCurrentRegion: mapState.setCurrentRegion,
     setCurrentFogRegion: mapState.setCurrentFogRegion,
     mapDimensions: mapState.mapDimensions,
@@ -2286,6 +2385,7 @@ const useMapScreenLogic = (
     handleOnboardingSkip: onboarding.handleOnboardingSkip,
     uiProps: {
       mapRef: mapState.mapRef,
+      cinematicZoomActiveRef: mapState.cinematicZoomActiveRef,
       currentLocation: mapState.currentLocation,
       insets: reduxState.insets,
       isMapCenteredOnUser: mapState.isMapCenteredOnUser,

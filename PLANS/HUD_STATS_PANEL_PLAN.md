@@ -300,14 +300,13 @@ interface StatsState {
 - [ ] Integration with existing GPS pipeline works smoothly
 - [ ] Redux state management follows existing patterns
 - [ ] Performance impact is minimal
-- [ ] Code follows project quality standards (SonarQube, ESLint, etc.)
+- [ ] Code follows project quality standards (ESLint, SonarJS rules, etc.)
 
 ### **Quality Gates**
 
 - [ ] All existing tests continue to pass
 - [ ] New code coverage meets 80%+ threshold
 - [ ] No new ESLint warnings in strict mode
-- [ ] SonarQube quality gate passes
 - [ ] Code duplication remains below 3%
 
 ---

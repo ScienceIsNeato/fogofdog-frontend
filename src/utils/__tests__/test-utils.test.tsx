@@ -121,6 +121,12 @@ describe('test-utils', () => {
             lastFetchedAt: null,
             error: null,
           },
+          skin: {
+            activeSkin: 'none' as const,
+            isInitializing: false,
+            availableSkins: [],
+            error: null,
+          },
         })),
         dispatch: jest.fn(),
         subscribe: jest.fn(),

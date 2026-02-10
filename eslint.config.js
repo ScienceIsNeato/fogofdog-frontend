@@ -19,6 +19,7 @@ module.exports = [
       '**/*.d.ts',
       'e2e/**/*',
       '.venv/**/*',
+      'venv/**/*',
       '.git/**/*',
       'build/**/*',
     ],
@@ -28,6 +29,9 @@ module.exports = [
     plugins: {
       sonarjs: require('eslint-plugin-sonarjs'),
       '@typescript-eslint': require('@typescript-eslint/eslint-plugin'),
+    },
+    settings: {
+      'import/core-modules': ['react-native-maps', 'expo-file-system/legacy'],
     },
     languageOptions: {
       parser: require('@typescript-eslint/parser'),
@@ -42,7 +46,7 @@ module.exports = [
     },
     rules: {
       // ===== SONARJS COMPREHENSIVE RULES =====
-      // These mirror SonarQube's JavaScript/TypeScript analyzer
+      // eslint-plugin-sonarjs: cognitive complexity, code smells, bug detection
 
       // Bug Detection
       'sonarjs/no-all-duplicated-branches': 'error',
@@ -79,7 +83,7 @@ module.exports = [
       'sonarjs/prefer-single-boolean-return': 'warn',
       'sonarjs/prefer-while': 'warn',
 
-      // ===== TYPESCRIPT-ESLINT RULES (matching SonarCube detections) =====
+      // ===== TYPESCRIPT-ESLINT RULES =====
       // Optional chain expressions (typescript:S6582) - requires type info
       '@typescript-eslint/prefer-optional-chain': 'warn',
 

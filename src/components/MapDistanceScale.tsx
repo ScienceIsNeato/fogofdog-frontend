@@ -1,11 +1,11 @@
 import React, { useMemo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import type { Region } from 'react-native-maps';
+import type { MapRegion } from '../types/map';
 import { MAP_DISPLAY_CONFIG } from '../constants/mapDisplay';
 import { logger } from '../utils/logger';
 
 interface MapDistanceScaleProps {
-  region: Region;
+  region: MapRegion;
   mapWidth: number;
 }
 
@@ -30,7 +30,7 @@ const SCALE_CONFIGS = [
 ];
 
 // Helper function to calculate appropriate scale for the current zoom level
-const calculateScaleInfo = (region: Region, mapWidth: number) => {
+const calculateScaleInfo = (region: MapRegion, mapWidth: number) => {
   if (!region || !mapWidth || mapWidth === 0) {
     return null;
   }

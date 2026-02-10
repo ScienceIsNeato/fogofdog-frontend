@@ -63,10 +63,13 @@ background_test*.png
 # Coverage reports
 coverage/
 **/coverage/
+.coverage
+coverage.xml
 
-# SonarQube
-.scannerwork/
-**/.scannerwork/
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
 
 # GPS injection runtime files
 current-location.json
@@ -75,6 +78,9 @@ gps-injection.json
 # Deployment tracking files
 .currently_deployed_type
 .deployment_history
+
+# Claude Code
+.claude/
 
 # Cursor IDE specific files
 .cursorignore
