@@ -37,7 +37,7 @@ jobs:
         run: npm ci --legacy-peer-deps
 
       - name: 🧹 Install slop-mop dependencies
-        run: pip install -r slop-mop/requirements.txt --quiet
+        run: python -m pip install -r slop-mop/requirements.txt --quiet
 
       - name: 🧹 Run slop-mop commit profile
         run: python -m slopmop.sm validate commit

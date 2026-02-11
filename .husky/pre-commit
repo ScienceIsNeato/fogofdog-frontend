@@ -22,17 +22,16 @@ fi
 # Uses the ./sm wrapper (gradlew-style) that runs slop-mop directly from the submodule.
 # No global pip install needed — the submodule is self-contained.
 #
-# If ./sm is missing, run setup first:
+# If the venv is missing, run setup first:
 #   ./slop-mop/scripts/setup.sh
 #
-# The "commit" profile includes all configured gates. Disabled gates
-# (via .sb_config.json or ./sm config --disable) are automatically skipped.
+# The "commit" profile includes all configured gates (lint-format, types,
+# tests, coverage, deploy-tests, etc). Disabled gates are automatically skipped.
 # Commit is blocked if any enabled gate fails.
 
-if [ ! -f "./sm" ]; then
-  echo "❌ ./sm wrapper not found. Run: ./slop-mop/scripts/setup.sh"
+if [ ! -d "./venv" ] && [ ! -d "./.venv" ]; then
+  echo "❌ Python venv not found. Run: ./slop-mop/scripts/setup.sh"
   exit 1
 fi
 
 ./sm validate commit
-./sm validate --quality-gates javascript:types,general:deploy-tests
