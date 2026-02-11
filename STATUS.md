@@ -1,6 +1,52 @@
 # FogOfDog Frontend Status
 
-## Current Status: 🔧 PR Review Fixes — CI & Code Review Comments
+## Current Status: 🚧 Graphics Layer — PR Open, Simulator Build Blocked
+
+### 🎯 **LATEST: Graphics Layer Feature + Simulator Deploy Blocked**
+
+**Branch**: `feat/graphics-layer`
+**PR**: #61 (https://github.com/ScienceIsNeato/fogofdog-frontend/pull/61) → `main`
+**All JS quality gates**: ✅ 1078 tests, 82 suites, all 10 slop-mop gates green
+
+#### What was completed this session
+
+- Full graphics/effects layer implemented and committed (see PR #61 and `SLOP_MOP_FINDINGS.md`)
+- `deploy_app.sh --device ios --mode development --data fresh-install` was attempted
+
+#### Simulator build is blocked by two issues that need fixing
+
+**Issue 1 — FIXED: Missing `$MLRN.post_install(installer)` in `ios/Podfile`** (already committed)
+
+`ios/Podfile` was missing the MapLibre post-install hook that registers the SPM package
+reference in the Pods project. `model_a/ios/Podfile` has it at line 64; `model_b` did not.
+Fix has been applied and `pod install` re-run — `MapLibre` SPM ref is now in `Pods.xcodeproj`.
+
+**Issue 2 — OPEN: `ExpoAppDelegate` not in scope when compiling `expo-file-system`**
+
+```
+node_modules/expo-file-system/ios/FileSystemModule.swift:10:84:
+  error: cannot find 'ExpoAppDelegate' in scope
+```
+
+`FileSystemModule.swift` calls `ExpoAppDelegate.getSubscriberOfType(...)` but only imports
+`ExpoModulesCore`. `ExpoAppDelegate` is defined in `node_modules/expo/ios/AppDelegates/ExpoAppDelegate.swift`
+(part of the `Expo` pod, not `ExpoModulesCore`). The Swift compiler can't find it because the
+`Expo` module isn't imported in that file and its module may not be built before `ExpoFileSystem`.
+
+**Suggested next steps for Issue 2:**
+1. Check if model_a builds successfully with the same dependencies — if yes, compare
+   workspace/xcodeproj settings between model_a and model_b.
+2. Try `pod install --clean-install` (full Pods reset) to rule out stale module map.
+3. Check whether `expo-file-system`'s version in `package.json` is compatible with the
+   `expo` version — the `getSubscriberOfType` API may have moved modules between versions.
+4. If the `expo` pod's Swift module needs to be explicitly visible to `ExpoFileSystem`,
+   adding `pod 'Expo'` as an explicit dependency in the Podfile may resolve the search path.
+5. Last resort: patch `FileSystemModule.swift` in `node_modules` to add `import Expo`
+   and use `patch-package` to make it persistent.
+
+---
+
+## Previous Status: 🔧 PR Review Fixes — CI & Code Review Comments
 
 ### 🎯 **LATEST: Addressing PR Review Comments**
 
