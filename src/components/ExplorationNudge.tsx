@@ -33,6 +33,9 @@ export const ExplorationNudge: React.FC = () => {
   const segments = useAppSelector((s) => s.street.segments);
   const intersections = useAppSelector((s) => s.street.intersections);
   const exploredSegmentIds = useAppSelector((s) => s.street.exploredSegmentIds);
+  // When the ScentTrail is visible it serves as the graphical replacement for this card.
+  // Keep the exploration-marking effect running but suppress the UI.
+  const isScentVisible = useAppSelector((s) => s.graphics.isScentVisible);
 
   const segmentArray = useMemo(() => Object.values(segments), [segments]);
   const intersectionArray = useMemo(() => Object.values(intersections), [intersections]);
@@ -64,7 +67,7 @@ export const ExplorationNudge: React.FC = () => {
     return results[0] ?? null;
   }, [currentLocation, segmentArray, exploredSegmentIds, hasStreets]);
 
-  if (!nearest) return null;
+  if (!nearest || isScentVisible) return null;
 
   const arrow = DIRECTION_ARROWS[nearest.direction] ?? '→';
   const distanceText =

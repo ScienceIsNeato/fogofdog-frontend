@@ -23,13 +23,7 @@ import {
   setFollowMode,
   processBackgroundLocations,
 } from '../../store/slices/explorationSlice';
-import {
-  processGeoPoint,
-  initializeFromHistory,
-  setLoading,
-  recalculateArea,
-} from '../../store/slices/statsSlice';
-import { StatsPersistenceService } from '../../services/StatsPersistenceService';
+import { processGeoPoint, recalculateArea } from '../../store/slices/statsSlice';
 import {
   MapView,
   Camera,
@@ -42,7 +36,11 @@ import { regionToZoomLevel } from '../../types/map';
 import { getSkinStyle } from '../../services/SkinStyleService';
 import * as Location from 'expo-location';
 import * as TaskManager from 'expo-task-manager';
-import OptimizedFogOverlay from '../../components/OptimizedFogOverlay';
+import {
+  FogOverlayConnected,
+  MapEffectOverlayConnected,
+  ScentTrailConnected,
+} from './graphicsConnectors';
 import LocationButton from '../../components/LocationButton';
 
 import { PermissionAlert } from '../../components/PermissionAlert';
@@ -60,6 +58,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { logger } from '../../utils/logger';
 import { useCinematicZoom } from './hooks/useCinematicZoom';
 import { useMapScreenOnboarding } from './hooks/useMapScreenOnboarding';
+import { useStatsInitialization } from './hooks/useStatsInitialization';
 
 import { GPSInjectionService } from '../../services/GPSInjectionService';
 import { BackgroundLocationService } from '../../services/BackgroundLocationService';
@@ -1496,9 +1495,23 @@ const MapScreenRenderer = ({
         onRegionChangeComplete={onRegionChangeComplete}
       />
 
+      {/* Map effect overlay — between map tiles and fog layer */}
+      {currentFogRegion && !isAcquiringGPS && (
+        <MapEffectOverlayConnected
+          fogRegion={currentFogRegion}
+          safeAreaInsets={insets}
+          currentLocation={currentLocation}
+        />
+      )}
+
       {/* Fog overlay only when we have a real location */}
       {currentFogRegion && !isAcquiringGPS && (
-        <OptimizedFogOverlay mapRegion={currentFogRegion} safeAreaInsets={insets} />
+        <FogOverlayConnected mapRegion={currentFogRegion} safeAreaInsets={insets} />
+      )}
+
+      {/* Scent trail — drawn on top of fog, points toward nearest unexplored street */}
+      {currentFogRegion && !isAcquiringGPS && (
+        <ScentTrailConnected fogRegion={currentFogRegion} safeAreaInsets={insets} />
       )}
 
       {/* Distance scale legend */}
@@ -2284,82 +2297,6 @@ const useMapScreenServicesAndHandlers = (config: MapScreenServicesHandlersConfig
   });
 
   return { dataClearing, navigation, eventHandlers };
-};
-
-// Custom hook for stats initialization and persistence
-const useStatsInitialization = () => {
-  const dispatch = useAppDispatch();
-  const totalStats = useAppSelector((state) => state.stats.total);
-  const explorationState = useAppSelector((state) => state.exploration);
-  const isSessionActive = useAppSelector(
-    (state) => state.stats.currentSession && !state.stats.currentSession.endTime
-  );
-
-  // Initialize stats system
-  useEffect(() => {
-    const initializeStats = async () => {
-      try {
-        dispatch(setLoading(true));
-
-        // Load all GPS history from exploration state and initialize stats from it
-        const explorationState = await AuthPersistenceService.getExplorationState();
-        const gpsHistory = explorationState?.path ?? [];
-        dispatch(initializeFromHistory({ gpsHistory }));
-
-        logger.info('Initialized stats from GPS history', {
-          component: 'MapScreen',
-          action: 'initializeStats',
-          historyLength: gpsHistory.length,
-        });
-      } catch (error) {
-        logger.error('Failed to initialize stats system', {
-          component: 'MapScreen',
-          action: 'initializeStats',
-          errorMessage: error instanceof Error ? error.message : 'Unknown error',
-        });
-        dispatch(setLoading(false));
-      }
-    };
-
-    initializeStats();
-  }, [dispatch]);
-
-  // Periodically recalculate area from current GPS path during active sessions
-  useEffect(() => {
-    if (!isSessionActive || explorationState.path.length < 3) {
-      return; // Need active session and at least 3 points for area calculation
-    }
-
-    const recalculateAreaPeriodically = () => {
-      // Convert GeoPoint[] to serializable GPS data for area calculation
-      const serializableGPSData = explorationState.path.map((point) => ({
-        latitude: point.latitude,
-        longitude: point.longitude,
-        timestamp: point.timestamp || Date.now(),
-      }));
-
-      dispatch(recalculateArea(serializableGPSData));
-
-      logger.trace('Triggered periodic area recalculation', {
-        component: 'MapScreen',
-        action: 'recalculateAreaPeriodically',
-        pathLength: explorationState.path.length,
-      });
-    };
-
-    // Recalculate area every 30 seconds during active sessions
-    const areaRecalcInterval = setInterval(recalculateAreaPeriodically, 30000);
-
-    return () => clearInterval(areaRecalcInterval);
-  }, [dispatch, isSessionActive, explorationState.path]);
-
-  // Save stats periodically
-  useEffect(() => {
-    // Only save if we have meaningful stats data
-    if (totalStats.distance > 0 || totalStats.area > 0 || totalStats.time > 0) {
-      StatsPersistenceService.saveStats(totalStats);
-    }
-  }, [totalStats]);
 };
 
 // Custom hook that combines all map screen logic

@@ -1,8 +1,15 @@
 import React, { useMemo, useEffect, useRef, useState, useCallback } from 'react';
-import { Skia, Canvas, Path, Fill, Mask, Rect, Group } from '@shopify/react-native-skia';
+import { Skia, Canvas, Path, Fill, Mask, Rect, Group, BlurMask } from '@shopify/react-native-skia';
 import type { SkPath } from '@shopify/react-native-skia';
 import { StyleSheet, View } from 'react-native';
 import { useSelector } from 'react-redux';
+import {
+  useSharedValue,
+  withRepeat,
+  withTiming,
+  Easing,
+  useDerivedValue,
+} from 'react-native-reanimated';
 import type { RootState } from '../store';
 import { calculateMetersPerPixel, geoPointToPixel } from '../utils/mapUtils';
 import { logger } from '../utils/logger';
@@ -11,6 +18,7 @@ import { FOG_CONFIG } from '../config/fogConfig';
 import { GPSConnectionService } from '../services/GPSConnectionService';
 import { PathSimplificationService } from '../utils/pathSimplification';
 import { GeoPoint } from '../types/user';
+import type { FogRenderConfig } from '../types/graphics';
 
 /**
  * CRITICAL: Custom hook to manage Skia path lifecycle (React 19 safe)
@@ -116,6 +124,11 @@ const useManagedSkiaPath = (createPath: () => SkPath, deps: React.DependencyList
 interface OptimizedFogOverlayProps {
   mapRegion: MapRegion & { width: number; height: number };
   safeAreaInsets?: { top: number; bottom: number; left: number; right: number };
+  /**
+   * Active fog effect render config from GraphicsService.
+   * Omitting this prop preserves the original "classic" behaviour (zero overhead).
+   */
+  fogEffectConfig?: FogRenderConfig;
 }
 
 // Performance constants
@@ -351,6 +364,10 @@ const createBatchedCirclePath = (
  * panOffset: GPU translate applied during panning to avoid recomputing
  * pixel coordinates/Skia paths on every frame. Only the transform matrix
  * changes — Skia reuses compiled paths.
+ *
+ * fogEffectConfig: optional graphics-layer config that modifies rendering:
+ *   - edgeBlurSigma > 0 → BlurMaskFilter on circles for soft vignette edges
+ *   - animationType 'pulse' → Reanimated-driven strokeWidth oscillation
  */
 const OptimizedFogMask: React.FC<{
   pixelCoordinates: { point: GeoPoint; pixel: { x: number; y: number } }[];
@@ -358,13 +375,39 @@ const OptimizedFogMask: React.FC<{
   skiaPath: SkPath;
   strokeWidth: number;
   panOffset: { x: number; y: number };
-}> = ({ pixelCoordinates, radiusPixels, skiaPath, strokeWidth, panOffset }) => {
-  // Create batched circle path for better performance
+  fogEffectConfig?: FogRenderConfig;
+}> = ({ pixelCoordinates, radiusPixels, skiaPath, strokeWidth, panOffset, fogEffectConfig }) => {
+  // ── Pulse animation setup (UI-thread, zero JS overhead) ──────────────────
+  const isPulse = fogEffectConfig?.animationType === 'pulse';
+  const pulseAmplitude = fogEffectConfig?.animationAmplitude ?? 0;
+  const pulseDuration = fogEffectConfig?.animationDuration ?? 2400;
+
+  const pulseProgress = useSharedValue(0);
+  useEffect(() => {
+    if (isPulse) {
+      pulseProgress.value = withRepeat(
+        withTiming(1, { duration: pulseDuration, easing: Easing.inOut(Easing.sin) }),
+        -1,
+        true
+      );
+    } else {
+      pulseProgress.value = 0;
+    }
+  }, [isPulse, pulseDuration, pulseProgress]);
+
+  const animatedStrokeWidth = useDerivedValue(
+    () => strokeWidth * (1 + pulseProgress.value * pulseAmplitude),
+    []
+  );
+
+  // ── Batched circle path — recomputed when coordinates or radius change ───
   // CRITICAL: Use managed hook to properly dispose native Skia memory
   const batchedCirclePath = useManagedSkiaPath(
     () => createBatchedCirclePath(pixelCoordinates, radiusPixels),
     [pixelCoordinates, radiusPixels]
   );
+
+  const edgeBlurSigma = fogEffectConfig?.edgeBlurSigma ?? 0;
 
   return (
     <Group>
@@ -374,7 +417,9 @@ const OptimizedFogMask: React.FC<{
       {/* Fog holes translated to current pan position — GPU transform only */}
       <Group transform={[{ translateX: panOffset.x }, { translateY: panOffset.y }]}>
         {/* Batch render all circles in a single path - much faster */}
-        <Path path={batchedCirclePath} color={FOG_CONFIG.PATH_COLOR} style="fill" />
+        <Path path={batchedCirclePath} color={FOG_CONFIG.PATH_COLOR} style="fill">
+          {edgeBlurSigma > 0 && <BlurMask blur={edgeBlurSigma} style="inner" respectCTM={false} />}
+        </Path>
 
         {/* Draw the connecting path */}
         {pixelCoordinates.length > 1 && (
@@ -382,7 +427,7 @@ const OptimizedFogMask: React.FC<{
             path={skiaPath}
             color={FOG_CONFIG.PATH_COLOR}
             style="stroke"
-            strokeWidth={strokeWidth}
+            strokeWidth={isPulse ? animatedStrokeWidth : strokeWidth}
             strokeCap="round"
             strokeJoin="round"
           />
@@ -405,7 +450,11 @@ const OptimizedFogMask: React.FC<{
  *
  * This transforms panning from O(n) per frame → O(1) GPU matrix transform.
  */
-const OptimizedFogOverlay: React.FC<OptimizedFogOverlayProps> = ({ mapRegion, safeAreaInsets }) => {
+const OptimizedFogOverlay: React.FC<OptimizedFogOverlayProps> = ({
+  mapRegion,
+  safeAreaInsets,
+  fogEffectConfig,
+}) => {
   // --- Stable "compute region": only updates when fog needs full recomputation ---
   const computeRegionRef = useRef(mapRegion);
   const [computeRegion, setComputeRegion] = useState(mapRegion);
@@ -466,6 +515,30 @@ const OptimizedFogOverlay: React.FC<OptimizedFogOverlayProps> = ({ mapRegion, sa
   const { originalPointCount, finalPoints, pixelCoordinates, skiaPath, radiusPixels, strokeWidth } =
     useOptimizedFogCalculations(computeRegion, safeAreaInsets);
 
+  // ── Tint-cycle animation for 'haunted' effect ─────────────────────────────
+  const isTintCycle = fogEffectConfig?.animationType === 'tint-cycle';
+  const tintDuration = fogEffectConfig?.animationDuration ?? 4000;
+  const tintAmplitude = fogEffectConfig?.animationAmplitude ?? 0;
+  const baseTintOpacity = fogEffectConfig?.tintOpacity ?? 0;
+
+  const tintProgress = useSharedValue(0);
+  useEffect(() => {
+    if (isTintCycle) {
+      tintProgress.value = withRepeat(
+        withTiming(1, { duration: tintDuration, easing: Easing.inOut(Easing.sin) }),
+        -1,
+        true
+      );
+    } else {
+      tintProgress.value = 0;
+    }
+  }, [isTintCycle, tintDuration, tintProgress]);
+
+  const animatedTintOpacity = useDerivedValue(
+    () => baseTintOpacity + tintProgress.value * tintAmplitude,
+    []
+  );
+
   // Performance logging
   useEffect(() => {
     logger.throttledDebug(
@@ -489,6 +562,11 @@ const OptimizedFogOverlay: React.FC<OptimizedFogOverlayProps> = ({ mapRegion, sa
     return null;
   }
 
+  // Effective fog color: use effect config when provided, else FOG_CONFIG default
+  const fogColor = fogEffectConfig?.fogColor ?? FOG_CONFIG.COLOR;
+  const fogOpacity = fogEffectConfig?.fogOpacity ?? FOG_CONFIG.OPACITY;
+  const tintColor = fogEffectConfig?.tintColor;
+
   return (
     <View style={styles.canvasWrapper} pointerEvents="none">
       <Canvas style={styles.canvas} testID="optimized-fog-overlay-canvas">
@@ -501,6 +579,7 @@ const OptimizedFogOverlay: React.FC<OptimizedFogOverlayProps> = ({ mapRegion, sa
               skiaPath={skiaPath}
               strokeWidth={strokeWidth}
               panOffset={panOffset}
+              {...(fogEffectConfig !== undefined ? { fogEffectConfig } : {})}
             />
           }
         >
@@ -510,9 +589,22 @@ const OptimizedFogOverlay: React.FC<OptimizedFogOverlayProps> = ({ mapRegion, sa
             y={0}
             width={mapRegion.width}
             height={mapRegion.height}
-            color={FOG_CONFIG.COLOR}
+            color={fogColor}
+            opacity={fogOpacity}
           />
         </Mask>
+
+        {/* Optional tint overlay for effects like 'haunted' */}
+        {tintColor && (
+          <Rect
+            x={0}
+            y={0}
+            width={mapRegion.width}
+            height={mapRegion.height}
+            color={tintColor}
+            opacity={isTintCycle ? animatedTintOpacity : (fogEffectConfig?.tintOpacity ?? 0)}
+          />
+        )}
       </Canvas>
     </View>
   );

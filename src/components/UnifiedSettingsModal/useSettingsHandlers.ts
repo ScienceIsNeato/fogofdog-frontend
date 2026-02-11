@@ -2,7 +2,7 @@ import { Alert } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { logger } from '../../utils/logger';
 
-type SettingsView = 'main' | 'history' | 'developer' | 'skin';
+type SettingsView = 'main' | 'history' | 'developer' | 'skin' | 'effects';
 
 export const useSettingsHandlers = (
   onClose: () => void,
@@ -51,6 +51,15 @@ export const useSettingsHandlers = (
     setCurrentView('skin');
   };
 
+  const handleVisualEffects = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    logger.info('Navigating to visual effects submenu', {
+      component: 'UnifiedSettingsModal',
+      action: 'handleVisualEffects',
+    });
+    setCurrentView('effects');
+  };
+
   return {
     handleClose,
     handleBackToMain,
@@ -58,5 +67,6 @@ export const useSettingsHandlers = (
     handleHistoryManagement,
     handleDeveloperSettings,
     handleMapStyle,
+    handleVisualEffects,
   };
 };

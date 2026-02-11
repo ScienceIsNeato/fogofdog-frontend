@@ -8,6 +8,7 @@ import userSlice from '../../../store/slices/userSlice';
 import statsSlice from '../../../store/slices/statsSlice';
 import streetSlice from '../../../store/slices/streetSlice';
 import skinReducer from '../../../store/slices/skinSlice';
+import graphicsReducer from '../../../store/slices/graphicsSlice';
 import { BackgroundLocationService } from '../../../services/BackgroundLocationService';
 import * as Location from 'expo-location';
 
@@ -59,6 +60,7 @@ describe('MapScreen - Background Location Integration', () => {
         stats: statsSlice,
         street: streetSlice,
         skin: skinReducer,
+        graphics: graphicsReducer,
       },
     });
 

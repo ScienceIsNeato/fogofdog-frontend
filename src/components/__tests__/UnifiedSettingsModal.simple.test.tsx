@@ -315,6 +315,47 @@ describe('UnifiedSettingsModal - Core Functionality', () => {
     });
   });
 
+  describe('Navigation to Visual Effects View', () => {
+    it('navigates to visual effects view when Visual Effects is pressed', async () => {
+      const { getByTestId, queryByText } = renderWithProviders(
+        <UnifiedSettingsModal {...defaultProps} />
+      );
+
+      const effectsButton = getByTestId('visual-effects-button');
+      await act(async () => {
+        fireEvent.press(effectsButton);
+      });
+
+      // Should show the Visual Effects settings view
+      expect(queryByText('Visual Effects')).toBeTruthy();
+      // Should hide the main settings view
+      expect(queryByText('Settings')).toBeNull();
+    });
+
+    it('navigates back to main view from visual effects view', async () => {
+      const { getByTestId, queryByText } = renderWithProviders(
+        <UnifiedSettingsModal {...defaultProps} />
+      );
+
+      // Navigate to visual effects
+      await act(async () => {
+        fireEvent.press(getByTestId('visual-effects-button'));
+      });
+
+      expect(queryByText('Visual Effects')).toBeTruthy();
+
+      // Press back button
+      await act(async () => {
+        fireEvent.press(getByTestId('effects-back-button'));
+      });
+
+      // Should return to main view
+      expect(queryByText('Settings')).toBeTruthy();
+      // Section headers unique to SettingsEffectsView are gone
+      expect(queryByText('Fog Effects')).toBeNull();
+    });
+  });
+
   describe('Edge Cases', () => {
     it('displays "No data" when oldest date is null', async () => {
       const propsWithNoDate = {

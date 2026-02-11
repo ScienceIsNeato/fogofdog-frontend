@@ -31,12 +31,16 @@ export const Fill = (props: any) =>
   React.createElement(View, { ...props, testID: props.testID || 'mock-skia-fill' });
 export const Circle = (props: any) =>
   React.createElement(View, { ...props, testID: props.testID || 'mock-skia-circle' });
-export const Mask = (props: any) =>
-  React.createElement(View, { ...props, testID: props.testID || 'mock-skia-mask' });
+export const Mask = ({ mask, children, testID, ...rest }: any) =>
+  React.createElement(View, { ...rest, testID: testID || 'mock-skia-mask' }, mask, children);
 export const Rect = (props: any) =>
   React.createElement(View, { ...props, testID: props.testID || 'mock-skia-rect' });
 export const Group = (props: any) =>
   React.createElement(View, { ...props, testID: props.testID || 'mock-skia-group' });
+export const BlurMask = (props: any) =>
+  React.createElement(View, { ...props, testID: props.testID || 'mock-skia-blur-mask' });
+export const Paint = (props: any) =>
+  React.createElement(View, { ...props, testID: props.testID || 'mock-skia-paint' });
 
 export const useSharedValueEffect = jest.fn();
 export const useDerivedValue = jest.fn();
