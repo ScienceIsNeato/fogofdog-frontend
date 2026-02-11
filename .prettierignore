@@ -3,6 +3,10 @@ node_modules/
 venv/
 .venv/
 
+# Python cache
+.mypy_cache/
+__pycache__/
+
 # Build outputs
 dist/
 build/

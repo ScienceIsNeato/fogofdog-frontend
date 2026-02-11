@@ -50,7 +50,8 @@
       "lint-format": {
         "enabled": true,
         "auto_fix": true,
-        "config_file_path": null
+        "config_file_path": null,
+        "npm_install_flags": ["--legacy-peer-deps"]
       },
       "types": {
         "enabled": true,
