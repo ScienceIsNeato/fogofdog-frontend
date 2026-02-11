@@ -103,6 +103,7 @@
 **Test Strategy**:
 
 1. **Foreground Baseline Sequence**:
+
    - Fresh app launch with clearState
    - Login to map screen
    - Inject GPS coordinate sequence while app is in foreground
@@ -111,6 +112,7 @@
    - Logout/reset app data
 
 2. **Background Validation Sequence**:
+
    - Fresh app launch with clearState
    - Login to map screen
    - Inject same GPS coordinate sequence with phone lock simulation

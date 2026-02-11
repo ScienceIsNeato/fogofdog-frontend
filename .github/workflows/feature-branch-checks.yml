@@ -19,6 +19,7 @@ jobs:
       - name: 📥 Checkout
         uses: actions/checkout@v4
         with:
+          fetch-depth: 0
           submodules: true
 
       - name: 📦 Setup Node.js
@@ -27,20 +28,26 @@ jobs:
           node-version: '20'
           cache: 'npm'
 
-      - name: ⚡ Install dependencies
+      - name: 🐍 Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: ⚡ Install Node dependencies
         run: npm ci --legacy-peer-deps
 
-      - name: 🧹 Install slop-mop
-        run: pip3 install -e ./slop-mop --break-system-packages --quiet
+      - name: 🧹 Install slop-mop dependencies
+        run: python -m pip install -r slop-mop/requirements.txt --quiet
 
-      - name: 🎯 Run slop-mop JavaScript Quality Gates
-        run: sm validate javascript
+      - name: 🧹 Run slop-mop commit profile
+        run: python -m slopmop.sm validate commit
+        env:
+          PYTHONPATH: slop-mop
 
-      - name: 🎯 Run slop-mop Duplication Gate
-        run: sm validate --quality-gates quality:duplication
-
-      - name: 🏗️ TypeScript Type Check
-        run: npm run type-check
+      - name: 🏗️ TypeScript types + deploy tests
+        run: python -m slopmop.sm validate --quality-gates javascript:types,general:deploy-tests
+        env:
+          PYTHONPATH: slop-mop
 
       - name: 📊 Upload Quality Reports
         if: always() # Upload even if checks fail

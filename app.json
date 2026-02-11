@@ -20,9 +20,7 @@
       "infoPlist": {
         "NSLocationAlwaysAndWhenInUseUsageDescription": "FogOfDog needs location access to track your exploration progress even when the app is in the background, allowing you to discover new areas while walking, running, or cycling with your phone in your pocket.",
         "NSLocationWhenInUseUsageDescription": "FogOfDog needs location access to track your exploration progress and show your current position on the map.",
-        "UIBackgroundModes": [
-          "location"
-        ]
+        "UIBackgroundModes": ["location"]
       },
       "buildNumber": "8"
     },

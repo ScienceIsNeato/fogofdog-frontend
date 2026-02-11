@@ -19,17 +19,19 @@ elif [ -f .env ]; then
 fi
 
 # slop-mop quality gate
-# Runs the "commit" profile which includes:
-# - javascript:lint-format  (ESLint + Prettier)
-# - javascript:types        (TypeScript strict check)
-# - javascript:tests        (Jest unit tests)
-# - javascript:coverage     (Coverage threshold)
-# - general:deploy-tests    (deploy_app.sh tests)
-# Commit is blocked if any gate fails.
-# Disabled gates (via .sb_config.json or sm config --disable) are automatically skipped.
-if ! command -v sm >/dev/null 2>&1; then
-  pip3 install -e ./slop-mop --break-system-packages --quiet 2>/dev/null || \
-  pip install -e ./slop-mop --break-system-packages --quiet 2>/dev/null
+# Uses the ./sm wrapper (gradlew-style) that runs slop-mop directly from the submodule.
+# No global pip install needed — the submodule is self-contained.
+#
+# If the venv is missing, run setup first:
+#   ./slop-mop/scripts/setup.sh
+#
+# The "commit" profile includes all configured gates (lint-format, types,
+# tests, coverage, deploy-tests, etc). Disabled gates are automatically skipped.
+# Commit is blocked if any enabled gate fails.
+
+if [ ! -d "./venv" ] && [ ! -d "./.venv" ]; then
+  echo "❌ Python venv not found. Run: ./slop-mop/scripts/setup.sh"
+  exit 1
 fi
 
-sm validate commit
+./sm validate commit

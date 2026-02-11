@@ -1063,9 +1063,6 @@ function handleRegionChange({
 }: {
   region: MapRegion;
   setCurrentRegion: (region: MapRegion) => void;
-  setCurrentFogRegion: (
-    region: (MapRegion & { width: number; height: number }) | undefined
-  ) => void;
   mapDimensions: { width: number; height: number };
   workletUpdateRegion: (region: MapRegion & { width: number; height: number }) => void;
 }) {
@@ -1155,9 +1152,6 @@ const useMapEventHandlers = (options: {
   mapRef: React.RefObject<CameraRef | null>;
   cinematicZoomActiveRef: React.MutableRefObject<boolean>;
   setCurrentRegion: (region: MapRegion) => void;
-  setCurrentFogRegion: (
-    region: (MapRegion & { width: number; height: number }) | undefined
-  ) => void;
   mapDimensions: { width: number; height: number };
   workletUpdateRegion: (region: MapRegion & { width: number; height: number }) => void;
 }) => {
