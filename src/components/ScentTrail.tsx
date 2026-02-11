@@ -78,6 +78,46 @@ function makeChevronPath(halfSize: number): string {
 
 // ─── Animated overlay: flowing particles ──────────────────────────────────────
 
+/** Single animated particle — extracted so hooks are at component scope. */
+interface FlowingParticleProps {
+  index: number;
+  particleCount: number;
+  offset: { value: number }; // SharedValue
+  from: { x: number; y: number };
+  dx: number;
+  dy: number;
+  radius: number;
+  color: string;
+}
+
+const FlowingParticle: React.FC<FlowingParticleProps> = ({
+  index,
+  particleCount,
+  offset,
+  from,
+  dx,
+  dy,
+  radius,
+  color,
+}) => {
+  const transform = useDerivedValue(() => {
+    const t = (index / particleCount + offset.value) % 1;
+    return [{ translateX: from.x + dx * t }, { translateY: from.y + dy * t }];
+  });
+
+  const opacity = useDerivedValue(() => {
+    const t = (index / particleCount + offset.value) % 1;
+    // Full opacity mid-trail, fade near start and end
+    return Math.sin(t * Math.PI);
+  });
+
+  return (
+    <Group transform={transform}>
+      <Circle cx={0} cy={0} r={radius} color={color} opacity={opacity} />
+    </Group>
+  );
+};
+
 interface FlowingParticlesProps {
   from: { x: number; y: number };
   to: { x: number; y: number };
@@ -105,45 +145,38 @@ const FlowingParticles: React.FC<FlowingParticlesProps> = ({
   const dy = to.y - from.y;
   const radius = trailWidth * 1.2;
 
-  // Build per-particle animated transforms
-  const particles = Array.from({ length: particleCount }, (_, i) => {
-    // eslint-disable-next-line react-hooks/rules-of-hooks
-    const transform = useDerivedValue(() => {
-      const t = (i / particleCount + offset.value) % 1;
-      return [{ translateX: from.x + dx * t }, { translateY: from.y + dy * t }];
-    }, []);
+  // Memoize guide line path — prevents native Skia path allocation every render
+  const guidePath = useMemo(() => {
+    const p = Skia.Path.Make();
+    p.moveTo(from.x, from.y);
+    p.lineTo(to.x, to.y);
+    return p;
+  }, [from.x, from.y, to.x, to.y]);
 
-    // Fade out particles near the endpoint for a dissolve effect
-    // eslint-disable-next-line react-hooks/rules-of-hooks
-    const opacity = useDerivedValue(() => {
-      const t = (i / particleCount + offset.value) % 1;
-      // Full opacity mid-trail, fade near start and end
-      return Math.sin(t * Math.PI);
-    }, []);
-
-    return { transform, opacity, key: i };
-  });
+  // Dispose previous guide paths when deps change or on unmount
+  useEffect(() => {
+    return () => {
+      guidePath.dispose();
+    };
+  }, [guidePath]);
 
   return (
     <>
-      {particles.map(({ transform, opacity, key }) => (
-        <Group key={key} transform={transform}>
-          <Circle cx={0} cy={0} r={radius} color={color} opacity={opacity} />
-        </Group>
+      {Array.from({ length: particleCount }, (_, i) => (
+        <FlowingParticle
+          key={i}
+          index={i}
+          particleCount={particleCount}
+          offset={offset}
+          from={from}
+          dx={dx}
+          dy={dy}
+          radius={radius}
+          color={color}
+        />
       ))}
       {/* Faint guide line */}
-      <Path
-        path={(() => {
-          const p = Skia.Path.Make();
-          p.moveTo(from.x, from.y);
-          p.lineTo(to.x, to.y);
-          return p;
-        })()}
-        color={color}
-        style="stroke"
-        strokeWidth={0.5}
-        opacity={0.25}
-      />
+      <Path path={guidePath} color={color} style="stroke" strokeWidth={0.5} opacity={0.25} />
     </>
   );
 };
@@ -170,8 +203,8 @@ const PulseRing: React.FC<PulseRingProps> = ({ cx, cy, color, phase, duration, m
     );
   }, [duration, phase, progress]);
 
-  const radius = useDerivedValue(() => (progress.value % 1) * maxRadius, []);
-  const opacity = useDerivedValue(() => 1 - (progress.value % 1), []);
+  const radius = useDerivedValue(() => (progress.value % 1) * maxRadius, [maxRadius]);
+  const opacity = useDerivedValue(() => 1 - (progress.value % 1));
 
   return (
     <Circle
@@ -254,6 +287,20 @@ const ScentTrailCanvas: React.FC<ScentTrailCanvasProps> = ({
     particleCount,
   } = config;
   const canvasStyle = { width, height };
+
+  // Memoize parsed chevron SkPath — avoids re-parsing SVG string per arrow per render.
+  // Called unconditionally (Rules of Hooks) but only used in the 'arrows' branch.
+  const chevronSkPath = useMemo(() => {
+    return Skia.Path.MakeFromSVGString(makeChevronPath(ARROW_HALF)) ?? Skia.Path.Make();
+  }, []);
+
+  // Dispose chevron SkPath on unmount to free native Skia memory
+  useEffect(() => {
+    return () => {
+      chevronSkPath.dispose();
+    };
+  }, [chevronSkPath]);
+
   if (animationType === 'flow') {
     return (
       <View style={styles.container} pointerEvents="none">
@@ -300,7 +347,6 @@ const ScentTrailCanvas: React.FC<ScentTrailCanvasProps> = ({
     );
   }
   if (trailStyle === 'arrows') {
-    const chevronPath = makeChevronPath(ARROW_HALF);
     return (
       <View style={styles.container} pointerEvents="none">
         <Canvas style={canvasStyle} testID="scent-trail-canvas">
@@ -310,7 +356,7 @@ const ScentTrailCanvas: React.FC<ScentTrailCanvasProps> = ({
               transform={[{ translateX: pt.x }, { translateY: pt.y }, { rotate: pt.angle }]}
             >
               <Path
-                path={Skia.Path.MakeFromSVGString(chevronPath) ?? Skia.Path.Make()}
+                path={chevronSkPath}
                 color={trailColor}
                 style="stroke"
                 strokeWidth={trailWidth}

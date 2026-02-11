@@ -6,7 +6,9 @@
  * all methods are pure or manage module-level state with no React coupling.
  *
  * Usage:
- *   1. Call GraphicsService.initializeDefaultEffects() once at app startup.
+ *   1. Default effects are initialised as a side-effect of importing
+ *      graphicsConnectors.tsx (module-scope call to initializeDefaultEffects()).
+ *      This runs once when the MapScreen mounts for the first time.
  *   2. Components read the active effect ID from Redux (graphicsSlice) and
  *      call GraphicsService.getFogRenderConfig(id) / getMapRenderConfig(id)
  *      / getScentRenderConfig(id) to get the render config.

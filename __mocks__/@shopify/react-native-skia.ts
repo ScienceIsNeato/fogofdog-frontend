@@ -14,6 +14,12 @@ export const Skia = {
       addRect: jest.fn(),
       dispose: jest.fn(),
     })),
+    MakeFromSVGString: jest.fn(() => ({
+      moveTo: jest.fn(),
+      lineTo: jest.fn(),
+      close: jest.fn(),
+      dispose: jest.fn(),
+    })),
   },
   Paint: jest.fn(() => ({
     setColor: jest.fn(),

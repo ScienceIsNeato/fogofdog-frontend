@@ -366,7 +366,7 @@ const createBatchedCirclePath = (
  * changes — Skia reuses compiled paths.
  *
  * fogEffectConfig: optional graphics-layer config that modifies rendering:
- *   - edgeBlurSigma > 0 → BlurMaskFilter on circles for soft vignette edges
+ *   - edgeBlurSigma > 0 → BlurMask on circles for soft vignette edges
  *   - animationType 'pulse' → Reanimated-driven strokeWidth oscillation
  */
 const OptimizedFogMask: React.FC<{
@@ -397,7 +397,7 @@ const OptimizedFogMask: React.FC<{
 
   const animatedStrokeWidth = useDerivedValue(
     () => strokeWidth * (1 + pulseProgress.value * pulseAmplitude),
-    []
+    [strokeWidth, pulseAmplitude]
   );
 
   // ── Batched circle path — recomputed when coordinates or radius change ───
@@ -536,7 +536,7 @@ const OptimizedFogOverlay: React.FC<OptimizedFogOverlayProps> = ({
 
   const animatedTintOpacity = useDerivedValue(
     () => baseTintOpacity + tintProgress.value * tintAmplitude,
-    []
+    [baseTintOpacity, tintAmplitude]
   );
 
   // Performance logging

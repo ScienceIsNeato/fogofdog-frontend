@@ -56,13 +56,13 @@ const PulseOverlay: React.FC<{
     );
   }, [duration, progress]);
 
-  const opacity = useDerivedValue(() => baseOpacity + progress.value * baseOpacity, []);
+  const opacity = useDerivedValue(() => baseOpacity + progress.value * baseOpacity, [baseOpacity]);
 
   return <Rect x={0} y={0} width={width} height={height} color={color} opacity={opacity} />;
 };
 
 /**
- * Radar sweep: a pie-slice arc that rotates around the user's position.
+ * Radar sweep: a circle that rotates around the user's position.
  * Implemented as a Group with an animated rotation transform.
  */
 const RadarSweepOverlay: React.FC<{
@@ -87,7 +87,7 @@ const RadarSweepOverlay: React.FC<{
 
   const transform = useDerivedValue(
     () => [{ translateX: userX }, { translateY: userY }, { rotate: angle.value }],
-    []
+    [userX, userY]
   );
 
   const trailTransform = useDerivedValue(
@@ -96,7 +96,7 @@ const RadarSweepOverlay: React.FC<{
       { translateY: userY },
       { rotate: angle.value - sweepAngle * 0.8 },
     ],
-    []
+    [userX, userY, sweepAngle]
   );
 
   return (
@@ -104,7 +104,7 @@ const RadarSweepOverlay: React.FC<{
       {/* Main sweep arc */}
       <Group transform={transform}>
         <Paint color={color} opacity={opacity} />
-        {/* Pie-slice approximated by overlapping circles fanning out */}
+        {/* Sweep rendered as a rotated circle — simplified from arc geometry */}
         <Circle cx={0} cy={-diagonal / 4} r={diagonal / 2.5} color={color} opacity={opacity} />
       </Group>
       {/* Trailing fade — slightly behind the main sweep */}
