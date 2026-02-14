@@ -1972,10 +1972,11 @@ const useMapScreenServices = (config: MapScreenServicesFullConfig) => {
   // Only log when location services actually start/stop, not on every render
   // (Removed excessive debug logging that was flooding console)
 
-  // Use simplified unified location service with configuration object
-  useUnifiedLocationService({
-    dispatch,
-    locationConfig: {
+  // CRITICAL: Memoize locationConfig to prevent infinite re-render loop.
+  // An inline object literal creates a new reference every render, which
+  // triggers useEffect deps → setIsLocationActive → re-render → new ref → loop.
+  const memoizedLocationConfig = useMemo(
+    () => ({
       mapRef,
       cinematicZoomActiveRef,
       isMapCenteredOnUser,
@@ -1983,7 +1984,22 @@ const useMapScreenServices = (config: MapScreenServicesFullConfig) => {
       isTrackingPaused,
       explorationPath: explorationState.path,
       isSessionActive,
-    },
+    }),
+    [
+      mapRef,
+      cinematicZoomActiveRef,
+      isMapCenteredOnUser,
+      isFollowModeActive,
+      isTrackingPaused,
+      explorationState.path,
+      isSessionActive,
+    ]
+  );
+
+  // Use simplified unified location service with configuration object
+  useUnifiedLocationService({
+    dispatch,
+    locationConfig: memoizedLocationConfig,
     allowLocationRequests,
     ...(setPermissionsGranted && { onPermissionsGranted: setPermissionsGranted }),
     permissionsVerified,

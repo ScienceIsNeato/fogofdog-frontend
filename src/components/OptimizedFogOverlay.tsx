@@ -200,6 +200,11 @@ const reduceVisualDensity = (
 };
 
 // Memoized coordinate conversion with region change detection
+// Returns BOTH viewport-culled points (for stable stroke connections) and
+// density-reduced points (for circle rendering). GPS connection processing
+// MUST run on viewport-culled points to avoid zoom-level-dependent flashing
+// where density reduction removes different intermediate points at different
+// zoom levels, causing connections to appear/disappear.
 const useOptimizedCoordinates = (
   points: GeoPoint[],
   mapRegion: MapRegion & { width: number; height: number },
@@ -208,7 +213,12 @@ const useOptimizedCoordinates = (
   return useMemo(() => {
     // Guard: skip processing when dimensions aren't available yet
     if (!mapRegion.width || !mapRegion.height) {
-      return { finalPoints: [], pixelCoordinates: [] };
+      return {
+        viewportPoints: [],
+        allPixelCoordinates: [],
+        finalPoints: [],
+        pixelCoordinates: [],
+      };
     }
 
     const startTime = performance.now();
@@ -216,7 +226,14 @@ const useOptimizedCoordinates = (
     // Step 1: Viewport culling
     const viewportPoints = cullPointsToViewport(points, mapRegion);
 
-    // Step 2: Visual density reduction
+    // Step 2: Compute pixel coordinates for ALL viewport points (for stroke path).
+    // This ensures GPS connection decisions are stable across zoom levels.
+    const allPixelCoordinates = viewportPoints.map((point) => ({
+      point,
+      pixel: geoPointToPixel(point, mapRegion, safeAreaInsets),
+    }));
+
+    // Step 3: Visual density reduction (for circle rendering only)
     const densityReducedPoints = reduceVisualDensity(
       viewportPoints,
       mapRegion,
@@ -224,10 +241,10 @@ const useOptimizedCoordinates = (
       safeAreaInsets
     );
 
-    // Step 3: Limit total points for performance
+    // Step 4: Limit total points for performance
     const finalPoints = densityReducedPoints.slice(0, MAX_POINTS_PER_FRAME);
 
-    // Step 4: Convert to pixel coordinates once
+    // Step 5: Convert density-reduced points to pixel coordinates (for circles)
     const pixelCoordinates = finalPoints.map((point) => ({
       point,
       pixel: geoPointToPixel(point, mapRegion, safeAreaInsets),
@@ -250,7 +267,7 @@ const useOptimizedCoordinates = (
       );
     }
 
-    return { finalPoints, pixelCoordinates };
+    return { viewportPoints, allPixelCoordinates, finalPoints, pixelCoordinates };
   }, [points, mapRegion, safeAreaInsets]);
 };
 
@@ -261,12 +278,10 @@ const useOptimizedFogCalculations = (
 ) => {
   const pathPoints = useSelector((state: RootState) => state.exploration.path);
 
-  // Get optimized coordinates
-  const { finalPoints, pixelCoordinates } = useOptimizedCoordinates(
-    pathPoints,
-    mapRegion,
-    safeAreaInsets
-  );
+  // Get optimized coordinates — viewportPoints/allPixelCoordinates for strokes,
+  // finalPoints/pixelCoordinates for circles
+  const { viewportPoints, allPixelCoordinates, finalPoints, pixelCoordinates } =
+    useOptimizedCoordinates(pathPoints, mapRegion, safeAreaInsets);
 
   // Calculate radius in pixels based on the current zoom level (needed for path simplification)
   // Guard: return safe default when dimensions aren't available yet (before onLayout)
@@ -278,22 +293,26 @@ const useOptimizedFogCalculations = (
     return FOG_CONFIG.RADIUS_METERS / metersPerPixel;
   }, [mapRegion]);
 
-  // Memoize GPS connection processing based on actual GPS points, not map region
+  // GPS connection processing on VIEWPORT-CULLED points (before density reduction).
+  // This ensures connection decisions are stable across zoom levels — density
+  // reduction removes different intermediate points at different zoom levels,
+  // which would cause strokes to flash between connected/disconnected.
   const connectedSegments = useMemo(() => {
-    if (finalPoints.length === 0) {
+    if (viewportPoints.length === 0) {
       return [];
     }
 
-    // Use unified GPS connection logic on optimized points
+    // Use unified GPS connection logic on viewport-culled points
     // Disable logging to prevent spam during map interactions
-    const processedPoints = GPSConnectionService.processGPSPoints(finalPoints, {
+    const processedPoints = GPSConnectionService.processGPSPoints(viewportPoints, {
       enableLogging: false,
     });
     return GPSConnectionService.getConnectedSegments(processedPoints);
-  }, [finalPoints]);
+  }, [viewportPoints]);
 
   // Compute the Skia path from connected segments with smooth Bezier curves
   // CRITICAL: Use managed hook to properly dispose native Skia memory
+  // Uses allPixelCoordinates (viewport-culled, not density-reduced) for stable strokes
   const skiaPath = useManagedSkiaPath(() => {
     const path = Skia.Path.Make();
 
@@ -301,9 +320,13 @@ const useOptimizedFogCalculations = (
       return path;
     }
 
-    // Build path using pre-calculated pixel coordinates
+    // Build path using ALL viewport pixel coordinates (not density-reduced)
+    // so stroke path endpoints map correctly to connection segments
     const pixelMap = new Map(
-      pixelCoordinates.map((item) => [`${item.point.latitude}-${item.point.longitude}`, item.pixel])
+      allPixelCoordinates.map((item) => [
+        `${item.point.latitude}-${item.point.longitude}`,
+        item.pixel,
+      ])
     );
 
     // Build continuous path chains and simplify them using utility service
@@ -326,7 +349,7 @@ const useOptimizedFogCalculations = (
     PathSimplificationService.drawSmoothPath(path, simplifiedChains);
 
     return path;
-  }, [connectedSegments, pixelCoordinates, radiusPixels]);
+  }, [connectedSegments, allPixelCoordinates, radiusPixels]);
 
   // Calculate stroke width for path - match fog radius for smooth connections
   const strokeWidth = useMemo(() => {
