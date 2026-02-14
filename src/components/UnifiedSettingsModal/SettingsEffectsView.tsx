@@ -121,7 +121,7 @@ export const SettingsEffectsView: React.FC<SettingsEffectsViewProps> = ({ onBack
 
 const effectStyles = StyleSheet.create({
   scrollContainer: {
-    flex: 1,
+    flexShrink: 1,
   },
   scrollContent: {
     paddingBottom: 24,
