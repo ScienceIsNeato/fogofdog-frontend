@@ -61,6 +61,9 @@ cd "$PROJECT_DIR"
 APP_BUNDLE_ID="com.fogofdog.app"
 METRO_PORT=8081
 GLOBAL_TIMEOUT_SECONDS=600  # 10 minutes (pod install + native build can take time)
+IOS_SIM_SELECTION_FILE="/tmp/fogofdog_ios_simulator_udid"
+TARGET_IOS_SIM_UDID=""
+TARGET_IOS_SIM_NAME=""
 
 # Source environment variables
 if [ -f "$PROJECT_DIR/.envrc" ]; then
@@ -388,16 +391,73 @@ is_ios_sim_booted() {
         | head -1 | grep -q .
 }
 
-get_ios_sim_udid() {
+list_booted_ios_simulators() {
     xcrun simctl list devices booted --json 2>/dev/null \
-        | jq -r '.devices | to_entries[] | .value[] | select(.state == "Booted") | .udid' 2>/dev/null \
-        | head -1
+        | jq -r '.devices | to_entries[] | .value[] | select(.state == "Booted") | "\(.name)\t\(.udid)"' 2>/dev/null \
+        | sort -f
+}
+
+set_target_ios_simulator() {
+    local booted_sims
+    booted_sims=$(list_booted_ios_simulators)
+    if [ -z "$booted_sims" ]; then
+        TARGET_IOS_SIM_UDID=""
+        TARGET_IOS_SIM_NAME=""
+        return 1
+    fi
+
+    # Reuse already-selected target if still booted
+    if [ -n "$TARGET_IOS_SIM_UDID" ] && echo "$booted_sims" | awk -F'\t' '{print $2}' | grep -qx "$TARGET_IOS_SIM_UDID"; then
+        TARGET_IOS_SIM_NAME=$(echo "$booted_sims" | awk -F'\t' -v udid="$TARGET_IOS_SIM_UDID" '$2 == udid {print $1; exit}')
+        return 0
+    fi
+
+    local preferred_udid=""
+    if [ -n "${FOGOFDOG_IOS_SIM_UDID:-}" ]; then
+        preferred_udid="${FOGOFDOG_IOS_SIM_UDID}"
+    elif [ -f "$IOS_SIM_SELECTION_FILE" ]; then
+        preferred_udid=$(cat "$IOS_SIM_SELECTION_FILE" 2>/dev/null || true)
+    fi
+
+    if [ -n "$preferred_udid" ] && echo "$booted_sims" | awk -F'\t' '{print $2}' | grep -qx "$preferred_udid"; then
+        TARGET_IOS_SIM_UDID="$preferred_udid"
+    else
+        TARGET_IOS_SIM_UDID=$(echo "$booted_sims" | head -n 1 | cut -f2)
+    fi
+
+    TARGET_IOS_SIM_NAME=$(echo "$booted_sims" | awk -F'\t' -v udid="$TARGET_IOS_SIM_UDID" '$2 == udid {print $1; exit}')
+    if [ -n "$TARGET_IOS_SIM_UDID" ]; then
+        echo "$TARGET_IOS_SIM_UDID" > "$IOS_SIM_SELECTION_FILE"
+    fi
+}
+
+shutdown_extra_ios_simulators() {
+    set_target_ios_simulator || return 0
+
+    local booted_count
+    booted_count=$(list_booted_ios_simulators | wc -l | tr -d ' ')
+    if [ "$booted_count" -le 1 ]; then
+        return 0
+    fi
+
+    warn "Multiple iOS simulators booted; using ${TARGET_IOS_SIM_NAME} (${TARGET_IOS_SIM_UDID})"
+    while IFS=$'\t' read -r sim_name sim_udid; do
+        [ -z "$sim_udid" ] && continue
+        if [ "$sim_udid" != "$TARGET_IOS_SIM_UDID" ]; then
+            info "Shutting down extra simulator: ${sim_name} (${sim_udid})"
+            xcrun simctl shutdown "$sim_udid" 2>/dev/null || true
+        fi
+    done <<< "$(list_booted_ios_simulators)"
+}
+
+get_ios_sim_udid() {
+    set_target_ios_simulator || true
+    echo "$TARGET_IOS_SIM_UDID"
 }
 
 get_ios_sim_name() {
-    xcrun simctl list devices booted --json 2>/dev/null \
-        | jq -r '.devices | to_entries[] | .value[] | select(.state == "Booted") | .name' 2>/dev/null \
-        | head -1
+    set_target_ios_simulator || true
+    echo "$TARGET_IOS_SIM_NAME"
 }
 
 is_android_emu_running() {
@@ -406,6 +466,8 @@ is_android_emu_running() {
 
 boot_ios_simulator() {
     if is_ios_sim_booted; then
+        set_target_ios_simulator || true
+        shutdown_extra_ios_simulators
         ok "iOS Simulator already booted: $(get_ios_sim_name)"
         return 0
     fi
@@ -421,6 +483,8 @@ boot_ios_simulator() {
     done
 
     if is_ios_sim_booted; then
+        set_target_ios_simulator || true
+        shutdown_extra_ios_simulators
         ok "iOS Simulator booted: $(get_ios_sim_name)"
     else
         die "iOS Simulator failed to boot after 60s"
@@ -620,6 +684,10 @@ is_metro_running() {
     lsof -ti:$METRO_PORT >/dev/null 2>&1
 }
 
+is_metro_http_ready() {
+    curl -fsS "http://127.0.0.1:${METRO_PORT}/status" 2>/dev/null | grep -q "packager-status:running"
+}
+
 stop_metro() {
     # Aggressive cleanup: kill port holders AND stale Metro/node processes
     local had_something_to_kill=false
@@ -673,11 +741,9 @@ stop_metro() {
 }
 
 start_metro_and_open() {
-    local platform_flag=""
-    case "$DEVICE" in
-        ios)     platform_flag="--ios"     ;;
-        android) platform_flag="--android" ;;
-    esac
+    local host_flag=""
+    # iOS Simulator should use localhost so Expo Dev Client can always reach Metro.
+    [ "$DEVICE" = "ios" ] && host_flag="--host localhost"
 
     local timestamp
     timestamp=$(date +"%Y-%m-%d_%H%M%S")
@@ -718,7 +784,7 @@ start_metro_and_open() {
     #   • We write the INNER pid via $BASHPID so stop_metro can kill the right thing
     #   • No tee, no pipe — direct file redirect to avoid blocking
     (
-        exec nohup "$PROJECT_DIR/node_modules/.bin/expo" start --dev-client --clear $platform_flag > "$log_file" 2>&1
+        exec nohup "$PROJECT_DIR/node_modules/.bin/expo" start --dev-client --clear $host_flag > "$log_file" 2>&1
     ) &
     local metro_pid=$!
     disown "$metro_pid" 2>/dev/null || true
@@ -726,16 +792,21 @@ start_metro_and_open() {
 
     # Wait for Metro to initialize
     local attempts=0
-    while ! is_metro_running && [ $attempts -lt 15 ]; do
-        sleep 2
+    while [ $attempts -lt 20 ]; do
+        if is_metro_running && is_metro_http_ready; then
+            break
+        fi
+        sleep 1
         attempts=$((attempts + 1))
     done
 
-    if is_metro_running; then
+    if is_metro_running && is_metro_http_ready; then
         ok "Metro started (PID: $(lsof -ti:$METRO_PORT | head -1))"
         info "Monitor logs: tail -f $log_file"
     else
-        warn "Metro may still be starting — check logs: tail -f $log_file"
+        fail "Metro did not become ready on http://127.0.0.1:$METRO_PORT/status"
+        warn "Check logs: tail -f $log_file"
+        return 1
     fi
 }
 
@@ -752,11 +823,18 @@ build_ios() {
 
     cd "$PROJECT_DIR"
     local build_log="/tmp/expo_build_ios_$(date +%s).log"
+    local ios_device_name
+    ios_device_name=$(get_ios_sim_name)
 
     # Run expo build in background, capturing output to log file
     # NOTE: Despite --no-bundler, Expo may start Metro after build completes
     # and block forever. We monitor for "Build Succeeded" / errors and kill it.
-    "$PROJECT_DIR/node_modules/.bin/expo" run:ios --configuration "$config" --no-bundler > "$build_log" 2>&1 &
+    if [ -n "$ios_device_name" ]; then
+        info "Target iOS simulator: $ios_device_name ($(get_ios_sim_udid))"
+        "$PROJECT_DIR/node_modules/.bin/expo" run:ios --configuration "$config" --no-bundler --device "$ios_device_name" > "$build_log" 2>&1 &
+    else
+        "$PROJECT_DIR/node_modules/.bin/expo" run:ios --configuration "$config" --no-bundler > "$build_log" 2>&1 &
+    fi
     local expo_pid=$!
 
     # Monitor build progress — poll log for success/failure
@@ -865,15 +943,15 @@ build_android() {
 # =============================================================================
 
 setup_gps_ios() {
-    info "Setting simulator location (Eugene, Oregon)..."
-    if [ -f "$SCRIPT_DIR/setup-simulator-location.sh" ]; then
-        bash "$SCRIPT_DIR/setup-simulator-location.sh" 2>/dev/null || {
-            # Fallback to direct coordinate set
-            xcrun simctl location booted set "44.0248,-123.1044" 2>/dev/null || true
-        }
-    else
-        xcrun simctl location booted set "44.0248,-123.1044" 2>/dev/null || true
+    local udid
+    udid=$(get_ios_sim_udid)
+    if [ -z "$udid" ]; then
+        warn "No booted iOS simulator found for GPS setup"
+        return 0
     fi
+
+    info "Setting simulator location (Eugene, Oregon)..."
+    xcrun simctl location "$udid" set "44.0248,-123.1044" 2>/dev/null || true
     ok "iOS location set"
 }
 
@@ -1053,6 +1131,10 @@ fi
 if [ "$MODE" = "development" ]; then
     step "Start Metro + open app"
     run_step "start_metro_and_open" start_metro_and_open
+    case "$DEVICE" in
+        ios)     run_step "launch_app_ios" launch_app_ios         ;;
+        android) run_step "launch_app_android" launch_app_android ;;
+    esac
 else
     step "Launch release app (no Metro)"
     case "$DEVICE" in
