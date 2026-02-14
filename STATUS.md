@@ -34,6 +34,7 @@ node_modules/expo-file-system/ios/FileSystemModule.swift:10:84:
 `Expo` module isn't imported in that file and its module may not be built before `ExpoFileSystem`.
 
 **Suggested next steps for Issue 2:**
+
 1. Check if model_a builds successfully with the same dependencies — if yes, compare
    workspace/xcodeproj settings between model_a and model_b.
 2. Try `pod install --clean-install` (full Pods reset) to rule out stale module map.
