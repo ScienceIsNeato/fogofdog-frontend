@@ -1,5 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { Modal, View, StyleSheet, Alert } from 'react-native';
+import {
+  Modal,
+  View,
+  StyleSheet,
+  Alert,
+  TouchableWithoutFeedback,
+  useWindowDimensions,
+} from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ClearType, DataStats } from '../types/dataClear';
 import { SettingsMainView } from './UnifiedSettingsModal/SettingsMainView';
@@ -29,6 +37,8 @@ const UnifiedSettingsModal: React.FC<UnifiedSettingsModalProps> = ({
   onRefreshDataStats,
 }) => {
   const [currentView, setCurrentView] = useState<SettingsView>('main');
+  const insets = useSafeAreaInsets();
+  const { height: screenHeight } = useWindowDimensions();
 
   // Reset to main view when modal becomes visible
   useEffect(() => {
@@ -95,11 +105,21 @@ const UnifiedSettingsModal: React.FC<UnifiedSettingsModalProps> = ({
     );
   };
 
+  const topPadding = insets.top + 24;
+  const bottomPadding = insets.bottom + 16;
+  const maxDialogHeight = screenHeight - topPadding - bottomPadding;
+
   return (
     <Modal transparent animationType="fade" visible={visible} onRequestClose={handleClose}>
-      <View style={styles.overlay}>
-        <View style={styles.dialog}>{renderCurrentView()}</View>
-      </View>
+      <TouchableWithoutFeedback onPress={handleClose} accessible={false}>
+        <View style={[styles.overlay, { paddingTop: topPadding, paddingBottom: bottomPadding }]}>
+          <TouchableWithoutFeedback accessible={false}>
+            <View style={[styles.dialog, { maxHeight: maxDialogHeight }]}>
+              {renderCurrentView()}
+            </View>
+          </TouchableWithoutFeedback>
+        </View>
+      </TouchableWithoutFeedback>
     </Modal>
   );
 };
@@ -108,15 +128,15 @@ const styles = StyleSheet.create({
   overlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
+    justifyContent: 'flex-start',
     alignItems: 'center',
-    padding: 20,
+    paddingHorizontal: 40,
   },
   dialog: {
     backgroundColor: 'white',
     borderRadius: 12,
     padding: 20,
-    minWidth: 300,
+    width: '100%',
     maxWidth: 400,
     shadowColor: '#000',
     shadowOffset: {
