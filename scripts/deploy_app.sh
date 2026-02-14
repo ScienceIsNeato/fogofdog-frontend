@@ -684,10 +684,6 @@ is_metro_running() {
     lsof -ti:$METRO_PORT >/dev/null 2>&1
 }
 
-is_metro_http_ready() {
-    curl -fsS "http://127.0.0.1:${METRO_PORT}/status" 2>/dev/null | grep -q "packager-status:running"
-}
-
 stop_metro() {
     # Aggressive cleanup: kill port holders AND stale Metro/node processes
     local had_something_to_kill=false
@@ -741,72 +737,16 @@ stop_metro() {
 }
 
 start_metro_and_open() {
-    local host_flag=""
-    # iOS Simulator should use localhost so Expo Dev Client can always reach Metro.
-    [ "$DEVICE" = "ios" ] && host_flag="--host localhost"
+    local host_mode="lan"
+    [ "$DEVICE" = "ios" ] && host_mode="localhost"
 
-    local timestamp
-    timestamp=$(date +"%Y-%m-%d_%H%M%S")
-    local log_file="/tmp/metro_${DEVICE}_${timestamp}.log"
-    echo "$log_file" > /tmp/METRO_CURRENT_LOG_FILENAME.txt
+    info "Starting Metro server via scripts/refresh-metro.sh..."
+    "$PROJECT_DIR/scripts/refresh-metro.sh" --host "$host_mode" --no-open
 
-    info "Starting Metro server..."
-    info "Log file: $log_file"
-
-    cd "$PROJECT_DIR"
-
-    # Final port check — kill anything on METRO_PORT right before we start.
-    # Step 2 cleanup runs early, but build_ios() or external processes can
-    # re-occupy the port between cleanup and now.
-    if is_metro_running; then
-        warn "Port $METRO_PORT still occupied — killing before Metro start"
-        local stale_pids
-        stale_pids=$(lsof -ti:$METRO_PORT 2>/dev/null || true)
-        if [ -n "$stale_pids" ]; then
-            echo "$stale_pids" | xargs kill -9 2>/dev/null || true
-            sleep 1
-        fi
-        if is_metro_running; then
-            fail "Cannot free port $METRO_PORT — something is holding it"
-        fi
-        ok "Port $METRO_PORT freed"
-    fi
-
-    # Start Metro as a fully detached process that survives script exit.
-    #
-    # Problem: plain `cmd &; disown` still inherits the script's process group.
-    #   When deploy_app.sh exits (or its timeout fires), the shell/OS sends
-    #   SIGHUP to the group → Metro dies → app crashes.
-    #
-    # Solution: nohup + redirect + new-process-group via a subshell that execs.
-    #   • nohup ignores SIGHUP so Metro survives parent exit
-    #   • The ( exec ... ) & pattern creates a new process group (macOS has no setsid)
-    #   • We write the INNER pid via $BASHPID so stop_metro can kill the right thing
-    #   • No tee, no pipe — direct file redirect to avoid blocking
-    (
-        exec nohup "$PROJECT_DIR/node_modules/.bin/expo" start --dev-client --clear $host_flag > "$log_file" 2>&1
-    ) &
-    local metro_pid=$!
-    disown "$metro_pid" 2>/dev/null || true
-    echo "$metro_pid" > /tmp/METRO_PID.txt
-
-    # Wait for Metro to initialize
-    local attempts=0
-    while [ $attempts -lt 20 ]; do
-        if is_metro_running && is_metro_http_ready; then
-            break
-        fi
-        sleep 1
-        attempts=$((attempts + 1))
-    done
-
-    if is_metro_running && is_metro_http_ready; then
-        ok "Metro started (PID: $(lsof -ti:$METRO_PORT | head -1))"
+    if [ -f /tmp/METRO_CURRENT_LOG_FILENAME.txt ]; then
+        local log_file
+        log_file=$(cat /tmp/METRO_CURRENT_LOG_FILENAME.txt)
         info "Monitor logs: tail -f $log_file"
-    else
-        fail "Metro did not become ready on http://127.0.0.1:$METRO_PORT/status"
-        warn "Check logs: tail -f $log_file"
-        return 1
     fi
 }
 
