@@ -2,6 +2,7 @@ import React from 'react';
 import OptimizedFogOverlay from '../OptimizedFogOverlay';
 import { renderWithProviders } from '../../utils/test-utils';
 import { GeoPoint } from '../../types/user';
+import type { FogRenderConfig } from '../../types/graphics';
 
 // Mock performance.now for consistent testing
 global.performance = {
@@ -205,5 +206,101 @@ describe('OptimizedFogOverlay', () => {
     );
 
     expect(queryByTestId('optimized-fog-overlay-canvas')).toBeNull();
+  });
+
+  describe('fog effect configs', () => {
+    it('renders without fogEffectConfig (classic behaviour)', () => {
+      const { getByTestId } = renderWithProviders(
+        <OptimizedFogOverlay mapRegion={mockMapRegion} />,
+        { preloadedState: mockState }
+      );
+      expect(getByTestId('optimized-fog-overlay-canvas')).toBeTruthy();
+    });
+
+    it('renders with vignette config and shows BlurMask for edge blur', () => {
+      const vignetteConfig: FogRenderConfig = {
+        fogColor: 'black',
+        fogOpacity: 1,
+        edgeBlurSigma: 8,
+        animationType: 'none',
+        animationDuration: 0,
+        animationAmplitude: 0,
+      };
+      const { getByTestId, queryAllByTestId } = renderWithProviders(
+        <OptimizedFogOverlay mapRegion={mockMapRegion} fogEffectConfig={vignetteConfig} />,
+        { preloadedState: mockState }
+      );
+      expect(getByTestId('optimized-fog-overlay-canvas')).toBeTruthy();
+      expect(queryAllByTestId('mock-skia-blur-mask').length).toBeGreaterThan(0);
+    });
+
+    it('does not render BlurMask when edgeBlurSigma is 0', () => {
+      const classicConfig: FogRenderConfig = {
+        fogColor: 'black',
+        fogOpacity: 1,
+        edgeBlurSigma: 0,
+        animationType: 'none',
+        animationDuration: 0,
+        animationAmplitude: 0,
+      };
+      const { queryAllByTestId } = renderWithProviders(
+        <OptimizedFogOverlay mapRegion={mockMapRegion} fogEffectConfig={classicConfig} />,
+        { preloadedState: mockState }
+      );
+      expect(queryAllByTestId('mock-skia-blur-mask').length).toBe(0);
+    });
+
+    it('renders without crashing with pulse animation config', () => {
+      const pulseConfig: FogRenderConfig = {
+        fogColor: 'black',
+        fogOpacity: 1,
+        edgeBlurSigma: 3,
+        animationType: 'pulse',
+        animationDuration: 2400,
+        animationAmplitude: 0.12,
+      };
+      const { getByTestId } = renderWithProviders(
+        <OptimizedFogOverlay mapRegion={mockMapRegion} fogEffectConfig={pulseConfig} />,
+        { preloadedState: mockState }
+      );
+      expect(getByTestId('optimized-fog-overlay-canvas')).toBeTruthy();
+    });
+
+    it('renders extra tint Rect for haunted config with tintColor', () => {
+      const hauntedConfig: FogRenderConfig = {
+        fogColor: '#0a0020',
+        fogOpacity: 1,
+        edgeBlurSigma: 5,
+        tintColor: '#1a0050',
+        tintOpacity: 0.35,
+        animationType: 'tint-cycle',
+        animationDuration: 4000,
+        animationAmplitude: 0.2,
+      };
+      const { getByTestId, queryAllByTestId } = renderWithProviders(
+        <OptimizedFogOverlay mapRegion={mockMapRegion} fogEffectConfig={hauntedConfig} />,
+        { preloadedState: mockState }
+      );
+      expect(getByTestId('optimized-fog-overlay-canvas')).toBeTruthy();
+      // fog Rect + tint Rect = at least 2
+      expect(queryAllByTestId('mock-skia-rect').length).toBeGreaterThanOrEqual(2);
+    });
+
+    it('renders only the fog Rect when no tintColor is set', () => {
+      const classicConfig: FogRenderConfig = {
+        fogColor: 'black',
+        fogOpacity: 1,
+        edgeBlurSigma: 0,
+        animationType: 'none',
+        animationDuration: 0,
+        animationAmplitude: 0,
+      };
+      const { queryAllByTestId } = renderWithProviders(
+        <OptimizedFogOverlay mapRegion={mockMapRegion} fogEffectConfig={classicConfig} />,
+        { preloadedState: mockState }
+      );
+      // Only the fog Rect; no tint Rect
+      expect(queryAllByTestId('mock-skia-rect').length).toBe(1);
+    });
   });
 });

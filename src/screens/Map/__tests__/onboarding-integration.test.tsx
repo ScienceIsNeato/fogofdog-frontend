@@ -9,6 +9,7 @@ import { OnboardingService } from '../../../services/OnboardingService';
 import userSlice from '../../../store/slices/userSlice';
 import explorationSlice from '../../../store/slices/explorationSlice';
 import skinReducer from '../../../store/slices/skinSlice';
+import graphicsReducer from '../../../store/slices/graphicsSlice';
 import { MainStackParamList } from '../../../types/navigation';
 
 // Mock the services and dependencies
@@ -87,6 +88,7 @@ const createTestStore = () => {
       user: userSlice,
       exploration: explorationSlice,
       skin: skinReducer,
+      graphics: graphicsReducer,
     },
     preloadedState: {
       exploration: {

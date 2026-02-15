@@ -102,48 +102,43 @@ export class PathSimplificationService {
   }
 
   /**
-   * Build continuous path chains from connected segments
-   * Groups segments that should be rendered as continuous paths
+   * Build continuous path chains from connected segments.
+   *
+   * Segments arrive in GPS temporal order from GPSConnectionService.
+   * Consecutive GPS-adjacent segments share exact pixel coordinates for their
+   * shared endpoint (same lat/lon → identical floating-point pixel values).
+   *
+   * Previous implementation used a <1px proximity tolerance which caused
+   * spurious diagonal connections between unrelated walk sessions whose
+   * endpoints happened to be pixel-close at certain zoom levels.
    */
   static buildPathChains(
     segments: { start: { x: number; y: number }; end: { x: number; y: number } }[]
   ): Point2D[][] {
+    if (segments.length === 0) return [];
+
+    const firstSegment = segments[0]!;
     const pathChains: Point2D[][] = [];
+    let currentChain: Point2D[] = [firstSegment.start, firstSegment.end];
 
-    for (const segment of segments) {
-      const startPixel = segment.start;
-      const endPixel = segment.end;
+    for (let i = 1; i < segments.length; i++) {
+      const segment = segments[i]!;
+      const chainEnd = currentChain[currentChain.length - 1]!;
 
-      // Find if this segment connects to an existing chain
-      let addedToChain = false;
-      for (const chain of pathChains) {
-        const chainStart = chain[0];
-        const chainEnd = chain[chain.length - 1];
-
-        if (!chainStart || !chainEnd) continue;
-
-        // Check if segment connects to end of chain
-        if (Math.abs(chainEnd.x - startPixel.x) < 1 && Math.abs(chainEnd.y - startPixel.y) < 1) {
-          chain.push(endPixel);
-          addedToChain = true;
-          break;
-        }
-        // Check if segment connects to start of chain
-        else if (
-          Math.abs(chainStart.x - endPixel.x) < 1 &&
-          Math.abs(chainStart.y - endPixel.y) < 1
-        ) {
-          chain.unshift(startPixel);
-          addedToChain = true;
-          break;
-        }
-      }
-
-      // If not added to existing chain, start a new chain
-      if (!addedToChain) {
-        pathChains.push([startPixel, endPixel]);
+      // GPS-adjacent segments share the exact same underlying GPS coordinate,
+      // so their pixel values are identical (same inputs → same float result).
+      // Strict equality prevents false connections between unrelated walk sessions.
+      if (chainEnd.x === segment.start.x && chainEnd.y === segment.start.y) {
+        currentChain.push(segment.end);
+      } else {
+        // Gap between segments — start a new chain
+        pathChains.push(currentChain);
+        currentChain = [segment.start, segment.end];
       }
     }
+
+    // Push the final chain
+    pathChains.push(currentChain);
 
     return pathChains;
   }

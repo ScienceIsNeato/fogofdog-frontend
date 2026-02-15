@@ -4,6 +4,7 @@ import explorationReducer from './slices/explorationSlice';
 import statsReducer from './slices/statsSlice';
 import streetReducer from './slices/streetSlice';
 import skinReducer from './slices/skinSlice';
+import graphicsReducer from './slices/graphicsSlice';
 
 export const store = configureStore({
   reducer: {
@@ -12,6 +13,7 @@ export const store = configureStore({
     stats: statsReducer,
     street: streetReducer,
     skin: skinReducer,
+    graphics: graphicsReducer,
   },
 });
 

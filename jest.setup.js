@@ -38,11 +38,20 @@ jest.mock('react-native-reanimated', () => {
     useAnimatedStyle: jest.fn(() => ({})),
     withTiming: jest.fn((value) => value),
     withSpring: jest.fn((value) => value),
+    withRepeat: jest.fn((value) => value),
     runOnUI: jest.fn((fn) => fn),
     runOnJS: jest.fn((fn) => fn),
     createAnimatedComponent: jest.fn((component) => component),
     interpolate: jest.fn(() => 0),
     Extrapolate: { CLAMP: 'clamp' },
+    Easing: {
+      linear: (t) => t,
+      out: () => (t) => t,
+      in: () => (t) => t,
+      inOut: () => (t) => t,
+      quad: (t) => t * t,
+      sin: (t) => t,
+    },
   };
 });
 

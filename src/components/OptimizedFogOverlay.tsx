@@ -1,8 +1,15 @@
 import React, { useMemo, useEffect, useRef, useState, useCallback } from 'react';
-import { Skia, Canvas, Path, Fill, Mask, Rect, Group } from '@shopify/react-native-skia';
+import { Skia, Canvas, Path, Fill, Mask, Rect, Group, BlurMask } from '@shopify/react-native-skia';
 import type { SkPath } from '@shopify/react-native-skia';
 import { StyleSheet, View } from 'react-native';
 import { useSelector } from 'react-redux';
+import {
+  useSharedValue,
+  withRepeat,
+  withTiming,
+  Easing,
+  useDerivedValue,
+} from 'react-native-reanimated';
 import type { RootState } from '../store';
 import { calculateMetersPerPixel, geoPointToPixel } from '../utils/mapUtils';
 import { logger } from '../utils/logger';
@@ -11,6 +18,7 @@ import { FOG_CONFIG } from '../config/fogConfig';
 import { GPSConnectionService } from '../services/GPSConnectionService';
 import { PathSimplificationService } from '../utils/pathSimplification';
 import { GeoPoint } from '../types/user';
+import type { FogRenderConfig } from '../types/graphics';
 
 /**
  * CRITICAL: Custom hook to manage Skia path lifecycle (React 19 safe)
@@ -116,6 +124,11 @@ const useManagedSkiaPath = (createPath: () => SkPath, deps: React.DependencyList
 interface OptimizedFogOverlayProps {
   mapRegion: MapRegion & { width: number; height: number };
   safeAreaInsets?: { top: number; bottom: number; left: number; right: number };
+  /**
+   * Active fog effect render config from GraphicsService.
+   * Omitting this prop preserves the original "classic" behaviour (zero overhead).
+   */
+  fogEffectConfig?: FogRenderConfig;
 }
 
 // Performance constants
@@ -187,6 +200,11 @@ const reduceVisualDensity = (
 };
 
 // Memoized coordinate conversion with region change detection
+// Returns BOTH viewport-culled points (for stable stroke connections) and
+// density-reduced points (for circle rendering). GPS connection processing
+// MUST run on viewport-culled points to avoid zoom-level-dependent flashing
+// where density reduction removes different intermediate points at different
+// zoom levels, causing connections to appear/disappear.
 const useOptimizedCoordinates = (
   points: GeoPoint[],
   mapRegion: MapRegion & { width: number; height: number },
@@ -195,7 +213,12 @@ const useOptimizedCoordinates = (
   return useMemo(() => {
     // Guard: skip processing when dimensions aren't available yet
     if (!mapRegion.width || !mapRegion.height) {
-      return { finalPoints: [], pixelCoordinates: [] };
+      return {
+        viewportPoints: [],
+        allPixelCoordinates: [],
+        finalPoints: [],
+        pixelCoordinates: [],
+      };
     }
 
     const startTime = performance.now();
@@ -203,7 +226,14 @@ const useOptimizedCoordinates = (
     // Step 1: Viewport culling
     const viewportPoints = cullPointsToViewport(points, mapRegion);
 
-    // Step 2: Visual density reduction
+    // Step 2: Compute pixel coordinates for ALL viewport points (for stroke path).
+    // This ensures GPS connection decisions are stable across zoom levels.
+    const allPixelCoordinates = viewportPoints.map((point) => ({
+      point,
+      pixel: geoPointToPixel(point, mapRegion, safeAreaInsets),
+    }));
+
+    // Step 3: Visual density reduction (for circle rendering only)
     const densityReducedPoints = reduceVisualDensity(
       viewportPoints,
       mapRegion,
@@ -211,10 +241,10 @@ const useOptimizedCoordinates = (
       safeAreaInsets
     );
 
-    // Step 3: Limit total points for performance
+    // Step 4: Limit total points for performance
     const finalPoints = densityReducedPoints.slice(0, MAX_POINTS_PER_FRAME);
 
-    // Step 4: Convert to pixel coordinates once
+    // Step 5: Convert density-reduced points to pixel coordinates (for circles)
     const pixelCoordinates = finalPoints.map((point) => ({
       point,
       pixel: geoPointToPixel(point, mapRegion, safeAreaInsets),
@@ -237,7 +267,7 @@ const useOptimizedCoordinates = (
       );
     }
 
-    return { finalPoints, pixelCoordinates };
+    return { viewportPoints, allPixelCoordinates, finalPoints, pixelCoordinates };
   }, [points, mapRegion, safeAreaInsets]);
 };
 
@@ -248,12 +278,10 @@ const useOptimizedFogCalculations = (
 ) => {
   const pathPoints = useSelector((state: RootState) => state.exploration.path);
 
-  // Get optimized coordinates
-  const { finalPoints, pixelCoordinates } = useOptimizedCoordinates(
-    pathPoints,
-    mapRegion,
-    safeAreaInsets
-  );
+  // Get optimized coordinates — viewportPoints/allPixelCoordinates for strokes,
+  // finalPoints/pixelCoordinates for circles
+  const { viewportPoints, allPixelCoordinates, finalPoints, pixelCoordinates } =
+    useOptimizedCoordinates(pathPoints, mapRegion, safeAreaInsets);
 
   // Calculate radius in pixels based on the current zoom level (needed for path simplification)
   // Guard: return safe default when dimensions aren't available yet (before onLayout)
@@ -265,22 +293,26 @@ const useOptimizedFogCalculations = (
     return FOG_CONFIG.RADIUS_METERS / metersPerPixel;
   }, [mapRegion]);
 
-  // Memoize GPS connection processing based on actual GPS points, not map region
+  // GPS connection processing on VIEWPORT-CULLED points (before density reduction).
+  // This ensures connection decisions are stable across zoom levels — density
+  // reduction removes different intermediate points at different zoom levels,
+  // which would cause strokes to flash between connected/disconnected.
   const connectedSegments = useMemo(() => {
-    if (finalPoints.length === 0) {
+    if (viewportPoints.length === 0) {
       return [];
     }
 
-    // Use unified GPS connection logic on optimized points
+    // Use unified GPS connection logic on viewport-culled points
     // Disable logging to prevent spam during map interactions
-    const processedPoints = GPSConnectionService.processGPSPoints(finalPoints, {
+    const processedPoints = GPSConnectionService.processGPSPoints(viewportPoints, {
       enableLogging: false,
     });
     return GPSConnectionService.getConnectedSegments(processedPoints);
-  }, [finalPoints]);
+  }, [viewportPoints]);
 
   // Compute the Skia path from connected segments with smooth Bezier curves
   // CRITICAL: Use managed hook to properly dispose native Skia memory
+  // Uses allPixelCoordinates (viewport-culled, not density-reduced) for stable strokes
   const skiaPath = useManagedSkiaPath(() => {
     const path = Skia.Path.Make();
 
@@ -288,9 +320,13 @@ const useOptimizedFogCalculations = (
       return path;
     }
 
-    // Build path using pre-calculated pixel coordinates
+    // Build path using ALL viewport pixel coordinates (not density-reduced)
+    // so stroke path endpoints map correctly to connection segments
     const pixelMap = new Map(
-      pixelCoordinates.map((item) => [`${item.point.latitude}-${item.point.longitude}`, item.pixel])
+      allPixelCoordinates.map((item) => [
+        `${item.point.latitude}-${item.point.longitude}`,
+        item.pixel,
+      ])
     );
 
     // Build continuous path chains and simplify them using utility service
@@ -313,7 +349,7 @@ const useOptimizedFogCalculations = (
     PathSimplificationService.drawSmoothPath(path, simplifiedChains);
 
     return path;
-  }, [connectedSegments, pixelCoordinates, radiusPixels]);
+  }, [connectedSegments, allPixelCoordinates, radiusPixels]);
 
   // Calculate stroke width for path - match fog radius for smooth connections
   const strokeWidth = useMemo(() => {
@@ -351,6 +387,10 @@ const createBatchedCirclePath = (
  * panOffset: GPU translate applied during panning to avoid recomputing
  * pixel coordinates/Skia paths on every frame. Only the transform matrix
  * changes — Skia reuses compiled paths.
+ *
+ * fogEffectConfig: optional graphics-layer config that modifies rendering:
+ *   - edgeBlurSigma > 0 → BlurMask on circles for soft vignette edges
+ *   - animationType 'pulse' → Reanimated-driven strokeWidth oscillation
  */
 const OptimizedFogMask: React.FC<{
   pixelCoordinates: { point: GeoPoint; pixel: { x: number; y: number } }[];
@@ -358,13 +398,39 @@ const OptimizedFogMask: React.FC<{
   skiaPath: SkPath;
   strokeWidth: number;
   panOffset: { x: number; y: number };
-}> = ({ pixelCoordinates, radiusPixels, skiaPath, strokeWidth, panOffset }) => {
-  // Create batched circle path for better performance
+  fogEffectConfig?: FogRenderConfig;
+}> = ({ pixelCoordinates, radiusPixels, skiaPath, strokeWidth, panOffset, fogEffectConfig }) => {
+  // ── Pulse animation setup (UI-thread, zero JS overhead) ──────────────────
+  const isPulse = fogEffectConfig?.animationType === 'pulse';
+  const pulseAmplitude = fogEffectConfig?.animationAmplitude ?? 0;
+  const pulseDuration = fogEffectConfig?.animationDuration ?? 2400;
+
+  const pulseProgress = useSharedValue(0);
+  useEffect(() => {
+    if (isPulse) {
+      pulseProgress.value = withRepeat(
+        withTiming(1, { duration: pulseDuration, easing: Easing.inOut(Easing.sin) }),
+        -1,
+        true
+      );
+    } else {
+      pulseProgress.value = 0;
+    }
+  }, [isPulse, pulseDuration, pulseProgress]);
+
+  const animatedStrokeWidth = useDerivedValue(
+    () => strokeWidth * (1 + pulseProgress.value * pulseAmplitude),
+    [strokeWidth, pulseAmplitude]
+  );
+
+  // ── Batched circle path — recomputed when coordinates or radius change ───
   // CRITICAL: Use managed hook to properly dispose native Skia memory
   const batchedCirclePath = useManagedSkiaPath(
     () => createBatchedCirclePath(pixelCoordinates, radiusPixels),
     [pixelCoordinates, radiusPixels]
   );
+
+  const edgeBlurSigma = fogEffectConfig?.edgeBlurSigma ?? 0;
 
   return (
     <Group>
@@ -374,7 +440,9 @@ const OptimizedFogMask: React.FC<{
       {/* Fog holes translated to current pan position — GPU transform only */}
       <Group transform={[{ translateX: panOffset.x }, { translateY: panOffset.y }]}>
         {/* Batch render all circles in a single path - much faster */}
-        <Path path={batchedCirclePath} color={FOG_CONFIG.PATH_COLOR} style="fill" />
+        <Path path={batchedCirclePath} color={FOG_CONFIG.PATH_COLOR} style="fill">
+          {edgeBlurSigma > 0 && <BlurMask blur={edgeBlurSigma} style="inner" respectCTM={false} />}
+        </Path>
 
         {/* Draw the connecting path */}
         {pixelCoordinates.length > 1 && (
@@ -382,7 +450,7 @@ const OptimizedFogMask: React.FC<{
             path={skiaPath}
             color={FOG_CONFIG.PATH_COLOR}
             style="stroke"
-            strokeWidth={strokeWidth}
+            strokeWidth={isPulse ? animatedStrokeWidth : strokeWidth}
             strokeCap="round"
             strokeJoin="round"
           />
@@ -405,7 +473,11 @@ const OptimizedFogMask: React.FC<{
  *
  * This transforms panning from O(n) per frame → O(1) GPU matrix transform.
  */
-const OptimizedFogOverlay: React.FC<OptimizedFogOverlayProps> = ({ mapRegion, safeAreaInsets }) => {
+const OptimizedFogOverlay: React.FC<OptimizedFogOverlayProps> = ({
+  mapRegion,
+  safeAreaInsets,
+  fogEffectConfig,
+}) => {
   // --- Stable "compute region": only updates when fog needs full recomputation ---
   const computeRegionRef = useRef(mapRegion);
   const [computeRegion, setComputeRegion] = useState(mapRegion);
@@ -466,6 +538,30 @@ const OptimizedFogOverlay: React.FC<OptimizedFogOverlayProps> = ({ mapRegion, sa
   const { originalPointCount, finalPoints, pixelCoordinates, skiaPath, radiusPixels, strokeWidth } =
     useOptimizedFogCalculations(computeRegion, safeAreaInsets);
 
+  // ── Tint-cycle animation for 'haunted' effect ─────────────────────────────
+  const isTintCycle = fogEffectConfig?.animationType === 'tint-cycle';
+  const tintDuration = fogEffectConfig?.animationDuration ?? 4000;
+  const tintAmplitude = fogEffectConfig?.animationAmplitude ?? 0;
+  const baseTintOpacity = fogEffectConfig?.tintOpacity ?? 0;
+
+  const tintProgress = useSharedValue(0);
+  useEffect(() => {
+    if (isTintCycle) {
+      tintProgress.value = withRepeat(
+        withTiming(1, { duration: tintDuration, easing: Easing.inOut(Easing.sin) }),
+        -1,
+        true
+      );
+    } else {
+      tintProgress.value = 0;
+    }
+  }, [isTintCycle, tintDuration, tintProgress]);
+
+  const animatedTintOpacity = useDerivedValue(
+    () => baseTintOpacity + tintProgress.value * tintAmplitude,
+    [baseTintOpacity, tintAmplitude]
+  );
+
   // Performance logging
   useEffect(() => {
     logger.throttledDebug(
@@ -489,6 +585,11 @@ const OptimizedFogOverlay: React.FC<OptimizedFogOverlayProps> = ({ mapRegion, sa
     return null;
   }
 
+  // Effective fog color: use effect config when provided, else FOG_CONFIG default
+  const fogColor = fogEffectConfig?.fogColor ?? FOG_CONFIG.COLOR;
+  const fogOpacity = fogEffectConfig?.fogOpacity ?? FOG_CONFIG.OPACITY;
+  const tintColor = fogEffectConfig?.tintColor;
+
   return (
     <View style={styles.canvasWrapper} pointerEvents="none">
       <Canvas style={styles.canvas} testID="optimized-fog-overlay-canvas">
@@ -501,6 +602,7 @@ const OptimizedFogOverlay: React.FC<OptimizedFogOverlayProps> = ({ mapRegion, sa
               skiaPath={skiaPath}
               strokeWidth={strokeWidth}
               panOffset={panOffset}
+              {...(fogEffectConfig !== undefined ? { fogEffectConfig } : {})}
             />
           }
         >
@@ -510,9 +612,22 @@ const OptimizedFogOverlay: React.FC<OptimizedFogOverlayProps> = ({ mapRegion, sa
             y={0}
             width={mapRegion.width}
             height={mapRegion.height}
-            color={FOG_CONFIG.COLOR}
+            color={fogColor}
+            opacity={fogOpacity}
           />
         </Mask>
+
+        {/* Optional tint overlay for effects like 'haunted' */}
+        {tintColor && (
+          <Rect
+            x={0}
+            y={0}
+            width={mapRegion.width}
+            height={mapRegion.height}
+            color={tintColor}
+            opacity={isTintCycle ? animatedTintOpacity : (fogEffectConfig?.tintOpacity ?? 0)}
+          />
+        )}
       </Canvas>
     </View>
   );

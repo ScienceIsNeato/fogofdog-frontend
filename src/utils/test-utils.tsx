@@ -7,6 +7,7 @@ import explorationReducer from '../store/slices/explorationSlice';
 import statsReducer from '../store/slices/statsSlice';
 import streetReducer from '../store/slices/streetSlice';
 import skinReducer from '../store/slices/skinSlice';
+import graphicsReducer from '../store/slices/graphicsSlice';
 import { NavigationContainer } from '@react-navigation/native';
 
 const createTestStore = (initialState = {}) => {
@@ -17,6 +18,7 @@ const createTestStore = (initialState = {}) => {
       stats: statsReducer,
       street: streetReducer,
       skin: skinReducer,
+      graphics: graphicsReducer,
     },
     preloadedState: initialState,
   });

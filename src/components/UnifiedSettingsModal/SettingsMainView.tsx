@@ -8,6 +8,7 @@ interface SettingsMainViewProps {
   onHistoryManagement: () => void;
   onDeveloperSettings: () => void;
   onMapStyle: () => void;
+  onVisualEffects: () => void;
   styles: any;
 }
 
@@ -17,6 +18,7 @@ export const SettingsMainView: React.FC<SettingsMainViewProps> = ({
   onHistoryManagement,
   onDeveloperSettings,
   onMapStyle,
+  onVisualEffects,
   styles,
 }) => (
   <>
@@ -40,6 +42,16 @@ export const SettingsMainView: React.FC<SettingsMainViewProps> = ({
       <TouchableOpacity style={styles.menuItem} onPress={onMapStyle} testID="map-style-button">
         <MaterialIcons name="palette" size={20} color="#007AFF" />
         <Text style={styles.menuItemText}>Map Style</Text>
+        <MaterialIcons name="chevron-right" size={20} color="#ccc" />
+      </TouchableOpacity>
+
+      <TouchableOpacity
+        style={styles.menuItem}
+        onPress={onVisualEffects}
+        testID="visual-effects-button"
+      >
+        <MaterialIcons name="auto-awesome" size={20} color="#007AFF" />
+        <Text style={styles.menuItemText}>Visual Effects</Text>
         <MaterialIcons name="chevron-right" size={20} color="#ccc" />
       </TouchableOpacity>
 
