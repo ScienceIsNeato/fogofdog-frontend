@@ -1,7 +1,7 @@
 {
   "name": "fogofdog",
   "main": "index.ts",
-  "version": "1.1.6",
+  "version": "1.1.7",
   "license": "UNLICENSED",
   "author": "William Martin <unique.will.martin@gmail.com>",
   "scripts": {
