@@ -38,7 +38,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 if [ ! -f /tmp/METRO_CURRENT_LOG_FILENAME.txt ]; then
-    echo "❌ No Metro log file found. Start Metro first with: ./scripts/refresh-metro.sh"
+    echo "❌ No Metro log file found. Start Metro first with: ./scripts/deploy_app.sh --device <ios|android> --mode development --data current"
     exit 1
 fi
 
@@ -46,7 +46,7 @@ CURRENT_LOG_FILE=$(cat /tmp/METRO_CURRENT_LOG_FILENAME.txt)
 
 if [ ! -f "$CURRENT_LOG_FILE" ]; then
     echo "❌ Metro log file not found: $CURRENT_LOG_FILE"
-    echo "💡 Start Metro with: ./scripts/refresh-metro.sh"
+    echo "💡 Start Metro with: ./scripts/deploy_app.sh --device <ios|android> --mode development --data current"
     exit 1
 fi
 

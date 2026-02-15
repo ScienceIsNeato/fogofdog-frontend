@@ -113,8 +113,8 @@ if [ "$REFRESH_APP" = true ]; then
     print_status "Refreshing Metro and restarting app..."
     
     # Check if refresh-metro.sh exists
-    if [ -f "./scripts/refresh-metro.sh" ]; then
-        if ./scripts/refresh-metro.sh; then
+    if [ -f "./scripts/internal/refresh-metro.sh" ]; then
+        if ./scripts/internal/refresh-metro.sh; then
             print_success "App refreshed successfully!"
         else
             print_warning "Metro refresh completed with warnings (this is normal)"

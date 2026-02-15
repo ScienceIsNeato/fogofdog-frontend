@@ -3,8 +3,8 @@
 # =============================================================================
 # Launch Emulator/Simulator - Quick device launcher for development
 # =============================================================================
-# Usage:
-#   ./scripts/launch-device.sh [platform]
+# Usage (internal helper - called by deploy_app.sh):
+#   ./scripts/internal/launch-device.sh [platform]
 #
 # Platforms:
 #   ios      - Launch iOS Simulator
@@ -138,6 +138,16 @@ launch_android() {
     log_info "Launching Android Emulator..."
     log_info "Target: $ANDROID_TARGET_AVD"
     
+    # Clean up orphaned crashpad_handler processes from previous sessions.
+    # These accumulate across emulator launches and can consume tens of GB of RAM.
+    local orphan_count
+    orphan_count=$(pgrep -f crashpad_handler 2>/dev/null | wc -l | tr -d ' ')
+    if [ "$orphan_count" -gt 0 ]; then
+        log_warning "Killing $orphan_count orphaned crashpad_handler processes..."
+        pkill -f crashpad_handler 2>/dev/null || true
+        sleep 1
+    fi
+    
     # Check if already running
     local running=$(adb devices 2>/dev/null | grep "emulator" | wc -l)
     
@@ -159,13 +169,37 @@ launch_android() {
         
         if [ -n "$avd_name" ]; then
             log_info "Starting AVD: $avd_name"
-            # Start in background, suppress output
-            nohup emulator -avd "$avd_name" -no-snapshot-load > /tmp/android_emulator.log 2>&1 &
+            # Start in detached background process so it survives parent shell exit.
+            # Resource tuning flags:
+            #   -no-snapshot-load  Cold boot (avoids stale snapshot corruption)
+            #   -no-audio          Skip audio emulation (saves CPU)
+            #   -no-boot-anim      Skip boot animation (faster startup)
+            #   -memory 2048       Cap guest RAM at 2GB (prevents host memory ballooning)
+            #   -gpu host          Use host GPU acceleration (faster, less CPU)
+            local emulator_bin
+            emulator_bin=$(command -v emulator)
+            (
+                exec nohup "$emulator_bin" -avd "$avd_name" \
+                    -no-snapshot-load \
+                    -no-audio \
+                    -no-boot-anim \
+                    -memory 2048 \
+                    -gpu host \
+                    > /tmp/android_emulator.log 2>&1
+            ) &
+            local emulator_pid=$!
+            disown "$emulator_pid" 2>/dev/null || true
+            echo "$emulator_pid" > /tmp/ANDROID_EMULATOR_PID.txt
             
             log_info "Waiting for emulator to boot..."
             # Wait for device to be ready (up to 60 seconds)
             local count=0
             while [ $count -lt 60 ]; do
+                if ! kill -0 "$emulator_pid" 2>/dev/null; then
+                    log_warning "Android Emulator process exited before boot completed"
+                    tail -20 /tmp/android_emulator.log 2>/dev/null || true
+                    return 1
+                fi
                 if adb shell getprop sys.boot_completed 2>/dev/null | grep -q "1"; then
                     log_success "Android Emulator booted: $avd_name"
                     return 0

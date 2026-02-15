@@ -15,7 +15,7 @@ ARTIFACTS_DIR="test_artifacts/ground_truth_${TIMESTAMP}"
 mkdir -p "$ARTIFACTS_DIR"
 
 echo "🔍 Running app readiness check..."
-./scripts/bundle-check.sh
+./scripts/internal/bundle-check.sh
 
 echo "📱 Executing ground truth comparison test..."
 echo "   - Sequence 1: Foreground baseline (ground truth)"

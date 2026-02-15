@@ -34,7 +34,7 @@ print_status "Starting React Native bundle validation..."
 
 # Step 0: Refresh Metro server to ensure clean connection
 print_status "Refreshing Metro server..."
-./scripts/refresh-metro.sh
+./scripts/internal/refresh-metro.sh
 
 # Step 1: Clean TypeScript compilation check
 print_status "Checking TypeScript compilation..."

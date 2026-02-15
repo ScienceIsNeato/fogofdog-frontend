@@ -1,8 +1,8 @@
 # FogOfDog Frontend Status
 
-## Current Status: 🚧 Graphics Layer — PR Open, Simulator Build Blocked
+## Current Status: 🚧 Graphics Layer — Fog Rendering Fixes Committed
 
-### 🎯 **LATEST: Graphics Layer Feature + Simulator Deploy Blocked**
+### 🎯 **LATEST: Fog Overlay Rendering Bugs Fixed**
 
 **Branch**: `feat/graphics-layer`
 **PR**: #61 (https://github.com/ScienceIsNeato/fogofdog-frontend/pull/61) → `main`
@@ -10,10 +10,19 @@
 
 #### What was completed this session
 
-- Full graphics/effects layer implemented and committed (see PR #61 and `SLOP_MOP_FINDINGS.md`)
-- `deploy_app.sh --device ios --mode development --data fresh-install` was attempted
+1. **GPS zoom drift fix** — committed as `8c2f89b`, pushed
+2. **Fog overlay rendering bugs** — committed as `f55a9e6`:
+   - **Infinite re-render loop** ("Maximum update depth exceeded"): `locationConfig` was an inline object literal in `useEffect` deps, creating new reference every render → memoized with `useMemo`
+   - **Stroke flashing at zoom changes**: GPS connection processing ran on density-reduced points (which change composition at different zoom levels) → moved to run on viewport-culled points before density reduction
+   - **Diagonal "V" spurious stroke**: `buildPathChains` used <1px pixel proximity + reverse matching → replaced with strict GPS-order chaining using exact equality
 
-#### Simulator build is blocked by two issues that need fixing
+#### Not yet pushed — awaiting user request
+
+---
+
+## Previous Status: 🚧 Graphics Layer — PR Open, Simulator Build Blocked
+
+### Simulator build is blocked by two issues
 
 **Issue 1 — FIXED: Missing `$MLRN.post_install(installer)` in `ios/Podfile`** (already committed)
 
@@ -271,17 +280,16 @@ Multiple TS errors exist in the codebase (identified but NOT fixed this session)
 
 **Use deploy_app.sh for ALL app operations**:
 
-| Command                                                                      | Description                           |
-| ---------------------------------------------------------------------------- | ------------------------------------- |
-| `./scripts/deploy_app.sh --device android --mode development --data current` | Full deploy (build if needed + Metro) |
-| `./scripts/deploy_app.sh metro --device android`                             | Start Metro + open app (skip build)   |
-| `./scripts/deploy_app.sh metro --device ios`                                 | Start Metro + open app (skip build)   |
-| `./scripts/deploy_app.sh status`                                             | Check Metro + device status           |
-| `./scripts/deploy_app.sh logs`                                               | Tail Metro logs                       |
-| `./scripts/deploy_app.sh stop`                                               | Stop Metro server                     |
-| `./scripts/launch-device.sh ios`                                             | Boot iOS Simulator only               |
-| `./scripts/launch-device.sh android`                                         | Boot Android Emulator only            |
-| `./scripts/run_integration_tests.sh <test.yaml>`                             | Run Maestro tests (iOS)               |
+| Command                                                                      | Description                         |
+| ---------------------------------------------------------------------------- | ----------------------------------- |
+| `./scripts/deploy_app.sh --device ios --mode development --data current`     | Full deploy iOS (build + Metro)     |
+| `./scripts/deploy_app.sh --device android --mode development --data current` | Full deploy Android (build + Metro) |
+| `./scripts/deploy_app.sh metro --device android`                             | Start Metro + open app (skip build) |
+| `./scripts/deploy_app.sh metro --device ios`                                 | Start Metro + open app (skip build) |
+| `./scripts/deploy_app.sh status`                                             | Check Metro + device status         |
+| `./scripts/deploy_app.sh logs`                                               | Tail Metro logs                     |
+| `./scripts/deploy_app.sh stop`                                               | Stop Metro server                   |
+| `./scripts/run_integration_tests.sh <test.yaml>`                             | Run Maestro tests (iOS)             |
 
 ### **📦 Commits This Session**
 

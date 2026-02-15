@@ -51,18 +51,18 @@ fi
 
 # Step 2: Deploy release build if needed
 if [ "$NEEDS_RELEASE_DEPLOYMENT" = true ]; then
-    echo "🚀 Deploying release build using dedicated script..."
+    echo "🚀 Deploying release build via deploy_app.sh..."
     if [ "$FORCE_REINSTALL" = true ]; then
-        ./scripts/deploy_release_build_to_simulator.sh --force
+        ./scripts/deploy_app.sh --device ios --mode release --data fresh-install
     else
-        ./scripts/deploy_release_build_to_simulator.sh
+        ./scripts/deploy_app.sh --device ios --mode release --data current
     fi
     echo "✅ Release build deployment completed"
 else
     echo "✅ Release build already properly deployed"
 fi
 
-# Build and installation now handled by deploy_release_build_to_simulator.sh
+# Build and installation handled by deploy_app.sh
 
 echo "✅ E2E build setup completed successfully."
 echo "You can now run integration tests using ./scripts/run_integration_tests.sh" 

@@ -473,7 +473,7 @@ boot_ios_simulator() {
     fi
 
     info "Booting iOS Simulator..."
-    "$SCRIPT_DIR/launch-device.sh" ios
+    "$SCRIPT_DIR/internal/launch-device.sh" ios
     
     # Wait for boot
     local attempts=0
@@ -498,7 +498,7 @@ boot_android_emulator() {
     fi
 
     info "Booting Android Emulator..."
-    "$SCRIPT_DIR/launch-device.sh" android
+    "$SCRIPT_DIR/internal/launch-device.sh" android
 
     # Wait for boot
     local attempts=0
@@ -740,8 +740,8 @@ start_metro_and_open() {
     local host_mode="lan"
     [ "$DEVICE" = "ios" ] && host_mode="localhost"
 
-    info "Starting Metro server via scripts/refresh-metro.sh..."
-    "$PROJECT_DIR/scripts/refresh-metro.sh" --host "$host_mode" --no-open
+    info "Starting Metro server via scripts/internal/refresh-metro.sh..."
+    "$PROJECT_DIR/scripts/internal/refresh-metro.sh" --host "$host_mode" --no-open
 
     if [ -f /tmp/METRO_CURRENT_LOG_FILENAME.txt ]; then
         local log_file
@@ -822,7 +822,56 @@ build_ios() {
     ok "iOS native build complete"
 }
 
+resolve_java_home() {
+    local candidate=""
+
+    if [ -x "/usr/libexec/java_home" ]; then
+        candidate=$(/usr/libexec/java_home -v 17 2>/dev/null || true)
+        [ -z "$candidate" ] && candidate=$(/usr/libexec/java_home 2>/dev/null || true)
+        if [ -n "$candidate" ] && [ -x "$candidate/bin/java" ]; then
+            echo "$candidate"
+            return 0
+        fi
+    fi
+
+    if command -v brew >/dev/null 2>&1; then
+        local brew_prefix
+        brew_prefix=$(brew --prefix openjdk@17 2>/dev/null || true)
+        if [ -n "$brew_prefix" ] && [ -x "$brew_prefix/libexec/openjdk.jdk/Contents/Home/bin/java" ]; then
+            echo "$brew_prefix/libexec/openjdk.jdk/Contents/Home"
+            return 0
+        fi
+    fi
+
+    return 1
+}
+
+ensure_java_home_for_android() {
+    if [ -n "${JAVA_HOME:-}" ] && [ -x "${JAVA_HOME}/bin/java" ]; then
+        info "Using JAVA_HOME: $JAVA_HOME"
+        return 0
+    fi
+
+    if [ -n "${JAVA_HOME:-}" ]; then
+        warn "JAVA_HOME is invalid: $JAVA_HOME"
+    else
+        warn "JAVA_HOME is not set"
+    fi
+
+    local detected_java_home
+    detected_java_home=$(resolve_java_home || true)
+    if [ -z "$detected_java_home" ]; then
+        die "Unable to locate a valid JDK for Android build. Install OpenJDK 17 and set JAVA_HOME."
+    fi
+
+    export JAVA_HOME="$detected_java_home"
+    export PATH="$JAVA_HOME/bin:$PATH"
+    ok "Using detected JAVA_HOME: $JAVA_HOME"
+}
+
 build_android() {
+    ensure_java_home_for_android
+
     info "Building native Android app..."
     info "This may take several minutes on first build."
 
@@ -925,6 +974,19 @@ launch_app_android() {
     adb shell monkey -p "$APP_BUNDLE_ID" -c android.intent.category.LAUNCHER 1 2>/dev/null || {
         adb shell am start -n "$APP_BUNDLE_ID/.MainActivity" 2>/dev/null || true
     }
+
+    if [ "$MODE" = "development" ]; then
+        # Ensure dev client opens directly to Metro on Android emulator without manual connect.
+        local dev_url="exp+fogofdog://expo-development-client/?url=http%3A%2F%2F10.0.2.2%3A${METRO_PORT}"
+        local deep_link_output=""
+        deep_link_output=$(adb shell am start -W -a android.intent.action.VIEW -d "$dev_url" 2>/dev/null || true)
+        if echo "$deep_link_output" | grep -Eq "Status: ok|intent has been delivered"; then
+            info "Android dev-client deep link sent to Metro (10.0.2.2:${METRO_PORT})"
+        else
+            warn "Could not confirm Android dev-client deep link delivery"
+        fi
+    fi
+
     ok "App launched"
 }
 
@@ -1108,6 +1170,7 @@ verify_app_running() {
             return 1
             ;;
         android)
+            adb get-state 2>/dev/null | grep -q "^device$" || return 1
             adb shell pidof "$APP_BUNDLE_ID" >/dev/null 2>&1
             ;;
     esac

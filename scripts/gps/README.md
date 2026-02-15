@@ -229,30 +229,17 @@ node tools/gps-injector-simple.js --mode relative --angle 350 --distance 80
 
 ## Simulator Location Setup
 
-### `setup-simulator-location.sh`
+Location setup is handled automatically by `deploy_app.sh`. When deploying to iOS,
+it sets the simulator location to Eugene, Oregon (44.0248, -123.1044).
 
-Sets a default location in the iOS Simulator for development. This prevents the app from getting stuck on "Getting your location..." when the simulator has no location set.
+For Android, GPS is injected via `adb emu geo fix`.
 
-**Location**: `scripts/setup-simulator-location.sh`
-
-**Usage**:
+To deploy with GPS auto-configured:
 
 ```bash
-# Set default development location (Eugene, Oregon South Hills)
-./scripts/setup-simulator-location.sh
+./scripts/deploy_app.sh --device ios --mode development --data current
+./scripts/deploy_app.sh --device android --mode development --data current
 ```
-
-**What it does**:
-
-- Checks if iOS Simulator is running
-- Sets the simulator location to Eugene, Oregon South Hills (44.0248, -123.1044)
-- Provides instructions for setting custom locations
-
-**When to use**:
-
-- After setting up a new development environment
-- When the simulator location gets cleared (after iOS updates, etc.)
-- When starting work on location-dependent features
 
 **Manual alternative**:
 

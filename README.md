@@ -119,11 +119,20 @@ npm run android
 
 ### 🚀 Metro Development Server
 
-**Always use the refresh-metro script to start Metro:**
+**Always use deploy_app.sh to manage the development server:**
 
 ```bash
-# Start Metro with persistent logging
-./scripts/refresh-metro.sh
+# Deploy to iOS simulator with development build
+./scripts/deploy_app.sh --device ios --mode development --data current
+
+# Deploy to Android emulator
+./scripts/deploy_app.sh --device android --mode development --data current
+
+# Check server & device status
+./scripts/deploy_app.sh status
+
+# Stop all Metro processes
+./scripts/deploy_app.sh stop
 
 # Monitor logs in real-time (run in separate terminal)
 ./scripts/monitor-metro-logs.sh
@@ -139,7 +148,7 @@ npm run android
 
 **Workflow:**
 
-1. Run `./scripts/refresh-metro.sh` (kills old Metro, starts new one, reloads app)
+1. Run `./scripts/deploy_app.sh --device ios --mode development --data current` (handles device boot, Metro, native build)
 2. Run `./scripts/monitor-metro-logs.sh` in another terminal to watch logs
 3. Develop with real-time log visibility
 
