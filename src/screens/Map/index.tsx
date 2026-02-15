@@ -1116,7 +1116,6 @@ function handleRegionChangeComplete({
 const useMapEventHandlers = (options: {
   dispatch: ReturnType<typeof useAppDispatch>;
   currentLocation: GeoPoint | null;
-  currentRegion: MapRegion | undefined;
   isMapCenteredOnUser: boolean;
   isFollowModeActive: boolean;
   mapRef: React.RefObject<CameraRef | null>;
@@ -1128,7 +1127,6 @@ const useMapEventHandlers = (options: {
   const {
     dispatch,
     currentLocation,
-    currentRegion,
     isFollowModeActive,
     mapRef,
     cinematicZoomActiveRef,
@@ -2255,7 +2253,6 @@ const useMapScreenServicesAndHandlers = (config: MapScreenServicesHandlersConfig
   const eventHandlers = useMapEventHandlers({
     dispatch: mapState.dispatch,
     currentLocation: mapState.currentLocation,
-    currentRegion: mapState.currentRegion,
     isMapCenteredOnUser: mapState.isMapCenteredOnUser,
     isFollowModeActive: mapState.isFollowModeActive,
     mapRef: mapState.mapRef,
