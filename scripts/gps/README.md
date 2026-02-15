@@ -14,8 +14,8 @@ This directory contains tools for testing GPS coordinate processing, permission 
 
 2. Inject relative movements:
    ```bash
-   node scripts/gps/gps-inject-relative.js --angle 90 --distance 30   # 30m North
-   node scripts/gps/gps-inject-relative.js --angle 45 --distance 50   # 50m Northeast
+   node scripts/gps/gps-injector-direct.js --mode relative --angle 90 --distance 30   # 30m North
+   node scripts/gps/gps-injector-direct.js --mode relative --angle 45 --distance 50   # 50m Northeast
    ```
 
 The system uses a standalone HTTP server that communicates with the app via file-based GPS injection, eliminating the need for manual DeviceEventEmitter commands.
@@ -26,16 +26,16 @@ For rapid development of permission flows, use the permission reset script:
 
 ```bash
 # Reset location permissions only
-./scripts/reset-permissions.sh
+./scripts/internal/reset-permissions.sh
 
 # Reset permissions and refresh the app
-./scripts/reset-permissions.sh --refresh
+./scripts/internal/reset-permissions.sh --refresh
 
 # Reset permissions for specific simulator
-./scripts/reset-permissions.sh --simulator ABC123-DEF456
+./scripts/internal/reset-permissions.sh --simulator ABC123-DEF456
 
 # Show help
-./scripts/reset-permissions.sh --help
+./scripts/internal/reset-permissions.sh --help
 ```
 
 This script is especially useful when testing:
@@ -57,17 +57,17 @@ The GPS injector allows you to inject specific GPS coordinates for testing backg
 
 ```bash
 # Add a specific GPS coordinate
-node tools/gps-injector-simple.js --mode absolute --lat 37.7749 --lon -122.4194
+node scripts/gps/gps-injector-direct.js --mode absolute --lat 37.7749 --lon -122.4194
 ```
 
 #### Relative Coordinates
 
 ```bash
 # Move relative to current position
-node tools/gps-injector-simple.js --mode relative --angle 45 --distance 100
+node scripts/gps/gps-injector-direct.js --mode relative --angle 45 --distance 100
 
 # Create a path with multiple points
-node tools/gps-injector-simple.js --mode relative --angle 0 --distance 50 --count 5
+node scripts/gps/gps-injector-direct.js --mode relative --angle 0 --distance 50 --count 5
 ```
 
 ### Parameters

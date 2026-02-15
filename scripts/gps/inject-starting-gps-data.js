@@ -8,20 +8,20 @@
  * path data before running tests.
  *
  * Usage:
- *   node scripts/inject-starting-gps-data.js [data-file] [options]
+ *   node scripts/gps/inject-starting-gps-data.js [data-file] [options]
  *
  * Examples:
  *   # Use default starting data
- *   node scripts/inject-starting-gps-data.js
+ *   node scripts/gps/inject-starting-gps-data.js
  *
  *   # Use specific data file
- *   node scripts/inject-starting-gps-data.js test_data/custom-path.json
+ *   node scripts/gps/inject-starting-gps-data.js test_data/custom-path.json
  *
  *   # Update timestamps to be relative to now
- *   node scripts/inject-starting-gps-data.js --update-timestamps
+ *   node scripts/gps/inject-starting-gps-data.js --update-timestamps
  *
  *   # Clear existing data first
- *   node scripts/inject-starting-gps-data.js --clear-first
+ *   node scripts/gps/inject-starting-gps-data.js --clear-first
  */
 
 const fs = require('fs');
@@ -78,7 +78,7 @@ This script injects starting GPS data from JSON files into AsyncStorage
 for testing purposes. Simulates a user having existing path data.
 
 Usage:
-  node scripts/inject-starting-gps-data.js [data-file] [options]
+  node scripts/gps/inject-starting-gps-data.js [data-file] [options]
 
 Arguments:
   data-file                Path to JSON file with GPS data (default: ${DEFAULT_DATA_FILE})
@@ -91,13 +91,13 @@ Options:
 
 Examples:
   # Use default starting data with updated timestamps
-  node scripts/inject-starting-gps-data.js --update-timestamps
+  node scripts/gps/inject-starting-gps-data.js --update-timestamps
 
   # Use custom data file
-  node scripts/inject-starting-gps-data.js test_data/custom-path.json
+  node scripts/gps/inject-starting-gps-data.js test_data/custom-path.json
 
   # Clear and inject data from 4 hours ago
-  node scripts/inject-starting-gps-data.js --clear-first --update-timestamps --hours-back 4
+  node scripts/gps/inject-starting-gps-data.js --clear-first --update-timestamps --hours-back 4
 
 Data Format:
   JSON array of objects with: latitude, longitude, timestamp, accuracy (optional)
