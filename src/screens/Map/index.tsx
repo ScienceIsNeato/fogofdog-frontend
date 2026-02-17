@@ -1309,17 +1309,14 @@ const calculateAdjustedMarkerCoordinate = (
 };
 
 // Helper component for rendering the MapView with marker
-const MapViewWithMarker = ({
-  mapRef,
-  initialRegion,
-  currentLocation,
-  currentRegion,
-  mapDimensions,
-  safeAreaInsets,
-  onRegionChange,
-  onPanDrag,
-  onRegionChangeComplete,
-}: {
+//
+// PERFORMANCE: Wrapped in React.memo with a custom comparator that ignores
+// lat/lon pan changes. During a pan gesture, currentRegion updates at ~60fps
+// but the marker adjustment only depends on zoom level (latitudeDelta) and
+// dimensions — MapLibre handles the native gesture rendering independently.
+// Without this, the MapView component tree re-renders every frame during pan,
+// causing GPU contention with MapLibre's tile renderer on physical devices.
+interface MapViewWithMarkerProps {
   mapRef: React.RefObject<CameraRef | null>;
   initialRegion: MapRegion;
   currentLocation: GeoPoint | null;
@@ -1329,75 +1326,106 @@ const MapViewWithMarker = ({
   onRegionChange: (region: MapRegion) => void;
   onPanDrag: () => void;
   onRegionChangeComplete: (region: MapRegion) => void;
-}) => {
-  const activeSkin = useAppSelector((state) => state.skin.activeSkin);
-  const mapStyle = getSkinStyle(activeSkin);
-  const adjustedCoordinate = currentLocation
-    ? calculateAdjustedMarkerCoordinate(
-        currentLocation,
-        currentRegion,
-        mapDimensions,
-        safeAreaInsets
-      )
-    : null;
+}
 
-  // Convert MapLibre region event payload to our MapRegion type
-  const handleRegionEvent = (feature: GeoJSON.Feature, callback: (region: MapRegion) => void) => {
-    const props = feature.properties as RegionPayload;
-    const coords = (feature.geometry as GeoJSON.Point).coordinates;
-    if (props.visibleBounds && coords) {
-      const [ne, sw] = props.visibleBounds;
-      const lat = coords[1] ?? 0;
-      const lng = coords[0] ?? 0;
-      const neLat = ne?.[1] ?? lat;
-      const neLng = ne?.[0] ?? lng;
-      const swLat = sw?.[1] ?? lat;
-      const swLng = sw?.[0] ?? lng;
-      callback({
-        latitude: lat,
-        longitude: lng,
-        latitudeDelta: Math.abs(neLat - swLat),
-        longitudeDelta: Math.abs(neLng - swLng),
-      });
-    }
-  };
+const MapViewWithMarker = React.memo<MapViewWithMarkerProps>(
+  function MapViewWithMarker({
+    mapRef,
+    initialRegion,
+    currentLocation,
+    currentRegion,
+    mapDimensions,
+    safeAreaInsets,
+    onRegionChange,
+    onPanDrag,
+    onRegionChangeComplete,
+  }) {
+    const activeSkin = useAppSelector((state) => state.skin.activeSkin);
+    const mapStyle = getSkinStyle(activeSkin);
+    const adjustedCoordinate = currentLocation
+      ? calculateAdjustedMarkerCoordinate(
+          currentLocation,
+          currentRegion,
+          mapDimensions,
+          safeAreaInsets
+        )
+      : null;
 
-  return (
-    <MapView
-      style={styles.map}
-      mapStyle={mapStyle}
-      rotateEnabled={false}
-      pitchEnabled={false}
-      attributionEnabled={false}
-      logoEnabled={false}
-      onRegionIsChanging={(feature) => handleRegionEvent(feature, onRegionChange)}
-      onRegionDidChange={(feature) => {
-        handleRegionEvent(feature, onRegionChangeComplete);
-        // Detect user interaction for pan-drag behavior
-        const props = feature.properties as RegionPayload;
-        if (props.isUserInteraction) {
-          onPanDrag();
-        }
-      }}
-    >
-      <Camera
-        ref={mapRef}
-        defaultSettings={{
-          centerCoordinate: [initialRegion.longitude, initialRegion.latitude],
-          zoomLevel: regionToZoomLevel(initialRegion),
+    // Convert MapLibre region event payload to our MapRegion type
+    const handleRegionEvent = (feature: GeoJSON.Feature, callback: (region: MapRegion) => void) => {
+      const props = feature.properties as RegionPayload;
+      const coords = (feature.geometry as GeoJSON.Point).coordinates;
+      if (props.visibleBounds && coords) {
+        const [ne, sw] = props.visibleBounds;
+        const lat = coords[1] ?? 0;
+        const lng = coords[0] ?? 0;
+        const neLat = ne?.[1] ?? lat;
+        const neLng = ne?.[0] ?? lng;
+        const swLat = sw?.[1] ?? lat;
+        const swLng = sw?.[0] ?? lng;
+        callback({
+          latitude: lat,
+          longitude: lng,
+          latitudeDelta: Math.abs(neLat - swLat),
+          longitudeDelta: Math.abs(neLng - swLng),
+        });
+      }
+    };
+
+    return (
+      <MapView
+        style={styles.map}
+        mapStyle={mapStyle}
+        rotateEnabled={false}
+        pitchEnabled={false}
+        attributionEnabled={false}
+        logoEnabled={false}
+        onRegionIsChanging={(feature) => handleRegionEvent(feature, onRegionChange)}
+        onRegionDidChange={(feature) => {
+          handleRegionEvent(feature, onRegionChangeComplete);
+          // Detect user interaction for pan-drag behavior
+          const props = feature.properties as RegionPayload;
+          if (props.isUserInteraction) {
+            onPanDrag();
+          }
         }}
-      />
-      {currentLocation && adjustedCoordinate && (
-        <MarkerView
-          coordinate={[adjustedCoordinate.longitude, adjustedCoordinate.latitude]}
-          anchor={{ x: 0.5, y: 0.5 }}
-        >
-          <View style={USER_MARKER_STYLE} />
-        </MarkerView>
-      )}
-    </MapView>
-  );
-};
+      >
+        <Camera
+          ref={mapRef}
+          defaultSettings={{
+            centerCoordinate: [initialRegion.longitude, initialRegion.latitude],
+            zoomLevel: regionToZoomLevel(initialRegion),
+          }}
+        />
+        {currentLocation && adjustedCoordinate && (
+          <MarkerView
+            coordinate={[adjustedCoordinate.longitude, adjustedCoordinate.latitude]}
+            anchor={{ x: 0.5, y: 0.5 }}
+          >
+            <View style={USER_MARKER_STYLE} />
+          </MarkerView>
+        )}
+      </MapView>
+    );
+  },
+  (prev, next) => {
+    // Skip re-render during panning — only re-render when something
+    // meaningful changes (zoom, location, dimensions, skin).
+    const prevDelta = prev.currentRegion?.latitudeDelta ?? 0;
+    const nextDelta = next.currentRegion?.latitudeDelta ?? 0;
+    return (
+      prev.currentLocation === next.currentLocation &&
+      prev.initialRegion === next.initialRegion &&
+      prev.safeAreaInsets === next.safeAreaInsets &&
+      prev.mapDimensions.width === next.mapDimensions.width &&
+      prev.mapDimensions.height === next.mapDimensions.height &&
+      Math.abs(prevDelta - nextDelta) <= 0.0001 &&
+      prev.onRegionChange === next.onRegionChange &&
+      prev.onPanDrag === next.onPanDrag &&
+      prev.onRegionChangeComplete === next.onRegionChangeComplete
+    );
+  }
+);
 
 const MapScreenRenderer = ({
   mapRef,
@@ -1422,6 +1450,33 @@ const MapScreenRenderer = ({
     currentLocation,
     canStartAnimation: canStartCinematicAnimation,
   });
+
+  // PERFORMANCE: Stable reference for mapDimensions — prevents MapViewWithMarker
+  // from re-rendering on every fog region pan update (dimensions don't change during pan).
+  const mapViewDimensions = useMemo(
+    () => ({
+      width: currentFogRegion?.width ?? 0,
+      height: currentFogRegion?.height ?? 0,
+    }),
+    [currentFogRegion?.width, currentFogRegion?.height]
+  );
+
+  // PERFORMANCE: Stable region props for MapDistanceScale — only changes with zoom,
+  // not on every pan frame.
+  const distanceScaleRegion = useMemo(
+    () =>
+      currentFogRegion
+        ? {
+            latitude: currentFogRegion.latitude,
+            longitude: currentFogRegion.longitude,
+            latitudeDelta: currentFogRegion.latitudeDelta,
+            longitudeDelta: currentFogRegion.longitudeDelta,
+          }
+        : undefined,
+    // Only recompute when zoom-relevant values change, not on every pan
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [currentFogRegion?.latitudeDelta, currentFogRegion?.longitudeDelta, currentFogRegion?.latitude]
+  );
 
   // Brief null while fallback region loads from AsyncStorage (~1 frame)
   if (!initialRegion) {
@@ -1453,10 +1508,7 @@ const MapScreenRenderer = ({
         initialRegion={initialRegion}
         currentLocation={currentLocation}
         currentRegion={currentFogRegion}
-        mapDimensions={{
-          width: currentFogRegion?.width ?? 0,
-          height: currentFogRegion?.height ?? 0,
-        }}
+        mapDimensions={mapViewDimensions}
         safeAreaInsets={insets}
         onRegionChange={onRegionChange}
         onPanDrag={onPanDrag}
@@ -1483,8 +1535,8 @@ const MapScreenRenderer = ({
       )}
 
       {/* Distance scale legend */}
-      {currentFogRegion && !isAcquiringGPS && (
-        <MapDistanceScale region={currentFogRegion} mapWidth={currentFogRegion.width} />
+      {distanceScaleRegion && !isAcquiringGPS && (
+        <MapDistanceScale region={distanceScaleRegion} mapWidth={currentFogRegion?.width ?? 0} />
       )}
 
       {/* GPS acquisition overlay — visible until first location fix */}

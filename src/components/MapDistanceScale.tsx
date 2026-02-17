@@ -82,23 +82,35 @@ const calculateScaleInfo = (region: MapRegion, mapWidth: number) => {
 };
 
 /**
- * Lightweight distance scale component that shows current map scale
- * Automatically adjusts based on zoom level and displays in meters/kilometers
+ * Lightweight distance scale component that shows current map scale.
+ * Automatically adjusts based on zoom level and displays in meters/kilometers.
+ *
+ * PERFORMANCE: Wrapped in React.memo with a custom comparator. The scale
+ * only depends on zoom level (longitudeDelta + latitude for Mercator) and
+ * mapWidth. During panning at constant zoom, these don't change, so
+ * re-renders are skipped entirely.
  */
-export const MapDistanceScale: React.FC<MapDistanceScaleProps> = ({ region, mapWidth }) => {
-  const scaleInfo = useMemo(() => calculateScaleInfo(region, mapWidth), [region, mapWidth]);
+export const MapDistanceScale: React.FC<MapDistanceScaleProps> = React.memo(
+  function MapDistanceScale({ region, mapWidth }) {
+    const scaleInfo = useMemo(() => calculateScaleInfo(region, mapWidth), [region, mapWidth]);
 
-  if (!scaleInfo) {
-    return null;
-  }
+    if (!scaleInfo) {
+      return null;
+    }
 
-  return (
-    <View style={styles.container}>
-      <View style={[styles.scaleLine, { width: scaleInfo.pixelWidth }]} />
-      <Text style={styles.scaleLabel}>{scaleInfo.label}</Text>
-    </View>
-  );
-};
+    return (
+      <View style={styles.container}>
+        <View style={[styles.scaleLine, { width: scaleInfo.pixelWidth }]} />
+        <Text style={styles.scaleLabel}>{scaleInfo.label}</Text>
+      </View>
+    );
+  },
+  (prev, next) =>
+    // Only re-render when zoom-relevant values change
+    prev.mapWidth === next.mapWidth &&
+    Math.abs(prev.region.longitudeDelta - next.region.longitudeDelta) <= 0.00001 &&
+    Math.abs(prev.region.latitude - next.region.latitude) <= 0.001
+);
 
 const styles = StyleSheet.create({
   container: {

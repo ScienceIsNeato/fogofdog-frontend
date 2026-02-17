@@ -117,14 +117,18 @@ const RadarSweepOverlay: React.FC<{
 
 /**
  * MapEffectOverlay — main component
+ *
+ * PERFORMANCE: Wrapped in React.memo. All props are primitives except
+ * renderConfig (which is stable via useMemo in the connector). Standard
+ * shallow comparison prevents re-renders when props haven't changed.
  */
-const MapEffectOverlay: React.FC<MapEffectOverlayProps> = ({
+const MapEffectOverlay = React.memo<MapEffectOverlayProps>(function MapEffectOverlay({
   width,
   height,
   userX,
   userY,
   renderConfig,
-}) => {
+}) {
   // Fast-path: if there's no overlay colour and no animation, skip rendering entirely.
   if (
     (!renderConfig.overlayColor || renderConfig.overlayOpacity <= 0) &&
@@ -179,7 +183,7 @@ const MapEffectOverlay: React.FC<MapEffectOverlayProps> = ({
       </Canvas>
     </View>
   );
-};
+});
 
 const styles = StyleSheet.create({
   container: {
