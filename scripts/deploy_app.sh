@@ -154,6 +154,7 @@ FORCE=false
 SKIP_GPS=false
 SHOW_HELP=false
 DRY_RUN=false
+PHYSICAL_DEVICE=false
 
 while [[ $# -gt 0 ]]; do
     case $1 in
@@ -164,6 +165,7 @@ while [[ $# -gt 0 ]]; do
         --force)    FORCE=true;   shift   ;;
         --skip-gps) SKIP_GPS=true; shift  ;;
         --dry-run)  DRY_RUN=true; shift   ;;
+        --physical) PHYSICAL_DEVICE=true; shift ;;
         --help|-h)  SHOW_HELP=true; shift ;;
         # Shorthand actions (no --action prefix needed)
         status)     ACTION="status"; shift ;;
@@ -201,12 +203,14 @@ OPTIONAL ARGS:
   --action    deploy | metro | status | logs | stop
   --force     Force a native rebuild even if app is already installed
   --skip-gps  Skip automatic GPS/location setup
+  --physical  Deploy to physical iOS device (uses LOCAL_DEVICE_NAME from .envrc)
   --dry-run   Show what would be done without doing it
   --help      Show this help
 
 EXAMPLES:
   ./scripts/deploy_app.sh --device android --mode development --data current
   ./scripts/deploy_app.sh --device ios --mode development --data fresh-install
+  ./scripts/deploy_app.sh --device ios --mode development --data current --physical
   ./scripts/deploy_app.sh --device android --mode development --data current --force
   ./scripts/deploy_app.sh status
   ./scripts/deploy_app.sh logs
@@ -271,6 +275,11 @@ quick_get_ios_sim_name() {
 
 quick_is_android_emu_running() {
     adb devices 2>/dev/null | grep -q "emulator"
+}
+
+get_local_ip() {
+    # Get the primary LAN IP address (for Metro connection over WiFi)
+    ipconfig getifaddr en0 2>/dev/null || ipconfig getifaddr en1 2>/dev/null || echo "localhost"
 }
 
 action_status() {
@@ -562,7 +571,8 @@ NATIVE_FINGERPRINT_FILES_ANDROID=(
     "app.config.js"
 )
 
-# Where we store the fingerprint of the last successful build
+# Where we store the fingerprint of the last successful build.
+# Includes mode (debug/release) because they produce different binaries.
 FINGERPRINT_FILE_IOS="$PROJECT_DIR/.native-fingerprint-ios"
 FINGERPRINT_FILE_ANDROID="$PROJECT_DIR/.native-fingerprint-android"
 
@@ -581,7 +591,8 @@ compute_native_fingerprint() {
     esac
 
     # Hash all the files that exist, sorted for consistency
-    local hash_input=""
+    # Include MODE so Debug→Release (or vice versa) triggers a rebuild
+    local hash_input="mode:${MODE}\n"
     for file in "${files_to_hash[@]}"; do
         local full_path="$PROJECT_DIR/$file"
         if [ -f "$full_path" ]; then
@@ -738,7 +749,8 @@ stop_metro() {
 
 start_metro_and_open() {
     local host_mode="lan"
-    [ "$DEVICE" = "ios" ] && host_mode="localhost"
+    # iOS simulator uses localhost; physical iOS device uses lan (like Android)
+    [ "$DEVICE" = "ios" ] && [ "$PHYSICAL_DEVICE" != true ] && host_mode="localhost"
 
     info "Starting Metro server via scripts/internal/refresh-metro.sh..."
     "$PROJECT_DIR/scripts/internal/refresh-metro.sh" --host "$host_mode" --no-open
@@ -764,13 +776,23 @@ build_ios() {
     cd "$PROJECT_DIR"
     local build_log="/tmp/expo_build_ios_$(date +%s).log"
     local ios_device_name
-    ios_device_name=$(get_ios_sim_name)
+
+    # Determine target device: physical (from .envrc) or simulator
+    if [ "$PHYSICAL_DEVICE" = true ]; then
+        if [ -z "$LOCAL_DEVICE_NAME" ]; then
+            die "LOCAL_DEVICE_NAME not set in .envrc (required for --physical)"
+        fi
+        ios_device_name="$LOCAL_DEVICE_NAME"
+        info "Target physical device: $ios_device_name"
+    else
+        ios_device_name=$(get_ios_sim_name)
+    fi
 
     # Run expo build in background, capturing output to log file
     # NOTE: Despite --no-bundler, Expo may start Metro after build completes
     # and block forever. We monitor for "Build Succeeded" / errors and kill it.
     if [ -n "$ios_device_name" ]; then
-        info "Target iOS simulator: $ios_device_name ($(get_ios_sim_udid))"
+        [ "$PHYSICAL_DEVICE" != true ] && info "Target iOS simulator: $ios_device_name ($(get_ios_sim_udid))"
         "$PROJECT_DIR/node_modules/.bin/expo" run:ios --configuration "$config" --no-bundler --device "$ios_device_name" > "$build_log" 2>&1 &
     else
         "$PROJECT_DIR/node_modules/.bin/expo" run:ios --configuration "$config" --no-bundler > "$build_log" 2>&1 &
@@ -783,9 +805,35 @@ build_ios() {
     while kill -0 "$expo_pid" 2>/dev/null && [ $elapsed -lt $max_wait ]; do
         # Check for build success
         if grep -q "Build Succeeded" "$build_log" 2>/dev/null; then
-            info "Build succeeded — terminating Expo process"
-            kill "$expo_pid" 2>/dev/null || true
-            wait "$expo_pid" 2>/dev/null || true
+            if [ "$PHYSICAL_DEVICE" = true ]; then
+                # Physical device: expo needs to continue running after build
+                # to install the app on the device. Wait for install completion
+                # (log shows "Complete 100%") or process exit.
+                info "Build succeeded — waiting for device install..."
+                local install_wait=0
+                while kill -0 "$expo_pid" 2>/dev/null && [ $install_wait -lt 120 ]; do
+                    # Check for install completion in the log
+                    if grep -q "Complete 100%" "$build_log" 2>/dev/null; then
+                        info "App installed on device — terminating Expo process"
+                        kill "$expo_pid" 2>/dev/null || true
+                        wait "$expo_pid" 2>/dev/null || true
+                        break
+                    fi
+                    sleep 2
+                    install_wait=$((install_wait + 2))
+                done
+                # Final cleanup if still running
+                if kill -0 "$expo_pid" 2>/dev/null; then
+                    warn "Expo still running after install wait — killing"
+                    kill "$expo_pid" 2>/dev/null || true
+                    wait "$expo_pid" 2>/dev/null || true
+                fi
+            else
+                # Simulator: kill immediately after build, we launch via simctl
+                info "Build succeeded — terminating Expo process"
+                kill "$expo_pid" 2>/dev/null || true
+                wait "$expo_pid" 2>/dev/null || true
+            fi
             break
         fi
         # Check for build failure
@@ -960,6 +1008,17 @@ setup_gps_android() {
 # =============================================================================
 
 launch_app_ios() {
+    if [ "$PHYSICAL_DEVICE" = true ]; then
+        if [ "$MODE" = "release" ]; then
+            info "Open the FogOfDog app on '$LOCAL_DEVICE_NAME'"
+            ok "Release build — no Metro needed, app runs standalone"
+        else
+            info "Open the FogOfDog app on '$LOCAL_DEVICE_NAME' to connect to Metro"
+            ok "App should auto-connect to Metro at $(get_local_ip):${METRO_PORT}"
+        fi
+        return 0
+    fi
+
     local udid
     udid=$(get_ios_sim_udid)
     if [ -n "$udid" ]; then
@@ -998,6 +1057,17 @@ needs_native_build() {
     if [ "$FORCE" = true ]; then
         info "Force rebuild requested"
         return 0  # yes, needs build
+    fi
+
+    # Physical device: can't reliably check if app is installed/current.
+    # Use native fingerprint to detect if a rebuild is needed.
+    if [ "$PHYSICAL_DEVICE" = true ]; then
+        if is_native_dirty "ios"; then
+            info "Native code changed since last build — rebuild needed"
+            return 0
+        fi
+        ok "Native code unchanged — skipping rebuild (app should be on device)"
+        return 1
     fi
 
     if [ "$DATA" = "fresh-install" ] && [ "$DEVICE" = "ios" ]; then
@@ -1059,10 +1129,14 @@ cd "$PROJECT_DIR"
 
 step "Ensure device is running"
 
-case "$DEVICE" in
-    ios)     run_step "boot_ios_simulator" boot_ios_simulator       ;;
-    android) run_step "boot_android_emulator" boot_android_emulator ;;
-esac
+if [ "$PHYSICAL_DEVICE" = true ]; then
+    ok "Physical device '$LOCAL_DEVICE_NAME' — ensure it's plugged in and unlocked"
+else
+    case "$DEVICE" in
+        ios)     run_step "boot_ios_simulator" boot_ios_simulator       ;;
+        android) run_step "boot_android_emulator" boot_android_emulator ;;
+    esac
+fi
 
 # ── Step 2: Aggressive Metro cleanup (always run for development) ────────────
 
@@ -1117,7 +1191,10 @@ fi
 
 # ── Step 6: GPS setup ────────────────────────────────────────────────────────
 
-if [ "$SKIP_GPS" = false ]; then
+if [ "$PHYSICAL_DEVICE" = true ]; then
+    step "GPS setup"
+    ok "Physical device — using real GPS"
+elif [ "$SKIP_GPS" = false ]; then
     step "Set up GPS / location"
     case "$DEVICE" in
         ios)     run_step "setup_gps_ios" setup_gps_ios         ;;
@@ -1159,6 +1236,10 @@ step "Verify app is running"
 verify_app_running() {
     case "$DEVICE" in
         ios)
+            if [ "$PHYSICAL_DEVICE" = true ]; then
+                # Can't programmatically verify physical device app state
+                return 0
+            fi
             local udid
             udid=$(get_ios_sim_udid)
             if [ -n "$udid" ]; then
@@ -1215,7 +1296,11 @@ echo -e "${BOLD}${GREEN}🐕 Deploy complete!${NC}  ${DIM}(${ELAPSED_SECONDS}s)$
 echo -e "${DIM}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 echo ""
 echo -e "  ${BOLD}Status${NC}"
-echo -e "  ├── Device:   ${BOLD}$DEVICE${NC}"
+if [ "$PHYSICAL_DEVICE" = true ]; then
+    echo -e "  ├── Device:   ${BOLD}$DEVICE${NC} (physical: $LOCAL_DEVICE_NAME)"
+else
+    echo -e "  ├── Device:   ${BOLD}$DEVICE${NC}"
+fi
 echo -e "  ├── Mode:     ${BOLD}$MODE${NC}"
 echo -e "  └── Data:     ${BOLD}$DATA${NC}"
 
@@ -1232,13 +1317,25 @@ if [ "$MODE" = "development" ]; then
     echo -e "  │"
 fi
 
-echo -e "  ├── ${CYAN}Inject GPS coordinates:${NC}"
-if [ "$DEVICE" = "android" ]; then
-    echo -e "  │   ${DIM}adb emu geo fix <longitude> <latitude>${NC}"
-    echo -e "  │   ${DIM}Example: adb emu geo fix -123.1044 44.0248${NC}"
+if [ "$PHYSICAL_DEVICE" = true ]; then
+    if [ "$MODE" = "development" ]; then
+        echo -e "  ├── ${CYAN}Metro connection:${NC}"
+        echo -e "  │   ${DIM}Device should auto-connect to Metro at $(get_local_ip):${METRO_PORT}${NC}"
+        echo -e "  │   ${DIM}If not, open the app on your phone and it will find the server${NC}"
+    else
+        echo -e "  ├── ${CYAN}Standalone app:${NC}"
+        echo -e "  │   ${DIM}Release build — just open the app on your phone${NC}"
+        echo -e "  │   ${DIM}No Metro server or local network required${NC}"
+    fi
 else
-    echo -e "  │   ${DIM}xcrun simctl location booted set <lat>,<lon>${NC}"
-    echo -e "  │   ${DIM}Example: xcrun simctl location booted set 44.0248,-123.1044${NC}"
+    echo -e "  ├── ${CYAN}Inject GPS coordinates:${NC}"
+    if [ "$DEVICE" = "android" ]; then
+        echo -e "  │   ${DIM}adb emu geo fix <longitude> <latitude>${NC}"
+        echo -e "  │   ${DIM}Example: adb emu geo fix -123.1044 44.0248${NC}"
+    else
+        echo -e "  │   ${DIM}xcrun simctl location booted set <lat>,<lon>${NC}"
+        echo -e "  │   ${DIM}Example: xcrun simctl location booted set 44.0248,-123.1044${NC}"
+    fi
 fi
 
 if [ "$MODE" = "development" ]; then

@@ -168,9 +168,10 @@ launch_android() {
         fi
         
         if [ -n "$avd_name" ]; then
-            log_info "Starting AVD: $avd_name"
+            log_info "Starting AVD: $avd_name (headless mode)"
             # Start in detached background process so it survives parent shell exit.
             # Resource tuning flags:
+            #   -no-window         Headless mode (no UI window, control via adb/scrcpy)
             #   -no-snapshot-load  Cold boot (avoids stale snapshot corruption)
             #   -no-audio          Skip audio emulation (saves CPU)
             #   -no-boot-anim      Skip boot animation (faster startup)
@@ -180,6 +181,7 @@ launch_android() {
             emulator_bin=$(command -v emulator)
             (
                 exec nohup "$emulator_bin" -avd "$avd_name" \
+                    -no-window \
                     -no-snapshot-load \
                     -no-audio \
                     -no-boot-anim \
