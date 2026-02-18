@@ -31,7 +31,13 @@ jest.mock('@maplibre/maplibre-react-native', () => {
     MapView: View,
     Camera: View,
     MarkerView: View,
+    ImageSource: View,
+    RasterLayer: View,
   };
+});
+jest.mock('../../../components/FogImageLayer', () => {
+  const ReactNative = jest.requireActual('react-native');
+  return { __esModule: true, default: ReactNative.View };
 });
 jest.mock('../../../services/BackgroundLocationService');
 jest.mock('../../../services/GPSInjectionService', () => ({

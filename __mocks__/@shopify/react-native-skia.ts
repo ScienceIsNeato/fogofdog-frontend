@@ -1,6 +1,28 @@
 import React from 'react';
 import { View } from 'react-native';
 
+// Mock Skia image/surface for offscreen rendering
+const mockSkImage = {
+  encodeToBase64: jest.fn(() => 'mockBase64ImageData'),
+  encodeToBytes: jest.fn(() => new Uint8Array()),
+  dispose: jest.fn(),
+  width: jest.fn(() => 400),
+  height: jest.fn(() => 800),
+};
+
+const mockSkSurface = {
+  getCanvas: jest.fn(() => ({
+    drawRect: jest.fn(),
+    drawPath: jest.fn(),
+    drawCircle: jest.fn(),
+    clear: jest.fn(),
+  })),
+  makeImageSnapshot: jest.fn(() => mockSkImage),
+  flush: jest.fn(),
+  width: jest.fn(() => 400),
+  height: jest.fn(() => 800),
+};
+
 // Mock all Skia components as simple Views
 export const Skia = {
   Path: {
@@ -25,7 +47,43 @@ export const Skia = {
     setColor: jest.fn(),
     setStyle: jest.fn(),
     setStrokeWidth: jest.fn(),
+    setStrokeCap: jest.fn(),
+    setStrokeJoin: jest.fn(),
+    setBlendMode: jest.fn(),
+    setAlphaf: jest.fn(),
   })),
+  Color: jest.fn((c: string) => c),
+  XYWHRect: jest.fn((x: number, y: number, w: number, h: number) => ({
+    x,
+    y,
+    width: w,
+    height: h,
+  })),
+  Surface: {
+    Make: jest.fn(() => mockSkSurface),
+    MakeOffscreen: jest.fn(() => mockSkSurface),
+  },
+};
+
+// Enums used by FogImageLayer for imperative paint style
+export const PaintStyle = { Fill: 0, Stroke: 1 };
+export const StrokeCap = { Butt: 0, Round: 1, Square: 2 };
+export const StrokeJoin = { Miter: 0, Round: 1, Bevel: 2 };
+export const BlendMode = {
+  Clear: 0,
+  Src: 1,
+  Dst: 2,
+  SrcOver: 3,
+  DstOver: 4,
+  SrcIn: 5,
+  DstIn: 6,
+  SrcOut: 7,
+  DstOut: 8,
+  SrcATop: 9,
+  DstATop: 10,
+  Xor: 11,
+  Plus: 12,
+  Modulate: 13,
 };
 
 // Preserve all props including testID for better testing

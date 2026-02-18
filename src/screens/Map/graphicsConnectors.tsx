@@ -9,7 +9,7 @@
  * Extracted here to keep Map/index.tsx under the 2700-line LOC budget.
  */
 import React from 'react';
-import OptimizedFogOverlay from '../../components/OptimizedFogOverlay';
+import FogImageLayer from '../../components/FogImageLayer';
 import MapEffectOverlay from '../../components/MapEffectOverlay';
 import ScentTrail from '../../components/ScentTrail';
 import { useAppSelector } from '../../store/hooks';
@@ -29,10 +29,16 @@ interface SafeAreaInsets {
 // initializeDefaultEffects() is idempotent; safe to call at module scope.
 GraphicsService.initializeDefaultEffects();
 
-/** Fog overlay wired to active fog effect from Redux. */
-export const FogOverlayConnected: React.FC<{
+/**
+ * Fog image layer wired to active fog effect from Redux.
+ *
+ * ARCHITECTURE: Renders fog as a native MapLibre ImageSource + RasterLayer.
+ * Must be rendered as a CHILD of <MapView> — MapLibre handles all pan/zoom
+ * transforms natively with zero lag (no JS bridge crossings during gestures).
+ */
+export const FogImageLayerConnected: React.FC<{
   mapRegion: MapRegion & { width: number; height: number };
-  safeAreaInsets?: SafeAreaInsets;
+  safeAreaInsets?: SafeAreaInsets | undefined;
 }> = ({ mapRegion, safeAreaInsets }) => {
   const activeFogId = useAppSelector((s) => s.graphics.activeFogEffectId);
   const fogEffectConfig = React.useMemo(
@@ -40,7 +46,7 @@ export const FogOverlayConnected: React.FC<{
     [activeFogId]
   );
   return (
-    <OptimizedFogOverlay
+    <FogImageLayer
       mapRegion={mapRegion}
       {...(safeAreaInsets !== undefined ? { safeAreaInsets } : {})}
       {...(fogEffectConfig !== undefined ? { fogEffectConfig } : {})}

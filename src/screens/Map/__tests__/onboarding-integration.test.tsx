@@ -63,7 +63,20 @@ jest.mock('@maplibre/maplibre-react-native', () => {
     MapView: MockMapView,
     Camera: MockCamera,
     MarkerView: MockMarkerView,
+    ImageSource: (props: any) => <View testID="mock-image-source" {...props} />,
+    RasterLayer: (props: any) => <View testID="mock-raster-layer" {...props} />,
   };
+});
+
+// Mock FogImageLayer
+jest.mock('../../../components/FogImageLayer', () => {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const React = require('react');
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { View } = require('react-native');
+  const MockFogImageLayer = (props: any) => <View testID="mock-fog-image-layer" {...props} />;
+  MockFogImageLayer.displayName = 'MockFogImageLayer';
+  return { __esModule: true, default: MockFogImageLayer };
 });
 
 // Mock OptimizedFogOverlay

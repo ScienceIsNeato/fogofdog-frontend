@@ -137,7 +137,18 @@ jest.mock('@maplibre/maplibre-react-native', () => {
     MapView: MockMapView,
     Camera: MockCamera,
     MarkerView: MockMarkerView,
+    ImageSource: (props: any) =>
+      React.createElement(View, { testID: 'mock-image-source', ...props }, props.children),
+    RasterLayer: (props: any) =>
+      React.createElement(View, { testID: 'mock-raster-layer', ...props }),
   };
+});
+
+jest.mock('../../../components/FogImageLayer', () => {
+  const React = jest.requireActual<typeof import('react')>('react');
+  const { View } = jest.requireActual<typeof import('react-native')>('react-native');
+  const MockFog = (_props: any) => React.createElement(View, { testID: 'mock-fog-image-layer' });
+  return { __esModule: true, default: MockFog };
 });
 
 jest.mock('../../../components/OptimizedFogOverlay', () => {
@@ -189,6 +200,20 @@ jest.mock('../../../components/LocationButton', () => {
 jest.mock('@shopify/react-native-skia', () => {
   const React = jest.requireActual<typeof import('react')>('react');
   const { View } = jest.requireActual<typeof import('react-native')>('react-native');
+
+  const mockSkImage = {
+    encodeToBase64: jest.fn(() => 'mockBase64'),
+    dispose: jest.fn(),
+  };
+  const mockSkSurface = {
+    getCanvas: jest.fn(() => ({
+      drawRect: jest.fn(),
+      drawPath: jest.fn(),
+    })),
+    makeImageSnapshot: jest.fn(() => mockSkImage),
+    flush: jest.fn(),
+  };
+
   return {
     Canvas: (_p: any) => React.createElement(View, { testID: 'mock-skia-canvas' }),
     Mask: (_p: any) => React.createElement(View, {}),
@@ -196,7 +221,44 @@ jest.mock('@shopify/react-native-skia', () => {
     Fill: (_p: any) => React.createElement(View, {}),
     Path: (_p: any) => React.createElement(View, {}),
     Rect: (_p: any) => React.createElement(View, {}),
-    Skia: { Path: { Make: jest.fn().mockReturnValue({ moveTo: jest.fn(), lineTo: jest.fn() }) } },
+    Skia: {
+      Path: {
+        Make: jest
+          .fn()
+          .mockReturnValue({ moveTo: jest.fn(), lineTo: jest.fn(), dispose: jest.fn() }),
+      },
+      Paint: jest.fn(() => ({
+        setColor: jest.fn(),
+        setStyle: jest.fn(),
+        setStrokeWidth: jest.fn(),
+        setStrokeCap: jest.fn(),
+        setStrokeJoin: jest.fn(),
+        setBlendMode: jest.fn(),
+        setAlphaf: jest.fn(),
+      })),
+      Color: jest.fn((c: string) => c),
+      XYWHRect: jest.fn((x: number, y: number, w: number, h: number) => ({
+        x,
+        y,
+        width: w,
+        height: h,
+      })),
+      Surface: { Make: jest.fn(() => mockSkSurface) },
+    },
+    PaintStyle: { Fill: 0, Stroke: 1 },
+    StrokeCap: { Butt: 0, Round: 1, Square: 2 },
+    StrokeJoin: { Miter: 0, Round: 1, Bevel: 2 },
+    BlendMode: {
+      Clear: 0,
+      Src: 1,
+      Dst: 2,
+      SrcOver: 3,
+      DstOver: 4,
+      SrcIn: 5,
+      DstIn: 6,
+      SrcOut: 7,
+      DstOut: 8,
+    },
   };
 });
 

@@ -37,7 +37,7 @@ import { getSkinStyle } from '../../services/SkinStyleService';
 import * as Location from 'expo-location';
 import * as TaskManager from 'expo-task-manager';
 import {
-  FogOverlayConnected,
+  FogImageLayerConnected,
   MapEffectOverlayConnected,
   ScentTrailConnected,
 } from './graphicsConnectors';
@@ -70,6 +70,7 @@ import { DataStats, ClearType } from '../../types/dataClear';
 import { GeoPoint } from '../../types/user';
 
 import { constrainRegion } from '../../constants/mapConstraints';
+import { PerfProbe } from './perfProbe';
 // Performance optimizations available via OptimizedFogOverlay component
 
 /**
@@ -446,10 +447,10 @@ const createLocationUpdateCallback = (params: {
   dispatch: ReturnType<typeof useAppDispatch>;
   mapRef: React.RefObject<CameraRef | null>;
   cinematicZoomActiveRef: React.MutableRefObject<boolean>;
-  isMapCenteredOnUser: boolean;
-  isFollowModeActive: boolean;
-  explorationPath: GeoPoint[];
-  isSessionActive: boolean;
+  isMapCenteredOnUserRef: React.MutableRefObject<boolean>;
+  isFollowModeActiveRef: React.MutableRefObject<boolean>;
+  explorationPathRef: React.MutableRefObject<GeoPoint[]>;
+  isSessionActiveRef: React.MutableRefObject<boolean>;
 }) => {
   return (location: { latitude: number; longitude: number }) => {
     if (params.isActiveRef.current) {
@@ -463,10 +464,10 @@ const createLocationUpdateCallback = (params: {
         dispatch: params.dispatch,
         mapRef: params.mapRef,
         cinematicZoomActiveRef: params.cinematicZoomActiveRef,
-        isMapCenteredOnUser: params.isMapCenteredOnUser,
-        isFollowModeActive: params.isFollowModeActive,
-        explorationPath: params.explorationPath,
-        isSessionActive: params.isSessionActive,
+        isMapCenteredOnUser: params.isMapCenteredOnUserRef.current,
+        isFollowModeActive: params.isFollowModeActiveRef.current,
+        explorationPath: params.explorationPathRef.current,
+        isSessionActive: params.isSessionActiveRef.current,
       });
     }
   };
@@ -478,10 +479,10 @@ const createGPSInjectionCallback = (params: {
   dispatch: ReturnType<typeof useAppDispatch>;
   mapRef: React.RefObject<CameraRef | null>;
   cinematicZoomActiveRef: React.MutableRefObject<boolean>;
-  isMapCenteredOnUser: boolean;
-  isFollowModeActive: boolean;
-  explorationPath: GeoPoint[];
-  isSessionActive: boolean;
+  isMapCenteredOnUserRef: React.MutableRefObject<boolean>;
+  isFollowModeActiveRef: React.MutableRefObject<boolean>;
+  explorationPathRef: React.MutableRefObject<GeoPoint[]>;
+  isSessionActiveRef: React.MutableRefObject<boolean>;
 }) => {
   return (location: { latitude: number; longitude: number; timestamp?: number }) => {
     logger.info('🎯 GPS injection event received in MapScreen', {
@@ -512,10 +513,10 @@ const createGPSInjectionCallback = (params: {
         dispatch: params.dispatch,
         mapRef: params.mapRef,
         cinematicZoomActiveRef: params.cinematicZoomActiveRef,
-        isMapCenteredOnUser: params.isMapCenteredOnUser,
-        isFollowModeActive: params.isFollowModeActive,
-        explorationPath: params.explorationPath,
-        isSessionActive: params.isSessionActive,
+        isMapCenteredOnUser: params.isMapCenteredOnUserRef.current,
+        isFollowModeActive: params.isFollowModeActiveRef.current,
+        explorationPath: params.explorationPathRef.current,
+        isSessionActive: params.isSessionActiveRef.current,
       });
 
       logger.info('✅ GPS injection handleLocationUpdate called', {
@@ -532,34 +533,36 @@ const createGPSInjectionCallback = (params: {
 };
 
 // Helper: setupLocationListeners
+// Accepts refs for frequently-changing values so the effect that calls this
+// doesn't need to tear down and recreate listeners on every GPS update.
 function setupLocationListeners({
   isActiveRef,
   dispatch,
   mapRef,
   cinematicZoomActiveRef,
-  isMapCenteredOnUser,
-  isFollowModeActive,
-  explorationPath,
-  isSessionActive,
+  isMapCenteredOnUserRef,
+  isFollowModeActiveRef,
+  explorationPathRef,
+  isSessionActiveRef,
 }: {
   isActiveRef: { current: boolean };
   dispatch: ReturnType<typeof useAppDispatch>;
   mapRef: React.RefObject<CameraRef | null>;
   cinematicZoomActiveRef: React.MutableRefObject<boolean>;
-  isMapCenteredOnUser: boolean;
-  isFollowModeActive: boolean;
-  explorationPath: GeoPoint[];
-  isSessionActive: boolean;
+  isMapCenteredOnUserRef: React.MutableRefObject<boolean>;
+  isFollowModeActiveRef: React.MutableRefObject<boolean>;
+  explorationPathRef: React.MutableRefObject<GeoPoint[]>;
+  isSessionActiveRef: React.MutableRefObject<boolean>;
 }) {
   const params = {
     isActiveRef,
     dispatch,
     mapRef,
     cinematicZoomActiveRef,
-    isMapCenteredOnUser,
-    isFollowModeActive,
-    explorationPath,
-    isSessionActive,
+    isMapCenteredOnUserRef,
+    isFollowModeActiveRef,
+    explorationPathRef,
+    isSessionActiveRef,
   };
 
   const locationUpdateListener = DeviceEventEmitter.addListener(
@@ -882,30 +885,41 @@ const useUnifiedLocationService = (config: UnifiedLocationServiceConfig) => {
     explorationPath,
     isSessionActive,
   } = locationConfig;
-  // Track if location services are currently active
   const [isLocationActive, setIsLocationActive] = useState(false);
 
-  // Initialize location service once on mount
+  // Refs for frequently-changing values — prevents listener teardown/recreate
+  // on every GPS update (explorationPath gets a new array ref each point).
+  const explorationPathRef = useRef(explorationPath);
+  explorationPathRef.current = explorationPath;
+  const isMapCenteredOnUserRef = useRef(isMapCenteredOnUser);
+  isMapCenteredOnUserRef.current = isMapCenteredOnUser;
+  const isFollowModeActiveRef = useRef(isFollowModeActive);
+  isFollowModeActiveRef.current = isFollowModeActive;
+  const isSessionActiveRef = useRef(isSessionActive);
+  isSessionActiveRef.current = isSessionActive;
+
+  // Initialize location service — uses refs so this only re-runs when dispatch/mapRef change.
   useEffect(() => {
     const isActiveRef = { current: true };
 
-    // Set up listeners for location and GPS injection events
+    // Callbacks read current values from refs at call time, so listeners
+    // don't need to be recreated when GPS points are added.
     const listeners = setupLocationListeners({
       isActiveRef,
       dispatch,
       mapRef,
       cinematicZoomActiveRef,
-      isMapCenteredOnUser,
-      isFollowModeActive,
-      explorationPath,
-      isSessionActive,
+      isMapCenteredOnUserRef,
+      isFollowModeActiveRef,
+      explorationPathRef,
+      isSessionActiveRef,
     });
 
     return () => {
       isActiveRef.current = false;
       cleanupLocationListeners(listeners);
     };
-  }, [dispatch, mapRef, isMapCenteredOnUser, isFollowModeActive, explorationPath, isSessionActive]);
+  }, [dispatch, mapRef, cinematicZoomActiveRef]);
 
   // Separate effect to handle start/stop based on pause state
   useEffect(() => {
@@ -978,34 +992,6 @@ const createZoomHandler = (dispatch: ReturnType<typeof useAppDispatch>) => (newZ
   dispatch(updateZoom(newZoom));
 };
 
-const createCenterOnUserHandler =
-  (options: {
-    currentLocation: GeoPoint | null;
-    mapRef: React.RefObject<CameraRef | null>;
-    cinematicZoomActiveRef: React.MutableRefObject<boolean>;
-    dispatch: ReturnType<typeof useAppDispatch>;
-    isFollowModeActive: boolean;
-  }) =>
-  () => {
-    const { currentLocation, mapRef, cinematicZoomActiveRef, dispatch, isFollowModeActive } =
-      options;
-    // Toggle follow mode
-    dispatch(toggleFollowMode());
-
-    // If follow mode was OFF and is now ON, center the map immediately
-    // But skip if cinematic zoom is active to prevent conflicts
-    if (
-      !isFollowModeActive &&
-      currentLocation &&
-      mapRef.current &&
-      !cinematicZoomActiveRef.current
-    ) {
-      // Only move center — preserve current zoom level
-      centerMapOnCoordinate(mapRef, currentLocation, 300);
-      dispatch(setCenterOnUser(true));
-    }
-  };
-
 // Extracted event handler helpers for useMapEventHandlers
 
 /**
@@ -1036,6 +1022,9 @@ function handleRegionChange({
   mapDimensions: { width: number; height: number };
   workletUpdateRegion: (region: MapRegion & { width: number; height: number }) => void;
 }) {
+  PerfProbe.nextFrame();
+  PerfProbe.mark('handleRegionChange');
+
   // Reject bogus near-(0,0) regions from Fabric initialization timing issue.
   // See isNullIslandRegion() for details.
   if (isNullIslandRegion(region)) {
@@ -1051,9 +1040,11 @@ function handleRegionChange({
   // Update fog region immediately for synchronization with OptimizedFogOverlay
   // (workletUpdateRegion IS setCurrentFogRegion — no separate call needed)
   workletUpdateRegion(regionWithDimensions);
+  PerfProbe.mark('afterFogRegionUpdate');
 
   // Update region state for other components (async)
   setCurrentRegion(region);
+  PerfProbe.mark('afterSetCurrentRegion');
 }
 
 function handlePanDrag({ dispatch }: { dispatch: ReturnType<typeof useAppDispatch> }) {
@@ -1135,48 +1126,54 @@ const useMapEventHandlers = (options: {
     workletUpdateRegion,
   } = options;
 
-  // Simple throttle function to limit update frequency
-  const throttle = (fn: Function, ms: number) => {
-    let lastCall = 0;
-    return (...args: any[]) => {
+  // Persist throttle state across renders (inline throttle resets lastCall to 0
+  // on every render, making the throttle ineffective AND producing a new closure).
+  const lastRegionCallRef = useRef(0);
+
+  const handleZoomChange = useMemo(() => createZoomHandler(dispatch), [dispatch]);
+
+  const centerOnUserLocation = useCallback(() => {
+    dispatch(toggleFollowMode());
+    if (
+      !isFollowModeActive &&
+      currentLocation &&
+      mapRef.current &&
+      !cinematicZoomActiveRef.current
+    ) {
+      centerMapOnCoordinate(mapRef, currentLocation, 300);
+      dispatch(setCenterOnUser(true));
+    }
+  }, [dispatch, isFollowModeActive, currentLocation, mapRef, cinematicZoomActiveRef]);
+
+  const onRegionChange = useCallback(
+    (region: MapRegion) => {
       const now = Date.now();
-      if (now - lastCall >= ms) {
-        lastCall = now;
-        fn(...args);
+      if (now - lastRegionCallRef.current >= 16) {
+        lastRegionCallRef.current = now;
+        handleRegionChange({
+          region,
+          setCurrentRegion,
+          mapDimensions,
+          workletUpdateRegion,
+        });
       }
-    };
-  };
+    },
+    [setCurrentRegion, mapDimensions, workletUpdateRegion]
+  );
 
-  const handleZoomChange = createZoomHandler(dispatch);
-  const centerOnUserLocation = createCenterOnUserHandler({
-    currentLocation,
-    mapRef,
-    cinematicZoomActiveRef,
-    dispatch,
-    isFollowModeActive,
-  });
+  const onPanDrag = useCallback(() => handlePanDrag({ dispatch }), [dispatch]);
 
-  const onRegionChange = throttle(
+  const onRegionChangeComplete = useCallback(
     (region: MapRegion) =>
-      handleRegionChange({
+      handleRegionChangeComplete({
         region,
         setCurrentRegion,
-        mapDimensions,
-        workletUpdateRegion,
+        handleZoomChange,
+        mapRef,
+        cinematicZoomActiveRef,
       }),
-    16
-  ); // ~60fps
-
-  const onPanDrag = () => handlePanDrag({ dispatch });
-
-  const onRegionChangeComplete = (region: MapRegion) =>
-    handleRegionChangeComplete({
-      region,
-      setCurrentRegion,
-      handleZoomChange,
-      mapRef,
-      cinematicZoomActiveRef,
-    });
+    [setCurrentRegion, handleZoomChange, mapRef, cinematicZoomActiveRef]
+  );
 
   return {
     centerOnUserLocation,
@@ -1226,7 +1223,6 @@ interface MapScreenRendererProps {
   currentFogRegion: (MapRegion & { width: number; height: number }) | undefined;
   handleSettingsPress: () => void;
   canStartCinematicAnimation?: boolean; // Control when cinematic animation can start
-  // workletMapRegion?: ReturnType<typeof useWorkletMapRegion>; // Available for future worklet integration
 }
 
 // Loading state component — shown only briefly while fallback region loads from AsyncStorage
@@ -1321,11 +1317,13 @@ interface MapViewWithMarkerProps {
   initialRegion: MapRegion;
   currentLocation: GeoPoint | null;
   currentRegion?: MapRegion | undefined;
+  currentFogRegion?: (MapRegion & { width: number; height: number }) | undefined;
   mapDimensions: { width: number; height: number };
   safeAreaInsets?: { top: number; bottom: number; left: number; right: number };
   onRegionChange: (region: MapRegion) => void;
   onPanDrag: () => void;
   onRegionChangeComplete: (region: MapRegion) => void;
+  isAcquiringGPS: boolean;
 }
 
 const MapViewWithMarker = React.memo<MapViewWithMarkerProps>(
@@ -1334,11 +1332,13 @@ const MapViewWithMarker = React.memo<MapViewWithMarkerProps>(
     initialRegion,
     currentLocation,
     currentRegion,
+    currentFogRegion,
     mapDimensions,
     safeAreaInsets,
     onRegionChange,
     onPanDrag,
     onRegionChangeComplete,
+    isAcquiringGPS,
   }) {
     const activeSkin = useAppSelector((state) => state.skin.activeSkin);
     const mapStyle = getSkinStyle(activeSkin);
@@ -1405,6 +1405,11 @@ const MapViewWithMarker = React.memo<MapViewWithMarkerProps>(
             <View style={USER_MARKER_STYLE} />
           </MarkerView>
         )}
+
+        {/* Fog layer rendered INSIDE MapView — moves with camera natively, zero lag */}
+        {currentFogRegion && !isAcquiringGPS && (
+          <FogImageLayerConnected mapRegion={currentFogRegion} safeAreaInsets={safeAreaInsets} />
+        )}
       </MapView>
     );
   },
@@ -1413,13 +1418,18 @@ const MapViewWithMarker = React.memo<MapViewWithMarkerProps>(
     // meaningful changes (zoom, location, dimensions, skin).
     const prevDelta = prev.currentRegion?.latitudeDelta ?? 0;
     const nextDelta = next.currentRegion?.latitudeDelta ?? 0;
+    const prevFogDelta = prev.currentFogRegion?.latitudeDelta ?? 0;
+    const nextFogDelta = next.currentFogRegion?.latitudeDelta ?? 0;
     return (
       prev.currentLocation === next.currentLocation &&
       prev.initialRegion === next.initialRegion &&
       prev.safeAreaInsets === next.safeAreaInsets &&
       prev.mapDimensions.width === next.mapDimensions.width &&
       prev.mapDimensions.height === next.mapDimensions.height &&
+      prev.isAcquiringGPS === next.isAcquiringGPS &&
       Math.abs(prevDelta - nextDelta) <= 0.0001 &&
+      prev.currentFogRegion === next.currentFogRegion &&
+      Math.abs(prevFogDelta - nextFogDelta) <= 0.0001 &&
       prev.onRegionChange === next.onRegionChange &&
       prev.onPanDrag === next.onPanDrag &&
       prev.onRegionChangeComplete === next.onRegionChangeComplete
@@ -1508,11 +1518,13 @@ const MapScreenRenderer = ({
         initialRegion={initialRegion}
         currentLocation={currentLocation}
         currentRegion={currentFogRegion}
+        currentFogRegion={currentFogRegion}
         mapDimensions={mapViewDimensions}
         safeAreaInsets={insets}
         onRegionChange={onRegionChange}
         onPanDrag={onPanDrag}
         onRegionChangeComplete={onRegionChangeComplete}
+        isAcquiringGPS={isAcquiringGPS}
       />
 
       {/* Map effect overlay — between map tiles and fog layer */}
@@ -1522,11 +1534,6 @@ const MapScreenRenderer = ({
           safeAreaInsets={insets}
           currentLocation={currentLocation}
         />
-      )}
-
-      {/* Fog overlay only when we have a real location */}
-      {currentFogRegion && !isAcquiringGPS && (
-        <FogOverlayConnected mapRegion={currentFogRegion} safeAreaInsets={insets} />
       )}
 
       {/* Scent trail — drawn on top of fog, points toward nearest unexplored street */}
@@ -1827,11 +1834,22 @@ const useDataClearing = (
 };
 
 // Custom hook for fog region initialization and management
+//
+// ARCHITECTURE (post-ImageSource refactor): The fog is now rendered as a
+// native MapLibre ImageSource layer — MapLibre handles all pan/zoom transforms
+// natively with zero lag. We no longer need per-frame shared value updates.
+// This hook simply gates React state updates via threshold checks so the
+// FogImageLayer only regenerates its offscreen image when necessary.
 const useFogRegionState = (
   currentLocation: GeoPoint | null,
   mapDimensions: { width: number; height: number },
   currentRegion: MapRegion | undefined
 ) => {
+  // Threshold ref: only update React state on zoom/buffer/dimension changes
+  const computeRegionRef = useRef<(MapRegion & { width: number; height: number }) | undefined>(
+    undefined
+  );
+
   // Initialize worklet-based map region for immediate synchronization
   const initialWorkletRegion = useMemo(() => {
     if (currentLocation) {
@@ -1847,7 +1865,7 @@ const useFogRegionState = (
     return undefined;
   }, [currentLocation, mapDimensions]);
 
-  // Fog region state for OptimizedFogOverlay
+  // Fog region state for FogImageLayer — only updates on threshold changes
   const [currentFogRegion, setCurrentFogRegion] = useState<
     (MapRegion & { width: number; height: number }) | undefined
   >(undefined);
@@ -1877,24 +1895,32 @@ const useFogRegionState = (
     }
   }, [initialWorkletRegion, currentFogRegion, memoizedMapRegion]);
 
-  // Region update for OptimizedFogOverlay synchronization.
-  // Uses functional setState with epsilon comparison to prevent infinite
-  // re-render loops: onRegionChange → setState → re-render → onRegionChange.
+  // Threshold-gated state update: only triggers FogImageLayer regeneration
+  // for significant changes (zoom >2%, pan >40% viewport, dimension change).
   const updateFogRegion = useCallback((region: MapRegion & { width: number; height: number }) => {
-    setCurrentFogRegion((prev) => {
-      if (
-        prev &&
-        Math.abs(prev.latitude - region.latitude) < 0.00001 &&
-        Math.abs(prev.longitude - region.longitude) < 0.00001 &&
-        Math.abs(prev.latitudeDelta - region.latitudeDelta) < 0.00001 &&
-        Math.abs(prev.longitudeDelta - region.longitudeDelta) < 0.00001 &&
-        Math.abs(prev.width - region.width) < 1 &&
-        Math.abs(prev.height - region.height) < 1
-      ) {
-        return prev; // Same reference → React skips re-render
-      }
-      return region;
-    });
+    // First region? Initialize React state + compute ref
+    const prev = computeRegionRef.current;
+    if (!prev) {
+      computeRegionRef.current = region;
+      setCurrentFogRegion(region);
+      return;
+    }
+
+    // Threshold check: only trigger React re-render for significant changes
+    const zoomChanged =
+      Math.abs(prev.latitudeDelta - region.latitudeDelta) / prev.latitudeDelta > 0.02 ||
+      Math.abs(prev.longitudeDelta - region.longitudeDelta) / prev.longitudeDelta > 0.02;
+
+    const latShift = Math.abs(region.latitude - prev.latitude) / prev.latitudeDelta;
+    const lngShift = Math.abs(region.longitude - prev.longitude) / prev.longitudeDelta;
+    const beyondBuffer = latShift > 0.4 || lngShift > 0.4;
+
+    const dimensionsChanged = prev.width !== region.width || prev.height !== region.height;
+
+    if (zoomChanged || beyondBuffer || dimensionsChanged) {
+      computeRegionRef.current = region;
+      setCurrentFogRegion(region);
+    }
   }, []);
 
   return {
@@ -2025,6 +2051,11 @@ const useMapScreenServices = (config: MapScreenServicesFullConfig) => {
   // CRITICAL: Memoize locationConfig to prevent infinite re-render loop.
   // An inline object literal creates a new reference every render, which
   // triggers useEffect deps → setIsLocationActive → re-render → new ref → loop.
+  //
+  // NOTE: explorationPath is intentionally excluded from deps — it changes on
+  // every GPS point (new array ref from Redux immutable spread). The location
+  // listeners access the current path via refs (explorationPathRef.current),
+  // so they always see the latest data without forcing effect re-runs.
   const memoizedLocationConfig = useMemo(
     () => ({
       mapRef,
@@ -2041,7 +2072,8 @@ const useMapScreenServices = (config: MapScreenServicesFullConfig) => {
       isMapCenteredOnUser,
       isFollowModeActive,
       isTrackingPaused,
-      explorationState.path,
+
+      explorationState.path.length,
       isSessionActive,
     ]
   );

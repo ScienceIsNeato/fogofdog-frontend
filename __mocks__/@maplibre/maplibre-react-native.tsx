@@ -54,6 +54,10 @@ const PointAnnotation = (props: ViewProps & Record<string, unknown>) =>
   React.createElement('PointAnnotation', props, props.children);
 const ShapeSource = (props: ViewProps & Record<string, unknown>) =>
   React.createElement('ShapeSource', props, props.children);
+const ImageSource = (props: ViewProps & Record<string, unknown>) =>
+  React.createElement('ImageSource', props, props.children);
+const RasterLayer = (props: ViewProps & Record<string, unknown>) =>
+  React.createElement('RasterLayer', props);
 const SymbolLayer = (props: ViewProps & Record<string, unknown>) =>
   React.createElement('SymbolLayer', props);
 const LineLayer = (props: ViewProps & Record<string, unknown>) =>
@@ -68,6 +72,8 @@ export {
   MarkerView,
   PointAnnotation,
   ShapeSource,
+  ImageSource,
+  RasterLayer,
   SymbolLayer,
   LineLayer,
   FillLayer,
