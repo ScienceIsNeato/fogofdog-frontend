@@ -1009,12 +1009,17 @@ setup_gps_android() {
 
 launch_app_ios() {
     if [ "$PHYSICAL_DEVICE" = true ]; then
+        info "Launching app on physical device '$LOCAL_DEVICE_NAME'..."
+        # Use devicectl (Xcode 15+) to launch the app on the connected device
+        if xcrun devicectl device process launch --terminate-existing --device "$LOCAL_DEVICE_NAME" "$APP_BUNDLE_ID" 2>/dev/null; then
+            ok "App launched on '$LOCAL_DEVICE_NAME'"
+        else
+            warn "devicectl launch failed — you may need to open the app manually on '$LOCAL_DEVICE_NAME'"
+        fi
         if [ "$MODE" = "release" ]; then
-            info "Open the FogOfDog app on '$LOCAL_DEVICE_NAME'"
             ok "Release build — no Metro needed, app runs standalone"
         else
-            info "Open the FogOfDog app on '$LOCAL_DEVICE_NAME' to connect to Metro"
-            ok "App should auto-connect to Metro at $(get_local_ip):${METRO_PORT}"
+            info "App should auto-connect to Metro at $(get_local_ip):${METRO_PORT}"
         fi
         return 0
     fi

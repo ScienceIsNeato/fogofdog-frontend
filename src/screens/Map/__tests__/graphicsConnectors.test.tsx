@@ -1,4 +1,5 @@
 import React from 'react';
+import { act } from '@testing-library/react-native';
 import { renderWithProviders } from '../../../utils/test-utils';
 import {
   FogImageLayerConnected,
@@ -39,30 +40,34 @@ const baseGraphicsState = {
 
 describe('graphicsConnectors', () => {
   describe('FogImageLayerConnected', () => {
-    it('renders the fog image layer for the default fog-classic effect', () => {
-      const { toJSON } = renderWithProviders(<FogImageLayerConnected mapRegion={MAP_REGION} />, {
+    it('renders the fog image layer for the default fog-classic effect', async () => {
+      const result = renderWithProviders(<FogImageLayerConnected mapRegion={MAP_REGION} />, {
         preloadedState: { graphics: baseGraphicsState },
       });
+      // Flush async effects from fog image file write
+      await act(async () => {});
       // FogImageLayer renders ImageSource + RasterLayer (mocked as native elements)
       // or returns null when Skia Surface.Make returns null in test env
-      expect(toJSON).toBeDefined();
+      expect(result.toJSON).toBeDefined();
     });
 
-    it('renders fog layer for all four fog effects without crashing', () => {
+    it('renders fog layer for all four fog effects without crashing', async () => {
       for (const activeFogEffectId of ['fog-classic', 'fog-vignette', 'fog-pulse', 'fog-haunted']) {
-        const { toJSON } = renderWithProviders(<FogImageLayerConnected mapRegion={MAP_REGION} />, {
+        const result = renderWithProviders(<FogImageLayerConnected mapRegion={MAP_REGION} />, {
           preloadedState: { graphics: { ...baseGraphicsState, activeFogEffectId } },
         });
-        expect(toJSON).toBeDefined();
+        await act(async () => {});
+        expect(result.toJSON).toBeDefined();
       }
     });
 
-    it('returns null when mapRegion dimensions are zero', () => {
-      const { toJSON } = renderWithProviders(
+    it('returns null when mapRegion dimensions are zero', async () => {
+      const result = renderWithProviders(
         <FogImageLayerConnected mapRegion={{ ...MAP_REGION, width: 0, height: 0 }} />,
         { preloadedState: { graphics: baseGraphicsState } }
       );
-      expect(toJSON()).toBeNull();
+      await act(async () => {});
+      expect(result.toJSON()).toBeNull();
     });
   });
 

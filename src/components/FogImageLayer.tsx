@@ -15,14 +15,15 @@
  * RENDERING PIPELINE:
  *   1. useOptimizedFogCalculations → Skia path (same existing logic)
  *   2. Offscreen Skia.Surface.Make(w, h) → draw fog mask → makeImageSnapshot()
- *   3. SkImage.encodeToBase64() → data:image/png;base64,... URI
- *   4. <ImageSource coordinates={geoBounds} url={dataUri}> + <RasterLayer>
+ *   3. SkImage.encodeToBase64() → write PNG to temp file on disk
+ *   4. <ImageSource coordinates={geoBounds} url={file://...}> + <RasterLayer>
  */
-import React, { useMemo, useRef, useEffect } from 'react';
+import React, { useMemo, useRef, useEffect, useState, useCallback } from 'react';
 import { Skia, PaintStyle, StrokeCap, StrokeJoin, BlendMode } from '@shopify/react-native-skia';
 import type { SkPath } from '@shopify/react-native-skia';
 import { useSelector } from 'react-redux';
 import { ImageSource, RasterLayer } from '@maplibre/maplibre-react-native';
+import * as FileSystem from 'expo-file-system/legacy';
 import type { RootState } from '../store';
 import { logger } from '../utils/logger';
 import type { MapRegion } from '../types/map';
@@ -146,7 +147,7 @@ function renderFogToBase64(config: RenderFogConfig): string | null {
     return null;
   }
 
-  return `data:image/png;base64,${base64}`;
+  return base64;
 }
 
 // ─── Hooks ──────────────────────────────────────────────────────────────────
@@ -353,7 +354,13 @@ function computeImageCoordinates(bounds: ImageBounds): ImageCoords {
   ];
 }
 
-/** Memoized offscreen render → base64 PNG URI */
+/**
+ * Path to the temporary fog PNG file. Using cacheDirectory so the OS
+ * can reclaim it when storage is low.
+ */
+const FOG_IMAGE_PATH = `${FileSystem.cacheDirectory ?? ''}fog_image.png`;
+
+/** Memoized offscreen render → base64, then async write to file → file URI */
 interface FogImageUriConfig {
   skiaPath: SkPath;
   strokeWidth: number;
@@ -367,11 +374,14 @@ interface FogImageUriConfig {
 function useFogImageUri(config: FogImageUriConfig): string | null {
   const { skiaPath, strokeWidth, imageWidth, imageHeight, fogColor, fogOpacity, pointCount } =
     config;
+  const [fileUri, setFileUri] = useState<string | null>(null);
+  const writeSeqRef = useRef(0);
 
-  return useMemo(() => {
+  // Synchronous offscreen render → raw base64 string
+  const base64 = useMemo(() => {
     if (!imageWidth || !imageHeight) return null;
     const startTime = performance.now();
-    const uri = renderFogToBase64({
+    const result = renderFogToBase64({
       skiaPath,
       strokeWidth,
       width: imageWidth,
@@ -393,8 +403,40 @@ function useFogImageUri(config: FogImageUriConfig): string | null {
         }
       );
     }
-    return uri;
+    return result;
   }, [skiaPath, strokeWidth, imageWidth, imageHeight, fogColor, fogOpacity, pointCount]);
+
+  // Async write base64 → temp file → file URI
+  const writeToFile = useCallback(async (data: string, seq: number) => {
+    try {
+      await FileSystem.writeAsStringAsync(FOG_IMAGE_PATH, data, {
+        encoding: FileSystem.EncodingType.Base64,
+      });
+      // Only update state if this is still the latest write
+      if (seq === writeSeqRef.current) {
+        // Append cache-bust query param so MapLibre reloads the image
+        setFileUri(`${FOG_IMAGE_PATH}?v=${seq}`);
+      }
+    } catch (err) {
+      logger.warn('FogImageLayer: failed to write fog PNG to cache', {
+        component: 'FogImageLayer',
+        action: 'writeToFile',
+        error: String(err),
+      });
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!base64) {
+      setFileUri(null);
+      return;
+    }
+    writeSeqRef.current += 1;
+    const seq = writeSeqRef.current;
+    void writeToFile(base64, seq);
+  }, [base64, writeToFile]);
+
+  return fileUri;
 }
 
 // ─── Component ──────────────────────────────────────────────────────────────
