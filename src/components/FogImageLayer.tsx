@@ -45,6 +45,15 @@ import type { FogRenderConfig } from '../types/graphics';
  */
 const BUFFER_STEPS = 8;
 
+/**
+ * Grid cell size in degrees for spatial downsampling.
+ * At 40° latitude, 1° longitude ≈ 85km, 1° latitude ≈ 111km.
+ * 0.0003° ≈ 33m at equator — roughly matches FOG_CONFIG.RADIUS_METERS (35m).
+ * Points within the same cell produce overlapping circles, so only one
+ * representative per cell is needed for visually identical output.
+ */
+const GRID_CELL_SIZE = 0.0003;
+
 // ─── Types ──────────────────────────────────────────────────────────────────
 
 interface FogImageLayerProps {
@@ -74,11 +83,39 @@ const WORLD_POLYGON: Feature<Polygon> = polygon([
 ]);
 
 /**
+ * Spatially downsample GPS points by snapping to a grid.
+ * Points that fall in the same grid cell produce overlapping buffer circles,
+ * so we only need one representative per cell. This reduces O(n²) union
+ * work in turf.buffer/JSTS from thousands of points to a few hundred.
+ *
+ * Uses string key hashing for O(n) performance regardless of point count.
+ */
+function downsampleToGrid(points: GeoPoint[]): [number, number][] {
+  const seen = new Set<string>();
+  const result: [number, number][] = [];
+
+  for (const p of points) {
+    // Snap to grid cell
+    const cellX = Math.floor(p.longitude / GRID_CELL_SIZE);
+    const cellY = Math.floor(p.latitude / GRID_CELL_SIZE);
+    const key = `${cellX},${cellY}`;
+
+    if (!seen.has(key)) {
+      seen.add(key);
+      // Use cell center as representative point
+      result.push([(cellX + 0.5) * GRID_CELL_SIZE, (cellY + 0.5) * GRID_CELL_SIZE]);
+    }
+  }
+
+  return result;
+}
+
+/**
  * Build the fog GeoJSON: a world-covering polygon with holes where GPS
  * points have cleared the fog.
  *
- * Pipeline: MultiPoint → turf.buffer (creates one polygon per point,
- * internally unioned by JSTS) → turf.difference from world polygon.
+ * Pipeline: GPS points → grid downsample → MultiPoint → turf.buffer
+ * (internally unioned by JSTS) → turf.difference from world polygon.
  *
  * @returns Feature<Polygon|MultiPolygon> for the fog, or the full world
  *          polygon when no GPS points exist.
@@ -93,8 +130,8 @@ function buildFogGeoJSON(
 
   const startTime = performance.now();
 
-  // Convert GeoPoints to [longitude, latitude] coordinate pairs
-  const coords: [number, number][] = pathPoints.map((p) => [p.longitude, p.latitude]);
+  // Downsample: 963 raw GPS points → ~100-200 grid-unique points
+  const coords = downsampleToGrid(pathPoints);
 
   // Create a MultiPoint and buffer it — turf handles union of overlapping circles
   const mp = multiPoint(coords);
@@ -115,12 +152,13 @@ function buildFogGeoJSON(
   const elapsed = performance.now() - startTime;
   if (elapsed > 50) {
     logger.debug(
-      `FogImageLayer: GeoJSON build took ${elapsed.toFixed(1)}ms (${pathPoints.length} points)`,
+      `FogImageLayer: GeoJSON build took ${elapsed.toFixed(1)}ms (${pathPoints.length} raw → ${coords.length} grid points)`,
       {
         component: 'FogImageLayer',
         action: 'buildFogGeoJSON',
         buildTimeMs: elapsed,
-        pointCount: pathPoints.length,
+        rawPointCount: pathPoints.length,
+        gridPointCount: coords.length,
       }
     );
   }
@@ -176,4 +214,4 @@ const FogImageLayer: React.FC<FogImageLayerProps> = ({
 export default React.memo(FogImageLayer);
 
 // ─── Exported for testing ───────────────────────────────────────────────────
-export { buildFogGeoJSON, WORLD_POLYGON, BUFFER_STEPS };
+export { buildFogGeoJSON, downsampleToGrid, WORLD_POLYGON, BUFFER_STEPS, GRID_CELL_SIZE };
