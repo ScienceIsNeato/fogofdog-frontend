@@ -310,31 +310,30 @@ export class PermissionsOrchestrator {
    */
   private static async checkFinalPermissionState(): Promise<PermissionResult> {
     try {
-      const foregroundStatus = await Location.getForegroundPermissionsAsync();
-      const backgroundStatus = await Location.getBackgroundPermissionsAsync();
+      const liveStatus = await this.getLivePermissionStatus();
 
       logger.info('📍 Live Permission Status Check', {
         foreground: {
-          granted: foregroundStatus.granted,
-          status: foregroundStatus.status,
-          canAskAgain: foregroundStatus.canAskAgain,
-          interpretation: this.getForegroundInterpretation(foregroundStatus),
+          ...liveStatus.foreground,
+          interpretation: this.getForegroundInterpretation(liveStatus.foreground),
         },
         background: {
-          granted: backgroundStatus.granted,
-          status: backgroundStatus.status,
-          interpretation: backgroundStatus.granted ? 'Always Allow' : 'Not Granted',
+          ...liveStatus.background,
+          interpretation: liveStatus.background.granted ? 'Always Allow' : 'Not Granted',
         },
-        summary: this.getPermissionSummary(foregroundStatus, backgroundStatus),
+        summary: this.getPermissionSummary(liveStatus.foreground, liveStatus.background),
       });
 
-      const canProceed = foregroundStatus.granted;
-      const hasBackgroundPermission = backgroundStatus.granted;
+      const canProceed = liveStatus.foreground.granted;
+      const hasBackgroundPermission = liveStatus.background.granted;
 
       let mode: PermissionMode;
       if (!canProceed) {
         mode = 'denied';
-      } else if (foregroundStatus.status === 'granted' && foregroundStatus.canAskAgain === false) {
+      } else if (
+        liveStatus.foreground.status === 'granted' &&
+        liveStatus.foreground.canAskAgain === false
+      ) {
         // User selected "Allow Once" - this is problematic for the app
         logger.warn('Detected "Allow Once" permission in final state check');
         mode = 'once_only';
@@ -380,6 +379,9 @@ export class PermissionsOrchestrator {
 
   /**
    * Get live permission status from iOS (not cached/stored)
+   *
+   * Uses a timeout to prevent hanging if native permission APIs become
+   * unresponsive (documented issue on physical devices with stale state).
    */
   private static async getLivePermissionStatus(): Promise<{
     foreground: {
@@ -392,10 +394,24 @@ export class PermissionsOrchestrator {
       status: string;
     };
   }> {
+    const PERMISSION_CHECK_TIMEOUT_MS = 5000;
+
     try {
-      const [foregroundStatus, backgroundStatus] = await Promise.all([
+      const permissionPromise = Promise.all([
         Location.getForegroundPermissionsAsync(),
         Location.getBackgroundPermissionsAsync(),
+      ]);
+
+      const timeoutPromise = new Promise<never>((_, reject) =>
+        setTimeout(
+          () => reject(new Error('Permission check timed out after 5s')),
+          PERMISSION_CHECK_TIMEOUT_MS
+        )
+      );
+
+      const [foregroundStatus, backgroundStatus] = await Promise.race([
+        permissionPromise,
+        timeoutPromise,
       ]);
 
       return {
