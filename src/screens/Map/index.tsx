@@ -70,8 +70,6 @@ import { DataStats, ClearType } from '../../types/dataClear';
 import { GeoPoint } from '../../types/user';
 
 import { constrainRegion } from '../../constants/mapConstraints';
-import { PerfProbe } from './perfProbe';
-// Performance optimizations available via OptimizedFogOverlay component
 
 /**
  * Animate the map camera to a region (center + deltas).
@@ -1022,9 +1020,6 @@ function handleRegionChange({
   mapDimensions: { width: number; height: number };
   workletUpdateRegion: (region: MapRegion & { width: number; height: number }) => void;
 }) {
-  PerfProbe.nextFrame();
-  PerfProbe.mark('handleRegionChange');
-
   // Reject bogus near-(0,0) regions from Fabric initialization timing issue.
   // See isNullIslandRegion() for details.
   if (isNullIslandRegion(region)) {
@@ -1037,14 +1032,12 @@ function handleRegionChange({
     height: mapDimensions.height,
   };
 
-  // Update fog region immediately for synchronization with OptimizedFogOverlay
-  // (workletUpdateRegion IS setCurrentFogRegion — no separate call needed)
+  // Update fog region immediately — workletUpdateRegion feeds the GeoJSON
+  // fog layer (ShapeSource + FillLayer) so it recomputes when thresholds change.
   workletUpdateRegion(regionWithDimensions);
-  PerfProbe.mark('afterFogRegionUpdate');
 
   // Update region state for other components (async)
   setCurrentRegion(region);
-  PerfProbe.mark('afterSetCurrentRegion');
 }
 
 function handlePanDrag({ dispatch }: { dispatch: ReturnType<typeof useAppDispatch> }) {
@@ -1835,11 +1828,13 @@ const useDataClearing = (
 
 // Custom hook for fog region initialization and management
 //
-// ARCHITECTURE (post-ImageSource refactor): The fog is now rendered as a
-// native MapLibre ImageSource layer — MapLibre handles all pan/zoom transforms
-// natively with zero lag. We no longer need per-frame shared value updates.
-// This hook simply gates React state updates via threshold checks so the
-// FogImageLayer only regenerates its offscreen image when necessary.
+// ARCHITECTURE: The fog is rendered via a GeoJSON-driven pipeline using
+// a MapLibre ShapeSource + FillLayer stack. MapLibre still handles all
+// pan/zoom transforms natively with zero lag; we do not drive per-frame
+// updates from React. This hook gates React state updates via threshold
+// checks so the FogImageLayer only recomputes and pushes new GeoJSON
+// polygons when the effective fog region (zoom/extent/dimensions) changes
+// enough to matter.
 const useFogRegionState = (
   currentLocation: GeoPoint | null,
   mapDimensions: { width: number; height: number },

@@ -402,17 +402,19 @@ export class PermissionsOrchestrator {
         Location.getBackgroundPermissionsAsync(),
       ]);
 
-      const timeoutPromise = new Promise<never>((_, reject) =>
-        setTimeout(
+      let timeoutId: ReturnType<typeof setTimeout>;
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        timeoutId = setTimeout(
           () => reject(new Error('Permission check timed out after 5s')),
           PERMISSION_CHECK_TIMEOUT_MS
-        )
-      );
+        );
+      });
 
       const [foregroundStatus, backgroundStatus] = await Promise.race([
         permissionPromise,
         timeoutPromise,
       ]);
+      clearTimeout(timeoutId!);
 
       return {
         foreground: {

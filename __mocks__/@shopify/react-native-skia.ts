@@ -65,7 +65,7 @@ export const Skia = {
   },
 };
 
-// Enums used by FogImageLayer for imperative paint style
+// Enums mirroring Skia paint configuration used by tests
 export const PaintStyle = { Fill: 0, Stroke: 1 };
 export const StrokeCap = { Butt: 0, Round: 1, Square: 2 };
 export const StrokeJoin = { Miter: 0, Round: 1, Bevel: 2 };

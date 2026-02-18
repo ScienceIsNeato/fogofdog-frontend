@@ -44,7 +44,7 @@ describe('graphicsConnectors', () => {
         preloadedState: { graphics: baseGraphicsState },
       });
       // FogImageLayer renders ShapeSource + FillLayer (mocked as native elements)
-      expect(result.toJSON).toBeDefined();
+      expect(result.toJSON()).not.toBeNull();
     });
 
     it('renders fog layer for all four fog effects without crashing', () => {
@@ -52,7 +52,7 @@ describe('graphicsConnectors', () => {
         const result = renderWithProviders(<FogImageLayerConnected mapRegion={MAP_REGION} />, {
           preloadedState: { graphics: { ...baseGraphicsState, activeFogEffectId } },
         });
-        expect(result.toJSON).toBeDefined();
+        expect(result.toJSON()).not.toBeNull();
       }
     });
 
