@@ -1,5 +1,4 @@
 import React from 'react';
-import { act } from '@testing-library/react-native';
 import { renderWithProviders } from '../../../utils/test-utils';
 import {
   FogImageLayerConnected,
@@ -40,33 +39,28 @@ const baseGraphicsState = {
 
 describe('graphicsConnectors', () => {
   describe('FogImageLayerConnected', () => {
-    it('renders the fog image layer for the default fog-classic effect', async () => {
+    it('renders the fog image layer for the default fog-classic effect', () => {
       const result = renderWithProviders(<FogImageLayerConnected mapRegion={MAP_REGION} />, {
         preloadedState: { graphics: baseGraphicsState },
       });
-      // Flush async effects from fog image file write
-      await act(async () => {});
-      // FogImageLayer renders ImageSource + RasterLayer (mocked as native elements)
-      // or returns null when Skia Surface.Make returns null in test env
+      // FogImageLayer renders ShapeSource + FillLayer (mocked as native elements)
       expect(result.toJSON).toBeDefined();
     });
 
-    it('renders fog layer for all four fog effects without crashing', async () => {
+    it('renders fog layer for all four fog effects without crashing', () => {
       for (const activeFogEffectId of ['fog-classic', 'fog-vignette', 'fog-pulse', 'fog-haunted']) {
         const result = renderWithProviders(<FogImageLayerConnected mapRegion={MAP_REGION} />, {
           preloadedState: { graphics: { ...baseGraphicsState, activeFogEffectId } },
         });
-        await act(async () => {});
         expect(result.toJSON).toBeDefined();
       }
     });
 
-    it('returns null when mapRegion dimensions are zero', async () => {
+    it('returns null when mapRegion dimensions are zero', () => {
       const result = renderWithProviders(
         <FogImageLayerConnected mapRegion={{ ...MAP_REGION, width: 0, height: 0 }} />,
         { preloadedState: { graphics: baseGraphicsState } }
       );
-      await act(async () => {});
       expect(result.toJSON()).toBeNull();
     });
   });

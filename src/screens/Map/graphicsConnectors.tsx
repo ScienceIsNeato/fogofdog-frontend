@@ -32,7 +32,8 @@ GraphicsService.initializeDefaultEffects();
 /**
  * Fog image layer wired to active fog effect from Redux.
  *
- * ARCHITECTURE: Renders fog as a native MapLibre ImageSource + RasterLayer.
+ * ARCHITECTURE: Renders fog as a native MapLibre ShapeSource + FillLayer.
+ * Uses a GeoJSON polygon-with-holes (world polygon minus buffered GPS path).
  * Must be rendered as a CHILD of <MapView> — MapLibre handles all pan/zoom
  * transforms natively with zero lag (no JS bridge crossings during gestures).
  */
