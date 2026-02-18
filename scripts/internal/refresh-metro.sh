@@ -46,12 +46,26 @@ echo "$METRO_LOG_FILE" > /tmp/METRO_CURRENT_LOG_FILENAME.txt
 echo "🚀 Starting Metro server..."
 echo "📝 Logs: $METRO_LOG_FILE"
 
-(
+# Start Metro in its own session so it survives the parent terminal closing.
+# Without a new session, closing the VS Code terminal tab sends signals to the
+# entire process group, killing Metro even with nohup/disown.
+#
+# macOS doesn't ship setsid(1), so we use perl POSIX::setsid() as fallback.
+_metro_cmd=("$PROJECT_DIR/node_modules/.bin/expo" start --clear --dev-client --host "$HOST_MODE")
+
+if command -v setsid >/dev/null 2>&1; then
     cd "$PROJECT_DIR"
-    exec nohup "$PROJECT_DIR/node_modules/.bin/expo" start --clear --dev-client --host "$HOST_MODE" > "$METRO_LOG_FILE" 2>&1
-) &
+    setsid "${_metro_cmd[@]}" > "$METRO_LOG_FILE" 2>&1 &
+else
+    cd "$PROJECT_DIR"
+    perl -MPOSIX -e '
+        POSIX::setsid() or die "setsid: $!";
+        exec @ARGV or die "exec: $!";
+    ' -- "${_metro_cmd[@]}" > "$METRO_LOG_FILE" 2>&1 &
+fi
 METRO_PID=$!
 disown "$METRO_PID" 2>/dev/null || true
+echo "$METRO_PID" > /tmp/METRO_PID.txt
 echo "$METRO_PID" > /tmp/METRO_PID.txt
 
 echo "⏳ Waiting for Metro readiness on :$METRO_PORT..."
