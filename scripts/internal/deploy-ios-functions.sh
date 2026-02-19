@@ -156,6 +156,19 @@ build_ios() {
     info "This may take several minutes on first build."
 
     cd "$PROJECT_DIR"
+
+    # ── Clean prebuild when Expo config files changed ─────────────────────
+    # Incremental prebuild (what expo run:ios does internally) won't
+    # regenerate stale native artifacts like SplashScreen.storyboard.
+    # A clean prebuild wipes ios/ and regenerates from app.json/app.config.js.
+    if needs_clean_prebuild "ios"; then
+        info "Expo config changed — running clean prebuild to regenerate native project..."
+        "$PROJECT_DIR/node_modules/.bin/expo" prebuild --platform ios --clean --no-install 2>&1 \
+            | while IFS= read -r line; do echo "  [prebuild] $line"; done
+        save_prebuild_fingerprint "ios"
+        ok "Clean prebuild complete — native project regenerated from app.json"
+    fi
+
     local build_log="/tmp/expo_build_ios_$(date +%s).log"
     local ios_device_name
 

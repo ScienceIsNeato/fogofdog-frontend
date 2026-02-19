@@ -111,6 +111,8 @@ build/
 # Native build fingerprints (local machine state)
 .native-fingerprint-ios
 .native-fingerprint-android
+.prebuild-fingerprint-ios
+.prebuild-fingerprint-android
 
 # slop-mop runtime artifacts (logs, timings — machine-specific)
 .slopmop/
