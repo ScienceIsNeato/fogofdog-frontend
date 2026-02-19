@@ -1,6 +1,258 @@
 {
   "version": "1.0",
   "default_profile": "commit",
+  "overconfidence": {
+    "enabled": true,
+    "include_dirs": [],
+    "exclude_dirs": ["slop-mop"],
+    "gates": {
+      "py-tests": {
+        "enabled": true,
+        "auto_fix": false,
+        "config_file_path": null,
+        "test_dirs": ["tests"],
+        "timeout": 300
+      },
+      "py-static-analysis": {
+        "enabled": true,
+        "auto_fix": false,
+        "config_file_path": null,
+        "strict_typing": true
+      },
+      "py-types": {
+        "enabled": false,
+        "auto_fix": false,
+        "config_file_path": null,
+        "strict": true
+      },
+      "js-tests": {
+        "enabled": true,
+        "auto_fix": false,
+        "config_file_path": null,
+        "test_command": "npm test"
+      },
+      "js-types": {
+        "enabled": true,
+        "auto_fix": false,
+        "config_file_path": null,
+        "tsconfig": "tsconfig.json"
+      },
+      "deploy-script-tests": {
+        "enabled": true,
+        "auto_fix": false,
+        "config_file_path": null,
+        "test_script": "scripts/__tests__/deploy_app.test.sh"
+      }
+    }
+  },
+  "deceptiveness": {
+    "enabled": true,
+    "include_dirs": [],
+    "exclude_dirs": ["slop-mop"],
+    "gates": {
+      "py-coverage": {
+        "enabled": true,
+        "auto_fix": false,
+        "config_file_path": null,
+        "threshold": 80
+      },
+      "py-diff-coverage": {
+        "enabled": true,
+        "auto_fix": false,
+        "config_file_path": null
+      },
+      "js-coverage": {
+        "enabled": true,
+        "auto_fix": false,
+        "config_file_path": null,
+        "threshold": 80
+      },
+      "js-bogus-tests": {
+        "enabled": true,
+        "auto_fix": false,
+        "config_file_path": null,
+        "max_allowed": 0,
+        "exclude_dirs": []
+      },
+      "bogus-tests": {
+        "enabled": true,
+        "auto_fix": false,
+        "config_file_path": null,
+        "test_dirs": ["tests"],
+        "exclude_patterns": ["conftest.py"]
+      }
+    }
+  },
+  "laziness": {
+    "enabled": true,
+    "include_dirs": [],
+    "exclude_dirs": ["slop-mop"],
+    "gates": {
+      "py-lint": {
+        "enabled": true,
+        "auto_fix": false,
+        "config_file_path": null,
+        "line_length": 88
+      },
+      "js-lint": {
+        "enabled": true,
+        "auto_fix": false,
+        "config_file_path": null,
+        "npm_install_flags": []
+      },
+      "js-frontend": {
+        "enabled": true,
+        "auto_fix": false,
+        "config_file_path": null,
+        "frontend_dirs": []
+      },
+      "complexity": {
+        "enabled": true,
+        "auto_fix": false,
+        "config_file_path": null,
+        "max_rank": "C",
+        "max_complexity": 15,
+        "src_dirs": []
+      },
+      "dead-code": {
+        "enabled": true,
+        "auto_fix": false,
+        "config_file_path": null,
+        "min_confidence": 80,
+        "exclude_patterns": [
+          "**/venv/**",
+          "**/.venv/**",
+          "**/node_modules/**",
+          "**/test_*",
+          "**/tests/**",
+          "**/conftest.py",
+          "**/*.egg-info/**",
+          "**/build/**",
+          "**/dist/**",
+          "**/cursor-rules/**"
+        ],
+        "src_dirs": ["."],
+        "whitelist_file": ""
+      },
+      "template-syntax": {
+        "enabled": true,
+        "auto_fix": false,
+        "config_file_path": null,
+        "templates_dir": null
+      }
+    }
+  },
+  "myopia": {
+    "enabled": true,
+    "include_dirs": [],
+    "exclude_dirs": ["slop-mop"],
+    "gates": {
+      "security-audit": {
+        "enabled": true,
+        "auto_fix": false,
+        "config_file_path": ".secrets.baseline",
+        "scanners": ["bandit", "semgrep", "detect-secrets"],
+        "exclude_dirs": [
+          "venv",
+          ".venv",
+          "node_modules",
+          "cursor-rules",
+          "archives",
+          "logs",
+          "tests",
+          "*/.venv",
+          "*/venv"
+        ],
+        "bandit_config_file": null
+      },
+      "security-scan": {
+        "enabled": true,
+        "auto_fix": false,
+        "config_file_path": ".secrets.baseline",
+        "scanners": ["bandit", "semgrep", "detect-secrets"],
+        "exclude_dirs": [
+          "venv",
+          ".venv",
+          "node_modules",
+          "cursor-rules",
+          "archives",
+          "logs",
+          "tests",
+          "*/.venv",
+          "*/venv"
+        ],
+        "bandit_config_file": null
+      },
+      "source-duplication": {
+        "enabled": true,
+        "auto_fix": false,
+        "config_file_path": null,
+        "threshold": 5,
+        "include_dirs": ["src"],
+        "min_tokens": 50,
+        "min_lines": 5,
+        "exclude_dirs": []
+      },
+      "string-duplication": {
+        "enabled": true,
+        "auto_fix": false,
+        "config_file_path": null,
+        "threshold": 2,
+        "min_file_count": 1,
+        "min_length": 8,
+        "min_words": 3,
+        "include_patterns": ["**/*.py"],
+        "ignore_patterns": [
+          "**/node_modules/**",
+          "**/.venv/**",
+          "**/venv/**",
+          "**/__pycache__/**",
+          "**/.git/**",
+          "**/*.egg-info/**",
+          "**/test_*",
+          "**/tests/**",
+          "**/conftest.py"
+        ]
+      },
+      "loc-lock": {
+        "enabled": true,
+        "auto_fix": false,
+        "config_file_path": null,
+        "max_file_lines": 1000,
+        "max_function_lines": 120,
+        "include_dirs": ["src", "scripts"],
+        "exclude_dirs": [
+          "ios",
+          "android",
+          "node_modules",
+          "coverage",
+          ".expo",
+          "temp",
+          "test_artifacts",
+          "quality-reports",
+          "reports",
+          "slop-mop",
+          "cursor-rules",
+          "__mocks__",
+          "__tests__"
+        ],
+        "extensions": []
+      }
+    }
+  },
+  "pr": {
+    "enabled": true,
+    "include_dirs": [],
+    "exclude_dirs": [],
+    "gates": {
+      "comments": {
+        "enabled": true,
+        "auto_fix": false,
+        "config_file_path": null,
+        "fail_on_unresolved": true
+      }
+    }
+  },
   "python": {
     "enabled": true,
     "include_dirs": ["scripts"],
@@ -172,7 +424,7 @@
       "loc-lock": {
         "enabled": true,
         "auto_fix": false,
-        "max_file_lines": 2700,
+        "max_file_lines": 1000,
         "max_function_lines": 120,
         "include_dirs": ["src", "scripts"],
         "exclude_dirs": [
@@ -242,19 +494,6 @@
         "config_file_path": null,
         "test_dir": "tests/e2e",
         "test_command": null
-      }
-    }
-  },
-  "pr": {
-    "enabled": true,
-    "include_dirs": [],
-    "exclude_dirs": [],
-    "gates": {
-      "comments": {
-        "enabled": true,
-        "auto_fix": false,
-        "config_file_path": null,
-        "fail_on_unresolved": true
       }
     }
   },
