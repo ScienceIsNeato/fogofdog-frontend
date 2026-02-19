@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useAppSelector } from '../../../store/hooks';
-import { calculateExplorationBounds } from '../index';
+import { calculateExplorationBounds } from '../utils/mapCamera';
 import { logger } from '../../../utils/logger';
 import { AuthPersistenceService } from '../../../services/AuthPersistenceService';
 

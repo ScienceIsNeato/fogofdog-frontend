@@ -15,6 +15,19 @@ const modalContainerBase = {
 };
 
 export const styles = StyleSheet.create({
+  // Map screen root container
+  container: {
+    flex: 1,
+  },
+  map: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  trackingControlButton: {
+    position: 'absolute',
+    bottom: 180, // Positioned for equal spacing with HUD separator
+    alignSelf: 'center',
+  },
+
   // Loading container styles
   loadingContainer: {
     flex: 1,
