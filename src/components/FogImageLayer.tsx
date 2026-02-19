@@ -259,6 +259,21 @@ const FogImageLayer: React.FC<FogImageLayerProps> = ({
   const animationAmplitude = fogEffectConfig?.animationAmplitude ?? 0;
   const tintColor = fogEffectConfig?.tintColor;
 
+  // Log when fog effect config changes (debug: verify Redux → FillLayer pipeline)
+  const prevConfigRef = useRef<FogRenderConfig | undefined>(undefined);
+  if (fogEffectConfig !== prevConfigRef.current) {
+    logger.debug('FogImageLayer: effect config changed', {
+      component: 'FogImageLayer',
+      action: 'effectConfigChange',
+      fogColor: baseFogColor,
+      fogOpacity: baseFogOpacity,
+      animationType,
+      animationDuration,
+      animationAmplitude,
+    });
+    prevConfigRef.current = fogEffectConfig;
+  }
+
   // Animation phase (0–1), driven by rAF at ~24fps. Returns 0 when static.
   const animPhase = useFogAnimation(animationType, animationDuration);
 

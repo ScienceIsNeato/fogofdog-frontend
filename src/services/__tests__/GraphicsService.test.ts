@@ -363,9 +363,9 @@ describe('GraphicsService', () => {
       expect(config!.animationType).toBe('pulse');
     });
 
-    it('fog-vignette effect has edgeBlurSigma > 0', () => {
+    it('fog-vignette effect has reduced opacity for semi-transparent fog', () => {
       const config = GraphicsService.getFogRenderConfig('fog-vignette');
-      expect(config!.edgeBlurSigma).toBeGreaterThan(0);
+      expect(config!.fogOpacity).toBeLessThan(1);
     });
 
     it('fog-haunted effect has a tintColor', () => {
