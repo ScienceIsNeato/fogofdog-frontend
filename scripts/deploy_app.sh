@@ -956,8 +956,11 @@ if [ "$PHYSICAL_DEVICE" = true ]; then
         echo -e "  │   ${DIM}No Metro server or local network required${NC}"
     fi
     echo -e "  │"
-    echo -e "  ├── ${CYAN}Monitor device logs (USB required):${NC}"
-    echo -e "  │   ${DIM}idevicesyslog -u \$(xcrun xctrace list devices 2>/dev/null | grep '$LOCAL_DEVICE_NAME' | grep -oE '[0-9A-F-]{25}') | grep -i fog${NC}"
+    echo -e "  ├── ${CYAN}Monitor device logs:${NC}"
+    echo -e "  │   ${DIM}# Over WiFi (recommended — no cable needed):${NC}"
+    echo -e "  │   ${DIM}idevicesyslog -u \$(xcrun xctrace list devices 2>/dev/null | grep '$LOCAL_DEVICE_NAME' | grep -oE '[0-9A-Fa-f-]{25}') -n | grep -i fog${NC}"
+    echo -e "  │   ${DIM}# Over USB (if WiFi doesn't work):${NC}"
+    echo -e "  │   ${DIM}idevicesyslog -u \$(xcrun xctrace list devices 2>/dev/null | grep '$LOCAL_DEVICE_NAME' | grep -oE '[0-9A-Fa-f-]{25}') | grep -i fog${NC}"
     echo -e "  │   ${DIM}# Install if missing: brew install libimobiledevice${NC}"
     echo -e "  │   ${DIM}# Or in Xcode: Window → Devices and Simulators → View Device Logs${NC}"
 else
