@@ -3,7 +3,8 @@
  *
  * Each effect is a pure object implementing FogEffect.
  * The getRenderConfig() function returns a FogRenderConfig that
- * OptimizedFogOverlay uses to alter its Skia rendering.
+ * FogImageLayer uses to configure its MapLibre FillLayer style and
+ * optional animation (opacity pulse, colour tint-cycle).
  *
  * Minimum DoD requirement: ≥2 effects (1 static, 1 animated).
  * Delivered: 4 effects (2 static, 2 animated).
@@ -55,9 +56,10 @@ export const fogVignette: FogEffect = {
 
 /**
  * Pulse — animated
- * Fog holes expand and contract rhythmically using an animated strokeWidth
- * multiplier.  The breathing effect is subtle (±12%) so it is comfortable
- * over long sessions without causing motion sickness.
+ * Fog opacity oscillates sinusoidally at ±12% around the base value.
+ * The breathing effect is subtle so it is comfortable over long sessions
+ * without causing motion sickness. Driven by a ~24fps rAF loop in
+ * FogImageLayer that updates the FillLayer fillOpacity style prop.
  */
 export const fogPulse: FogEffect = {
   id: 'fog-pulse',
@@ -77,8 +79,9 @@ export const fogPulse: FogEffect = {
 
 /**
  * Haunted — animated
- * A deep indigo fog with a slow, oscillating tint overlay.
- * The tint darkens and shifts hue, giving a paranormal atmosphere.
+ * A deep indigo fog with a slow, oscillating tint colour blend.
+ * FillLayer fillColor cycles between the base indigo and a violet tint,
+ * giving a paranormal atmosphere.
  */
 export const fogHaunted: FogEffect = {
   id: 'fog-haunted',

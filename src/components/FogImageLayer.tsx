@@ -18,11 +18,16 @@
  *   2. World polygon − cleared polygon → @turf/difference → fog GeoJSON
  *   3. <ShapeSource shape={fogGeoJSON}> + <FillLayer> → native rendering
  *
+ * ANIMATION: Fog effects (pulse, tint-cycle) drive FillLayer style props via
+ * a throttled requestAnimationFrame loop at ~24fps. Only opacity/colour change;
+ * the GeoJSON geometry stays cached. MapLibre handles style property updates
+ * efficiently without re-parsing the source data.
+ *
  * PERFORMANCE: turf.buffer + difference runs only when GPS data changes
  * (every few seconds), NOT on every pan/zoom frame. MapLibre handles all
  * visual updates natively at 60fps.
  */
-import React, { useMemo } from 'react';
+import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { useSelector } from 'react-redux';
 import { ShapeSource, FillLayer } from '@maplibre/maplibre-react-native';
 import buffer from '@turf/buffer';
@@ -166,6 +171,70 @@ function buildFogGeoJSON(
   return fog ?? WORLD_POLYGON;
 }
 
+// ─── Animation Utilities ────────────────────────────────────────────────────
+
+/** Target frame rate for fog animations — 24fps is smooth for subtle effects. */
+const ANIMATION_FPS = 24;
+const ANIMATION_FRAME_INTERVAL_MS = 1000 / ANIMATION_FPS;
+
+/** Clamp a number to [min, max]. */
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, value));
+}
+
+/**
+ * Linearly interpolate between two hex colours.
+ * Both inputs must be 6-digit hex strings (e.g. '#0a0020').
+ */
+function lerpColor(a: string, b: string, t: number): string {
+  const parse = (hex: string): [number, number, number] => {
+    const h = hex.replace('#', '');
+    return [parseInt(h.slice(0, 2), 16), parseInt(h.slice(2, 4), 16), parseInt(h.slice(4, 6), 16)];
+  };
+  const [r1, g1, b1] = parse(a);
+  const [r2, g2, b2] = parse(b);
+  const hex = (v: number) => Math.round(v).toString(16).padStart(2, '0');
+  return `#${hex(r1 + (r2 - r1) * t)}${hex(g1 + (g2 - g1) * t)}${hex(b1 + (b2 - b1) * t)}`;
+}
+
+/**
+ * Hook that drives a normalised animation phase (0–1) for fog effects.
+ * Runs a requestAnimationFrame loop throttled to ~24fps to keep bridge
+ * traffic low. Returns 0 when no animation is active.
+ */
+function useFogAnimation(
+  animationType: 'none' | 'pulse' | 'tint-cycle',
+  animationDuration: number
+): number {
+  const [phase, setPhase] = useState(0);
+  const frameRef = useRef(0);
+
+  useEffect(() => {
+    if (animationType === 'none' || animationDuration <= 0) {
+      setPhase(0);
+      return;
+    }
+
+    const start = performance.now();
+    let lastFrame = 0;
+
+    const tick = () => {
+      const now = performance.now();
+      if (now - lastFrame >= ANIMATION_FRAME_INTERVAL_MS) {
+        lastFrame = now;
+        const elapsed = now - start;
+        setPhase((elapsed % animationDuration) / animationDuration);
+      }
+      frameRef.current = requestAnimationFrame(tick);
+    };
+    frameRef.current = requestAnimationFrame(tick);
+
+    return () => cancelAnimationFrame(frameRef.current);
+  }, [animationType, animationDuration]);
+
+  return phase;
+}
+
 // ─── Component ──────────────────────────────────────────────────────────────
 
 /**
@@ -182,9 +251,30 @@ const FogImageLayer: React.FC<FogImageLayerProps> = ({
   // GPS points from Redux
   const pathPoints = useSelector((state: RootState) => state.exploration.path);
 
-  // Fog appearance
-  const fogColor = fogEffectConfig?.fogColor ?? FOG_CONFIG.COLOR;
-  const fogOpacity = fogEffectConfig?.fogOpacity ?? FOG_CONFIG.OPACITY;
+  // Base fog appearance (static values from effect config)
+  const baseFogColor = fogEffectConfig?.fogColor ?? FOG_CONFIG.COLOR;
+  const baseFogOpacity = fogEffectConfig?.fogOpacity ?? FOG_CONFIG.OPACITY;
+  const animationType = fogEffectConfig?.animationType ?? 'none';
+  const animationDuration = fogEffectConfig?.animationDuration ?? 0;
+  const animationAmplitude = fogEffectConfig?.animationAmplitude ?? 0;
+  const tintColor = fogEffectConfig?.tintColor;
+
+  // Animation phase (0–1), driven by rAF at ~24fps. Returns 0 when static.
+  const animPhase = useFogAnimation(animationType, animationDuration);
+
+  // Compute animated fill style from phase
+  let fogColor = baseFogColor;
+  let fogOpacity = baseFogOpacity;
+
+  if (animationType === 'pulse' && animationAmplitude > 0) {
+    // Sinusoidal opacity oscillation: base ± amplitude
+    const sin = Math.sin(animPhase * 2 * Math.PI);
+    fogOpacity = clamp(baseFogOpacity + sin * animationAmplitude, 0, 1);
+  } else if (animationType === 'tint-cycle' && tintColor) {
+    // Sinusoidal colour blend: fogColor ↔ tintColor
+    const t = (Math.sin(animPhase * 2 * Math.PI) + 1) / 2; // 0..1
+    fogColor = lerpColor(baseFogColor, tintColor, t * animationAmplitude);
+  }
 
   // Build fog GeoJSON — only recomputes when GPS points change
   const fogGeoJSON = useMemo(
@@ -214,4 +304,13 @@ const FogImageLayer: React.FC<FogImageLayerProps> = ({
 export default React.memo(FogImageLayer);
 
 // ─── Exported for testing ───────────────────────────────────────────────────
-export { buildFogGeoJSON, downsampleToGrid, WORLD_POLYGON, BUFFER_STEPS, GRID_CELL_SIZE };
+export {
+  buildFogGeoJSON,
+  downsampleToGrid,
+  WORLD_POLYGON,
+  BUFFER_STEPS,
+  GRID_CELL_SIZE,
+  lerpColor,
+  clamp,
+  ANIMATION_FPS,
+};

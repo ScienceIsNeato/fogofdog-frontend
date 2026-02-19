@@ -32,7 +32,8 @@ export interface GraphicsEffect {
 
 /**
  * Configuration passed to OptimizedFogOverlay when a fog effect is active.
- * The overlay uses these values to alter its Skia rendering.
+ * The FogImageLayer uses these values to configure its MapLibre FillLayer
+ * style and optional animation (opacity pulse, colour tint-cycle).
  */
 export interface FogRenderConfig {
   /** Fog rectangle fill colour (CSS colour string). Default: 'black'. */
