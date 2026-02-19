@@ -458,13 +458,24 @@ get_stored_fingerprint() {
     esac
 
     if [ -f "$fingerprint_file" ]; then
-        cat "$fingerprint_file"
+        local first_line
+        first_line=$(head -1 "$fingerprint_file")
+        # Support new format (composite:HASH) and old format (just HASH)
+        if [[ "$first_line" == composite:* ]]; then
+            echo "${first_line#composite:}"
+        else
+            echo "$first_line"
+        fi
     else
         echo "" # No stored fingerprint = always dirty
     fi
 }
 
 # Save the current fingerprint after successful build
+# New format stores per-file detail for change diagnostics:
+#   Line 1: composite:<hash>         (quick dirty check)
+#   Line 2: mode:<build_mode>        (debug/release switch detection)
+#   Line 3+: <file>:<hash>           (per-file change tracking)
 save_native_fingerprint() {
     local device="$1"
     local fingerprint_file
@@ -474,7 +485,27 @@ save_native_fingerprint() {
         android) fingerprint_file="$FINGERPRINT_FILE_ANDROID" ;;
     esac
 
-    compute_native_fingerprint "$device" > "$fingerprint_file"
+    local composite
+    composite=$(compute_native_fingerprint "$device")
+
+    local files_to_hash=()
+    case "$device" in
+        ios)     files_to_hash=("${NATIVE_FINGERPRINT_FILES_IOS[@]}") ;;
+        android) files_to_hash=("${NATIVE_FINGERPRINT_FILES_ANDROID[@]}") ;;
+    esac
+
+    {
+        echo "composite:$composite"
+        echo "mode:${MODE}"
+        for file in "${files_to_hash[@]}"; do
+            local full_path="$PROJECT_DIR/$file"
+            if [ -f "$full_path" ]; then
+                local file_hash
+                file_hash=$(md5 -q "$full_path" 2>/dev/null || md5sum "$full_path" 2>/dev/null | cut -d' ' -f1)
+                echo "$file:$file_hash"
+            fi
+        done
+    } > "$fingerprint_file"
 }
 
 # Check if native code is dirty (changed since last build)
@@ -496,6 +527,76 @@ is_native_dirty() {
     fi
 
     return 1  # clean
+}
+
+# Report which native files changed since last build.
+# Called after is_native_dirty() returns true for user-facing diagnostics.
+# Shows exactly WHY a rebuild is needed instead of just "native code changed".
+report_native_changes() {
+    local device="$1"
+    local fingerprint_file
+
+    case "$device" in
+        ios)     fingerprint_file="$FINGERPRINT_FILE_IOS" ;;
+        android) fingerprint_file="$FINGERPRINT_FILE_ANDROID" ;;
+    esac
+
+    if [ ! -f "$fingerprint_file" ]; then
+        info "No previous build fingerprint — first build for this device/mode"
+        return
+    fi
+
+    # Old format (single hash, no detail) — can't diff, just say "upgraded"
+    local first_line
+    first_line=$(head -1 "$fingerprint_file")
+    if [[ "$first_line" != composite:* ]]; then
+        info "Fingerprint format upgraded — cannot determine specific changes"
+        return
+    fi
+
+    local files_to_hash=()
+    case "$device" in
+        ios)     files_to_hash=("${NATIVE_FINGERPRINT_FILES_IOS[@]}") ;;
+        android) files_to_hash=("${NATIVE_FINGERPRINT_FILES_ANDROID[@]}") ;;
+    esac
+
+    # Check for mode change
+    local stored_mode
+    stored_mode=$(grep "^mode:" "$fingerprint_file" 2>/dev/null | head -1)
+    stored_mode="${stored_mode#mode:}"
+    if [ -n "$stored_mode" ] && [ "$stored_mode" != "$MODE" ]; then
+        info "Build mode changed: ${BOLD}$stored_mode${NC} → ${BOLD}$MODE${NC}"
+    fi
+
+    # Compare per-file hashes
+    local changed_files=()
+    for file in "${files_to_hash[@]}"; do
+        local full_path="$PROJECT_DIR/$file"
+        if [ -f "$full_path" ]; then
+            local current_hash
+            current_hash=$(md5 -q "$full_path" 2>/dev/null || md5sum "$full_path" 2>/dev/null | cut -d' ' -f1)
+            local stored_hash
+            stored_hash=$(grep "^${file}:" "$fingerprint_file" 2>/dev/null | head -1)
+            stored_hash="${stored_hash#*:}"
+            if [ -z "$stored_hash" ]; then
+                changed_files+=("$file ${DIM}(new — not in previous build)${NC}")
+            elif [ "$current_hash" != "$stored_hash" ]; then
+                changed_files+=("$file")
+            fi
+        else
+            # File was tracked but no longer exists
+            if grep -q "^${file}:" "$fingerprint_file" 2>/dev/null; then
+                changed_files+=("$file ${DIM}(removed)${NC}")
+            fi
+        fi
+    done
+
+    if [ ${#changed_files[@]} -gt 0 ]; then
+        info "Changed native config files:"
+        for f in "${changed_files[@]}"; do
+            echo -e "    ${YELLOW}→${NC} $f"
+        done
+    fi
 }
 
 # =============================================================================
@@ -587,10 +688,11 @@ needs_native_build() {
     # Use native fingerprint to detect if a rebuild is needed.
     if [ "$PHYSICAL_DEVICE" = true ]; then
         if is_native_dirty "ios"; then
-            info "Native code changed since last build — rebuild needed"
+            report_native_changes "ios"
+            info "Native config changed since last build — rebuild needed"
             return 0
         fi
-        ok "Native code unchanged — skipping rebuild (app should be on device)"
+        ok "Native config unchanged — skipping rebuild (app should be on device)"
         return 1
     fi
 
@@ -610,7 +712,8 @@ needs_native_build() {
             fi
             # App is installed, but is it stale?
             if is_native_dirty "ios"; then
-                info "Native code changed since last build — rebuild needed"
+                report_native_changes "ios"
+                info "Native config changed since last build — rebuild needed"
                 return 0
             fi
             ok "App installed and up-to-date on iOS Simulator"
@@ -623,7 +726,8 @@ needs_native_build() {
             fi
             # App is installed, but is it stale?
             if is_native_dirty "android"; then
-                info "Native code changed since last build — rebuild needed"
+                report_native_changes "android"
+                info "Native config changed since last build — rebuild needed"
                 return 0
             fi
             ok "App installed and up-to-date on Android Emulator"
