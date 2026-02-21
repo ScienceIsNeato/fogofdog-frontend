@@ -334,13 +334,13 @@ CREATED=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
                 break
             fi
         done
-        # Escape double quotes in description
-        desc="${desc//\"/\\\"}"
+        # JSON-escape the description using Python for safe output
+        json_desc="$(python3 -c 'import json, sys; print(json.dumps(sys.argv[1]))' "$desc")"
 
         if [ $i -gt 0 ]; then echo "    ,"; fi
         echo "    {"
         echo "      \"name\": \"$name\","
-        echo "      \"description\": \"$desc\","
+        echo "      \"description\": $json_desc,"
         echo "      \"reference\": \"$TEST_NAME/${name}-reference.png\","
         echo "      \"threshold\": $DEFAULT_THRESHOLD"
         echo "    }"

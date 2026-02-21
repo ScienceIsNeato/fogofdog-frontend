@@ -50,7 +50,12 @@ is_ios_device_running() {
 }
 
 is_android_device_running() {
-    adb devices 2>/dev/null | grep -qE "emulator|device$" && return 0
+    # Only match devices whose state column is exactly "device" (not "offline")
+    while read -r serial state _; do
+        if [ "$state" = "device" ]; then
+            return 0
+        fi
+    done < <(adb devices 2>/dev/null | tail -n +2)
     return 1
 }
 
@@ -89,7 +94,6 @@ auto_detect_platform() {
 # Parse command line arguments
 # =============================================================================
 
-CREATE_REFERENCE=false
 FORCE_REBUILD=false
 NO_WINDOW=false
 PLATFORM=""
@@ -134,7 +138,8 @@ while [[ $# -gt 0 ]]; do
             shift 2
             ;;
         --create-reference)
-            CREATE_REFERENCE=true
+            # Legacy flag — reference screenshots are now managed via establish_ground_truth.sh
+            log "⚠️  --create-reference is deprecated. Use scripts/establish_ground_truth.sh instead."
             shift
             ;;
         --force-rebuild)
@@ -603,8 +608,9 @@ for TEST_FILE in "${TEST_FILES[@]}"; do
         # Compare all named screenshots against ground truth manifest
         if ! compare_test_screenshots "$TEST_NAME" "$TEST_ARTIFACTS_DIR"; then
             FAILED_TESTS+=("$TEST_NAME (visual regression)")
+        else
+            PASSED_TESTS=$((PASSED_TESTS + 1))
         fi
-        PASSED_TESTS=$((PASSED_TESTS + 1))
     else
         log "❌ Failed: $TEST_NAME"
         capture_failure_debug "$TEST_ARTIFACTS_DIR"

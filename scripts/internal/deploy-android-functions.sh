@@ -7,13 +7,15 @@
 # ── Quick-check helpers ────────────────────────────────────────────────────
 
 quick_is_android_emu_running() {
-    adb devices 2>/dev/null | grep -q "emulator"
+    # Only match emulators whose state column is "device" (not "offline")
+    adb devices 2>/dev/null | tail -n +2 | awk '$1 ~ /^emulator/ && $2 == "device" { found=1 } END { exit !found }'
 }
 
 # ── Emulator management ───────────────────────────────────────────────────
 
 is_android_emu_running() {
-    adb devices 2>/dev/null | grep -q "emulator"
+    # Only match emulators whose state column is "device" (not "offline")
+    adb devices 2>/dev/null | tail -n +2 | awk '$1 ~ /^emulator/ && $2 == "device" { found=1 } END { exit !found }'
 }
 
 boot_android_emulator() {

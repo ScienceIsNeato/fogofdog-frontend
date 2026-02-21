@@ -18,7 +18,8 @@ PLATFORM="${1:-ios}"
 NO_WINDOW=false
 
 # Parse optional flags (after platform arg)
-shift 2>/dev/null || true
+# Shift only the platform arg; "|| true" handles the case where no args remain
+shift || true
 while [[ $# -gt 0 ]]; do
     case $1 in
         --no-window) NO_WINDOW=true; shift ;;
