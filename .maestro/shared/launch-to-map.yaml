@@ -38,9 +38,9 @@ appId: com.fogofdog.app
           visible:
             text: '.*'
           timeout: 60000
-      - waitForAnimationToEnd:
-          timeout: 5000
-      # Map should appear directly — no onboarding, no permissions
+      # Map should appear directly — no onboarding, no permissions.
+      # No fixed delay needed — extendedWaitUntil proceeds the instant
+      # the element is visible.
       - extendedWaitUntil:
           visible:
             id: 'map-screen'
@@ -68,13 +68,14 @@ appId: com.fogofdog.app
           clearState: true
           permissions:
             all: allow
-      - waitForAnimationToEnd:
-          timeout: 2000
+      # Wait for onboarding to appear (always shown after clearState)
+      - extendedWaitUntil:
+          visible:
+            text: 'Skip Tutorial'
+          timeout: 15000
       # Onboarding always appears after clearState — tap Skip (deterministic)
       - tapOn:
           text: 'Skip Tutorial'
-      - waitForAnimationToEnd:
-          timeout: 1000
       # Wait for permissions to resolve and map to appear
       - extendedWaitUntil:
           visible:

@@ -98,14 +98,18 @@ jsEngine: graaljs
 - launchApp:
     appId: com.fogofdog.app
     clearState: false
-- waitForAnimationToEnd:
-    timeout: 1000
 
 # Verify immediate responsiveness (replay bug would cause timeout/jank)
+- extendedWaitUntil:
+    visible:
+      id: 'location-button'
+    timeout: 5000
 - tapOn:
     id: 'location-button'
-- waitForAnimationToEnd:
-    timeout: 800
+- extendedWaitUntil:
+    visible:
+      id: 'map-screen'
+    timeout: 3000
 
 # @checkpoint: 03-post-foreground
 # @description: Map immediately after foregrounding. All 8 background GPS points

@@ -36,8 +36,8 @@ appId: com.fogofdog.app
           visible:
             text: '.*'
           timeout: 60000
-      - waitForAnimationToEnd:
-          timeout: 5000
+      # No fixed delay needed — extendedWaitUntil proceeds the instant
+      # the element is visible.
       # Onboarding WILL appear since @fogofdog_onboarding_completed was not seeded
       - extendedWaitUntil:
           visible:
@@ -54,8 +54,6 @@ appId: com.fogofdog.app
           clearState: true
           permissions:
             all: allow
-      - waitForAnimationToEnd:
-          timeout: 2000
       # Onboarding always appears after clearState since AsyncStorage is wiped
       - extendedWaitUntil:
           visible:

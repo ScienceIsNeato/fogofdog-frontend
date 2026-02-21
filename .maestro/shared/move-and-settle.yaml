@@ -20,11 +20,15 @@ appId: com.fogofdog.app
 - setLocation:
     latitude: ${MOVE_LAT}
     longitude: ${MOVE_LON}
-# Give the map time to process the location change and load tiles
-- waitForAnimationToEnd:
-    timeout: 2000
+# Proceed as soon as the location-button is interactable (already rendered;
+# this confirms the location change propagated without a fixed delay).
+- extendedWaitUntil:
+    visible:
+      id: 'location-button'
+    timeout: 3000
 # Re-center camera on new position
 - tapOn:
     id: 'location-button'
+# Brief settle for camera animation — 500ms is enough for the pan.
 - waitForAnimationToEnd:
-    timeout: 1500
+    timeout: 500

@@ -41,16 +41,18 @@ appId: com.fogofdog.app
 # Open settings
 - tapOn:
     id: 'settings-button'
-- waitForAnimationToEnd:
-    timeout: 1000
+- extendedWaitUntil:
+    visible:
+      id: 'map-style-button'
+    timeout: 3000
 
 # Navigate to Map Style
-- assertVisible:
-    id: 'map-style-button'
 - tapOn:
     id: 'map-style-button'
-- waitForAnimationToEnd:
-    timeout: 500
+- extendedWaitUntil:
+    visible:
+      text: 'Map Style'
+    timeout: 3000
 
 # Verify skin selection screen
 - assertVisible:
@@ -69,7 +71,7 @@ appId: com.fogofdog.app
 - tapOn:
     id: 'skin-option-cartoon'
 - waitForAnimationToEnd:
-    timeout: 2000
+    timeout: 1000
 
 # @checkpoint: 03-cartoon-selected
 # @description: Cartoon skin selected. The option should show a selection
@@ -79,12 +81,16 @@ appId: com.fogofdog.app
 # Navigate back to map
 - tapOn:
     id: 'back-button'
-- waitForAnimationToEnd:
-    timeout: 500
+- extendedWaitUntil:
+    visible:
+      id: 'close-button'
+    timeout: 3000
 - tapOn:
     id: 'close-button'
-- waitForAnimationToEnd:
-    timeout: 1000
+- extendedWaitUntil:
+    visible:
+      id: 'map-screen'
+    timeout: 3000
 
 # Verify map is still visible
 - assertVisible:
@@ -111,12 +117,16 @@ appId: com.fogofdog.app
 # Reopen settings to verify skin persists
 - tapOn:
     id: 'settings-button'
-- waitForAnimationToEnd:
-    timeout: 1000
+- extendedWaitUntil:
+    visible:
+      id: 'map-style-button'
+    timeout: 3000
 - tapOn:
     id: 'map-style-button'
-- waitForAnimationToEnd:
-    timeout: 500
+- extendedWaitUntil:
+    visible:
+      id: 'skin-option-cartoon'
+    timeout: 3000
 
 # Verify cartoon skin is still selected
 - assertVisible:
@@ -130,12 +140,16 @@ appId: com.fogofdog.app
 # Close settings
 - tapOn:
     id: 'back-button'
-- waitForAnimationToEnd:
-    timeout: 500
+- extendedWaitUntil:
+    visible:
+      id: 'close-button'
+    timeout: 3000
 - tapOn:
     id: 'close-button'
-- waitForAnimationToEnd:
-    timeout: 500
+- extendedWaitUntil:
+    visible:
+      id: 'map-screen'
+    timeout: 3000
 
 # Final map assertion
 - assertVisible:

@@ -36,8 +36,10 @@ appId: com.fogofdog.app
 # Test location button responds
 - tapOn:
     id: 'location-button'
-- waitForAnimationToEnd:
-    timeout: 500
+- extendedWaitUntil:
+    visible:
+      id: 'map-screen'
+    timeout: 3000
 
 # Move ~500m south — should create a fog hole at the new location
 - runFlow:

@@ -54,12 +54,16 @@ appId: com.fogofdog.app
 # === Test "Last Hour" ===
 - tapOn:
     id: 'settings-button'
-- waitForAnimationToEnd:
-    timeout: 1000
+- extendedWaitUntil:
+    visible:
+      id: 'data-management-button'
+    timeout: 3000
 - tapOn:
     id: 'data-management-button'
-- waitForAnimationToEnd:
-    timeout: 500
+- extendedWaitUntil:
+    visible:
+      id: 'clear-data-hour'
+    timeout: 3000
 
 # @checkpoint: 03-data-management-view
 # @description: Data Management settings view with clear options visible.
@@ -68,23 +72,31 @@ appId: com.fogofdog.app
 
 - tapOn:
     id: 'clear-data-hour'
-- waitForAnimationToEnd:
-    timeout: 500
+- extendedWaitUntil:
+    visible:
+      text: 'Clear Data'
+    timeout: 3000
 
 # Confirm the native Alert dialog
 - tapOn: 'Clear Data'
-- waitForAnimationToEnd:
-    timeout: 2000
+- extendedWaitUntil:
+    visible:
+      id: 'back-button'
+    timeout: 5000
 
 # Navigate back to map
 - tapOn:
     id: 'back-button'
-- waitForAnimationToEnd:
-    timeout: 500
+- extendedWaitUntil:
+    visible:
+      id: 'close-button'
+    timeout: 3000
 - tapOn:
     id: 'close-button'
-- waitForAnimationToEnd:
-    timeout: 500
+- extendedWaitUntil:
+    visible:
+      id: 'map-screen'
+    timeout: 3000
 - assertVisible:
     id: 'map-screen'
 
@@ -103,29 +115,41 @@ appId: com.fogofdog.app
 
 - tapOn:
     id: 'settings-button'
-- waitForAnimationToEnd:
-    timeout: 1000
+- extendedWaitUntil:
+    visible:
+      id: 'data-management-button'
+    timeout: 3000
 - tapOn:
     id: 'data-management-button'
-- waitForAnimationToEnd:
-    timeout: 500
+- extendedWaitUntil:
+    visible:
+      id: 'clear-data-day'
+    timeout: 3000
 - tapOn:
     id: 'clear-data-day'
-- waitForAnimationToEnd:
-    timeout: 500
+- extendedWaitUntil:
+    visible:
+      text: 'Clear Data'
+    timeout: 3000
 - tapOn: 'Clear Data'
-- waitForAnimationToEnd:
-    timeout: 2000
+- extendedWaitUntil:
+    visible:
+      id: 'back-button'
+    timeout: 5000
 
 # Navigate back to map
 - tapOn:
     id: 'back-button'
-- waitForAnimationToEnd:
-    timeout: 500
+- extendedWaitUntil:
+    visible:
+      id: 'close-button'
+    timeout: 3000
 - tapOn:
     id: 'close-button'
-- waitForAnimationToEnd:
-    timeout: 500
+- extendedWaitUntil:
+    visible:
+      id: 'map-screen'
+    timeout: 3000
 - assertVisible:
     id: 'map-screen'
 
@@ -144,29 +168,41 @@ appId: com.fogofdog.app
 
 - tapOn:
     id: 'settings-button'
-- waitForAnimationToEnd:
-    timeout: 1000
+- extendedWaitUntil:
+    visible:
+      id: 'data-management-button'
+    timeout: 3000
 - tapOn:
     id: 'data-management-button'
-- waitForAnimationToEnd:
-    timeout: 500
+- extendedWaitUntil:
+    visible:
+      id: 'clear-data-all'
+    timeout: 3000
 - tapOn:
     id: 'clear-data-all'
-- waitForAnimationToEnd:
-    timeout: 500
+- extendedWaitUntil:
+    visible:
+      text: 'Clear Data'
+    timeout: 3000
 - tapOn: 'Clear Data'
-- waitForAnimationToEnd:
-    timeout: 2000
+- extendedWaitUntil:
+    visible:
+      id: 'back-button'
+    timeout: 5000
 
 # Navigate back to map
 - tapOn:
     id: 'back-button'
-- waitForAnimationToEnd:
-    timeout: 500
+- extendedWaitUntil:
+    visible:
+      id: 'close-button'
+    timeout: 3000
 - tapOn:
     id: 'close-button'
-- waitForAnimationToEnd:
-    timeout: 500
+- extendedWaitUntil:
+    visible:
+      id: 'map-screen'
+    timeout: 3000
 
 # @checkpoint: 06-after-clear-all
 # @description: Map after clearing all exploration data. Fog should

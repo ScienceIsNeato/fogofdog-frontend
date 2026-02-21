@@ -31,12 +31,16 @@ appId: com.fogofdog.app
 # === PART 1: Open Settings → Developer Settings ===
 - tapOn:
     id: 'settings-button'
-- waitForAnimationToEnd:
-    timeout: 1000
+- extendedWaitUntil:
+    visible:
+      id: 'developer-settings-button'
+    timeout: 3000
 - tapOn:
     id: 'developer-settings-button'
-- waitForAnimationToEnd:
-    timeout: 1000
+- extendedWaitUntil:
+    visible:
+      text: 'Street Navigation'
+    timeout: 3000
 
 # Verify Street Navigation section
 - assertVisible:
@@ -58,13 +62,18 @@ appId: com.fogofdog.app
 # === PART 2: Load Sample Streets ===
 - tapOn:
     id: 'load-sample-streets'
-- waitForAnimationToEnd:
-    timeout: 2000
+# Wait for native Alert to appear
+- extendedWaitUntil:
+    visible:
+      text: 'OK'
+    timeout: 5000
 
 # Dismiss the native Alert ("Sample Streets loaded…")
 - tapOn: 'OK'
-- waitForAnimationToEnd:
-    timeout: 500
+- extendedWaitUntil:
+    visible:
+      id: 'street-info-loaded'
+    timeout: 3000
 
 # Verify info display appears after load (12 segments in 3×3 grid)
 - assertVisible:
@@ -80,12 +89,16 @@ appId: com.fogofdog.app
 # Navigate back to map
 - tapOn:
     id: 'back-button'
-- waitForAnimationToEnd:
-    timeout: 500
+- extendedWaitUntil:
+    visible:
+      id: 'close-button'
+    timeout: 3000
 - tapOn:
     id: 'close-button'
-- waitForAnimationToEnd:
-    timeout: 1000
+- extendedWaitUntil:
+    visible:
+      id: 'exploration-nudge'
+    timeout: 5000
 
 # Verify ExplorationNudge is visible with sample street data
 - assertVisible:
@@ -108,25 +121,33 @@ appId: com.fogofdog.app
 # === PART 3: Load Real Streets from Overpass API ===
 - tapOn:
     id: 'settings-button'
-- waitForAnimationToEnd:
-    timeout: 1000
+- extendedWaitUntil:
+    visible:
+      id: 'developer-settings-button'
+    timeout: 3000
 - tapOn:
     id: 'developer-settings-button'
-- waitForAnimationToEnd:
-    timeout: 1000
+- extendedWaitUntil:
+    visible:
+      id: 'load-real-streets'
+    timeout: 3000
 
 # Tap "Load Real Streets" — calls Overpass API (network dependent)
 - tapOn:
     id: 'load-real-streets'
 
-# Wait for network response (may take several seconds)
-- waitForAnimationToEnd:
-    timeout: 15000
+# Wait for network response — proceed as soon as alert appears
+- extendedWaitUntil:
+    visible:
+      text: 'OK'
+    timeout: 20000
 
 # Dismiss the native Alert ("Real Streets Loaded…")
 - tapOn: 'OK'
-- waitForAnimationToEnd:
-    timeout: 500
+- extendedWaitUntil:
+    visible:
+      id: 'street-info-loaded'
+    timeout: 3000
 
 # Verify streets loaded (count varies based on OSM data)
 - assertVisible:
@@ -140,12 +161,16 @@ appId: com.fogofdog.app
 # Navigate back to map, verify nudge with real data
 - tapOn:
     id: 'back-button'
-- waitForAnimationToEnd:
-    timeout: 500
+- extendedWaitUntil:
+    visible:
+      id: 'close-button'
+    timeout: 3000
 - tapOn:
     id: 'close-button'
-- waitForAnimationToEnd:
-    timeout: 1000
+- extendedWaitUntil:
+    visible:
+      id: 'exploration-nudge'
+    timeout: 5000
 
 - assertVisible:
     id: 'exploration-nudge'
@@ -162,18 +187,24 @@ appId: com.fogofdog.app
 # === PART 4: Test toggle interactions ===
 - tapOn:
     id: 'settings-button'
-- waitForAnimationToEnd:
-    timeout: 1000
+- extendedWaitUntil:
+    visible:
+      id: 'developer-settings-button'
+    timeout: 3000
 - tapOn:
     id: 'developer-settings-button'
-- waitForAnimationToEnd:
-    timeout: 1000
+- extendedWaitUntil:
+    visible:
+      id: 'prefer-streets-toggle'
+    timeout: 3000
 
 # Toggle "Prefer Streets" ON
 - tapOn:
     id: 'prefer-streets-toggle'
-- waitForAnimationToEnd:
-    timeout: 500
+- extendedWaitUntil:
+    visible:
+      id: 'prefer-unexplored-toggle'
+    timeout: 3000
 
 # @checkpoint: 07-prefer-streets-on
 # @description: Developer Settings with "Prefer Streets" toggle ON.
@@ -184,7 +215,7 @@ appId: com.fogofdog.app
 - tapOn:
     id: 'prefer-unexplored-toggle'
 - waitForAnimationToEnd:
-    timeout: 500
+    timeout: 300
 
 # @checkpoint: 08-prefer-unexplored-on
 # @description: Both "Prefer Streets" and "Prefer Unexplored" toggles ON.
@@ -203,7 +234,7 @@ appId: com.fogofdog.app
 - tapOn:
     id: 'prefer-streets-toggle'
 - waitForAnimationToEnd:
-    timeout: 500
+    timeout: 300
 
 # @checkpoint: 09-prefer-streets-off
 # @description: "Prefer Streets" toggled OFF. "Prefer Unexplored" should
@@ -213,12 +244,16 @@ appId: com.fogofdog.app
 # Navigate back to map — verify app still functional
 - tapOn:
     id: 'back-button'
-- waitForAnimationToEnd:
-    timeout: 500
+- extendedWaitUntil:
+    visible:
+      id: 'close-button'
+    timeout: 3000
 - tapOn:
     id: 'close-button'
-- waitForAnimationToEnd:
-    timeout: 500
+- extendedWaitUntil:
+    visible:
+      id: 'map-screen'
+    timeout: 3000
 
 - assertVisible:
     id: 'map-screen'

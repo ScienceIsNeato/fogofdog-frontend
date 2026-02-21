@@ -39,8 +39,10 @@ appId: com.fogofdog.app
 # Step 1 → 2: Tap Continue
 - tapOn:
     id: 'onboarding-continue-button'
-- waitForAnimationToEnd:
-    timeout: 500
+- extendedWaitUntil:
+    visible:
+      id: 'onboarding-continue-button'
+    timeout: 2000
 
 # @checkpoint: 02-onboarding-step-2
 # @description: Onboarding step 2. Content describes fog-of-war mechanic.
@@ -49,20 +51,26 @@ appId: com.fogofdog.app
 # Step 2 → 3
 - tapOn:
     id: 'onboarding-continue-button'
-- waitForAnimationToEnd:
-    timeout: 500
+- extendedWaitUntil:
+    visible:
+      id: 'onboarding-continue-button'
+    timeout: 2000
 
 # Step 3 → 4
 - tapOn:
     id: 'onboarding-continue-button'
-- waitForAnimationToEnd:
-    timeout: 500
+- extendedWaitUntil:
+    visible:
+      id: 'onboarding-continue-button'
+    timeout: 2000
 
 # Step 4 → 5
 - tapOn:
     id: 'onboarding-continue-button'
-- waitForAnimationToEnd:
-    timeout: 500
+- extendedWaitUntil:
+    visible:
+      id: 'onboarding-continue-button'
+    timeout: 2000
 
 # @checkpoint: 03-onboarding-step-5
 # @description: Onboarding step 5. One more Continue before the final step.
@@ -71,8 +79,10 @@ appId: com.fogofdog.app
 # Step 5 → 6 (final)
 - tapOn:
     id: 'onboarding-continue-button'
-- waitForAnimationToEnd:
-    timeout: 500
+- extendedWaitUntil:
+    visible:
+      id: 'get-started-button'
+    timeout: 3000
 
 # @checkpoint: 04-onboarding-final-step
 # @description: Onboarding step 6 (final). "Get Started!" button visible
@@ -82,8 +92,6 @@ appId: com.fogofdog.app
 # Step 6: Tap "Get Started!" to complete onboarding
 - tapOn:
     id: 'get-started-button'
-- waitForAnimationToEnd:
-    timeout: 2000
 
 # === PHASE 2: MAP LOADS AFTER ONBOARDING ===
 
@@ -137,8 +145,10 @@ appId: com.fogofdog.app
 # Open settings to verify full functionality post-onboarding
 - tapOn:
     id: 'settings-button'
-- waitForAnimationToEnd:
-    timeout: 1000
+- extendedWaitUntil:
+    visible:
+      text: 'Map Style'
+    timeout: 3000
 
 # Verify settings menu loaded with all sections
 - assertVisible:
@@ -154,8 +164,10 @@ appId: com.fogofdog.app
 # Close settings
 - tapOn:
     id: 'close-button'
-- waitForAnimationToEnd:
-    timeout: 500
+- extendedWaitUntil:
+    visible:
+      id: 'map-screen'
+    timeout: 3000
 
 # Final map state
 - assertVisible:
