@@ -22,7 +22,7 @@ const animateMapToRegion = (
     centerCoordinate: [region.longitude, region.latitude],
     zoomLevel: regionToZoomLevel(region),
     animationDuration: duration,
-    animationMode: 'easeTo',
+    animationMode: 'flyTo',
   });
 };
 
@@ -249,62 +249,45 @@ const calculateCinematicStartPoint = (
 };
 
 /**
- * Calculate the cinematic start region for consistent positioning
- * Used by both initialRegion and animation to prevent jumps
+ * Calculate the cinematic start region for consistent positioning.
+ * Places the GPS dot at a random screen corner so the explored area
+ * is visible from the very first frame of the animation.
  */
 const calculateCinematicStartRegion = (
-  explorationPath: GeoPoint[],
+  _explorationPath: GeoPoint[],
   currentLocation: GeoPoint,
   fixedRandomSeed?: number
 ): MapRegion => {
-  const { startRegion, pathDistance } = calculateCinematicStartPoint(
-    explorationPath,
-    currentLocation
-  );
+  // Pick a random corner of the screen for the GPS dot to appear at.
+  // To place GPS at a corner, offset the camera center in the OPPOSITE direction.
+  const randomValue = fixedRandomSeed ?? Math.random();
+  const cornerIndex = Math.floor(randomValue * 4);
 
-  const hasValidPathDirection = pathDistance > 10;
-  let directionLat, directionLng;
+  // Corners mapped to camera-center offset signs:
+  //   0 = GPS top-right    → camera shifts down-left
+  //   1 = GPS top-left     → camera shifts down-right
+  //   2 = GPS bottom-right → camera shifts up-left
+  //   3 = GPS bottom-left  → camera shifts up-right
+  const cornerOffsets = [
+    { latSign: -1, lngSign: -1 }, // GPS top-right
+    { latSign: -1, lngSign: 1 }, // GPS top-left
+    { latSign: 1, lngSign: -1 }, // GPS bottom-right
+    { latSign: 1, lngSign: 1 }, // GPS bottom-left
+  ];
+  const corner = cornerOffsets[cornerIndex] ?? cornerOffsets[0]!;
 
-  if (hasValidPathDirection) {
-    directionLat = startRegion.latitude - currentLocation.latitude;
-    directionLng = startRegion.longitude - currentLocation.longitude;
-  } else {
-    // Use fixed seed for consistent random direction, or generate new one
-    const randomValue = fixedRandomSeed ?? Math.random();
-    const randomAngle = randomValue * 2 * Math.PI;
-    // Use frame edge distance directly for random direction (no scaling needed)
-    const edgeDistanceLat = DEFAULT_ZOOM_DELTAS.latitudeDelta * 0.4; // 40% of frame = edge position
-    const edgeDistanceLng = DEFAULT_ZOOM_DELTAS.longitudeDelta * 0.4;
-    directionLat = Math.sin(randomAngle) * edgeDistanceLat;
-    directionLng = Math.cos(randomAngle) * edgeDistanceLng;
-  }
+  // Margin of 0.35 places the GPS dot at ~70% from center toward the corner,
+  // keeping it clearly visible while leaving most of the frame for context.
+  const margin = 0.35;
+  const latOffset = DEFAULT_ZOOM_DELTAS.latitudeDelta * margin * corner.latSign;
+  const lngOffset = DEFAULT_ZOOM_DELTAS.longitudeDelta * margin * corner.lngSign;
 
-  // For intelligent path direction, scale to edge of frame
-  if (hasValidPathDirection) {
-    const currentDistance = Math.sqrt(directionLat * directionLat + directionLng * directionLng);
-    const frameLatDelta = DEFAULT_ZOOM_DELTAS.latitudeDelta;
-    const edgeDistanceLat = frameLatDelta * 0.4;
-    const edgeDistanceLng = DEFAULT_ZOOM_DELTAS.longitudeDelta * 0.4;
-    const targetDistanceDegrees = Math.sqrt(
-      edgeDistanceLat * edgeDistanceLat + edgeDistanceLng * edgeDistanceLng
-    );
-    const scaleFactor = currentDistance > 0 ? targetDistanceDegrees / currentDistance : 1;
-
-    return {
-      latitude: currentLocation.latitude + directionLat * scaleFactor,
-      longitude: currentLocation.longitude + directionLng * scaleFactor,
-      latitudeDelta: DEFAULT_ZOOM_DELTAS.latitudeDelta,
-      longitudeDelta: DEFAULT_ZOOM_DELTAS.longitudeDelta,
-    };
-  } else {
-    // For random direction, use the calculated edge distance directly
-    return {
-      latitude: currentLocation.latitude + directionLat,
-      longitude: currentLocation.longitude + directionLng,
-      latitudeDelta: DEFAULT_ZOOM_DELTAS.latitudeDelta,
-      longitudeDelta: DEFAULT_ZOOM_DELTAS.longitudeDelta,
-    };
-  }
+  return {
+    latitude: currentLocation.latitude + latOffset,
+    longitude: currentLocation.longitude + lngOffset,
+    latitudeDelta: DEFAULT_ZOOM_DELTAS.latitudeDelta,
+    longitudeDelta: DEFAULT_ZOOM_DELTAS.longitudeDelta,
+  };
 };
 
 /**
