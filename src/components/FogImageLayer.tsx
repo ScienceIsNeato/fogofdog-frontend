@@ -107,8 +107,9 @@ function downsampleToGrid(points: GeoPoint[]): [number, number][] {
 
     if (!seen.has(key)) {
       seen.add(key);
-      // Use cell center as representative point
-      result.push([(cellX + 0.5) * GRID_CELL_SIZE, (cellY + 0.5) * GRID_CELL_SIZE]);
+      // Use actual GPS coordinate (not cell center) so the fog hole
+      // visually aligns with the GPS dot on screen.
+      result.push([p.longitude, p.latitude]);
     }
   }
 
