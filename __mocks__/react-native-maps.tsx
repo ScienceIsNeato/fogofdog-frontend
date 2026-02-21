@@ -11,12 +11,12 @@ import type { ViewProps } from 'react-native';
 // Mock MapView component
 const MapView = React.forwardRef<unknown, ViewProps & Record<string, unknown>>((props, ref) => {
   const { children, testID, ...rest } = props;
-  return React.createElement('MapView', { ...rest, testID, ref }, children);
+  return React.createElement('MapView', { ...rest, testID, ref }, children as React.ReactNode);
 });
 MapView.displayName = 'MapView';
 
 // Add static methods that tests may call
-(MapView as Record<string, unknown>).Animated = MapView;
+(MapView as unknown as Record<string, unknown>).Animated = MapView;
 
 // Mock Marker component
 const Marker = (props: ViewProps & Record<string, unknown>) =>

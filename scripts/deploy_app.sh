@@ -159,6 +159,7 @@ SKIP_GPS=false
 SHOW_HELP=false
 DRY_RUN=false
 PHYSICAL_DEVICE=false
+NO_WINDOW=false
 
 while [[ $# -gt 0 ]]; do
     case $1 in
@@ -168,6 +169,7 @@ while [[ $# -gt 0 ]]; do
         --data)     DATA="$2";    shift 2 ;;
         --force)    FORCE=true;   shift   ;;
         --skip-gps) SKIP_GPS=true; shift  ;;
+        --no-window) NO_WINDOW=true; shift ;;
         --dry-run)  DRY_RUN=true; shift   ;;
         --physical) PHYSICAL_DEVICE=true; shift ;;
         --help|-h)  SHOW_HELP=true; shift ;;
@@ -207,6 +209,7 @@ OPTIONAL ARGS:
   --action    deploy | metro | status | logs | stop
   --force     Force a native rebuild even if app is already installed
   --skip-gps  Skip automatic GPS/location setup
+  --no-window Android emulator: run headless (no GUI window). Default: GUI visible.
   --physical  Deploy to physical iOS device (uses LOCAL_DEVICE_NAME from .envrc)
   --dry-run   Show what would be done without doing it
   --help      Show this help
@@ -545,7 +548,13 @@ if [ "$PHYSICAL_DEVICE" = true ]; then
 else
     case "$DEVICE" in
         ios)     run_step "boot_ios_simulator" boot_ios_simulator       ;;
-        android) run_step "boot_android_emulator" boot_android_emulator ;;
+        android)
+            if [ "$NO_WINDOW" = true ]; then
+                run_step "boot_android_emulator" boot_android_emulator --no-window
+            else
+                run_step "boot_android_emulator" boot_android_emulator
+            fi
+            ;;
     esac
 fi
 

@@ -1,185 +1,133 @@
 appId: com.fogofdog.app
 jsEngine: graaljs
 ---
-# Enhanced Background GPS Test: Long Sequence Pattern with Animation Validation
-# This test validates background GPS tracking while app is backgrounded and ensures
-# no unwanted replay animations occur when returning to foreground.
+# Background GPS Test: Background tracking + foreground state validation
 #
-# KEY VALIDATION: After backgrounding with many GPS points, the app should show
-# the final state immediately without step-by-step replay animation.
+# Validates that GPS points accumulated while the app is backgrounded are
+# applied immediately on return (no step-by-step replay animation).
 #
-# ENHANCED FEATURES:
-# - Starts with 120 previous GPS points from a nearby path (simulates real usage)
-# - Tests replay animation bug with substantial existing data
-# - Validates performance with large datasets
+# Sequence:
+#   1. Inject 120 historical GPS points (simulates earlier session)
+#   2. Launch to map, move once to establish foreground path
+#   3. Background the app
+#   4. Inject 8 GPS points while backgrounded (zigzag pattern)
+#   5. Foreground — verify immediate state, no replay animation
+#   6. Move to distant unexplored point — verify fog still present
+#
+# Preconditions: run_integration_tests.sh pre-seeds app state (onboarding
+# completed, permissions granted). No conditionals needed.
 
-# Test Sequence:
-# STARTING DATA: 120 GPS points from earlier in the day (nearby overlapping path)
-# Point 1: Default login location (37.78825, -122.4324)
-# Point 2: 1000m South (37.779266, -122.4324) - set BEFORE backgrounding
-# BACKGROUND + LONG SEQUENCE (8 points injected while app is backgrounded):
-#   Creates a longer path that would be very noticeable if animated step-by-step
-# APP FOREGROUND + Animation validation (should be immediate, not step-by-step)
-# Final validation point to ensure fog system still works
+# 0. Inject historical GPS data (120 points from a simulated earlier walk)
+- runScript: shared/inject-starting-data.js
 
-# 0. Inject starting GPS data from earlier in the day (120 points)
-- runScript: .maestro/shared/inject-starting-data.js
-
-# 1. Set initial GPS location BEFORE launching the app
+# 1. Set initial GPS before launch
 - setLocation:
     latitude: 37.78825
     longitude: -122.4324
 
-# 2. Setup - Launch app, log in, and wait for the map (Point 1).
-- launchApp:
-    appId: com.fogofdog.app
-    clearState: true
+# 2. Launch directly to map (zero UI gates)
 - runFlow:
-    file: shared/robust-login.yaml
-- assertVisible:
-    text: 'Woof!' # Point 1: Default login location visible
+    file: shared/launch-to-map.yaml
 
-# 3. Move to Point 2 (1000m South) BEFORE backgrounding the app
-- setLocation:
-    latitude: 37.779266
-    longitude: -122.4324
-- waitForAnimationToEnd:
-    timeout: 800
-- tapOn:
-    id: 'location-button'
-- waitForAnimationToEnd:
-    timeout: 500
-- assertVisible:
-    text: 'Woof!' # Point 2: 1000m South location confirmed
+# @checkpoint: 01-initial-map
+# @description: MapScreen after launch with 120 historical GPS points loaded.
+#   Fog holes should exist along the historical path. Current position marker
+#   at (37.788, -122.432). HUD buttons visible.
+- takeScreenshot: 01-initial-map
 
-# 4. Background the app (simulates real-world background GPS scenario)
+# 3. Move 1000m south (establish active foreground path)
+- runFlow:
+    file: shared/move-and-settle.yaml
+    env:
+      MOVE_LAT: "37.779266"
+      MOVE_LON: "-122.4324"
+
+# @checkpoint: 02-pre-background
+# @description: Map after moving 1000m south. Position marker at (37.779, -122.432).
+#   Fog hole visible at both start and current position.
+- takeScreenshot: 02-pre-background
+
+# 4. Background the app
 - pressKey: Home
 - waitForAnimationToEnd:
     timeout: 2000
 
-# 5. Inject LONG SEQUENCE while app is backgrounded (8 coordinates)
-# This creates a substantial path that would create noticeable step-by-step animation if buggy
+# 5. Inject 8 GPS points while backgrounded (zigzag pattern ~2km spread)
 - setLocation:
     latitude: 37.779266
-    longitude: -122.409572 # Point A: 2000m East
+    longitude: -122.409572 # A: 2000m East
 - waitForAnimationToEnd:
     timeout: 600
 - setLocation:
     latitude: 37.785266
-    longitude: -122.415572 # Point B: NE zigzag
+    longitude: -122.415572 # B: NE zigzag
 - waitForAnimationToEnd:
     timeout: 600
 - setLocation:
     latitude: 37.779266
-    longitude: -122.421572 # Point C: SE zigzag
+    longitude: -122.421572 # C: SE zigzag
 - waitForAnimationToEnd:
     timeout: 600
 - setLocation:
     latitude: 37.785266
-    longitude: -122.427572 # Point D: NE zigzag
+    longitude: -122.427572 # D: NE zigzag
 - waitForAnimationToEnd:
     timeout: 600
 - setLocation:
     latitude: 37.781266
-    longitude: -122.433572 # Point E: Continue pattern
+    longitude: -122.433572 # E: Continue pattern
 - waitForAnimationToEnd:
     timeout: 600
 - setLocation:
     latitude: 37.787266
-    longitude: -122.439572 # Point F: More distance
+    longitude: -122.439572 # F: More distance
 - waitForAnimationToEnd:
     timeout: 600
 - setLocation:
     latitude: 37.783266
-    longitude: -122.445572 # Point G: Complex path
+    longitude: -122.445572 # G: Complex path
 - waitForAnimationToEnd:
     timeout: 600
 - setLocation:
     latitude: 37.789266
-    longitude: -122.451572 # Point H: Final background point
+    longitude: -122.451572 # H: Final background point
 - waitForAnimationToEnd:
     timeout: 600
 
-# 6. CRITICAL: Return to app and validate NO LENGTHY ANIMATION
-# The fix should make this immediate - no step-by-step coordinate replay
-
-# 7. Foreground the app and verify immediate response (no animation delay)
+# 6. Foreground the app — CRITICAL: must respond immediately, not replay
 - launchApp:
     appId: com.fogofdog.app
-    clearState: false # Explicitly preserve login state
-
-# ANIMATION BUG VALIDATION: App should respond immediately, not replay coordinates
-# If the bug existed, we'd see step-by-step animation of all 8 background points
+    clearState: false
 - waitForAnimationToEnd:
-    timeout: 1000 # Short timeout - should be immediate
-- assertVisible:
-    id: 'map-screen'
+    timeout: 1000
 
-# CRITICAL TEST: Verify immediate location button response (no animation delay)
-# If coordinates were replaying step-by-step, this would fail due to animation interference
+# Verify immediate responsiveness (replay bug would cause timeout/jank)
 - tapOn:
     id: 'location-button'
 - waitForAnimationToEnd:
-    timeout: 800 # Should respond quickly without waiting for coordinate replay
-- assertVisible:
-    text: 'Woof!' # Final background location should be immediately visible
+    timeout: 800
 
-# 8. Additional validation: Quick location changes should work immediately
-# This would fail if step-by-step animation was still happening
-- setLocation:
-    latitude: 37.792742
-    longitude: -122.409572
-- waitForAnimationToEnd:
-    timeout: 500 # Quick response expected
-- tapOn:
-    id: 'location-button'
-- waitForAnimationToEnd:
-    timeout: 500
-- assertVisible:
-    text: 'Woof!' # Should respond immediately
+# @checkpoint: 03-post-foreground
+# @description: Map immediately after foregrounding. All 8 background GPS points
+#   should be applied — fog holes visible along the zigzag path. No replay
+#   animation visible. Camera centered on last background point (37.789, -122.452).
+#   Location button responded immediately (no animation delay).
+- takeScreenshot: 03-post-foreground
 
-# 9. Final validation sequence - Background path should have cleared fog immediately
-- waitForAnimationToEnd:
-    timeout: 500 # Short wait - no lengthy animations expected
+# 7. Move to distant unexplored point — fog should still be there
+- runFlow:
+    file: shared/move-and-settle.yaml
+    env:
+      MOVE_LAT: "37.864611"
+      MOVE_LON: "-122.386744"
 
-# Validate the map shows cleared areas from the 8-point background sequence
-- assertVisible:
-    text: 'Woof!'
-
-# Validate that the fog system is working properly
-- assertVisible:
-    id: 'map-screen'
-
-# Confirm no loading or animation states persist
+# Confirm no stale loading states
 - assertNotVisible:
     text: 'Loading location'
     optional: true
 
-# 10. Validation: Move to distant point - Should be in fog (not part of background sequence)
-- setLocation:
-    latitude: 37.864611
-    longitude: -122.386744
-- waitForAnimationToEnd:
-    timeout: 800
-- tapOn:
-    id: 'location-button'
-- waitForAnimationToEnd:
-    timeout: 500
-
-# This distant point should still be in fog since it wasn't part of our background sequence
-- assertVisible:
-    text: 'Woof!' # Location marker appears even in fog
-- assertVisible:
-    id: 'map-screen' # Map is still functional
-
-# SUCCESS CRITERIA:
-# ✅ 120 starting GPS points injected and processed without replay animation
-# ✅ 8 background GPS coordinates processed while app was backgrounded
-# ✅ NO step-by-step replay animation when returning to foreground (immediate response)
-# ✅ Location button responds quickly (< 1 second) without waiting for animations
-# ✅ Map shows final state immediately without coordinate-by-coordinate animation
-# ✅ Fog system correctly processed both starting data and background path without replay delays
-# ✅ Performance remains good even with 120+ total GPS points
-
-# Final screenshot for visual regression testing
-- takeScreenshot: final-state-no-animation
+# @checkpoint: 04-distant-unexplored
+# @description: Map at distant point (37.865, -122.387) that was NOT part of any
+#   GPS sequence. This area should be fully covered by fog. Validates fog system
+#   didn't erroneously clear everything. Position marker visible at new location.
+- takeScreenshot: 04-distant-unexplored

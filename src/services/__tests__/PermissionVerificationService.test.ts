@@ -329,12 +329,10 @@ describe('PermissionVerificationService', () => {
     const originalPlatform = Platform.OS;
 
     beforeEach(() => {
-      // @ts-expect-error - overriding read-only for test
       Platform.OS = 'android';
     });
 
     afterEach(() => {
-      // @ts-expect-error - restoring read-only
       Platform.OS = originalPlatform;
     });
 
@@ -420,12 +418,10 @@ describe('PermissionVerificationService', () => {
     const originalPlatform = Platform.OS;
 
     beforeEach(() => {
-      // @ts-expect-error - overriding read-only for test
       Platform.OS = 'ios';
     });
 
     afterEach(() => {
-      // @ts-expect-error - restoring read-only
       Platform.OS = originalPlatform;
     });
 

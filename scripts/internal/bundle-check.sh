@@ -3,6 +3,8 @@
 # Bundle Health Check Script
 # Validates that the React Native bundle builds successfully before running integration tests
 # This prevents the dreaded "white screen" during Maestro tests
+#
+# Usage: ./bundle-check.sh [--platform ios|android]
 
 set -e
 
@@ -12,6 +14,20 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
+
+# Parse arguments
+PLATFORM="ios"
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --platform)
+      PLATFORM="$2"
+      shift 2
+      ;;
+    *)
+      shift
+      ;;
+  esac
+done
 
 # Function to print colored output
 print_status() {
@@ -30,11 +46,18 @@ print_warning() {
   echo -e "${YELLOW}⚠️${NC} $1"
 }
 
-print_status "Starting React Native bundle validation..."
+print_status "Starting React Native bundle validation (platform: ${PLATFORM})..."
 
-# Step 0: Refresh Metro server to ensure clean connection
-print_status "Refreshing Metro server..."
-./scripts/internal/refresh-metro.sh
+# Step 0: Verify Metro is running (do NOT restart — that disrupts the emulator
+# connection, especially on Android which uses LAN host mode)
+print_status "Checking Metro server..."
+METRO_PORT=8081
+if curl -fsS "http://127.0.0.1:${METRO_PORT}/status" 2>/dev/null | grep -q "packager-status:running"; then
+  print_success "Metro server is running"
+else
+  print_status "Metro not running — starting via refresh-metro.sh..."
+  ./scripts/internal/refresh-metro.sh --no-open
+fi
 
 # Step 1: Clean TypeScript compilation check
 print_status "Checking TypeScript compilation..."
@@ -55,49 +78,56 @@ else
   print_warning "Some linting issues remain after auto-fix - may affect bundle"
 fi
 
-# Step 3: Test bundle creation with timeout (reduced from 120s to 90s)
-print_status "Testing bundle creation (this may take 30-60 seconds)..."
+# Step 3: Verify Metro can serve the bundle for the target platform
+# This is more reliable than `npx react-native bundle` for Expo projects,
+# which use @expo/metro-config (not @react-native/metro-config).
+print_status "Verifying Metro can serve the ${PLATFORM} bundle..."
 
-# Create a temporary bundle to test
-BUNDLE_OUTPUT="/tmp/fogofdog-bundle-test.js"
-BUNDLE_MAP="/tmp/fogofdog-bundle-test.js.map"
+METRO_PORT=8081
+BUNDLE_URL="http://localhost:${METRO_PORT}/index.bundle?dev=true&platform=${PLATFORM}&minify=false"
+BUNDLE_OUTPUT="/tmp/fogofdog-bundle-test-${PLATFORM}.js"
 
-# Clean up any existing test bundles
-rm -f "$BUNDLE_OUTPUT" "$BUNDLE_MAP"
+rm -f "$BUNDLE_OUTPUT"
 
-# Try to create the bundle with a slightly reduced timeout
-timeout 90s npx react-native bundle \
-  --platform ios \
-  --dev false \
-  --entry-file index.ts \
-  --bundle-output "$BUNDLE_OUTPUT" \
-  --sourcemap-output "$BUNDLE_MAP" \
-  --reset-cache \
-  --verbose 2>&1 | tee /tmp/bundle-check.log
+# Fetch the bundle from Metro with a 90s timeout
+HTTP_CODE=$(curl -s -o "$BUNDLE_OUTPUT" -w "%{http_code}" --max-time 90 "$BUNDLE_URL" 2>/tmp/bundle-check-curl.log)
+CURL_EXIT=$?
 
-BUNDLE_EXIT_CODE=$?
+if [ $CURL_EXIT -ne 0 ]; then
+  print_error "Failed to reach Metro server at localhost:${METRO_PORT}"
+  cat /tmp/bundle-check-curl.log 2>/dev/null
+  rm -f "$BUNDLE_OUTPUT"
+  exit 1
+fi
 
-# Check if bundle was created successfully
-if [ $BUNDLE_EXIT_CODE -eq 0 ] && [ -f "$BUNDLE_OUTPUT" ]; then
+if [ "$HTTP_CODE" = "200" ] && [ -f "$BUNDLE_OUTPUT" ]; then
   BUNDLE_SIZE=$(stat -f%z "$BUNDLE_OUTPUT" 2>/dev/null || stat -c%s "$BUNDLE_OUTPUT" 2>/dev/null || echo "unknown")
-  print_success "Bundle created successfully (${BUNDLE_SIZE} bytes)"
-  
-  # Clean up test bundle
-  rm -f "$BUNDLE_OUTPUT" "$BUNDLE_MAP"
-  
+
+  # Check for bundler error payloads (Metro returns 200 but embeds error details)
+  if grep -q '"type":"InternalError"\|"type":"TransformError"\|Unable to resolve module' "$BUNDLE_OUTPUT" 2>/dev/null; then
+    print_error "Bundle served but contains errors!"
+    echo ""
+    echo "📋 Bundle error details:"
+    echo "----------------------------------------"
+    # Extract the error message from the bundle JSON
+    head -5 "$BUNDLE_OUTPUT" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('message','unknown'))" 2>/dev/null \
+      || head -20 "$BUNDLE_OUTPUT"
+    echo "----------------------------------------"
+    rm -f "$BUNDLE_OUTPUT"
+    exit 1
+  fi
+
+  print_success "Bundle served successfully (${BUNDLE_SIZE} bytes, platform: ${PLATFORM})"
+  rm -f "$BUNDLE_OUTPUT"
   print_success "🎉 Bundle health check PASSED - safe to run Maestro tests!"
   exit 0
 else
-  print_error "Bundle creation FAILED!"
+  print_error "Metro returned HTTP ${HTTP_CODE} for ${PLATFORM} bundle"
   echo ""
-  echo "📋 Bundle error details:"
+  echo "📋 Response details:"
   echo "----------------------------------------"
-  tail -20 /tmp/bundle-check.log
+  head -20 "$BUNDLE_OUTPUT" 2>/dev/null || echo "(empty response)"
   echo "----------------------------------------"
-  echo ""
-  print_error "❌ DO NOT run Maestro tests - fix bundle errors first!"
-  
-  # Clean up
-  rm -f "$BUNDLE_OUTPUT" "$BUNDLE_MAP"
+  rm -f "$BUNDLE_OUTPUT"
   exit 1
 fi

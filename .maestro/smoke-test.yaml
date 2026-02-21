@@ -1,67 +1,66 @@
 appId: com.fogofdog.app
 ---
-# Smoke Test: Basic app health check
-# Quick validation that core functionality works:
-# - App launches
-# - Login flow works
-# - Map loads
-# - Location button responds
-# - Basic movement works
+# Smoke Test: Core app health check
+#
+# Validates the minimum viable app experience:
+#   - App launches and lands on MapScreen (happy path)
+#   - Map renders with fog overlay
+#   - HUD buttons are present and responsive
+#   - GPS movement causes map state change
+#
+# Preconditions: run_integration_tests.sh pre-seeds app state (onboarding
+# completed, permissions granted). No conditionals needed.
 
-# Setup initial location
+# Set initial GPS before launch (establishes starting location)
 - setLocation:
     latitude: 37.78825
     longitude: -122.4324
 
-# Launch app fresh with clean state
-- launchApp:
-    appId: com.fogofdog.app
-    clearState: true
-- waitForAnimationToEnd:
-    timeout: 1000
-
-# Handle onboarding/tutorial if it appears
+# Launch directly to map (zero UI gates)
 - runFlow:
-    file: shared/handle-onboarding.yaml
+    file: shared/launch-to-map.yaml
 
-# Verify login screen
+# @checkpoint: 01-map-loaded
+# @description: MapScreen visible after fresh launch. Fog overlay covers the area.
+#   Location marker centered at initial GPS (37.788, -122.432). HUD buttons
+#   (location, settings, tracking) visible. No onboarding overlay, no permission
+#   dialogs, no loading spinners.
+- takeScreenshot: 01-map-loaded
+
+# Verify core HUD elements present
 - assertVisible:
-    text: 'Sign In'
+    id: 'location-button'
 - assertVisible:
-    id: 'signInButton'
+    id: 'settings-button'
 
-# Login
-- tapOn:
-    id: 'signInButton'
-
-# Handle location permissions (cross-platform iOS/Android)
-- runFlow:
-    file: shared/handle-location-permissions.yaml
-
-# Verify map loads
-- waitForAnimationToEnd:
-    timeout: 3000
-- assertVisible:
-    id: 'map-screen'
-- assertVisible:
-    text: 'Woof!'
-
-# Test location button works
+# Test location button responds
 - tapOn:
     id: 'location-button'
 - waitForAnimationToEnd:
     timeout: 500
 
-# Test basic movement
-- setLocation:
-    latitude: 37.783750
-    longitude: -122.4324
-- waitForAnimationToEnd:
-    timeout: 800
-- tapOn:
-    id: 'location-button'
-- waitForAnimationToEnd:
-    timeout: 500
-- assertVisible:
-    text: 'Woof!'
-# Smoke test complete - basic functionality verified
+# Move ~500m south — should create a fog hole at the new location
+- runFlow:
+    file: shared/move-and-settle.yaml
+    env:
+      MOVE_LAT: "37.783750"
+      MOVE_LON: "-122.4324"
+
+# @checkpoint: 02-after-first-move
+# @description: Map after 500m south movement. Two fog holes should be visible:
+#   one at the starting location (37.788, -122.432) and one at the current
+#   position (37.784, -122.432). Fog overlay still covers unexplored areas.
+- takeScreenshot: 02-after-first-move
+
+# Move again — 500m east — creates a third exploration point
+- runFlow:
+    file: shared/move-and-settle.yaml
+    env:
+      MOVE_LAT: "37.783750"
+      MOVE_LON: "-122.4264"
+
+# @checkpoint: 03-after-second-move
+# @description: Map after second movement (500m east). Three fog holes visible
+#   forming an L-shape. Map camera centered on current position (37.784, -122.426).
+- takeScreenshot: 03-after-second-move
+

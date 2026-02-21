@@ -90,7 +90,7 @@ const createStore = (overrides: Record<string, unknown> = {}) =>
       skin: skinReducer,
     },
     preloadedState: overrides,
-  });
+  } as any);
 
 const renderTrail = (config: ScentRenderConfig, storeOverrides: Record<string, unknown> = {}) => {
   const store = createStore(storeOverrides);

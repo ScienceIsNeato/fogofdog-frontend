@@ -1,26 +1,65 @@
 # FogOfDog Frontend Status
 
-## Current Status: 🚧 Graphics Layer — Fog Rendering Fixes Committed
+## Current Status: ✅ Android Maestro Tests — Both Tests Passing
 
-### 🎯 **LATEST: Fog Overlay Rendering Bugs Fixed**
+### 🎯 **LATEST: Android Maestro integration tests passing end-to-end**
 
-**Branch**: `feat/graphics-layer`
-**PR**: #61 (https://github.com/ScienceIsNeato/fogofdog-frontend/pull/61) → `main`
-**All JS quality gates**: ✅ 1078 tests, 82 suites, all 10 slop-mop gates green
+**Branch**: `feat/android-maestro-tests`
+**Base**: `main` at `e630280`
+**Tests**: 2/2 default suite passing (smoke-test + background-gps-test) on Android emulator
+**Validation**: Full `./scripts/run_integration_tests.sh --platform android` passing
 
-#### What was completed this session
+#### What was completed
 
-1. **GPS zoom drift fix** — committed as `8c2f89b`, pushed
-2. **Fog overlay rendering bugs** — committed as `f55a9e6`:
-   - **Infinite re-render loop** ("Maximum update depth exceeded"): `locationConfig` was an inline object literal in `useEffect` deps, creating new reference every render → memoized with `useMemo`
-   - **Stroke flashing at zoom changes**: GPS connection processing ran on density-reduced points (which change composition at different zoom levels) → moved to run on viewport-culled points before density reduction
-   - **Diagonal "V" spurious stroke**: `buildPathChains` used <1px pixel proximity + reverse matching → replaced with strict GPS-order chaining using exact equality
+1. **`--no-window` flag chain** — flows through all 4 files:
+   - `run_integration_tests.sh` → `deploy_app.sh` → `deploy-android-functions.sh` → `launch-device.sh`
 
-#### Not yet pushed — awaiting user request
+2. **`ensure_device_ready()` replaces 4 obsolete functions** in `run_integration_tests.sh`
+
+3. **Deterministic Android fresh state injection** (`prepare_android_fresh_state()`):
+   - `pm clear` → inject dev-menu SharedPreferences → inject AsyncStorage SQLite DB → `pm grant` permissions
+   - AsyncStorage injection: `PRAGMA user_version = 1` + `android_metadata` table (critical for Android SQLiteOpenHelper)
+   - Pre-seeds: `@fogofdog_onboarding_completed=true`, `@permission_state=full_permissions`
+
+4. **New shared Maestro helpers** (zero-conditional, deterministic):
+   - `launch-to-map.yaml` — stopApp → deep link → wait for map-screen AND location-button
+   - `move-and-settle.yaml` — setLocation → wait → tap location-button → wait
+
+5. **Rewritten test files** with `@checkpoint`/`@description` annotations:
+   - `smoke-test.yaml` — 3 checkpoints: map-loaded, after-first-move, after-second-move
+   - `background-gps-test.yaml` — 4 checkpoints: initial-map, pre-background, post-foreground, distant-unexplored
+
+6. **Visual regression infrastructure** (ready for ground truth):
+   - `compare_test_screenshots()` in run_integration_tests.sh — manifest-based SSIM comparison
+   - `establish_ground_truth.sh` — parses @checkpoint annotations to build ground truth manifests
+
+7. **Removed old unused shared helpers**: handle-location-permissions.yaml, handle-onboarding.yaml, robust-login.yaml
+
+8. **TypeScript fixes**: Removed stale @ts-expect-error comments, added type assertions
+
+#### Key debugging discoveries
+- Android `SQLiteOpenHelper` treats `user_version=0` as new DB → drops all tables. Must set `PRAGMA user_version = 1`
+- First cold launch after `pm clear` is slow (~60s for bundle + instrumentation). Timeouts must be generous
+- Android accessibility tree registers parent View (`map-screen`) before children (`location-button`). Need explicit `extendedWaitUntil` for children
+- Maestro `runScript` with `device.setAsyncStorageItem()` works alongside pre-seeded SQLite (additive)
+
+#### Files modified
+- `scripts/run_integration_tests.sh` — major refactor (fresh state, ensure_device_ready, --no-window, visual regression)
+- `scripts/deploy_app.sh` — `--no-window` flag
+- `scripts/internal/deploy-android-functions.sh` — `--no-window` forwarding
+- `scripts/internal/launch-device.sh` — `--no-window` emulator flags
+- `scripts/internal/bundle-check.sh` — rewrite
+- `scripts/establish_ground_truth.sh` — NEW
+- `.maestro/shared/launch-to-map.yaml` — NEW
+- `.maestro/shared/move-and-settle.yaml` — NEW
+- `.maestro/smoke-test.yaml` — rewritten
+- `.maestro/background-gps-test.yaml` — rewritten
+- `.maestro/first-time-user-complete-flow.yaml` — cross-platform permissions update
+- Source/test TypeScript fixes (7 files)
 
 ---
 
-## Previous Status: 🚧 Graphics Layer — PR Open, Simulator Build Blocked
+## Previous Status: 🚧 Graphics Layer — Fog Rendering Fixes Committed
 
 ### Simulator build is blocked by two issues
 

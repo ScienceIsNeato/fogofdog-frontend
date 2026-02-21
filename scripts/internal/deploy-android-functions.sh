@@ -17,13 +17,16 @@ is_android_emu_running() {
 }
 
 boot_android_emulator() {
+    local no_window_arg=""
+    [[ "${1:-}" == "--no-window" ]] && no_window_arg="--no-window"
+
     if is_android_emu_running; then
         ok "Android Emulator already running"
         return 0
     fi
 
     info "Booting Android Emulator..."
-    "$SCRIPT_DIR/internal/launch-device.sh" android
+    "$SCRIPT_DIR/internal/launch-device.sh" android $no_window_arg
 
     # Wait for boot
     local attempts=0

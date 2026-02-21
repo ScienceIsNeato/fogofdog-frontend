@@ -5,9 +5,7 @@ import { LocationStorageService } from '../LocationStorageService';
 import { CoordinateDeduplicationService } from '../CoordinateDeduplicationService';
 import {
   createMockPermissionResponse,
-  createMockTaskData,
   setupTaskManagerMocks,
-  getTaskCallbackFromMock,
 } from '../../test-helpers/background-service-helpers';
 
 // Mock expo modules at the top level

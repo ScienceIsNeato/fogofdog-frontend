@@ -10,6 +10,7 @@ appId: com.fogofdog.app
     longitude: -122.4194
 
 # Launch app with completely clean state (first-time user simulation)
+# Note: clearKeychain is iOS-only; on Android clearState is sufficient
 - launchApp:
     appId: com.fogofdog.app
     clearState: true
@@ -85,33 +86,9 @@ appId: com.fogofdog.app
       - waitForAnimationToEnd:
           timeout: 2000
 
-# Handle initial location permission dialog
+# Handle location permissions (cross-platform iOS/Android)
 - runFlow:
-    when:
-      visible: 'Allow'
-    commands:
-      - tapOn: 'Allow While Using App'
-      - waitForAnimationToEnd:
-          timeout: 1000
-
-# Handle background location permission dialog (the critical one)
-- runFlow:
-    when:
-      visible:
-        text: 'Allow "FogOfDog" to also use your location even when you are not using the app?'
-    commands:
-      - tapOn: 'Change to Always Allow'
-      - waitForAnimationToEnd:
-          timeout: 2000
-
-# Alternative background permission handling
-- runFlow:
-    when:
-      visible: 'Always Allow'
-    commands:
-      - tapOn: 'Always Allow'
-      - waitForAnimationToEnd:
-          timeout: 2000
+    file: shared/handle-location-permissions.yaml
 
 # === PHASE 3: CRITICAL TIMING CHECK ===
 # This is where the white screen issue occurs
@@ -188,7 +165,7 @@ appId: com.fogofdog.app
 # Verify the map responds to location changes
 - waitForAnimationToEnd
 - assertVisible:
-    text: 'Woof!'
+    id: 'map-screen'
 
 # === PHASE 6: FINAL VALIDATION ===
 # Ensure all core functionality works after the first-time flow
