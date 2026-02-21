@@ -30,13 +30,13 @@ appId: com.fogofdog.app
       # Brief pause so Android fully tears down the process before relaunch
       - waitForAnimationToEnd:
           timeout: 1000
-      - openLink: "exp+fogofdog://expo-development-client/?url=http%3A%2F%2F10.0.2.2%3A8081"
+      - openLink: 'exp+fogofdog://expo-development-client/?url=http%3A%2F%2F10.0.2.2%3A8081'
       # Wait for React content to render (bundle download + JS init).
       # First cold start after pm clear is slow — Maestro instrumentation setup,
       # bundle download, and React initialization all happen here.
       - extendedWaitUntil:
           visible:
-            text: ".*"
+            text: '.*'
           timeout: 60000
       - waitForAnimationToEnd:
           timeout: 5000

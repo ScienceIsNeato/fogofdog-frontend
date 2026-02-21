@@ -12,24 +12,29 @@
 #### What was completed
 
 1. **`--no-window` flag chain** — flows through all 4 files:
+
    - `run_integration_tests.sh` → `deploy_app.sh` → `deploy-android-functions.sh` → `launch-device.sh`
 
 2. **`ensure_device_ready()` replaces 4 obsolete functions** in `run_integration_tests.sh`
 
 3. **Deterministic Android fresh state injection** (`prepare_android_fresh_state()`):
+
    - `pm clear` → inject dev-menu SharedPreferences → inject AsyncStorage SQLite DB → `pm grant` permissions
    - AsyncStorage injection: `PRAGMA user_version = 1` + `android_metadata` table (critical for Android SQLiteOpenHelper)
    - Pre-seeds: `@fogofdog_onboarding_completed=true`, `@permission_state=full_permissions`
 
 4. **New shared Maestro helpers** (zero-conditional, deterministic):
+
    - `launch-to-map.yaml` — stopApp → deep link → wait for map-screen AND location-button
    - `move-and-settle.yaml` — setLocation → wait → tap location-button → wait
 
 5. **Rewritten test files** with `@checkpoint`/`@description` annotations:
+
    - `smoke-test.yaml` — 3 checkpoints: map-loaded, after-first-move, after-second-move
    - `background-gps-test.yaml` — 4 checkpoints: initial-map, pre-background, post-foreground, distant-unexplored
 
 6. **Visual regression infrastructure** (ready for ground truth):
+
    - `compare_test_screenshots()` in run_integration_tests.sh — manifest-based SSIM comparison
    - `establish_ground_truth.sh` — parses @checkpoint annotations to build ground truth manifests
 
@@ -38,12 +43,14 @@
 8. **TypeScript fixes**: Removed stale @ts-expect-error comments, added type assertions
 
 #### Key debugging discoveries
+
 - Android `SQLiteOpenHelper` treats `user_version=0` as new DB → drops all tables. Must set `PRAGMA user_version = 1`
 - First cold launch after `pm clear` is slow (~60s for bundle + instrumentation). Timeouts must be generous
 - Android accessibility tree registers parent View (`map-screen`) before children (`location-button`). Need explicit `extendedWaitUntil` for children
 - Maestro `runScript` with `device.setAsyncStorageItem()` works alongside pre-seeded SQLite (additive)
 
 #### Files modified
+
 - `scripts/run_integration_tests.sh` — major refactor (fresh state, ensure_device_ready, --no-window, visual regression)
 - `scripts/deploy_app.sh` — `--no-window` flag
 - `scripts/internal/deploy-android-functions.sh` — `--no-window` forwarding

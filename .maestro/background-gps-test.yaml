@@ -39,8 +39,8 @@ jsEngine: graaljs
 - runFlow:
     file: shared/move-and-settle.yaml
     env:
-      MOVE_LAT: "37.779266"
-      MOVE_LON: "-122.4324"
+      MOVE_LAT: '37.779266'
+      MOVE_LON: '-122.4324'
 
 # @checkpoint: 02-pre-background
 # @description: Map after moving 1000m south. Position marker at (37.779, -122.432).
@@ -118,8 +118,8 @@ jsEngine: graaljs
 - runFlow:
     file: shared/move-and-settle.yaml
     env:
-      MOVE_LAT: "37.864611"
-      MOVE_LON: "-122.386744"
+      MOVE_LAT: '37.864611'
+      MOVE_LON: '-122.386744'
 
 # Confirm no stale loading states
 - assertNotVisible:

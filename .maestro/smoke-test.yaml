@@ -43,8 +43,8 @@ appId: com.fogofdog.app
 - runFlow:
     file: shared/move-and-settle.yaml
     env:
-      MOVE_LAT: "37.783750"
-      MOVE_LON: "-122.4324"
+      MOVE_LAT: '37.783750'
+      MOVE_LON: '-122.4324'
 
 # @checkpoint: 02-after-first-move
 # @description: Map after 500m south movement. Two fog holes should be visible:
@@ -56,11 +56,10 @@ appId: com.fogofdog.app
 - runFlow:
     file: shared/move-and-settle.yaml
     env:
-      MOVE_LAT: "37.783750"
-      MOVE_LON: "-122.4264"
+      MOVE_LAT: '37.783750'
+      MOVE_LON: '-122.4264'
 
 # @checkpoint: 03-after-second-move
 # @description: Map after second movement (500m east). Three fog holes visible
 #   forming an L-shape. Map camera centered on current position (37.784, -122.426).
 - takeScreenshot: 03-after-second-move
-
