@@ -174,6 +174,10 @@ if [ ${#TEST_FILES[@]} -eq 0 ] || [ "$IS_CI" = "true" ]; then
     TEST_FILES=(
         ".maestro/smoke-test.yaml"
         ".maestro/background-gps-test.yaml"
+        ".maestro/map-skin-test.yaml"
+        ".maestro/data-clearing-test.yaml"
+        ".maestro/street-navigation-test.yaml"
+        ".maestro/first-time-user-complete-flow.yaml"
         # comprehensive-persistence-test.yaml: SKIPPED — tests auth persistence
         # which is currently disabled (auth navigator commented out in navigation/index.tsx).
         # Re-enable when auth is restored.
@@ -265,7 +269,16 @@ run_bundle_check() {
 #   3. Runtime permissions via pm grant (OS-level location access)
 
 prepare_android_fresh_state() {
-    log "🧹 Android: Preparing deterministic fresh state..."
+    local test_file="${1:-}"
+    local seed_onboarding="true"
+
+    # First-time-user test needs onboarding to appear — don't pre-seed completion flag
+    if [[ "$test_file" == *"first-time-user-complete-flow"* ]]; then
+        seed_onboarding="false"
+        log "🧹 Android: Preparing fresh state (onboarding NOT skipped — first-time-user test)"
+    else
+        log "🧹 Android: Preparing deterministic fresh state..."
+    fi
 
     # Step 1: Clear all app data (equivalent to Maestro's clearState)
     adb shell pm clear "$APP_BUNDLE_ID" >/dev/null 2>&1
@@ -279,17 +292,17 @@ prepare_android_fresh_state() {
     # See: node_modules/expo-dev-menu/android/.../DevMenuPreferences.kt
     adb shell "run-as $APP_BUNDLE_ID sh -c 'printf \"<?xml version=\\\"1.0\\\" encoding=\\\"utf-8\\\" standalone=\\\"yes\\\" ?>\\n<map>\\n    <boolean name=\\\"isOnboardingFinished\\\" value=\\\"true\\\" />\\n</map>\" > shared_prefs/expo.modules.devmenu.sharedpreferences.xml'"
 
-    # Step 4: Inject AsyncStorage database (onboarding + permissions pre-seeded).
+    # Step 4: Inject AsyncStorage database (permissions + optionally onboarding).
     # AsyncStorage uses SQLite at databases/RKStorage, table catalystLocalStorage(key, value).
     # We create the database on the host (macOS sqlite3) and pipe it into the app sandbox.
-    inject_async_storage_android
+    inject_async_storage_android "$seed_onboarding"
 
     # Step 5: Re-grant location permissions (pm clear revokes runtime permissions)
     adb shell pm grant "$APP_BUNDLE_ID" android.permission.ACCESS_FINE_LOCATION 2>/dev/null || true
     adb shell pm grant "$APP_BUNDLE_ID" android.permission.ACCESS_COARSE_LOCATION 2>/dev/null || true
     adb shell pm grant "$APP_BUNDLE_ID" android.permission.ACCESS_BACKGROUND_LOCATION 2>/dev/null || true
 
-    log "✅ Android: Fresh state ready (clean slate + happy path pre-seeded)"
+    log "✅ Android: Fresh state ready (onboarding_seeded=$seed_onboarding)"
 }
 
 # Create and inject an AsyncStorage SQLite database with pre-seeded values.
@@ -301,6 +314,7 @@ prepare_android_fresh_state() {
 #   - android_metadata table is required by Android SQLite
 #   - Table schema must exactly match: key TEXT PRIMARY KEY (NO "NOT NULL")
 inject_async_storage_android() {
+    local seed_onboarding="${1:-true}"
     local db_path="/tmp/fogofdog_RKStorage_$$"
 
     # Build the permission state JSON (needs current timestamp)
@@ -319,10 +333,18 @@ CREATE TABLE IF NOT EXISTS catalystLocalStorage (
     value TEXT NOT NULL
 );
 INSERT OR REPLACE INTO catalystLocalStorage (key, value)
-VALUES ('@fogofdog_onboarding_completed', 'true');
-INSERT OR REPLACE INTO catalystLocalStorage (key, value)
 VALUES ('@permission_state', '${perm_json}');
 EOF
+
+    # Conditionally seed onboarding completion flag.
+    # When seed_onboarding=false (e.g., first-time-user test), the onboarding
+    # overlay will appear because @fogofdog_onboarding_completed is absent.
+    if [ "$seed_onboarding" = "true" ]; then
+        sqlite3 "$db_path" <<EOF
+INSERT OR REPLACE INTO catalystLocalStorage (key, value)
+VALUES ('@fogofdog_onboarding_completed', 'true');
+EOF
+    fi
 
     if [ ! -f "$db_path" ]; then
         log "⚠️  Failed to create AsyncStorage database (sqlite3 not available?)"
@@ -339,8 +361,15 @@ EOF
     local local_size
     local_size=$(wc -c < "$db_path" | tr -d '[:space:]')
 
+    local onboarding_label
+    if [ "$seed_onboarding" = "true" ]; then
+        onboarding_label="completed"
+    else
+        onboarding_label="NOT seeded"
+    fi
+
     if [ "$remote_size" = "$local_size" ]; then
-        log "  💉 AsyncStorage: onboarding=completed, permissions=full ($local_size bytes)"
+        log "  💉 AsyncStorage: onboarding=$onboarding_label, permissions=full ($local_size bytes)"
     else
         log "  ⚠️  AsyncStorage size mismatch (local=$local_size, remote=$remote_size)"
     fi
@@ -529,13 +558,9 @@ ensure_device_ready
 # 3. Run bundle health check (refreshes Metro)
 run_bundle_check
 
-# 4. Android: clear state + inject dev menu prefs before Maestro runs
-#    (Maestro's clearState can't be used on Android — see prepare_android_fresh_state)
-if [ "$PLATFORM" = "android" ]; then
-    prepare_android_fresh_state
-fi
+# 4. (Per-test state prep moved to step 7 — each test gets its own fresh state)
 
-# 5. Inject test-specific data
+# 5. Inject test-specific data (legacy — data-clearing-test now generates data via GPS)
 inject_test_data
 
 # 6. Prepare artifacts directory
@@ -557,6 +582,13 @@ PASSED_TESTS=0
 for TEST_FILE in "${TEST_FILES[@]}"; do
     TEST_NAME=$(basename "$TEST_FILE" .yaml)
     log "🧪 Running: $TEST_NAME"
+
+    # Per-test fresh state: each test starts with clean app data + injected prefs.
+    # This ensures test isolation — no state leaks between tests.
+    # For first-time-user test, onboarding completion flag is NOT seeded.
+    if [ "$PLATFORM" = "android" ]; then
+        prepare_android_fresh_state "$TEST_FILE"
+    fi
 
     TEST_ARTIFACTS_DIR="$ARTIFACTS_DIR/$TEST_NAME"
     mkdir -p "$TEST_ARTIFACTS_DIR"

@@ -1,189 +1,168 @@
 appId: com.fogofdog.app
 ---
 # First-Time User Complete Flow Test
-# Tests the complete journey from fresh install to cinematic animation
-# Specifically designed to identify white screen timing issues
+#
+# Tests the complete journey from fresh install through onboarding to
+# functional map interaction:
+#   1. Launch with NO onboarding completion flag → overlay appears
+#   2. Navigate all 6 onboarding steps via testID buttons
+#   3. Verify map loads after onboarding completes
+#   4. GPS movement works, fog clears
+#   5. Settings accessible, app fully functional
+#
+# GPS anchor: San Francisco (37.7749, -122.4194)
+#
+# Preconditions: run_integration_tests.sh calls prepare_android_fresh_state()
+# WITHOUT seeding @fogofdog_onboarding_completed — onboarding WILL appear.
+# Permissions are still pre-granted (pm grant / permissions:all:allow).
 
-# Setup initial location in San Francisco
+# Set GPS at San Francisco
 - setLocation:
     latitude: 37.7749
     longitude: -122.4194
 
-# Launch app with completely clean state (first-time user simulation)
-# Note: clearKeychain is iOS-only; on Android clearState is sufficient
-- launchApp:
-    appId: com.fogofdog.app
-    clearState: true
-    clearKeychain: true
+# Launch app — onboarding overlay will appear
+- runFlow:
+    file: shared/launch-to-onboarding.yaml
 
-# Wait for app initialization
-- waitForAnimationToEnd:
-    timeout: 2000
-
-# === PHASE 1: COMPLETE ONBOARDING TUTORIAL (ALL 6 STEPS) ===
-# Navigate through the complete 6-step onboarding sequence
+# Verify onboarding is visible
 - assertVisible:
     id: 'onboarding-overlay'
 
-# Wait for onboarding to fully load
+# @checkpoint: 01-onboarding-welcome
+# @description: Onboarding overlay visible at step 1 (Welcome). Map is
+#   rendering underneath but hidden by overlay. Continue button present.
+- takeScreenshot: 01-onboarding-welcome
+
+# === PHASE 1: NAVIGATE THROUGH ALL 6 ONBOARDING STEPS ===
+
+# Step 1 → 2: Tap Continue
+- tapOn:
+    id: 'onboarding-continue-button'
+- waitForAnimationToEnd:
+    timeout: 500
+
+# @checkpoint: 02-onboarding-step-2
+# @description: Onboarding step 2. Content describes fog-of-war mechanic.
+- takeScreenshot: 02-onboarding-step-2
+
+# Step 2 → 3
+- tapOn:
+    id: 'onboarding-continue-button'
+- waitForAnimationToEnd:
+    timeout: 500
+
+# Step 3 → 4
+- tapOn:
+    id: 'onboarding-continue-button'
+- waitForAnimationToEnd:
+    timeout: 500
+
+# Step 4 → 5
+- tapOn:
+    id: 'onboarding-continue-button'
+- waitForAnimationToEnd:
+    timeout: 500
+
+# @checkpoint: 03-onboarding-step-5
+# @description: Onboarding step 5. One more Continue before the final step.
+- takeScreenshot: 03-onboarding-step-5
+
+# Step 5 → 6 (final)
+- tapOn:
+    id: 'onboarding-continue-button'
+- waitForAnimationToEnd:
+    timeout: 500
+
+# @checkpoint: 04-onboarding-final-step
+# @description: Onboarding step 6 (final). "Get Started!" button visible
+#   instead of Continue. This is the last step before map access.
+- takeScreenshot: 04-onboarding-final-step
+
+# Step 6: Tap "Get Started!" to complete onboarding
+- tapOn:
+    id: 'get-started-button'
 - waitForAnimationToEnd:
     timeout: 2000
 
-# Navigate through onboarding by tapping in the button area
-# KLUDGE: Using coordinate-based tapping because text matching fails in modal overlays
-# TODO: Investigate why Maestro cannot detect "Continue" button text inside React Native Modal
-# The buttons exist and are visible to users, but Maestro's text detection doesn't work
-# This brute force approach works but is fragile if button positions change
+# === PHASE 2: MAP LOADS AFTER ONBOARDING ===
 
-# Step 1: Tap Continue button (bottom right area of modal)
-- tapOn:
-    point: '80%,85%' # Bottom right area where Continue button should be
-- waitForAnimationToEnd:
-    timeout: 500
+# Wait for map to be fully interactive (overlay dismissed)
+- extendedWaitUntil:
+    visible:
+      id: 'map-screen'
+    timeout: 15000
 
-# Step 2: Tap Continue button
-- tapOn:
-    point: '80%,85%'
-- waitForAnimationToEnd:
-    timeout: 500
-
-# Step 3: Tap Continue button
-- tapOn:
-    point: '80%,85%'
-- waitForAnimationToEnd:
-    timeout: 500
-
-# Step 4: Tap Continue button
-- tapOn:
-    point: '80%,85%'
-- waitForAnimationToEnd:
-    timeout: 500
-
-# Step 5: Tap Continue button
-- tapOn:
-    point: '80%,85%'
-- waitForAnimationToEnd:
-    timeout: 500
-
-# Step 6: Final step - Get Started button (should be in same location)
-- tapOn:
-    point: '80%,85%'
-- waitForAnimationToEnd:
-    timeout: 500
-
-# === PHASE 2: PERMISSION FLOW ===
-# Wait for onboarding to fully complete and permission check to start
-- waitForAnimationToEnd:
-    timeout: 100
-
-# Permission verification might be very fast in release build
-# Check for permission loading screen but don't fail if it's too fast
-- runFlow:
-    when:
-      visible:
-        text: 'Checking Location Permissions'
-    commands:
-      - waitForAnimationToEnd:
-          timeout: 2000
-
-# Handle location permissions (cross-platform iOS/Android)
-- runFlow:
-    file: shared/handle-location-permissions.yaml
-
-# === PHASE 3: CRITICAL TIMING CHECK ===
-# This is where the white screen issue occurs
-# Check what happens immediately after permissions are granted
-
-# Wait for permission verification to complete
-- waitForAnimationToEnd:
-    timeout: 3000
-
-# Check if we see the GPS acquisition overlay (expected while acquiring signal)
-- runFlow:
-    when:
-      visible:
-        text: 'Acquiring GPS signal…'
-    commands:
-      - waitForAnimationToEnd:
-          timeout: 3000 # Wait to see how long it persists
-
-# Check if we see the loading screen
-- runFlow:
-    when:
-      visible:
-        text: 'Clearing the fog...'
-    commands:
-      - waitForAnimationToEnd:
-          timeout: 2000
-
-# === PHASE 4: MAP RENDERING & ANIMATION ===
-# CRITICAL: Verify we're NOT stuck on old white loading screen
-- assertNotVisible:
-    text: 'Getting your location...'
-
-# The GPS acquisition overlay should disappear once location is acquired
-- assertNotVisible:
-    text: 'Acquiring GPS signal…'
-    optional: true # May already be gone if GPS was fast
-
-# CRITICAL: Verify actual map content is rendered (fog overlay should be present)
-# The map should show actual geographic content, not just a loading state
-- waitForAnimationToEnd:
-    timeout: 2000
+# Verify HUD elements are interactive
+- extendedWaitUntil:
+    visible:
+      id: 'location-button'
+    timeout: 10000
 - assertVisible:
-    id: 'map-screen'
+    id: 'settings-button'
 
-# Verify location button is present and functional
-- waitForAnimationToEnd
-- assertVisible:
-    id: 'location-button'
+# @checkpoint: 05-map-after-onboarding
+# @description: MapScreen visible after completing onboarding. HUD buttons
+#   (location, settings) present. Fog covers the entire map area.
+- takeScreenshot: 05-map-after-onboarding
 
-# CRITICAL: Verify we have actual GPS coordinates (not just loading state)
-# The map should be centered on a real location, not showing default/null state
+# === PHASE 3: GPS MOVEMENT & FOG CLEARING ===
 
-# === PHASE 5: CINEMATIC ANIMATION VALIDATION ===
-# The animation should start automatically after map loads
-# We can't directly test the animation, but we can verify the map is functional
+# Move to generate exploration data
+- runFlow:
+    file: shared/move-and-settle.yaml
+    env:
+      MOVE_LAT: '37.7759'
+      MOVE_LON: '-122.4194'
 
-# Wait for potential cinematic animation to complete
-- waitForAnimationToEnd:
-    timeout: 8000
+# @checkpoint: 06-after-first-move
+# @description: Map after GPS movement north. Fog partially cleared along
+#   the path from initial position.
+- takeScreenshot: 06-after-first-move
 
-# Verify map is interactive after animation
-- tapOn:
-    id: 'location-button'
-- waitForAnimationToEnd:
-    timeout: 1000
+# Move again (east) to create L-shaped exploration
+- runFlow:
+    file: shared/move-and-settle.yaml
+    env:
+      MOVE_LAT: '37.7759'
+      MOVE_LON: '-122.4174'
 
-# Test that location updates work
-- setLocation:
-    latitude: 37.7849 # Move slightly north
-    longitude: -122.4194
-- waitForAnimationToEnd:
-    timeout: 2000
+# @checkpoint: 07-after-second-move
+# @description: Map after second GPS movement east. L-shaped exploration
+#   pattern visible in the fog.
+- takeScreenshot: 07-after-second-move
 
-# Verify the map responds to location changes
-- waitForAnimationToEnd
-- assertVisible:
-    id: 'map-screen'
+# === PHASE 4: VERIFY APP FUNCTIONALITY ===
 
-# === PHASE 6: FINAL VALIDATION ===
-# Ensure all core functionality works after the first-time flow
-- tapOn:
-    id: 'location-button'
-- waitForAnimationToEnd:
-    timeout: 1000
-
-# Test settings access
+# Open settings to verify full functionality post-onboarding
 - tapOn:
     id: 'settings-button'
 - waitForAnimationToEnd:
     timeout: 1000
 
-# Close settings if opened
-- runFlow:
-    when:
-      visible: 'Close'
-    commands:
-      - tapOn: 'Close'
-# Test complete - first-time user flow validated
+# Verify settings menu loaded with all sections
+- assertVisible:
+    text: 'Map Style'
+- assertVisible:
+    text: 'Data Management'
+
+# @checkpoint: 08-settings-functional
+# @description: Settings menu open after first-time user flow. All options
+#   visible. App is fully functional post-onboarding.
+- takeScreenshot: 08-settings-functional
+
+# Close settings
+- tapOn:
+    id: 'close-button'
+- waitForAnimationToEnd:
+    timeout: 500
+
+# Final map state
+- assertVisible:
+    id: 'map-screen'
+
+# @checkpoint: 09-final-state
+# @description: Final state after complete first-time user journey: onboarding
+#   completed, GPS exploration generated fog clearings, settings accessible.
+#   App is fully functional.
+- takeScreenshot: 09-final-state

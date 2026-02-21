@@ -1,63 +1,42 @@
 appId: com.fogofdog.app
 ---
-# Map Skin E2E Test
-# Validates the full skin selection workflow:
-#   1. Login and explore
-#   2. Open settings → Map Style
-#   3. Select Cartoon skin
-#   4. Return to map and continue exploring
-#   5. Assert cartoon skin overlay is active
+# Map Skin Test: Skin selection workflow
+#
+# Validates the full skin selection lifecycle:
+#   1. Launch to map
+#   2. Open Settings → Map Style → select Cartoon skin
+#   3. Return to map and continue exploring
+#   4. Reopen settings → verify Cartoon persists
+#
+# Preconditions: run_integration_tests.sh pre-seeds app state (onboarding
+# completed, permissions granted). No conditionals needed.
 
-# Start at SF GPS test location
+# Set initial GPS
 - setLocation:
     latitude: 37.78825
     longitude: -122.4324
 
-# Launch fresh
-- launchApp:
-    appId: com.fogofdog.app
-    clearState: true
-- waitForAnimationToEnd:
-    timeout: 1000
-
-# Handle onboarding if present
+# Launch directly to map (zero UI gates)
 - runFlow:
-    file: shared/handle-onboarding.yaml
+    file: shared/launch-to-map.yaml
 
-# Sign in
-- assertVisible:
-    id: 'signInButton'
-- tapOn:
-    id: 'signInButton'
+# @checkpoint: 01-map-loaded
+# @description: MapScreen visible with fog overlay. Location marker centered
+#   at initial GPS (37.788, -122.432). HUD buttons visible.
+- takeScreenshot: 01-map-loaded
 
-# Grant location permission if requested
+# Explore a bit before opening settings
 - runFlow:
-    when:
-      visible: 'Allow'
-    commands:
-      - tapOn: 'Allow While Using App'
+    file: shared/move-and-settle.yaml
+    env:
+      MOVE_LAT: '37.78925'
+      MOVE_LON: '-122.4324'
 
-# Verify map loaded
-- waitForAnimationToEnd:
-    timeout: 3000
-- assertVisible:
-    id: 'map-screen'
-
-# Initial exploration - move around SF
-- tapOn:
-    id: 'location-button'
-- waitForAnimationToEnd:
-    timeout: 500
-- setLocation:
-    latitude: 37.78925
-    longitude: -122.4324
-- waitForAnimationToEnd:
-    timeout: 800
-- setLocation:
-    latitude: 37.79025
-    longitude: -122.4314
-- waitForAnimationToEnd:
-    timeout: 800
+- runFlow:
+    file: shared/move-and-settle.yaml
+    env:
+      MOVE_LAT: '37.79025'
+      MOVE_LON: '-122.4314'
 
 # Open settings
 - tapOn:
@@ -81,45 +60,55 @@ appId: com.fogofdog.app
 - assertVisible:
     text: 'Cartoon'
 
+# @checkpoint: 02-skin-selection-screen
+# @description: Map Style settings view showing available skins (Standard,
+#   Cartoon). Standard is the default / active skin.
+- takeScreenshot: 02-skin-selection-screen
+
 # Select Cartoon skin
 - tapOn:
     id: 'skin-option-cartoon'
 - waitForAnimationToEnd:
     timeout: 2000
 
-# Go back to settings main
+# @checkpoint: 03-cartoon-selected
+# @description: Cartoon skin selected. The option should show a selection
+#   indicator (checkmark or highlight).
+- takeScreenshot: 03-cartoon-selected
+
+# Navigate back to map
 - tapOn:
     id: 'back-button'
 - waitForAnimationToEnd:
     timeout: 500
-
-# Close settings
 - tapOn:
     id: 'close-button'
 - waitForAnimationToEnd:
     timeout: 1000
 
-# Verify map is still visible with cartoon skin active
+# Verify map is still visible
 - assertVisible:
     id: 'map-screen'
 
-# Continue exploration with cartoon skin active
-- setLocation:
-    latitude: 37.79125
-    longitude: -122.4304
-- waitForAnimationToEnd:
-    timeout: 800
-- tapOn:
-    id: 'location-button'
-- waitForAnimationToEnd:
-    timeout: 500
-- setLocation:
-    latitude: 37.79225
-    longitude: -122.4294
-- waitForAnimationToEnd:
-    timeout: 800
+# Continue exploring with cartoon skin active
+- runFlow:
+    file: shared/move-and-settle.yaml
+    env:
+      MOVE_LAT: '37.79125'
+      MOVE_LON: '-122.4304'
 
-# Re-open settings to verify cartoon skin is still selected
+- runFlow:
+    file: shared/move-and-settle.yaml
+    env:
+      MOVE_LAT: '37.79225'
+      MOVE_LON: '-122.4294'
+
+# @checkpoint: 04-map-with-cartoon-skin
+# @description: Map after two additional movements with Cartoon skin active.
+#   Four fog holes visible. Cartoon skin styling should be applied to the map.
+- takeScreenshot: 04-map-with-cartoon-skin
+
+# Reopen settings to verify skin persists
 - tapOn:
     id: 'settings-button'
 - waitForAnimationToEnd:
@@ -128,10 +117,17 @@ appId: com.fogofdog.app
     id: 'map-style-button'
 - waitForAnimationToEnd:
     timeout: 500
+
+# Verify cartoon skin is still selected
 - assertVisible:
     id: 'skin-option-cartoon'
 
-# Skin selection persists across settings open/close
+# @checkpoint: 05-skin-persisted
+# @description: Map Style settings reopened. Cartoon skin should still be
+#   selected, confirming persistence across settings open/close cycles.
+- takeScreenshot: 05-skin-persisted
+
+# Close settings
 - tapOn:
     id: 'back-button'
 - waitForAnimationToEnd:
@@ -140,6 +136,7 @@ appId: com.fogofdog.app
     id: 'close-button'
 - waitForAnimationToEnd:
     timeout: 500
+
+# Final map assertion
 - assertVisible:
     id: 'map-screen'
-# Map skin workflow complete

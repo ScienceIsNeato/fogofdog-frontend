@@ -1,10 +1,31 @@
 appId: com.fogofdog.app
-jsEngine: graaljs
 ---
-# Comprehensive Data Persistence Test
-# This test validates both "Keep me logged in" checkbox scenarios:
-# 1. Unchecked → App restart → Should return to login screen
-# 2. Checked → App restart → Should skip login and preserve fog data
+# ⛔ BLOCKED: Comprehensive Data Persistence Test
+#
+# STATUS: NOT RUNNABLE — auth/sign-in is disabled
+#
+# This test validates "Keep me logged in" checkbox behavior:
+#   Phase 1: Unchecked → App restart → Should return to login screen
+#   Phase 2: Checked → App restart → Should skip login, preserve fog data
+#
+# WHY BLOCKED:
+#   The AuthScreen/Sign-in navigator is COMMENTED OUT in
+#   src/navigation/index.tsx. The app goes directly to MapScreen.
+#   The testIDs (signInButton, keepLoggedInCheckbox) exist in source
+#   but the AuthScreen is unreachable at runtime.
+#
+# DEPENDENCIES TO RE-ENABLE:
+#   1. Uncomment auth navigator in src/navigation/index.tsx
+#   2. Re-create shared/robust-login.yaml helper (was deleted)
+#   3. Verify signInButton and keepLoggedInCheckbox testIDs work
+#   4. Update this test to use launch-to-map.yaml patterns
+#   5. Remove "Woof!" text assertions (doesn't exist in current app)
+#
+# ORIGINAL TEST PRESERVED BELOW for reference when auth is re-enabled.
+# ─────────────────────────────────────────────────────────────────────
+
+# NOTE: Everything below will fail until auth is re-enabled.
+# Do NOT add this to the default test suite.
 
 # =============================================================================
 # PHASE 1: UNCHECKED CHECKBOX TEST (Should NOT persist login)

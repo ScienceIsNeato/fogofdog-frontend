@@ -1,64 +1,44 @@
 appId: com.fogofdog.app
 ---
-# Street Navigation Integration Test (Enhanced)
-# Verifies the full street-data integration flow including:
-# - Loading sample and real street data from Overpass API
-# - ExplorationNudge visibility with street name, distance, and direction
-# - Developer toggles for prefer-streets / prefer-unexplored
+# Street Navigation Test: Full street-data integration flow
+#
+# Validates developer settings for street navigation:
+#   1. Launch to map
+#   2. Settings → Developer Settings → Load Sample Streets
+#   3. Verify ExplorationNudge with street data
+#   4. Load Real Streets from Overpass API
+#   5. Test Prefer Streets / Prefer Unexplored toggles
 #
 # GPS anchor: Eugene South Hills (44.0462, -123.0236)
+#
+# Preconditions: run_integration_tests.sh pre-seeds app state (onboarding
+# completed, permissions granted). No conditionals needed.
 
-# Anchor GPS at Eugene South Hills centre
+# Set GPS at Eugene, OR
 - setLocation:
     latitude: 44.0462
     longitude: -123.0236
 
-# Launch fresh
-- launchApp:
-    appId: com.fogofdog.app
-    clearState: true
-- waitForAnimationToEnd:
-    timeout: 1000
-
-# Handle onboarding if present
+# Launch directly to map (zero UI gates)
 - runFlow:
-    file: shared/handle-onboarding.yaml
+    file: shared/launch-to-map.yaml
 
-# Login
-- assertVisible:
-    text: 'Sign In'
-- tapOn:
-    id: 'signInButton'
+# @checkpoint: 01-map-initial
+# @description: MapScreen at Eugene, OR (44.046, -123.024). Fog covers area.
+#   No street data loaded yet. No ExplorationNudge visible.
+- takeScreenshot: 01-map-initial
 
-# Grant location permission if prompted
-- runFlow:
-    when:
-      visible: 'Allow'
-    commands:
-      - tapOn: 'Allow While Using App'
-
-# Wait for map screen
-- waitForAnimationToEnd:
-    timeout: 3000
-- assertVisible:
-    id: 'map-screen'
-- takeScreenshot: '00-map-initial'
-
-# ---------------------------------------------------------------------------
-# PART 1: Open Settings → Developer Settings
-# ---------------------------------------------------------------------------
+# === PART 1: Open Settings → Developer Settings ===
 - tapOn:
     id: 'settings-button'
 - waitForAnimationToEnd:
     timeout: 1000
-- assertVisible:
-    text: 'Developer Settings'
 - tapOn:
-    text: 'Developer Settings'
+    id: 'developer-settings-button'
 - waitForAnimationToEnd:
     timeout: 1000
 
-# Verify Street Navigation section is visible (including new Overpass button)
+# Verify Street Navigation section
 - assertVisible:
     text: 'Street Navigation'
 - assertVisible:
@@ -69,22 +49,20 @@ appId: com.fogofdog.app
     text: 'Load Sample Streets'
 - assertVisible:
     text: 'Load Real Streets (Overpass)'
-- takeScreenshot: '01-dev-settings-initial'
 
-# ---------------------------------------------------------------------------
-# PART 2: Load Sample Streets and verify nudge with known street grid
-# ---------------------------------------------------------------------------
+# @checkpoint: 02-dev-settings-initial
+# @description: Developer Settings view. Street Navigation section visible
+#   with toggles and data loading buttons. No streets loaded yet.
+- takeScreenshot: 02-dev-settings-initial
+
+# === PART 2: Load Sample Streets ===
 - tapOn:
     id: 'load-sample-streets'
 - waitForAnimationToEnd:
-    timeout: 1000
+    timeout: 2000
 
-# Dismiss the alert ("Sample Streets loaded…")
-- runFlow:
-    when:
-      visible: 'Sample Streets'
-    commands:
-      - tapOn: 'OK'
+# Dismiss the native Alert ("Sample Streets loaded…")
+- tapOn: 'OK'
 - waitForAnimationToEnd:
     timeout: 500
 
@@ -93,21 +71,23 @@ appId: com.fogofdog.app
     id: 'street-info-loaded'
 - assertVisible:
     text: '12 segments loaded'
-- takeScreenshot: '02-sample-streets-loaded'
 
-# Go back to map and verify ExplorationNudge is visible
+# @checkpoint: 03-sample-streets-loaded
+# @description: Developer Settings after loading sample streets. Info shows
+#   "12 segments loaded". Street data is now available for the nudge.
+- takeScreenshot: 03-sample-streets-loaded
+
+# Navigate back to map
 - tapOn:
     id: 'back-button'
 - waitForAnimationToEnd:
     timeout: 500
 - tapOn:
-    id: 'back-button'
+    id: 'close-button'
 - waitForAnimationToEnd:
     timeout: 1000
 
-# Nudge should be visible with sample street data
-# User is at Cedar St & Elm Ave (44.0462, -123.0236)
-# Birch St is north, Maple St is south; Oak Ave west, Pine Ave east
+# Verify ExplorationNudge is visible with sample street data
 - assertVisible:
     id: 'exploration-nudge'
 - assertVisible:
@@ -116,73 +96,76 @@ appId: com.fogofdog.app
     id: 'nudge-distance-direction'
 - assertVisible:
     id: 'nudge-progress'
-# Progress should show 0 / 12 streets explored initially
 - assertVisible:
     text: '0 / 12 streets explored'
-- takeScreenshot: '03-nudge-with-sample-streets'
 
-# ---------------------------------------------------------------------------
-# PART 3: Load Real Streets from Overpass API
-# ---------------------------------------------------------------------------
+# @checkpoint: 04-nudge-with-sample-streets
+# @description: Map with ExplorationNudge visible. Shows nearest street name,
+#   distance/direction, and progress "0 / 12 streets explored". Sample street
+#   grid is active.
+- takeScreenshot: 04-nudge-with-sample-streets
+
+# === PART 3: Load Real Streets from Overpass API ===
 - tapOn:
     id: 'settings-button'
 - waitForAnimationToEnd:
     timeout: 1000
 - tapOn:
-    text: 'Developer Settings'
+    id: 'developer-settings-button'
 - waitForAnimationToEnd:
     timeout: 1000
 
-# Tap "Load Real Streets" - this calls Overpass API
+# Tap "Load Real Streets" — calls Overpass API (network dependent)
 - tapOn:
     id: 'load-real-streets'
 
-# Wait for network call (may take a few seconds)
+# Wait for network response (may take several seconds)
 - waitForAnimationToEnd:
-    timeout: 10000
+    timeout: 15000
 
-# Dismiss the alert ("Real Streets Loaded…")
-- runFlow:
-    when:
-      visible: 'Real Streets Loaded'
-    commands:
-      - tapOn: 'OK'
+# Dismiss the native Alert ("Real Streets Loaded…")
+- tapOn: 'OK'
 - waitForAnimationToEnd:
     timeout: 500
 
-# Verify streets were loaded (count will vary based on actual OSM data)
+# Verify streets loaded (count varies based on OSM data)
 - assertVisible:
     id: 'street-info-loaded'
-- takeScreenshot: '04-real-streets-loaded'
 
-# Go back to map and verify ExplorationNudge shows real street data
+# @checkpoint: 05-real-streets-loaded
+# @description: Developer Settings after loading real streets from Overpass API.
+#   Street info shows segment count from actual OSM data for Eugene area.
+- takeScreenshot: 05-real-streets-loaded
+
+# Navigate back to map, verify nudge with real data
 - tapOn:
     id: 'back-button'
 - waitForAnimationToEnd:
     timeout: 500
 - tapOn:
-    id: 'back-button'
+    id: 'close-button'
 - waitForAnimationToEnd:
     timeout: 1000
 
-# Nudge should be visible with real street data
 - assertVisible:
     id: 'exploration-nudge'
 - assertVisible:
     id: 'nudge-street-name'
 - assertVisible:
     id: 'nudge-distance-direction'
-- takeScreenshot: '05-nudge-with-real-streets'
 
-# ---------------------------------------------------------------------------
-# PART 4: Test toggle interactions
-# ---------------------------------------------------------------------------
+# @checkpoint: 06-nudge-with-real-streets
+# @description: Map with ExplorationNudge showing real street data from
+#   Overpass API. Street name and distance reflect actual OSM streets.
+- takeScreenshot: 06-nudge-with-real-streets
+
+# === PART 4: Test toggle interactions ===
 - tapOn:
     id: 'settings-button'
 - waitForAnimationToEnd:
     timeout: 1000
 - tapOn:
-    text: 'Developer Settings'
+    id: 'developer-settings-button'
 - waitForAnimationToEnd:
     timeout: 1000
 
@@ -191,16 +174,24 @@ appId: com.fogofdog.app
     id: 'prefer-streets-toggle'
 - waitForAnimationToEnd:
     timeout: 500
-- takeScreenshot: '06-prefer-streets-on'
 
-# Toggle "Prefer Unexplored" ON (should now be enabled)
+# @checkpoint: 07-prefer-streets-on
+# @description: Developer Settings with "Prefer Streets" toggle ON.
+#   "Prefer Unexplored" toggle should now be enabled.
+- takeScreenshot: 07-prefer-streets-on
+
+# Toggle "Prefer Unexplored" ON
 - tapOn:
     id: 'prefer-unexplored-toggle'
 - waitForAnimationToEnd:
     timeout: 500
-- takeScreenshot: '07-prefer-unexplored-on'
 
-# Verify both toggles remain visible (no crash)
+# @checkpoint: 08-prefer-unexplored-on
+# @description: Both "Prefer Streets" and "Prefer Unexplored" toggles ON.
+#   Both toggles and street info remain visible (no crash).
+- takeScreenshot: 08-prefer-unexplored-on
+
+# Verify both toggles remain stable
 - assertVisible:
     text: 'Prefer Streets'
 - assertVisible:
@@ -213,15 +204,27 @@ appId: com.fogofdog.app
     id: 'prefer-streets-toggle'
 - waitForAnimationToEnd:
     timeout: 500
-- takeScreenshot: '08-prefer-streets-off'
 
-# Back to main settings, then close
+# @checkpoint: 09-prefer-streets-off
+# @description: "Prefer Streets" toggled OFF. "Prefer Unexplored" should
+#   become disabled automatically.
+- takeScreenshot: 09-prefer-streets-off
+
+# Navigate back to map — verify app still functional
 - tapOn:
     id: 'back-button'
 - waitForAnimationToEnd:
     timeout: 500
+- tapOn:
+    id: 'close-button'
+- waitForAnimationToEnd:
+    timeout: 500
 
-# App should still be functional
 - assertVisible:
     id: 'map-screen'
-- takeScreenshot: '09-final-map-state'
+
+# @checkpoint: 10-final-map
+# @description: Map after all street navigation interactions. App remains
+#   functional. ExplorationNudge may or may not be visible depending on
+#   toggle state.
+- takeScreenshot: 10-final-map

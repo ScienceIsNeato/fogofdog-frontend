@@ -55,13 +55,21 @@ export const SettingsMainView: React.FC<SettingsMainViewProps> = ({
         <MaterialIcons name="chevron-right" size={20} color="#ccc" />
       </TouchableOpacity>
 
-      <TouchableOpacity style={styles.menuItem} onPress={onHistoryManagement}>
+      <TouchableOpacity
+        style={styles.menuItem}
+        onPress={onHistoryManagement}
+        testID="data-management-button"
+      >
         <MaterialIcons name="history" size={20} color="#007AFF" />
         <Text style={styles.menuItemText}>Data Management</Text>
         <MaterialIcons name="chevron-right" size={20} color="#ccc" />
       </TouchableOpacity>
 
-      <TouchableOpacity style={styles.menuItem} onPress={onDeveloperSettings}>
+      <TouchableOpacity
+        style={styles.menuItem}
+        onPress={onDeveloperSettings}
+        testID="developer-settings-button"
+      >
         <MaterialIcons name="developer-mode" size={20} color="#007AFF" />
         <Text style={styles.menuItemText}>Developer Settings</Text>
         <MaterialIcons name="chevron-right" size={20} color="#ccc" />

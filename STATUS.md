@@ -1,13 +1,55 @@
 # FogOfDog Frontend Status
 
-## Current Status: ✅ Android Maestro Tests — Both Tests Passing
+## Current Status: ✅ Android Maestro Tests — 6 Tests in Default Suite
 
-### 🎯 **LATEST: Android Maestro integration tests passing end-to-end**
+### 🎯 **LATEST: Rewrote all viable Maestro tests for Android compatibility**
 
 **Branch**: `feat/android-maestro-tests`
 **Base**: `main` at `e630280`
-**Tests**: 2/2 default suite passing (smoke-test + background-gps-test) on Android emulator
-**Validation**: Full `./scripts/run_integration_tests.sh --platform android` passing
+**Default suite**: 6 tests (smoke, background-gps, map-skin, data-clearing, street-navigation, first-time-user)
+**Blocked**: 1 test (comprehensive-persistence — auth disabled)
+
+#### What was completed this session
+
+1. **testIDs added to source components** for reliable Maestro targeting:
+
+   - `SettingsMainView.tsx`: `data-management-button`, `developer-settings-button`
+   - `SettingsHistoryView.tsx`: `clear-data-hour`, `clear-data-day`, `clear-data-all`
+   - `OnboardingOverlay.tsx`: `skip-tutorial-button`, `onboarding-continue-button`, `get-started-button`
+
+2. **4 Maestro tests fully rewritten** (old patterns → new deterministic patterns):
+
+   - `map-skin-test.yaml` — 5 checkpoints: Settings → Map Style → Cartoon → verify persistence
+   - `data-clearing-test.yaml` — 6 checkpoints: GPS data gen → Data Management → clear hour/day/all
+   - `street-navigation-test.yaml` — 10 checkpoints: Dev Settings → sample streets → real streets → toggles
+   - `first-time-user-complete-flow.yaml` — 9 checkpoints: onboarding 6 steps → map → GPS → settings
+
+3. **New shared helper**: `launch-to-onboarding.yaml` — launches WITHOUT pre-seeded onboarding
+
+4. **Per-test state preparation** in `run_integration_tests.sh`:
+
+   - Moved `prepare_android_fresh_state()` from one-time to per-test loop
+   - Each test gets isolated fresh state (pm clear + re-inject)
+   - `inject_async_storage_android()` accepts `seed_onboarding` param
+   - First-time-user test automatically detected → onboarding NOT seeded
+
+5. **Default suite expanded** from 2 → 6 tests
+
+6. **comprehensive-persistence-test.yaml** marked as BLOCKED with detailed re-enable instructions
+
+#### All patterns removed from test rewrites
+
+- ❌ `handle-onboarding.yaml` reference (deleted shared helper)
+- ❌ `handle-location-permissions.yaml` reference (deleted shared helper)
+- ❌ `robust-login.yaml` reference (deleted shared helper)
+- ❌ `signInButton` / `keepLoggedInCheckbox` taps (auth disabled)
+- ❌ `Allow` / `Allow While Using App` conditionals (permissions pre-granted)
+- ❌ Percentage-based coordinate taps (replaced with testID taps)
+- ❌ `jsEngine: graaljs` (not needed)
+
+#### Tests NOT yet run on emulator — need validation pass
+
+### Previous: 2/2 default suite passing (smoke-test + background-gps-test)
 
 #### What was completed
 
