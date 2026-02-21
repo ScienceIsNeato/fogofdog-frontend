@@ -141,10 +141,12 @@ jobs:
   # Integration Layer - Depends on unit tests
   run-maestro-integration-tests:
     name: 🎭 Run Maestro Integration Tests
-    runs-on: macos-latest
-    timeout-minutes: 60
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
     needs: slop-mop-commit-gates
-    if: github.event_name == 'workflow_dispatch' && github.event.inputs.run_integration_tests == 'true' # Manual trigger only - macOS runners are expensive ($0.08/min)
+    if: >-
+      (github.event_name == 'pull_request') ||
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.run_integration_tests == 'true')
 
     steps:
       - name: 📥 Checkout
@@ -158,23 +160,69 @@ jobs:
           node-version: '20'
           cache: 'npm'
 
+      - name: ☕ Setup Java (required for Android SDK)
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
       - name: ⚡ Install dependencies
         run: npm ci --legacy-peer-deps
 
-      - name: 🔧 Setup EAS CLI
-        uses: expo/expo-github-action@v8
-        with:
-          eas-version: latest
-          token: ${{ secrets.EXPO_TOKEN }}
+      - name: 🎭 Install Maestro
+        run: |
+          curl -Ls "https://get.maestro.mobile.dev" | bash
+          echo "$HOME/.maestro/bin" >> $GITHUB_PATH
 
-      - name: 🎭 Execute Maestro Integration Test Suite
-        run: ./scripts/run_integration_tests.sh
-        env:
-          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+      - name: 🤖 Enable KVM for Android Emulator
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: 🏗️ Build Android app
+        run: |
+          cd android && ./gradlew assembleDebug --no-daemon -q
+          echo "APK_PATH=$(find app/build/outputs/apk -name '*.apk' | head -1)" >> $GITHUB_ENV
+
+      - name: 🎭 Run Maestro Tests on Android Emulator
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          arch: x86_64
+          profile: pixel_6
+          heap-size: 512M
+          ram-size: 4096M
+          disk-size: 8G
+          emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim
+          disable-animations: true
+          script: |
+            # Install the APK
+            adb install -r "$APK_PATH"
+
+            # Start Metro bundler in background
+            npx expo start --dev-client --no-dev --minify &
+            METRO_PID=$!
+
+            # Wait for Metro to be ready
+            echo "⏳ Waiting for Metro bundler..."
+            for i in $(seq 1 60); do
+              if curl -s http://localhost:8081/status 2>/dev/null | grep -q "packager-status:running"; then
+                echo "✅ Metro is ready"
+                break
+              fi
+              sleep 2
+            done
+
+            # Run integration tests
+            ./scripts/run_integration_tests.sh --platform android --no-window
+
+            # Cleanup
+            kill $METRO_PID 2>/dev/null || true
 
       - name: 📸 Upload Test Screenshots and Artifacts
         uses: actions/upload-artifact@v4
-        if: always() # Always upload artifacts, even on failure
+        if: always()
         with:
           name: maestro-test-artifacts
           path: |
