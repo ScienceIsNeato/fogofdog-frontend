@@ -77,16 +77,18 @@ appId: com.fogofdog.app
     timeout: 800
 - tapOn:
     id: location-button
+    retryTapIfNoChange: false
 - waitForAnimationToEnd:
     timeout: 500
 
 - setLocation:
     latitude: 37.783750
-    longitude: -122.426900
+    longitude: -122.4324
 - waitForAnimationToEnd:
     timeout: 800
 - tapOn:
     id: location-button
+    retryTapIfNoChange: false
 - waitForAnimationToEnd:
     timeout: 500
 
@@ -142,6 +144,7 @@ appId: com.fogofdog.app
     timeout: 800
 - tapOn:
     id: location-button
+    retryTapIfNoChange: false
 - waitForAnimationToEnd:
     timeout: 500
 
@@ -152,6 +155,7 @@ appId: com.fogofdog.app
     timeout: 800
 - tapOn:
     id: location-button
+    retryTapIfNoChange: false
 - waitForAnimationToEnd:
     timeout: 500
 
@@ -162,6 +166,7 @@ appId: com.fogofdog.app
     timeout: 800
 - tapOn:
     id: location-button
+    retryTapIfNoChange: false
 - waitForAnimationToEnd:
     timeout: 500
 
@@ -172,6 +177,7 @@ appId: com.fogofdog.app
     timeout: 800
 - tapOn:
     id: location-button
+    retryTapIfNoChange: false
 - waitForAnimationToEnd:
     timeout: 500
 
@@ -212,6 +218,7 @@ appId: com.fogofdog.app
     text: 'Woof!'
 - tapOn:
     id: location-button
+    retryTapIfNoChange: false
 - waitForAnimationToEnd:
     timeout: 500
 

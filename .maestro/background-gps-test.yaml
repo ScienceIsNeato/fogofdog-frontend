@@ -106,6 +106,7 @@ jsEngine: graaljs
     timeout: 5000
 - tapOn:
     id: 'location-button'
+    retryTapIfNoChange: false
 - extendedWaitUntil:
     visible:
       id: 'map-screen'

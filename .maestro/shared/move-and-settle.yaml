@@ -29,6 +29,7 @@ appId: com.fogofdog.app
 # Re-center camera on new position
 - tapOn:
     id: 'location-button'
+    retryTapIfNoChange: false
 # Brief settle for camera animation — 500ms is enough for the pan.
 - waitForAnimationToEnd:
     timeout: 500

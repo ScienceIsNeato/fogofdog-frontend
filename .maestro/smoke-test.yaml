@@ -33,12 +33,21 @@ appId: com.fogofdog.app
 - assertVisible:
     id: 'settings-button'
 
-# Test location button responds
+# Test location button toggles auto-follow
 - tapOn:
     id: 'location-button'
+    retryTapIfNoChange: false
 - extendedWaitUntil:
     visible:
-      id: 'map-screen'
+      id: 'location-button'
+    timeout: 3000
+# Toggle follow mode back off
+- tapOn:
+    id: 'location-button'
+    retryTapIfNoChange: false
+- extendedWaitUntil:
+    visible:
+      id: 'location-button'
     timeout: 3000
 
 # Move ~500m south — should create a fog hole at the new location
