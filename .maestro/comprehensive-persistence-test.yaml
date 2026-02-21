@@ -82,8 +82,8 @@ appId: com.fogofdog.app
     timeout: 500
 
 - setLocation:
-    latitude: 37.783750
-    longitude: -122.4324
+    latitude: 37.784200
+    longitude: -122.4310
 - waitForAnimationToEnd:
     timeout: 800
 - tapOn:
