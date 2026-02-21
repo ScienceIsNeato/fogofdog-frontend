@@ -122,7 +122,7 @@ describe('LocationButton', () => {
   });
 
   describe('Accessibility', () => {
-    it('should have correct accessibility properties', () => {
+    it('should have correct accessibility label when follow mode is inactive', () => {
       const { getByTestId } = render(
         <LocationButton onPress={mockOnPress} isCentered={false} isFollowModeActive={false} />
       );
@@ -130,15 +130,28 @@ describe('LocationButton', () => {
       const button = getByTestId('location-button');
 
       expect(button.props.accessibilityRole).toBe('button');
-      expect(button.props.accessibilityLabel).toBe('Center on current location');
+      expect(button.props.accessibilityLabel).toBe('Follow current location');
       expect(button.props.accessibilityHint).toBe(
-        'Double tap to center the map on your current location'
+        'Double tap to center and follow your current location'
       );
     });
 
-    it('should indicate selected state when centered', () => {
+    it('should have correct accessibility label when follow mode is active', () => {
       const { getByTestId } = render(
-        <LocationButton onPress={mockOnPress} isCentered={true} isFollowModeActive={false} />
+        <LocationButton onPress={mockOnPress} isCentered={false} isFollowModeActive={true} />
+      );
+
+      const button = getByTestId('location-button');
+
+      expect(button.props.accessibilityLabel).toBe('Stop following location');
+      expect(button.props.accessibilityHint).toBe(
+        'Double tap to stop auto-centering the map on your location'
+      );
+    });
+
+    it('should indicate selected state when follow mode is active', () => {
+      const { getByTestId } = render(
+        <LocationButton onPress={mockOnPress} isCentered={false} isFollowModeActive={true} />
       );
 
       const button = getByTestId('location-button');
@@ -146,7 +159,17 @@ describe('LocationButton', () => {
       expect(button.props.accessibilityState).toEqual({ selected: true });
     });
 
-    it('should have no accessibility state when not centered', () => {
+    it('should not indicate selected state when only centered (follow mode off)', () => {
+      const { getByTestId } = render(
+        <LocationButton onPress={mockOnPress} isCentered={true} isFollowModeActive={false} />
+      );
+
+      const button = getByTestId('location-button');
+
+      expect(button.props.accessibilityState).toEqual({});
+    });
+
+    it('should have no selected state when neither centered nor following', () => {
       const { getByTestId } = render(
         <LocationButton onPress={mockOnPress} isCentered={false} isFollowModeActive={false} />
       );

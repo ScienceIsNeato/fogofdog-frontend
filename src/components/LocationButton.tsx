@@ -33,7 +33,7 @@ const LocationButton: React.FC<LocationButtonProps> = ({
   };
 
   const getAccessibilityState = () => {
-    if (isCentered || isFollowModeActive) {
+    if (isFollowModeActive) {
       return { selected: true };
     }
     return {};
@@ -44,8 +44,14 @@ const LocationButton: React.FC<LocationButtonProps> = ({
       testID="location-button"
       onPress={onPress}
       accessibilityRole="button"
-      accessibilityLabel="Center on current location"
-      accessibilityHint="Double tap to center the map on your current location"
+      accessibilityLabel={
+        isFollowModeActive ? 'Stop following location' : 'Follow current location'
+      }
+      accessibilityHint={
+        isFollowModeActive
+          ? 'Double tap to stop auto-centering the map on your location'
+          : 'Double tap to center and follow your current location'
+      }
       accessibilityState={getAccessibilityState()}
       style={({ pressed }) => {
         const baseStyle = getContainerStyle();
