@@ -11,6 +11,7 @@ import statsReducer from '../../store/slices/statsSlice';
 import skinReducer from '../../store/slices/skinSlice';
 import type { ScentRenderConfig } from '../../types/graphics';
 import type { GeoPoint } from '../../types/user';
+import type { RootState } from '../../store';
 
 import { findClosestStreets } from '../../services/StreetDataService';
 
@@ -79,7 +80,7 @@ const MOCK_WAYPOINT_RESULT = {
   direction: 'N',
 };
 
-const createStore = (overrides: Record<string, unknown> = {}) =>
+const createStore = (overrides: Partial<RootState> = {}) =>
   configureStore({
     reducer: {
       exploration: explorationReducer,
@@ -89,10 +90,10 @@ const createStore = (overrides: Record<string, unknown> = {}) =>
       stats: statsReducer,
       skin: skinReducer,
     },
-    preloadedState: overrides,
+    preloadedState: overrides as RootState,
   });
 
-const renderTrail = (config: ScentRenderConfig, storeOverrides: Record<string, unknown> = {}) => {
+const renderTrail = (config: ScentRenderConfig, storeOverrides: Partial<RootState> = {}) => {
   const store = createStore(storeOverrides);
   return render(
     <Provider store={store}>

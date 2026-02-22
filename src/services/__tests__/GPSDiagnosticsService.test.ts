@@ -24,7 +24,6 @@ describe('GPSDiagnosticsService', () => {
   });
 
   afterEach(() => {
-    // @ts-expect-error - restoring read-only
     Platform.OS = originalPlatform;
   });
 
@@ -42,7 +41,6 @@ describe('GPSDiagnosticsService', () => {
 
   describe('Android emulator detection', () => {
     beforeEach(() => {
-      // @ts-expect-error - overriding read-only for test
       Platform.OS = 'android';
     });
 
@@ -90,7 +88,6 @@ describe('GPSDiagnosticsService', () => {
 
   describe('iOS behavior', () => {
     beforeEach(() => {
-      // @ts-expect-error - overriding read-only for test
       Platform.OS = 'ios';
     });
 

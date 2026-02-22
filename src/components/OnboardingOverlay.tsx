@@ -34,6 +34,7 @@ const OnboardingHeader: React.FC<{
       disabled={isCompleting}
       accessibilityLabel="Skip onboarding tutorial"
       accessibilityRole="button"
+      testID="skip-tutorial-button"
     >
       <Text style={styles.skipText}>Skip Tutorial</Text>
     </TouchableOpacity>
@@ -182,6 +183,7 @@ const OnboardingNavigation: React.FC<{
           disabled={isCompleting}
           accessibilityLabel="Complete onboarding tutorial"
           accessibilityRole="button"
+          testID="get-started-button"
         >
           <Text style={styles.finishButtonText}>
             {isCompleting ? 'Starting...' : 'Get Started!'}
@@ -194,6 +196,7 @@ const OnboardingNavigation: React.FC<{
           disabled={isCompleting}
           accessibilityLabel="Continue to next step"
           accessibilityRole="button"
+          testID="onboarding-continue-button"
         >
           <Text style={styles.continueButtonText}>Continue</Text>
         </TouchableOpacity>

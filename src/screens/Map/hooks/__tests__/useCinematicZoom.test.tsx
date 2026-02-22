@@ -28,7 +28,7 @@ const mockMapZoomUtils = mapZoomUtils as jest.Mocked<typeof mapZoomUtils>;
 const mockMapConstraints = mapConstraints as jest.Mocked<typeof mapConstraints>;
 
 // Mock MapView
-const mockMapView = {
+const mockMapView: Record<string, any> = {
   setCamera: jest.fn(),
 };
 

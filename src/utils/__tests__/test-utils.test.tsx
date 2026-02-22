@@ -127,7 +127,14 @@ describe('test-utils', () => {
             availableSkins: [],
             error: null,
           },
+          graphics: {
+            activeFogEffectId: 'fog-classic',
+            activeMapEffectId: 'map-none',
+            activeScentEffectId: 'scent-dotted',
+            isScentVisible: true,
+          },
         })),
+
         dispatch: jest.fn(),
         subscribe: jest.fn(),
         replaceReducer: jest.fn(),

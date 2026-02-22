@@ -1,0 +1,61 @@
+appId: com.fogofdog.app
+---
+# Shared Flow: Launch app and land on OnboardingOverlay (zero conditionals)
+#
+# PRECONDITIONS (guaranteed by run_integration_tests.sh):
+#   Android: prepare_android_fresh_state() called WITHOUT onboarding seeding
+#     - App data cleared, dev-menu prefs injected
+#     - AsyncStorage: only permissions pre-granted (NO @fogofdog_onboarding_completed)
+#     - Runtime permissions granted via pm grant
+#   iOS:
+#     - clearState + permissions:all:allow handles cleanup
+#     - AsyncStorage is wiped, so onboarding naturally appears
+#
+# RESULT: App shows OnboardingOverlay with onboarding-overlay testID visible.
+#
+# Usage:
+#   - runFlow:
+#       file: shared/launch-to-onboarding.yaml
+
+# ── Android: launch WITHOUT pre-seeded onboarding ────────────────────────
+# State was partially pre-seeded by run_integration_tests.sh — permissions
+# are granted and dev-menu is configured, but @fogofdog_onboarding_completed
+# was intentionally NOT injected so the onboarding overlay appears.
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - stopApp:
+          appId: com.fogofdog.app
+      # Brief pause so Android fully tears down the process before relaunch
+      - waitForAnimationToEnd:
+          timeout: 1000
+      - openLink: 'exp+fogofdog://expo-development-client/?url=http%3A%2F%2F10.0.2.2%3A8081'
+      # Wait for React content to render (bundle download + JS init)
+      - extendedWaitUntil:
+          visible:
+            text: '.*'
+          timeout: 60000
+      # No fixed delay needed — extendedWaitUntil proceeds the instant
+      # the element is visible.
+      # Onboarding WILL appear since @fogofdog_onboarding_completed was not seeded
+      - extendedWaitUntil:
+          visible:
+            id: 'onboarding-overlay'
+          timeout: 30000
+
+# ── iOS: launch with clearState (onboarding appears naturally) ───────────
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - launchApp:
+          appId: com.fogofdog.app
+          clearState: true
+          permissions:
+            all: allow
+      # Onboarding always appears after clearState since AsyncStorage is wiped
+      - extendedWaitUntil:
+          visible:
+            id: 'onboarding-overlay'
+          timeout: 15000

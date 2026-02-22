@@ -1,0 +1,37 @@
+appId: com.fogofdog.app
+---
+# Shared Flow: Move to GPS location and wait for map to settle
+#
+# Sets GPS to the given coordinates, waits for the map to process the
+# location change, then taps the "center on me" button so the map
+# camera follows.
+#
+# Input environment variables:
+#   MOVE_LAT  - Target latitude (required)
+#   MOVE_LON  - Target longitude (required)
+#
+# Usage:
+#   - runFlow:
+#       file: shared/move-and-settle.yaml
+#       env:
+#         MOVE_LAT: "37.78925"
+#         MOVE_LON: "-122.4324"
+
+- setLocation:
+    latitude: ${MOVE_LAT}
+    longitude: ${MOVE_LON}
+# Allow GPS update to propagate through the location provider
+- waitForAnimationToEnd:
+    timeout: 500
+# Break follow mode via a small pan so the location-button tap below always
+# re-enables it (fixes toggle alternation on consecutive move-and-settle calls).
+- swipe:
+    direction: LEFT
+    duration: 200
+# Re-center camera on new position (follow was just broken, so this always turns it ON)
+- tapOn:
+    id: 'location-button'
+    retryTapIfNoChange: false
+# Brief settle for camera animation — 500ms is enough for the pan.
+- waitForAnimationToEnd:
+    timeout: 500

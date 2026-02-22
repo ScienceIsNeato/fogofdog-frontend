@@ -270,6 +270,7 @@ export const SettingsHistoryView: React.FC<SettingsHistoryViewProps> = ({
             style={[styles.menuItem, isClearing && styles.disabledMenuItem]}
             onPress={() => handleClearPress(option.type)}
             disabled={isClearing}
+            testID={`clear-data-${option.type}`}
           >
             <MaterialIcons name="delete" size={20} color={isClearing ? '#999' : '#FF3B30'} />
             <View style={styles.menuItemContent}>

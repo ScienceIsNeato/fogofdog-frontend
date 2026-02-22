@@ -7,23 +7,28 @@
 # ── Quick-check helpers ────────────────────────────────────────────────────
 
 quick_is_android_emu_running() {
-    adb devices 2>/dev/null | grep -q "emulator"
+    # Only match emulators whose state column is "device" (not "offline")
+    adb devices 2>/dev/null | tail -n +2 | awk '$1 ~ /^emulator/ && $2 == "device" { found=1 } END { exit !found }'
 }
 
 # ── Emulator management ───────────────────────────────────────────────────
 
 is_android_emu_running() {
-    adb devices 2>/dev/null | grep -q "emulator"
+    # Only match emulators whose state column is "device" (not "offline")
+    adb devices 2>/dev/null | tail -n +2 | awk '$1 ~ /^emulator/ && $2 == "device" { found=1 } END { exit !found }'
 }
 
 boot_android_emulator() {
+    local no_window_arg=""
+    [[ "${1:-}" == "--no-window" ]] && no_window_arg="--no-window"
+
     if is_android_emu_running; then
         ok "Android Emulator already running"
         return 0
     fi
 
     info "Booting Android Emulator..."
-    "$SCRIPT_DIR/internal/launch-device.sh" android
+    "$SCRIPT_DIR/internal/launch-device.sh" android $no_window_arg
 
     # Wait for boot
     local attempts=0

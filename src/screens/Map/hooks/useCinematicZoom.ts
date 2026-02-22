@@ -22,7 +22,7 @@ const animateMapToRegion = (
     centerCoordinate: [region.longitude, region.latitude],
     zoomLevel: regionToZoomLevel(region),
     animationDuration: duration,
-    animationMode: 'easeTo',
+    animationMode: 'flyTo',
   });
 };
 
@@ -59,252 +59,45 @@ const useExplorationBounds = (explorationPath: GeoPoint[]) => {
 };
 
 /**
- * Calculate distance between two GPS points using Haversine formula
- */
-const calculateDistance = (point1: GeoPoint, point2: GeoPoint): number => {
-  const R = 6371e3; // Earth's radius in meters
-  const φ1 = (point1.latitude * Math.PI) / 180;
-  const φ2 = (point2.latitude * Math.PI) / 180;
-  const Δφ = ((point2.latitude - point1.latitude) * Math.PI) / 180;
-  const Δλ = ((point2.longitude - point1.longitude) * Math.PI) / 180;
-
-  const a =
-    Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
-    Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-
-  return R * c;
-};
-
-/**
- * Extract recent path segment within 1km and max 100 points
- */
-const extractRecentPathSegment = (
-  explorationPath: GeoPoint[],
-  currentLocation: GeoPoint,
-  maxDistance: number = 1000, // 1km in meters
-  maxPoints: number = 100
-): GeoPoint[] => {
-  if (explorationPath.length === 0) return [];
-
-  // Start from the most recent points and work backwards
-  const recentPath: GeoPoint[] = [];
-  let totalDistance = 0;
-
-  // Always include current location as the end point
-  recentPath.unshift(currentLocation);
-
-  // Work backwards through the path
-  for (let i = explorationPath.length - 1; i >= 0 && recentPath.length < maxPoints; i--) {
-    const point = explorationPath[i];
-    if (!point) continue; // Skip undefined points
-
-    const firstPoint = recentPath[0];
-    if (!firstPoint) break; // Safety check
-
-    const distanceToNext = calculateDistance(point, firstPoint);
-
-    // Stop if adding this point would exceed 1km total distance
-    if (totalDistance + distanceToNext > maxDistance) {
-      break;
-    }
-
-    recentPath.unshift(point);
-    totalDistance += distanceToNext;
-  }
-
-  return recentPath;
-};
-
-/**
- * Calculate travel direction from recent path points
- */
-const calculateTravelDirection = (
-  pathSegment: GeoPoint[]
-): { directionLat: number; directionLng: number } => {
-  const recentPoints = pathSegment.slice(-Math.min(5, pathSegment.length));
-  let directionLat = 0;
-  let directionLng = 0;
-
-  if (recentPoints.length >= 2) {
-    // Calculate average direction vector from recent movement
-    for (let i = 1; i < recentPoints.length; i++) {
-      const prev = recentPoints[i - 1];
-      const curr = recentPoints[i];
-      if (prev && curr) {
-        directionLat += curr.latitude - prev.latitude;
-        directionLng += curr.longitude - prev.longitude;
-      }
-    }
-    // Normalize by number of segments
-    directionLat /= recentPoints.length - 1;
-    directionLng /= recentPoints.length - 1;
-  }
-
-  return { directionLat, directionLng };
-};
-
-/**
- * Calculate total distance of a path segment
- */
-const calculatePathDistance = (pathSegment: GeoPoint[]): number => {
-  let totalDistance = 0;
-  for (let i = 1; i < pathSegment.length; i++) {
-    const prevPoint = pathSegment[i - 1];
-    const currPoint = pathSegment[i];
-    if (prevPoint && currPoint) {
-      totalDistance += calculateDistance(prevPoint, currPoint);
-    }
-  }
-  return totalDistance;
-};
-
-/**
- * Calculate an intelligent cinematic start point based on recent path
- * Uses path analysis to create a dramatic reveal of the user's journey
- */
-const calculateCinematicStartPoint = (
-  explorationPath: GeoPoint[],
-  currentLocation: GeoPoint
-): { startRegion: MapRegion; pathDistance: number } => {
-  // Extract recent path segment (max 1km, max 100 points)
-  const pathSegment = extractRecentPathSegment(explorationPath, currentLocation);
-
-  if (pathSegment.length < 2) {
-    // No meaningful path - use simple offset from current location
-    return {
-      startRegion: {
-        latitude: currentLocation.latitude,
-        longitude: currentLocation.longitude,
-        latitudeDelta: DEFAULT_ZOOM_DELTAS.latitudeDelta, // Standard zoom
-        longitudeDelta: DEFAULT_ZOOM_DELTAS.longitudeDelta,
-      },
-      pathDistance: 0,
-    };
-  }
-
-  // Calculate path bounds to determine cinematic framing
-  const pathStart = pathSegment[0];
-  if (!pathStart) {
-    // Fallback if no start point
-    return {
-      startRegion: {
-        latitude: currentLocation.latitude,
-        longitude: currentLocation.longitude,
-        latitudeDelta: DEFAULT_ZOOM_DELTAS.latitudeDelta,
-        longitudeDelta: DEFAULT_ZOOM_DELTAS.longitudeDelta,
-      },
-      pathDistance: 0,
-    };
-  }
-
-  const pathEnd = currentLocation;
-  const totalDistance = calculatePathDistance(pathSegment);
-
-  // Field Goal Kicker Algorithm: Start from behind user's travel direction
-  const gpsMarkerLat = pathEnd.latitude;
-  const gpsMarkerLng = pathEnd.longitude;
-
-  // Calculate travel direction vector from recent points
-  let { directionLat, directionLng } = calculateTravelDirection(pathSegment);
-
-  // Fallback if no clear direction: use start-to-end vector
-  if (Math.abs(directionLat) < 0.0001 && Math.abs(directionLng) < 0.0001) {
-    directionLat = pathEnd.latitude - pathStart.latitude;
-    directionLng = pathEnd.longitude - pathStart.longitude;
-  }
-
-  // Step 3: Determine zoom level and calculate starting position
-  const journeySpan = Math.max(
-    Math.abs(pathEnd.latitude - pathStart.latitude),
-    Math.abs(pathEnd.longitude - pathStart.longitude)
-  );
-  const zoomDelta = Math.max(journeySpan * 1.8, 0.006); // Cinematic zoom with min 600m view
-
-  // Calculate how far to walk backwards (GPS marker should be at 10% from edge)
-  const bufferRatio = 0.1; // 10% buffer from screen edge
-  const distanceFromCenter = zoomDelta * (0.5 - bufferRatio); // Distance from center to near-edge
-
-  // Normalize direction vector
-  const directionMagnitude = Math.sqrt(directionLat * directionLat + directionLng * directionLng);
-  const normalizedDirLat = directionMagnitude > 0 ? directionLat / directionMagnitude : 0;
-  const normalizedDirLng = directionMagnitude > 0 ? directionLng / directionMagnitude : 0;
-
-  // Walk backwards from GPS marker position to find starting point
-  const startLat = gpsMarkerLat - normalizedDirLat * distanceFromCenter;
-  const startLng = gpsMarkerLng - normalizedDirLng * distanceFromCenter;
-
-  const startLatDelta = zoomDelta;
-  const startLngDelta = zoomDelta;
-
-  return {
-    startRegion: {
-      latitude: startLat,
-      longitude: startLng,
-      latitudeDelta: startLatDelta,
-      longitudeDelta: startLngDelta,
-    },
-    pathDistance: totalDistance,
-  };
-};
-
-/**
- * Calculate the cinematic start region for consistent positioning
- * Used by both initialRegion and animation to prevent jumps
+ * Calculate the cinematic start region for consistent positioning.
+ * Places the GPS dot at a random screen corner so the explored area
+ * is visible from the very first frame of the animation.
  */
 const calculateCinematicStartRegion = (
-  explorationPath: GeoPoint[],
+  _explorationPath: GeoPoint[],
   currentLocation: GeoPoint,
   fixedRandomSeed?: number
 ): MapRegion => {
-  const { startRegion, pathDistance } = calculateCinematicStartPoint(
-    explorationPath,
-    currentLocation
-  );
+  // Pick a random corner of the screen for the GPS dot to appear at.
+  // To place GPS at a corner, offset the camera center in the OPPOSITE direction.
+  const randomValue = fixedRandomSeed ?? Math.random();
+  const cornerIndex = Math.floor(randomValue * 4);
 
-  const hasValidPathDirection = pathDistance > 10;
-  let directionLat, directionLng;
+  // Corners mapped to camera-center offset signs:
+  //   0 = GPS top-right    → camera shifts down-left
+  //   1 = GPS top-left     → camera shifts down-right
+  //   2 = GPS bottom-right → camera shifts up-left
+  //   3 = GPS bottom-left  → camera shifts up-right
+  const cornerOffsets = [
+    { latSign: -1, lngSign: -1 }, // GPS top-right
+    { latSign: -1, lngSign: 1 }, // GPS top-left
+    { latSign: 1, lngSign: -1 }, // GPS bottom-right
+    { latSign: 1, lngSign: 1 }, // GPS bottom-left
+  ];
+  const corner = cornerOffsets[cornerIndex] ?? cornerOffsets[0]!;
 
-  if (hasValidPathDirection) {
-    directionLat = startRegion.latitude - currentLocation.latitude;
-    directionLng = startRegion.longitude - currentLocation.longitude;
-  } else {
-    // Use fixed seed for consistent random direction, or generate new one
-    const randomValue = fixedRandomSeed ?? Math.random();
-    const randomAngle = randomValue * 2 * Math.PI;
-    // Use frame edge distance directly for random direction (no scaling needed)
-    const edgeDistanceLat = DEFAULT_ZOOM_DELTAS.latitudeDelta * 0.4; // 40% of frame = edge position
-    const edgeDistanceLng = DEFAULT_ZOOM_DELTAS.longitudeDelta * 0.4;
-    directionLat = Math.sin(randomAngle) * edgeDistanceLat;
-    directionLng = Math.cos(randomAngle) * edgeDistanceLng;
-  }
+  // Margin of 0.35 places the GPS dot at ~70% from center toward the corner,
+  // keeping it clearly visible while leaving most of the frame for context.
+  const margin = 0.35;
+  const latOffset = DEFAULT_ZOOM_DELTAS.latitudeDelta * margin * corner.latSign;
+  const lngOffset = DEFAULT_ZOOM_DELTAS.longitudeDelta * margin * corner.lngSign;
 
-  // For intelligent path direction, scale to edge of frame
-  if (hasValidPathDirection) {
-    const currentDistance = Math.sqrt(directionLat * directionLat + directionLng * directionLng);
-    const frameLatDelta = DEFAULT_ZOOM_DELTAS.latitudeDelta;
-    const edgeDistanceLat = frameLatDelta * 0.4;
-    const edgeDistanceLng = DEFAULT_ZOOM_DELTAS.longitudeDelta * 0.4;
-    const targetDistanceDegrees = Math.sqrt(
-      edgeDistanceLat * edgeDistanceLat + edgeDistanceLng * edgeDistanceLng
-    );
-    const scaleFactor = currentDistance > 0 ? targetDistanceDegrees / currentDistance : 1;
-
-    return {
-      latitude: currentLocation.latitude + directionLat * scaleFactor,
-      longitude: currentLocation.longitude + directionLng * scaleFactor,
-      latitudeDelta: DEFAULT_ZOOM_DELTAS.latitudeDelta,
-      longitudeDelta: DEFAULT_ZOOM_DELTAS.longitudeDelta,
-    };
-  } else {
-    // For random direction, use the calculated edge distance directly
-    return {
-      latitude: currentLocation.latitude + directionLat,
-      longitude: currentLocation.longitude + directionLng,
-      latitudeDelta: DEFAULT_ZOOM_DELTAS.latitudeDelta,
-      longitudeDelta: DEFAULT_ZOOM_DELTAS.longitudeDelta,
-    };
-  }
+  return {
+    latitude: currentLocation.latitude + latOffset,
+    longitude: currentLocation.longitude + lngOffset,
+    latitudeDelta: DEFAULT_ZOOM_DELTAS.latitudeDelta,
+    longitudeDelta: DEFAULT_ZOOM_DELTAS.longitudeDelta,
+  };
 };
 
 /**
@@ -321,18 +114,8 @@ const startCinematicPanAnimation = (
   // Set the cinematic zoom active flag
   cinematicZoomActiveRef.current = true;
 
-  // Use shared calculation for consistent positioning
+  // Use random corner placement for consistent positioning
   const cinematicStartRegion = calculateCinematicStartRegion(explorationPath, currentLocation);
-  const { pathDistance } = calculateCinematicStartPoint(explorationPath, currentLocation);
-  const hasValidPathDirection = pathDistance > 10;
-
-  if (!hasValidPathDirection) {
-    logger.debug('Using random direction for cinematic animation', {
-      component: 'useCinematicZoom',
-      reason: 'insufficient_path_distance',
-      pathDistance: `${pathDistance.toFixed(0)}m`,
-    });
-  }
 
   // End at current location with close zoom
   const endRegion = {
@@ -345,7 +128,6 @@ const startCinematicPanAnimation = (
   logger.debug('Starting cinematic map animation', {
     component: 'useCinematicZoom',
     duration: CINEMATIC_ZOOM_DURATION,
-    pathDistance: pathDistance.toFixed(0),
   });
 
   // 🔍 DEBUG: Verify mapRef is valid and log the actual animation parameters
@@ -383,7 +165,6 @@ const startCinematicPanAnimation = (
   logger.debug('Cinematic pan animation executing', {
     component: 'useCinematicZoom',
     duration: CINEMATIC_ZOOM_DURATION,
-    pathDistance: pathDistance.toFixed(0),
   });
 
   // Clear the cinematic zoom flag after animation completes

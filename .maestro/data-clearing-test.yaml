@@ -1,108 +1,236 @@
 appId: com.fogofdog.app
 ---
-# Test: Full Data Clearing Functionality
-# Purpose: Verify all data clearing options (Last Hour, Last Day, All Time) work correctly
-# Note: Button is now always enabled, even with no data points
+# Data Clearing Test: All three clear time ranges
+#
+# Validates the full data clearing workflow:
+#   1. Launch to map and generate exploration data
+#   2. Settings → Data Management → test each clear option
+#   3. Verify app remains functional after each clear
+#
+# Clear options: Last Hour, Last Day, All Time
+# Each triggers a native Alert confirmation dialog with "Cancel" / "Clear Data"
+#
+# Preconditions: run_integration_tests.sh pre-seeds app state (onboarding
+# completed, permissions granted). No conditionals needed.
 
-# Set initial location
+# Set initial GPS
 - setLocation:
     latitude: 37.78825
     longitude: -122.4324
 
-# Launch app WITHOUT clearing state to preserve injected historical data
-- launchApp:
-    appId: com.fogofdog.app
-- waitForAnimationToEnd
-
-# Handle login flow if needed (optional - app might already be authenticated)
+# Launch directly to map (zero UI gates)
 - runFlow:
-    when:
-      visible: 'Sign In'
-    commands:
-      - assertVisible:
-          id: 'signInButton'
-      - tapOn:
-          id: 'signInButton'
-      - waitForAnimationToEnd
+    file: shared/launch-to-map.yaml
 
-# Handle location permission if needed
+# @checkpoint: 01-initial-map
+# @description: MapScreen visible after fresh launch. No exploration data yet.
+#   HUD buttons visible. Fog covers the area completely.
+- takeScreenshot: 01-initial-map
+
+# Generate exploration data by moving around
 - runFlow:
-    when:
-      visible: 'Allow'
-    commands:
-      - tapOn: 'Allow While Using App'
-      - waitForAnimationToEnd
+    file: shared/move-and-settle.yaml
+    env:
+      MOVE_LAT: '37.7883'
+      MOVE_LON: '-122.4325'
 
-# Wait for map screen to load - using multiple approaches for reliability
-- waitForAnimationToEnd
-- waitForAnimationToEnd
+- runFlow:
+    file: shared/move-and-settle.yaml
+    env:
+      MOVE_LAT: '37.7890'
+      MOVE_LON: '-122.4340'
+
+- runFlow:
+    file: shared/move-and-settle.yaml
+    env:
+      MOVE_LAT: '37.7895'
+      MOVE_LON: '-122.4355'
+
+# @checkpoint: 02-after-exploration
+# @description: Map after three GPS movements. Three fog holes visible.
+#   Exploration data has been generated for the clearing tests.
+- takeScreenshot: 02-after-exploration
+
+# === Test "Last Hour" ===
+- tapOn:
+    id: 'settings-button'
+- extendedWaitUntil:
+    visible:
+      id: 'data-management-button'
+    timeout: 3000
+- tapOn:
+    id: 'data-management-button'
+- extendedWaitUntil:
+    visible:
+      id: 'clear-data-hour'
+    timeout: 3000
+
+# @checkpoint: 03-data-management-view
+# @description: Data Management settings view with clear options visible.
+#   Shows Last Hour, Last Day, All Time buttons. Data stats displayed.
+- takeScreenshot: 03-data-management-view
+
+- tapOn:
+    id: 'clear-data-hour'
+- extendedWaitUntil:
+    visible:
+      text: 'Clear Data'
+    timeout: 3000
+
+# Confirm the native Alert dialog
+- tapOn: 'Clear Data'
+# Dismiss the "Success" alert (native Alert with default OK button)
+- extendedWaitUntil:
+    visible:
+      text: 'OK'
+    timeout: 5000
+- tapOn: 'OK'
+- extendedWaitUntil:
+    visible:
+      id: 'back-button'
+    timeout: 5000
+
+# Navigate back to map
+- tapOn:
+    id: 'back-button'
+- extendedWaitUntil:
+    visible:
+      id: 'close-button'
+    timeout: 3000
+- tapOn:
+    id: 'close-button'
+- extendedWaitUntil:
+    visible:
+      id: 'map-screen'
+    timeout: 3000
 - assertVisible:
     id: 'map-screen'
 
-# Data clear button should always be visible now (never disabled due to no data)
-- assertVisible:
-    id: 'data-clear-button'
-- takeScreenshot: '01-initial-map-screen'
+# @checkpoint: 04-after-clear-last-hour
+# @description: Map after clearing last hour of data. Some or all fog holes
+#   may have been removed if exploration was within the last hour.
+- takeScreenshot: 04-after-clear-last-hour
 
-# Generate some exploration data by moving through locations
-# This creates realistic data for testing the clearing functionality
-- setLocation:
-    latitude: 37.7883
-    longitude: -122.4325
-- waitForAnimationToEnd
+# === Test "Last Day" ===
+# Generate fresh data first
+- runFlow:
+    file: shared/move-and-settle.yaml
+    env:
+      MOVE_LAT: '37.7900'
+      MOVE_LON: '-122.4360'
 
-- setLocation:
-    latitude: 37.7890
-    longitude: -122.4340
-- waitForAnimationToEnd
-
-- setLocation:
-    latitude: 37.7895
-    longitude: -122.4355
-- waitForAnimationToEnd
-
-# Take screenshot after generating data
-- takeScreenshot: '02-after-location-changes'
-
-# --- Test "Last Hour" ---
-# Button should always be tappable now
 - tapOn:
-    id: 'data-clear-button'
-- waitForAnimationToEnd
-
-- assertVisible: 'Clear Exploration Data'
-- takeScreenshot: '03-clear-dialog-visible'
-- tapOn: 'Last Hour'
-- waitForAnimationToEnd
-- tapOn: 'Clear Data'
-- waitForAnimationToEnd
-- tapOn: 'OK'
-- waitForAnimationToEnd
-
-# --- Test "Last Day" ---
+    id: 'settings-button'
+- extendedWaitUntil:
+    visible:
+      id: 'data-management-button'
+    timeout: 3000
 - tapOn:
-    id: 'data-clear-button'
-- waitForAnimationToEnd
-- assertVisible: 'Clear Exploration Data'
-- tapOn: 'Last Day'
-- waitForAnimationToEnd
-- tapOn: 'Clear Data'
-- waitForAnimationToEnd
-- tapOn: 'OK'
-- waitForAnimationToEnd
-
-# --- Test "All Time" ---
+    id: 'data-management-button'
+- extendedWaitUntil:
+    visible:
+      id: 'clear-data-day'
+    timeout: 3000
 - tapOn:
-    id: 'data-clear-button'
-- waitForAnimationToEnd
-- assertVisible: 'Clear Exploration Data'
-- tapOn: 'All Time'
-- waitForAnimationToEnd
+    id: 'clear-data-day'
+- extendedWaitUntil:
+    visible:
+      text: 'Clear Data'
+    timeout: 3000
 - tapOn: 'Clear Data'
-- waitForAnimationToEnd
+# Dismiss the "Success" alert
+- extendedWaitUntil:
+    visible:
+      text: 'OK'
+    timeout: 5000
 - tapOn: 'OK'
-- waitForAnimationToEnd
+- extendedWaitUntil:
+    visible:
+      id: 'back-button'
+    timeout: 5000
 
-# Final verification - ensure app is still functional after clearing
+# Navigate back to map
+- tapOn:
+    id: 'back-button'
+- extendedWaitUntil:
+    visible:
+      id: 'close-button'
+    timeout: 3000
+- tapOn:
+    id: 'close-button'
+- extendedWaitUntil:
+    visible:
+      id: 'map-screen'
+    timeout: 3000
 - assertVisible:
     id: 'map-screen'
+
+# @checkpoint: 05-after-clear-last-day
+# @description: Map after clearing last day of data. Fog holes from
+#   recent exploration should be removed.
+- takeScreenshot: 05-after-clear-last-day
+
+# === Test "All Time" ===
+# Generate fresh data first
+- runFlow:
+    file: shared/move-and-settle.yaml
+    env:
+      MOVE_LAT: '37.7905'
+      MOVE_LON: '-122.4365'
+
+- tapOn:
+    id: 'settings-button'
+- extendedWaitUntil:
+    visible:
+      id: 'data-management-button'
+    timeout: 3000
+- tapOn:
+    id: 'data-management-button'
+- extendedWaitUntil:
+    visible:
+      id: 'clear-data-all'
+    timeout: 3000
+- tapOn:
+    id: 'clear-data-all'
+- extendedWaitUntil:
+    visible:
+      text: 'Clear Data'
+    timeout: 3000
+- tapOn: 'Clear Data'
+# Dismiss the "Success" alert
+- extendedWaitUntil:
+    visible:
+      text: 'OK'
+    timeout: 5000
+- tapOn: 'OK'
+- extendedWaitUntil:
+    visible:
+      id: 'back-button'
+    timeout: 5000
+
+# Navigate back to map
+- tapOn:
+    id: 'back-button'
+- extendedWaitUntil:
+    visible:
+      id: 'close-button'
+    timeout: 3000
+- tapOn:
+    id: 'close-button'
+- extendedWaitUntil:
+    visible:
+      id: 'map-screen'
+    timeout: 3000
+
+# @checkpoint: 06-after-clear-all
+# @description: Map after clearing all exploration data. Fog should
+#   completely cover the area with no holes visible. App is functional.
+- takeScreenshot: 06-after-clear-all
+
+# Final verification — app still works
+- assertVisible:
+    id: 'map-screen'
+- assertVisible:
+    id: 'location-button'
+- assertVisible:
+    id: 'settings-button'

@@ -15,6 +15,17 @@
 set -e
 
 PLATFORM="${1:-ios}"
+NO_WINDOW=false
+
+# Parse optional flags (after platform arg)
+# Shift only the platform arg; "|| true" handles the case where no args remain
+shift || true
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --no-window) NO_WINDOW=true; shift ;;
+        *) shift ;;
+    esac
+done
 
 # =============================================================================
 # Target Device Configuration
@@ -168,7 +179,9 @@ launch_android() {
         fi
         
         if [ -n "$avd_name" ]; then
-            log_info "Starting AVD: $avd_name (headless mode)"
+            local emu_mode="GUI"
+            [ "$NO_WINDOW" = true ] && emu_mode="headless"
+            log_info "Starting AVD: $avd_name ($emu_mode mode)"
             # Start in detached background process so it survives parent shell exit.
             # Resource tuning flags:
             #   -no-window         Headless mode (no UI window, control via adb/scrcpy)
@@ -179,14 +192,10 @@ launch_android() {
             #   -gpu host          Use host GPU acceleration (faster, less CPU)
             local emulator_bin
             emulator_bin=$(command -v emulator)
+            local emu_flags=(-avd "$avd_name" -no-snapshot-load -no-audio -no-boot-anim -memory 2048 -gpu host)
+            [ "$NO_WINDOW" = true ] && emu_flags+=(-no-window)
             (
-                exec nohup "$emulator_bin" -avd "$avd_name" \
-                    -no-window \
-                    -no-snapshot-load \
-                    -no-audio \
-                    -no-boot-anim \
-                    -memory 2048 \
-                    -gpu host \
+                exec nohup "$emulator_bin" "${emu_flags[@]}" \
                     > /tmp/android_emulator.log 2>&1
             ) &
             local emulator_pid=$!

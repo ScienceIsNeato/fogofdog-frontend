@@ -1,0 +1,88 @@
+appId: com.fogofdog.app
+---
+# Shared Flow: Launch app and land on MapScreen (zero conditionals)
+#
+# PRECONDITIONS (guaranteed by run_integration_tests.sh):
+#   Android: prepare_android_fresh_state() has already:
+#     - Cleared app data (pm clear)
+#     - Injected dev-menu SharedPreferences (skip Expo welcome)
+#     - Injected AsyncStorage: onboarding completed + permissions pre-granted
+#     - Granted runtime location permissions (pm grant)
+#   iOS:
+#     - clearState + permissions:all:allow handles cleanup
+#     - Onboarding "Skip Tutorial" tap (deterministic, not conditional)
+#
+# RESULT: App is on MapScreen with map-screen testID visible.
+#
+# Usage:
+#   - runFlow:
+#       file: shared/launch-to-map.yaml
+
+# ── Android: deterministic happy-path launch ──────────────────────────────
+# State was pre-seeded by run_integration_tests.sh — no conditionals needed.
+# stopApp → openLink (deep link with Metro URL) → wait for map.
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - stopApp:
+          appId: com.fogofdog.app
+      # Brief pause so Android fully tears down the process before relaunch
+      - waitForAnimationToEnd:
+          timeout: 1000
+      - openLink: 'exp+fogofdog://expo-development-client/?url=http%3A%2F%2F10.0.2.2%3A8081'
+      # Wait for React content to render (bundle download + JS init).
+      # First cold start after pm clear is slow — Maestro instrumentation setup,
+      # bundle download, and React initialization all happen here.
+      - extendedWaitUntil:
+          visible:
+            text: '.*'
+          timeout: 60000
+      # Map should appear directly — no onboarding, no permissions.
+      # No fixed delay needed — extendedWaitUntil proceeds the instant
+      # the element is visible.
+      - extendedWaitUntil:
+          visible:
+            id: 'map-screen'
+          timeout: 30000
+      # HUD buttons (LocationButton, SettingsButton) render as children of
+      # map-screen but Android's accessibility tree may register the parent
+      # before all children are queryable.  Wait for location-button so
+      # callers can assert HUD elements immediately on return.
+      - extendedWaitUntil:
+          visible:
+            id: 'location-button'
+          timeout: 10000
+
+# ── iOS: launch with clearState + skip onboarding ────────────────────────
+# iOS clearState wipes AsyncStorage, so onboarding WILL appear.
+# This is deterministic (not conditional) — we know exactly what screen shows.
+# TODO: Pre-seed iOS AsyncStorage via xcrun simctl filesystem injection to
+#       eliminate the onboarding tap and match Android's fully happy-path start.
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - launchApp:
+          appId: com.fogofdog.app
+          clearState: true
+          permissions:
+            all: allow
+      # Wait for onboarding to appear (always shown after clearState)
+      - extendedWaitUntil:
+          visible:
+            text: 'Skip Tutorial'
+          timeout: 15000
+      # Onboarding always appears after clearState — tap Skip (deterministic)
+      - tapOn:
+          text: 'Skip Tutorial'
+      # Wait for permissions to resolve and map to appear
+      - extendedWaitUntil:
+          visible:
+            id: 'map-screen'
+          timeout: 15000
+      # Ensure HUD buttons are queryable before returning to caller
+      - extendedWaitUntil:
+          visible:
+            id: 'location-button'
+          timeout: 10000

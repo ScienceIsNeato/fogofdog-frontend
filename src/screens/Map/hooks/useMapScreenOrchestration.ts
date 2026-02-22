@@ -133,14 +133,15 @@ export const useMapEventHandlers = (options: {
 
   const centerOnUserLocation = useCallback(() => {
     dispatch(toggleFollowMode());
-    if (
-      !isFollowModeActive &&
-      currentLocation &&
-      mapRef.current &&
-      !cinematicZoomActiveRef.current
-    ) {
-      centerMapOnCoordinate(mapRef, currentLocation, 300);
+    if (!isFollowModeActive) {
+      // Turning ON → snap camera to user (if possible) and mark as centered
+      if (currentLocation && mapRef.current && !cinematicZoomActiveRef.current) {
+        centerMapOnCoordinate(mapRef, currentLocation, 300);
+      }
       dispatch(setCenterOnUser(true));
+    } else {
+      // Turning OFF → clear centered flag so button visually deactivates
+      dispatch(setCenterOnUser(false));
     }
   }, [dispatch, isFollowModeActive, currentLocation, mapRef, cinematicZoomActiveRef]);
 
