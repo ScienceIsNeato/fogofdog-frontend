@@ -183,7 +183,9 @@ jobs:
       - name: 🏗️ Build Android app
         run: |
           cd android && ./gradlew assembleDebug --no-daemon -q
-          echo "APK_PATH=$(find app/build/outputs/apk -name '*.apk' | head -1)" >> $GITHUB_ENV
+          APK=$(find $GITHUB_WORKSPACE/android/app/build/outputs/apk -name '*.apk' | head -1)
+          echo "APK_PATH=$APK" >> $GITHUB_ENV
+          echo "📱 Built APK: $APK"
 
       - name: 🎭 Run Maestro Tests on Android Emulator
         uses: reactivecircus/android-emulator-runner@v2
