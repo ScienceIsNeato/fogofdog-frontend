@@ -183,9 +183,19 @@ jobs:
       - name: 📦 Install sqlite3 (for Android state injection)
         run: sudo apt-get install -y sqlite3
 
+      - name: 🔧 Setup Gradle (with dependency caching)
+        uses: gradle/actions/setup-gradle@v3
+
+      - name: 📲 Generate Android native project
+        run: npx expo prebuild --platform android --no-install --clean
+        env:
+          GOOGLE_MAPS_API_KEY: ${{ secrets.GOOGLE_MAPS_API_KEY }}
+
+      - name: 📋 Accept Android SDK licenses
+        run: yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses > /dev/null 2>&1 || true
+
       - name: 🏗️ Build Android app
-        run: |
-          cd android && ./gradlew assembleDebug --no-daemon -q
+        run: cd android && ./gradlew assembleDebug --no-daemon -q
 
       - name: 🎭 Run Maestro Tests on Android Emulator
         uses: reactivecircus/android-emulator-runner@v2
