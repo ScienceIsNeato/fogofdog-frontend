@@ -20,13 +20,15 @@ appId: com.fogofdog.app
 - setLocation:
     latitude: ${MOVE_LAT}
     longitude: ${MOVE_LON}
-# Proceed as soon as the location-button is interactable (already rendered;
-# this confirms the location change propagated without a fixed delay).
-- extendedWaitUntil:
-    visible:
-      id: 'location-button'
-    timeout: 3000
-# Re-center camera on new position
+# Allow GPS update to propagate through the location provider
+- waitForAnimationToEnd:
+    timeout: 500
+# Break follow mode via a small pan so the location-button tap below always
+# re-enables it (fixes toggle alternation on consecutive move-and-settle calls).
+- swipe:
+    direction: LEFT
+    duration: 200
+# Re-center camera on new position (follow was just broken, so this always turns it ON)
 - tapOn:
     id: 'location-button'
     retryTapIfNoChange: false

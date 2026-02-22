@@ -79,6 +79,12 @@ appId: com.fogofdog.app
 
 # Confirm the native Alert dialog
 - tapOn: 'Clear Data'
+# Dismiss the "Success" alert (native Alert with default OK button)
+- extendedWaitUntil:
+    visible:
+      text: 'OK'
+    timeout: 5000
+- tapOn: 'OK'
 - extendedWaitUntil:
     visible:
       id: 'back-button'
@@ -132,6 +138,12 @@ appId: com.fogofdog.app
       text: 'Clear Data'
     timeout: 3000
 - tapOn: 'Clear Data'
+# Dismiss the "Success" alert
+- extendedWaitUntil:
+    visible:
+      text: 'OK'
+    timeout: 5000
+- tapOn: 'OK'
 - extendedWaitUntil:
     visible:
       id: 'back-button'
@@ -185,6 +197,12 @@ appId: com.fogofdog.app
       text: 'Clear Data'
     timeout: 3000
 - tapOn: 'Clear Data'
+# Dismiss the "Success" alert
+- extendedWaitUntil:
+    visible:
+      text: 'OK'
+    timeout: 5000
+- tapOn: 'OK'
 - extendedWaitUntil:
     visible:
       id: 'back-button'

@@ -180,12 +180,12 @@ jobs:
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
 
+      - name: 📦 Install sqlite3 (for Android state injection)
+        run: sudo apt-get install -y sqlite3
+
       - name: 🏗️ Build Android app
         run: |
           cd android && ./gradlew assembleDebug --no-daemon -q
-          APK=$(find $GITHUB_WORKSPACE/android/app/build/outputs/apk -name '*.apk' | head -1)
-          echo "APK_PATH=$APK" >> $GITHUB_ENV
-          echo "📱 Built APK: $APK"
 
       - name: 🎭 Run Maestro Tests on Android Emulator
         uses: reactivecircus/android-emulator-runner@v2
@@ -199,22 +199,35 @@ jobs:
           emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim
           disable-animations: true
           script: |
-            # Install the APK
+            # Find and install the APK (self-contained — no cross-step env vars)
+            APK_PATH=$(find $GITHUB_WORKSPACE/android/app/build/outputs/apk -name '*.apk' -type f | head -1)
+            if [ -z "$APK_PATH" ]; then
+              echo "❌ No APK found! Searching all of android/ for .apk files:"
+              find $GITHUB_WORKSPACE/android -name '*.apk' -type f 2>/dev/null || echo "(none)"
+              exit 1
+            fi
+            echo "📱 Installing APK: $APK_PATH"
             adb install -r "$APK_PATH"
 
             # Start Metro bundler in background
             npx expo start --dev-client --no-dev --minify &
             METRO_PID=$!
 
-            # Wait for Metro to be ready
+            # Wait for Metro to be ready (fail explicitly on timeout)
             echo "⏳ Waiting for Metro bundler..."
+            METRO_READY=false
             for i in $(seq 1 60); do
               if curl -s http://localhost:8081/status 2>/dev/null | grep -q "packager-status:running"; then
                 echo "✅ Metro is ready"
+                METRO_READY=true
                 break
               fi
               sleep 2
             done
+            if [ "$METRO_READY" != "true" ]; then
+              echo "❌ Metro failed to start within 120s"
+              exit 1
+            fi
 
             # Run integration tests
             ./scripts/run_integration_tests.sh --platform android --no-window
